@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 8pt; }
+  thead th, tbody td { padding: 1.6mm 1.8mm; }
+  .lead { font-size: 8.5pt; color: #333; margin: 2mm 0; }
+  .demo { background: #FFF8E1; border-left: 3pt solid var(--yellow); padding: 2mm 3mm;
+          font-size: 8pt; color: #333; margin: 2.5mm 0; }
+  .sub2 { font-size: 9pt; font-weight: 700; color: #000; margin: 3mm 0 0.5mm; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>WASDE &mdash; Supply &amp; Demand</h1>
+      <div class="sub">Reaction &mdash; {{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    {% if demo %}
+    <div class="demo"><b>DEMONSTRATION — {{ my_label }} marketing year</b>. This is exactly how the live note
+      reads; it runs against the fresh WASDE balance sheets the moment they post.</div>
+    {% endif %}
+
+    <p class="summary">
+      The USDA <b>World Agricultural Supply &amp; Demand Estimates</b> ({{ my_label }} marketing year): the US
+      balance sheet — production, use, exports and <b>ending stocks</b> — plus <b>world</b> ending stocks and the
+      <b>stocks-to-use</b> ratio, each vs a year ago. Lower / falling stocks-to-use = tighter balance = bullish;
+      higher = ample = bearish.
+    </p>
+
+    <div class="banner">US Balance Sheet &mdash; {{ my_label }} (million bushels)</div>
+    <table>
+      <thead><tr>
+        <th>Crop</th><th class="center">Production</th><th class="center">Total use</th>
+        <th class="center">Exports</th><th class="center">Ending stocks</th><th class="center">Stocks/use</th>
+        <th class="center">Stocks vs yr</th><th class="center">Read</th>
+      </tr></thead>
+      <tbody>
+        {% for r in us %}
+        <tr class="{{ r.cls }}">
+          <td class="market">{{ r.crop }}</td>
+          <td class="center">{{ r.prod }}</td><td class="center">{{ r.use }}</td>
+          <td class="center">{{ r.exp }}</td><td class="center">{{ r.end }}</td>
+          <td class="center">{{ r.stu }}</td><td class="center">{{ r.vs_yr }}</td>
+          <td class="center sig">{{ r.read }}{% if r.cls == 'long' %} &#9650;{% elif r.cls == 'short' %} &#9660;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if stu_img %}
+    <div class="section">
+      <div class="banner">US Stocks-to-Use &mdash; the headline scarcity gauge</div>
+      <div class="chart"><img src="{{ stu_img }}" alt="US stocks-to-use"></div>
+    </div>
+    {% endif %}
+
+    {% if reax_on %}
+    <div class="banner">Ending Stocks &mdash; Revision &amp; Trade Surprise ({{ my_label }}, mln bu)</div>
+    {% if demo %}
+    <div class="demo">The <b>vs last month</b> and <b>trade-estimate</b> figures in this table are
+      <b>illustrative samples</b> to show the layout. On a live release the revision is computed from the prior
+      month's stored balance sheet, and the trade average / range come from the desk's entered pre-report
+      estimates; the note falls back to the level-only view when they're absent.</div>
+    {% endif %}
+    <table>
+      <thead><tr>
+        <th>Crop</th><th class="center">Ending stocks</th><th class="center">vs last month</th>
+        <th class="center">Trade avg</th><th class="center">Est. range</th><th class="center">Surprise</th>
+        <th class="center">Read</th>
+      </tr></thead>
+      <tbody>
+        {% for r in reax %}
+        <tr class="{{ r.dom_cls }}">
+          <td class="market">{{ r.crop }}</td>
+          <td class="center">{{ r.end }}</td><td class="center">{{ r.mom }}</td>
+          <td class="center">{{ r.avg }}</td><td class="center">{{ r.range }}</td>
+          <td class="center">{{ r.surp }}{% if r.oor %} *{% endif %}</td>
+          <td class="center sig">{{ r.read }}{% if r.dom_cls == 'long' %} &#9650;{% elif r.dom_cls == 'short' %} &#9660;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="lead">A <b>cut</b> in ending stocks vs last month, or a print <b>below</b> the trade estimate, is
+      supportive (a tighter balance); a build or a print above is a headwind. The market prices the pre-report
+      estimate, so the <b>surprise</b> (actual vs trade) tends to drive the report-day move, while the revision
+      shapes the follow-through. <b>*</b> = outside the full range of estimates (a larger surprise).</p>
+    {% endif %}
+
+    <div class="banner">World Ending Stocks &amp; Stocks-to-Use &mdash; {{ my_label }} (MMT)</div>
+    <table>
+      <thead><tr>
+        <th>Crop</th><th class="center">World ending stocks (MMT)</th><th class="center">World stocks/use</th>
+        <th class="center">Stocks vs yr</th><th class="center">Read</th>
+      </tr></thead>
+      <tbody>
+        {% for r in world %}
+        <tr class="{{ r.cls }}">
+          <td class="market">{{ r.crop }}</td>
+          <td class="center">{{ r.end }}</td><td class="center">{{ r.stu }}</td>
+          <td class="center">{{ r.vs_yr }}</td>
+          <td class="center sig">{{ r.read }}{% if r.cls == 'long' %} &#9650;{% elif r.cls == 'short' %} &#9660;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="banner">How to read it</div>
+    <p class="lead">
+      <b>Ending stocks</b> is the carry-out at the end of the marketing year; the <b>stocks-to-use</b> ratio
+      (ending stocks ÷ total use) normalises it — a low, falling ratio marks a price-inelastic, weather-sensitive
+      market where small shocks move price hard. <b>Stocks below year-ago</b> = tightening = supportive; above =
+      ample = a headwind. The US table drives CBOT corn / soybeans / Chicago &amp; KC wheat; the world table is
+      the global backdrop (the China carry-out especially). Pair with export demand and positioning in the AG
+      Fundamentals and COT reports.
+    </p>
+
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      Source: USDA Foreign Agricultural Service PS&amp;D (Production, Supply &amp; Distribution), which carries the
+      WASDE balance sheets and is refreshed with each monthly release. US figures converted to million bushels
+      (corn 39.37, soybeans / wheat 36.74 bu per metric ton); world in million metric tons. Stocks-to-use =
+      ending stocks ÷ total use (US = domestic use + exports; world = domestic consumption). Free U.S.-government
+      data. Information only &mdash; not investment advice or a solicitation.
+    </div>
+  </div>
+</body>
+</html>

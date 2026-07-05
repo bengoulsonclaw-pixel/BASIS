@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>  /* Put/Call interest table is 8-col — keep it tight; pad the stacked charts */
+  table { font-size: 7.5pt; }
+  thead th, tbody td { padding: 1.4mm 1.6mm; }
+  .chartbook .section { margin-top: 3mm; }
+  .newpage { break-before: page; page-break-before: always; }
+  p.outcomes { margin-top: 2.5mm; }
+  p.outcomes b { color: #111; }
+  /* Page 1 packs the title, summary, commentary AND the whole-book heatmap — tighten
+     the vertical rhythm so the heatmap sits on the same page as the summary. */
+  .summary { margin-top: 2mm; }
+  .banner { margin-top: 3.5mm; }
+  .flag { font-size: 6pt; font-weight: 700; padding: 0 1mm; border-radius: 1mm; margin-left: 1mm;
+          background: #FFF3CD; color: #7A5C00; white-space: nowrap; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Put/Call Ratios</h1>
+      <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      Options <b>put/call ratios</b> across <b>{{ n_markets }}</b> markets &mdash; open interest (standing
+      positioning, the headline) with traded volume (today's flow) alongside &nbsp;·&nbsp;
+      <span class="rich">{{ n_put }} put-heavy</span> &nbsp;·&nbsp;
+      <span class="cheap">{{ n_call }} call-heavy</span>.
+      <b>How it's calculated:</b> the ratio is <b>puts &divide; calls</b> &mdash; put open interest
+      &divide; call open interest on the open-interest basis (the headline), and put volume &divide; call
+      volume on the volume basis. A ratio <b>above 1</b> means more puts than calls (put-heavy / defensive);
+      <b>below 1</b> means more calls (call-heavy / bullish). Because the &ldquo;normal&rdquo; level differs
+      by product (index options sit structurally put-heavy from hedging), each market's OI ratio is scored as
+      a <b>0&ndash;100 percentile within its own trailing-year range</b> &mdash; flagged <b>&ge; {{ hi }}</b>
+      (put-heavy) or <b>&le; {{ lo }}</b> (call-heavy).
+    </p>
+
+    <p class="summary outcomes">{{ commentary | safe }}</p>
+
+    <div class="section">
+      <div class="banner">Put/Call Heatmap &mdash; whole book (OI basis)</div>
+      <div class="chart"><img src="{{ heatmap }}" alt="put/call percentile heatmap"></div>
+    </div>
+
+    <div class="newpage">
+      <div class="banner">Yesterday's Options Activity &mdash; {{ prev_day }}</div>
+      <p class="summary" style="margin-top:2mm">{{ act_lead | safe }}</p>
+      <p class="summary" style="margin-top:1.5mm">
+        <b>How to read this.</b> <b style="color:#2E7D32">Calls</b> point right, <b style="color:#C62828">puts</b>
+        point left, each shown <b>as a % of that side's own 1-year daily average</b> &mdash; so contract size
+        doesn't distort it. The dashed line at <b>100% on each side is the average</b>: a bar reaching past it
+        traded <b>above</b> its average that day, short of it <b>below</b>. Markets are ranked by their bigger
+        side, so the most extreme movers versus their own norm are on top. The <b>(Nd)</b> after each name is how
+        many days of history the average uses; names in <i>grey</i> have under 120 days, so their average is still
+        building &mdash; read those with caution. (Absolute contract counts are in each product's detail.)
+      </p>
+      <div class="section"><div class="chart"><img src="{{ activity_bar }}" alt="yesterday's options activity"></div></div>
+    </div>
+
+    <div class="section newpage">
+      <div class="banner">Positioning by OI Put/Call Percentile &mdash; whole book (current)</div>
+      <div class="chart"><img src="{{ rank }}" alt="put/call percentile ranked bar"></div>
+    </div>
+
+    {% if rows %}
+    <div class="newpage">
+    <div class="banner">Products of Interest &mdash; put/call extremes, shifts &amp; divergences</div>
+    <p class="summary" style="margin-top:2mm">
+      <b>How to read this.</b> The <b>OI P/C percentile</b> places each market's open-interest put/call ratio
+      within its own trailing-year range: <b>0</b> = the most call-heavy it has been in a year, <b>100</b> =
+      the most put-heavy. A market is flagged <b class="rich">put-heavy</b> when its percentile is
+      <b>&ge; {{ hi }}</b> and <b class="cheap">call-heavy</b> when <b>&le; {{ lo }}</b>. <b>&Delta;1d</b> is the
+      z-score of today's one-day change in the OI ratio (a fresh shift when |z| &ge; {{ spike_z }});
+      <b>Flow&minus;OI</b> is the volume-percentile minus the OI-percentile (a divergence when
+      |&middot;| &ge; {{ diverge }} &mdash; today's flow running ahead of standing positioning). Heavy put
+      demand is defensive / bearish and heavy call demand bullish; extremes are frequently read contrarian.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Market</th><th>Asset</th><th class="center">Signal</th>
+          <th class="center">OI P/C</th><th class="center">OI %ile</th>
+          <th class="center">Vol P/C</th><th class="center">&Delta;1d (z)</th><th class="center">Flow&minus;OI</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
+          <td class="market">{{ r.market }}</td>
+          <td>{{ r.asset }}</td>
+          <td class="center sig">{{ r.signal }}{% if r.spike %}<span class="flag">&Delta;1d</span>{% endif %}{% if r.diverge %}<span class="flag">flow&ne;OI</span>{% endif %}</td>
+          <td class="center">{{ r.pc_oi }}</td>
+          <td class="center">{{ r.oi_pctl }}</td>
+          <td class="center">{{ r.pc_vol }}</td>
+          <td class="center">{{ r.chg }}</td>
+          <td class="center">{{ r.div }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="banner newpage">Products of Interest</div>
+    <p class="summary" style="margin-top:2mm">No market currently sits at a put/call extreme, and no fresh
+      one-day shift or flow-vs-positioning divergence is flagged at the current thresholds.</p>
+    {% endif %}
+
+    {% if activity %}
+    <div class="banner newpage">Options Activity &mdash; whole book, by daily volume</div>
+    <p class="summary" style="margin-top:2mm">
+      Total option contracts <b>traded over the last ~1 year</b> (~252 sessions), split <b>calls</b> vs
+      <b>puts</b>, with the <b>average traded per day</b> &mdash; sorted most-active first, so the
+      heaviest-traded books sit at the top. The volume put/call (puts &divide; calls of that flow) is shown
+      for context. K = thousand · M = million contracts.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Market</th><th>Asset</th>
+          <th class="center">Total calls (1y)</th><th class="center">Total puts (1y)</th>
+          <th class="center">Avg / day</th><th class="center">Vol P/C</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in activity %}
+        <tr>
+          <td class="market">{{ r.market }}</td>
+          <td>{{ r.asset }}</td>
+          <td class="center">{{ r.calls }}</td>
+          <td class="center">{{ r.puts }}</td>
+          <td class="center"><b>{{ r.avg }}</b></td>
+          <td class="center">{{ r.pc_vol }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="banner newpage">Put/Call Charts &mdash; every market</div>
+    <p class="summary" style="margin-top:2mm">
+      Per market, three stacked panels over ~6 months: <b>(1)</b> the <b style="color:#0A0A0A">OI put/call</b>
+      ratio (black) and <b style="color:#1F5FA8">volume put/call</b> (blue) with the underlying
+      <b style="color:#C62828">price</b> on the right axis (dashed line = parity, 1.0); <b>(2)</b> the OI P/C
+      percentile, with shaded put-heavy (red) / call-heavy (green) zones; <b>(3)</b> <b>daily volume</b> &mdash;
+      <b style="color:#2E7D32">calls</b> + <b style="color:#C62828">puts</b> traded each day, with the
+      <b>~1y daily average</b> as a dashed line.
+    </p>
+    <div class="chartbook">
+      {% for p in products %}
+      <div class="section"><div class="chart"><img src="{{ p.img }}" alt="put/call chart"></div></div>
+      {% endfor %}
+    </div>
+
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      Source: exchange options open interest and volume, aggregated to puts vs calls per underlying. The put/call
+      ratio is puts &divide; calls; the OI P/C percentile is today's ratio's position within its own trailing
+      1-year range. A put/call ratio is a sentiment / positioning gauge &mdash; heavy put demand is defensive and
+      heavy call demand bullish &mdash; and extremes are frequently read as contrarian, but are descriptive, not a
+      recommendation. Coverage depends on each contract's listed-option liquidity; markets without a clean
+      put/call (including some FX, whose vol trades OTC) are omitted. Generated by the internal Strategy Monitor
+      for information only &mdash; not investment advice or a solicitation.
+    </div>
+  </div>
+</body>
+</html>

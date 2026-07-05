@@ -1,0 +1,53 @@
+# ── Secrets / API keys — NEVER commit ─────────────────────────────────────────
+*key*.txt
+*_key.txt
+*.key
+*.pem
+.env
+.env.*
+credentials.json
+token.json
+data/eia_key.txt
+data/unsplash_key.txt
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ── Virtual environment (large, machine-specific) ─────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Deploy artifact: bundled Playwright browser ───────────────────────────────
+playwright-browsers/
+
+# ── Regenerated Bloomberg data caches (rebuilt by the morning snapshot) ───────
+data/snapshot/
+data/equities/
+data/price_store/
+data/signals/
+data/wasde_snapshots/
+
+# ── Generated reports / exports ───────────────────────────────────────────────
+data/*.pdf
+data/*.xlsx
+history_check.txt
+
+# ── User-editable runtime state (managed in-app; ignore the churn, and keep
+#    git operations from ever touching the user's deliberate settings) ─────────
+data/sector_filter.json
+data/filter_default.json
+data/ui_prefs.json
+data/alerts.json
+data/automation.json
+data/email_recipients.json
+data/wasde_consensus.json
+
+# ── OS / editor cruft ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

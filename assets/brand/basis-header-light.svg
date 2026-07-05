@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 120" font-family="'Liberation Sans','DejaVu Sans',sans-serif">
+ <defs>
+  <linearGradient id="sgL" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#3D434B"/><stop offset="0.58" stop-color="#3D434B"/>
+    <stop offset="0.73" stop-color="#C39A33"/><stop offset="1" stop-color="#E0A81C"/>
+  </linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#F6D24A"/><stop offset="1" stop-color="#D9971C"/></linearGradient>
+  <linearGradient id="sil" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#F2F4F6"/><stop offset="1" stop-color="#9CA2A9"/></linearGradient>
+ </defs>
+ <g transform="translate(14,26) scale(0.62)">
+    <line x1="6" y1="2" x2="6" y2="102" stroke="#9AA0A8" stroke-width="2"/>
+    <line x1="2.5" y1="2" x2="9.5" y2="2" stroke="#9AA0A8" stroke-width="2"/>
+    <line x1="2.5" y1="102" x2="9.5" y2="102" stroke="#9AA0A8" stroke-width="2"/>
+    <path d="M8 2 L150 52" fill="none" stroke="url(#sil)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M8 102 L150 52" fill="none" stroke="url(#gold)" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="150" cy="52" r="8.5" fill="url(#gold)"/></g>
+ <text x="132" y="82" font-size="76" font-weight="700" letter-spacing="2.5" fill="url(#sgL)">BASIS</text>
+</svg>

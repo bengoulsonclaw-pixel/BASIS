@@ -1,0 +1,844 @@
+{
+  "instruments": [
+    {
+      "ticker": "ESA Index",
+      "name": "S&P 500 E-mini",
+      "price": 6000.0,
+      "asset": "Indices",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "NQA Index",
+      "name": "Nasdaq 100 E-mini",
+      "price": 21000.0,
+      "asset": "Indices",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "RTYA Index",
+      "name": "Russell 2000 E-mini",
+      "price": 2300.0,
+      "asset": "Indices",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "DMA Index",
+      "name": "Dow E-mini",
+      "price": 43000.0,
+      "asset": "Indices",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "VGA Index",
+      "name": "Euro Stoxx 50",
+      "price": 5100.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "CAA Index",
+      "name": "CAC 40",
+      "price": 7800.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "Z A Index",
+      "name": "FTSE 100",
+      "price": 8400.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "GXA Index",
+      "name": "DAX",
+      "price": 18500.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SMA Index",
+      "name": "SMI (Swiss)",
+      "price": 12000.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "NKA Index",
+      "name": "Nikkei 225",
+      "price": 39000.0,
+      "asset": "Indices",
+      "region": "APAC",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "KMA Index",
+      "name": "KOSPI 200",
+      "price": 360.0,
+      "asset": "Indices",
+      "region": "APAC",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "XPA Index",
+      "name": "ASX SPI 200",
+      "price": 7900.0,
+      "asset": "Indices",
+      "region": "APAC",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SX5E Index",
+      "name": "Euro Stoxx 50",
+      "price": 6100.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
+      "ticker": "SX7E Index",
+      "name": "Euro Stoxx Banks",
+      "price": 270.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
+      "ticker": "DAX Index",
+      "name": "DAX",
+      "price": 24900.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
+      "ticker": "UKX Index",
+      "name": "FTSE 100",
+      "price": 10360.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
+      "ticker": "SERA Comdty",
+      "name": "1M SOFR",
+      "price": 95.7,
+      "asset": "STIRs",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SFRA Comdty",
+      "name": "3M SOFR",
+      "price": 96.0,
+      "asset": "STIRs",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "FFA Comdty",
+      "name": "30-Day Fed Funds",
+      "price": 95.8,
+      "asset": "STIRs",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "ERA Comdty",
+      "name": "3M Euribor",
+      "price": 97.8,
+      "asset": "STIRs",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "TKYA Comdty",
+      "name": "3M ESTR",
+      "price": 99.7,
+      "asset": "STIRs",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SFIA Comdty",
+      "name": "3M SONIA (Short Sterling)",
+      "price": 96.0,
+      "asset": "STIRs",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "USA Comdty",
+      "name": "US Long Bond",
+      "price": 118.0,
+      "asset": "Bonds",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "WNA Comdty",
+      "name": "Ultra US Bond",
+      "price": 125.0,
+      "asset": "Bonds",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "UXYA Comdty",
+      "name": "Ultra 10Y Note",
+      "price": 118.0,
+      "asset": "Bonds",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "TYA Comdty",
+      "name": "US 10Y Note",
+      "price": 111.0,
+      "asset": "Bonds",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "FVA Comdty",
+      "name": "US 5Y Note",
+      "price": 108.0,
+      "asset": "Bonds",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "TUA Comdty",
+      "name": "US 2Y Note",
+      "price": 103.0,
+      "asset": "Bonds",
+      "region": "NA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "UBA Comdty",
+      "name": "Euro Buxl (30Y)",
+      "price": 135.0,
+      "asset": "Bonds",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "RXA Comdty",
+      "name": "Euro-Bund (10Y)",
+      "price": 130.0,
+      "asset": "Bonds",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "OEA Comdty",
+      "name": "Euro-Bobl (5Y)",
+      "price": 117.0,
+      "asset": "Bonds",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "DUA Comdty",
+      "name": "Euro-Schatz (2Y)",
+      "price": 106.0,
+      "asset": "Bonds",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "OATA Comdty",
+      "name": "French OAT",
+      "price": 125.0,
+      "asset": "Bonds",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "G A Comdty",
+      "name": "Long Gilt",
+      "price": 92.0,
+      "asset": "Bonds",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "ECA Curncy",
+      "name": "Euro (EUR/USD)",
+      "price": 1.1,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "EURUSDV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "BPA Curncy",
+      "name": "British Pound (GBP)",
+      "price": 1.27,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "GBPUSDV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "BRA Curncy",
+      "name": "Brazilian Real (BRL)",
+      "price": 0.18,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDBRLV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "CDA Curncy",
+      "name": "Canadian Dollar (CAD)",
+      "price": 0.73,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDCADV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "SFA Curncy",
+      "name": "Swiss Franc (CHF)",
+      "price": 1.12,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDCHFV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "JYA Curncy",
+      "name": "Japanese Yen (JPY)",
+      "price": 0.0065,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDJPYV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "ADA Curncy",
+      "name": "Australian Dollar (AUD)",
+      "price": 0.66,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "AUDUSDV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "NVA Curncy",
+      "name": "New Zealand Dollar (NZD)",
+      "price": 0.6,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "NZDUSDV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "PEA Curncy",
+      "name": "Mexican Peso (MXN)",
+      "price": 0.055,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDMXNV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "RAA Curncy",
+      "name": "South African Rand (ZAR)",
+      "price": 0.055,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDZARV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "SIRA Curncy",
+      "name": "Indian Rupee (INR)",
+      "price": 0.012,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDINRV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "SEA Curncy",
+      "name": "Swedish Krona (SEK)",
+      "price": 0.095,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDSEKV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "HEA Curncy",
+      "name": "Hungarian Forint (HUF)",
+      "price": 1.0,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "KOA Curncy",
+      "name": "Korean Won (KRW)",
+      "price": 0.00075,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDKRWV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "NOA Curncy",
+      "name": "Norwegian Krone (NOK)",
+      "price": 0.094,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDNOKV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "CCA Curncy",
+      "name": "Czech Koruna (CZK)",
+      "price": 0.14,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "ISA Curncy",
+      "name": "Israeli Shekel (ILS)",
+      "price": 0.27,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "USDILSV1M Curncy",
+      "vol_field": "PX_LAST",
+      "price_field": ""
+    },
+    {
+      "ticker": "PPA Curncy",
+      "name": "Polish Zloty (PLN)",
+      "price": 1.0,
+      "asset": "FX",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "COA Comdty",
+      "name": "Brent Crude",
+      "price": 76.0,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "CLA Comdty",
+      "name": "WTI Crude",
+      "price": 72.0,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "XBA Comdty",
+      "name": "RBOB Gasoline",
+      "price": 2.3,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "NGA Comdty",
+      "name": "Henry Hub Nat Gas",
+      "price": 3.3,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "FJSA Comdty",
+      "name": "TTF Natural Gas",
+      "price": 100.0,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "HOA Comdty",
+      "name": "Heating Oil (ULSD)",
+      "price": 2.4,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "QSA Comdty",
+      "name": "Gasoil (ICE)",
+      "price": 700.0,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "MOA Comdty",
+      "name": "EU Carbon (EUA)",
+      "price": 100.0,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "CUAA Comdty",
+      "name": "Chicago Ethanol",
+      "price": 100.0,
+      "asset": "Energy",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "GCA Comdty",
+      "name": "Gold",
+      "price": 2350.0,
+      "asset": "Metals",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SIA Comdty",
+      "name": "Silver",
+      "price": 28.0,
+      "asset": "Metals",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "PLA Comdty",
+      "name": "Platinum",
+      "price": 980.0,
+      "asset": "Metals",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "PAA Comdty",
+      "name": "Palladium",
+      "price": 1000.0,
+      "asset": "Metals",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "HGA Comdty",
+      "name": "Copper (COMEX)",
+      "price": 4.4,
+      "asset": "Metals",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "ALEA Comdty",
+      "name": "Aluminium (COMEX)",
+      "price": 2500.0,
+      "asset": "Metals",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SCOA Comdty",
+      "name": "Iron Ore (IODEX)",
+      "price": 100.0,
+      "asset": "Metals",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "C A Comdty",
+      "name": "Corn",
+      "price": 440.0,
+      "asset": "Agriculture",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "S A Comdty",
+      "name": "Soybeans",
+      "price": 1180.0,
+      "asset": "Agriculture",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "W A Comdty",
+      "name": "Wheat (Chicago)",
+      "price": 580.0,
+      "asset": "Agriculture",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "KWA Comdty",
+      "name": "Wheat (KC)",
+      "price": 600.0,
+      "asset": "Agriculture",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SMA Comdty",
+      "name": "Soybean Meal",
+      "price": 340.0,
+      "asset": "Agriculture",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "BOA Comdty",
+      "name": "Soybean Oil",
+      "price": 44.0,
+      "asset": "Agriculture",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "RRA Comdty",
+      "name": "Rough Rice",
+      "price": 14.0,
+      "asset": "Agriculture",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "KCA Comdty",
+      "name": "Coffee (Arabica)",
+      "price": 230.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "DFA Comdty",
+      "name": "Robusta Coffee",
+      "price": 4000.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "CCA Comdty",
+      "name": "Cocoa",
+      "price": 7000.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "SBA Comdty",
+      "name": "Sugar No.11",
+      "price": 19.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "CTA Comdty",
+      "name": "Cotton",
+      "price": 70.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "JOA Comdty",
+      "name": "Orange Juice (FCOJ)",
+      "price": 250.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "LHA Comdty",
+      "name": "Lean Hogs",
+      "price": 90.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "LCA Comdty",
+      "name": "Live Cattle",
+      "price": 185.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
+      "ticker": "FCA Comdty",
+      "name": "Feeder Cattle",
+      "price": 250.0,
+      "asset": "Softs",
+      "region": "",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    }
+  ]
+}

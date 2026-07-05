@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>  /* COT has an 8-column table — keep it tight, and pad the stacked charts */
+  table { font-size: 7.5pt; }
+  thead th, tbody td { padding: 1.4mm 1.6mm; }
+  .chartbook .section { margin-top: 3mm; }
+  .chartbook .cap { font-size: 6.5pt; color: #999; margin: 0 0 1mm; }
+  .newpage { break-before: page; page-break-before: always; }
+  p.outcomes { margin-top: 3mm; }
+  p.outcomes b { color: #111; }
+  table.fwd { font-size: 6.2pt; }                                  /* 11-col study table — keep tight */
+  table.fwd thead th, table.fwd tbody td { padding: 0.9mm 0.6mm; }
+  /* slim yellow sub-divider marking each sector group in the chartbook */
+  .sectorband { background: var(--yellow); color: var(--black); font-weight: 700; text-transform: uppercase;
+                font-size: 10pt; letter-spacing: .6px; padding: 2.5pt 6pt; margin: 5mm 0 1.5mm;
+                break-after: avoid; page-break-after: avoid; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>COT Positioning</h1>
+      <div class="sub">{% if report_date %}Reports dated {{ report_date }}{% else %}{{ asof }}{% endif %} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      CFTC Commitments of Traders — speculative net positioning across <b>{{ n_markets }}</b> markets
+      (commodities: <b>Managed Money</b>; financials: <b>Leveraged Funds</b>) &nbsp;·&nbsp;
+      <span class="cheap">{{ n_long }} crowded long</span> &nbsp;·&nbsp;
+      <span class="rich">{{ n_short }} crowded short</span>.
+      The <b>COT Index</b> is a 0&ndash;100 stochastic of the net position over the trailing 3 years;
+      flagged when <b>&ge; {{ hi }}</b> (crowded long) or <b>&le; {{ lo }}</b> (crowded short).
+    </p>
+
+    <p class="summary outcomes">{{ commentary | safe }}</p>
+
+    <div class="section">
+      <div class="banner">COT Index Heatmap &mdash; whole book, last 26 weeks</div>
+      <div class="chart"><img src="{{ heatmap }}" alt="COT Index heatmap"></div>
+    </div>
+
+    <div class="section newpage">
+      <div class="banner">Positioning by COT Index &mdash; whole book (current)</div>
+      <div class="chart"><img src="{{ rank }}" alt="COT Index ranked bar"></div>
+    </div>
+
+    {% if rows %}
+    <div class="newpage">
+    <div class="banner">Crowded Markets &mdash; positioning at a 3-year extreme</div>
+    <p class="summary" style="margin-top:2mm">
+      <b>How &ldquo;crowded&rdquo; is defined.</b> The <b>COT Index</b> places each market's current net
+      position within its own trailing <b>3-year range</b>: <b>0</b> = the most net-short it has been in
+      three years, <b>100</b> = the most net-long. A market is flagged <b class="cheap">crowded long</b> when
+      its COT Index is <b>&ge; {{ hi }}</b> (net positioning near the top of its 3-year range) and
+      <b class="rich">crowded short</b> when <b>&le; {{ lo }}</b> (near the bottom). These are the positioning
+      extremes &mdash; the speculative cohort (managed money in commodities, leveraged funds in financials)
+      heavily one-sided &mdash; and are often read as contrarian, since a crowded long has few new buyers left
+      to add and a crowded short few new sellers.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Market</th><th>Bucket</th><th class="center">Signal</th>
+          <th class="center">Long</th><th class="center">Short</th><th class="center">Net</th>
+          <th class="center">Net %OI</th><th class="center">&Delta;wk</th><th class="center">COT Idx</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
+          <td class="market">{{ r.market }}</td>
+          <td>{{ r.category }}</td>
+          <td class="center sig">{{ r.signal }}{% if r.direction > 0 %} &#9650;{% elif r.direction < 0 %} &#9660;{% endif %}</td>
+          <td class="center">{{ r.long }}</td>
+          <td class="center">{{ r.short }}</td>
+          <td class="center">{{ r.net }}</td>
+          <td class="center">{{ r.pct_oi }}</td>
+          <td class="center">{{ r.chg }}</td>
+          <td class="center">{{ r.idx }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+
+    {% if fwd_rows %}
+    <div class="banner">Forward Returns After Positioning Extremes &mdash; study</div>
+    <p class="summary" style="margin-top:2mm">
+      <b>What this shows.</b> Limited to the markets flagged <b>crowded right now</b> (the table above): once
+      positioning in a market became crowded, what did the price tend to do next? For each, we take every past
+      occasion its COT Index <i>entered</i> a crowded <b>long</b> zone (rose to &ge; {{ hi }}) or a crowded
+      <b>short</b> zone (fell to &le; {{ lo }}), and measure the underlying's average price change over the
+      following <b>4</b> and <b>13</b> weeks.
+    </p>
+    <p class="summary" style="margin-top:1.5mm">
+      <b>Sample window.</b> The study looks back over the price history on file — currently from about
+      <b>{{ study_start }}</b> to <b>{{ study_end }}</b> (~<b>{{ study_years }} years</b> for most markets) —
+      and counts, within that span, how many times each market became crowded and what price did next. The
+      <b>Data (yrs)</b> column gives each market's actual depth and <b>n</b> is its number of crowded episodes
+      over that window; read any market showing only a year or two with caution.
+    </p>
+    <p class="summary" style="margin-top:1.5mm">
+      <b>How to read each column.</b>
+      &nbsp;&bull;&nbsp; <b>n</b> (Long&nbsp;n / Short&nbsp;n) — the <b>sample size</b>: how many separate
+      times the market entered that zone (a multi-week crowded run counts <i>once</i>). A low n means treat
+      the figure with caution.
+      &nbsp;&bull;&nbsp; <b>L / S &middot; +4w, +13w</b> — the average price move 4 and 13 weeks after those
+      entries (<span class="cheap">green</span> = price rose, <span class="rich">red</span> = price fell).
+      &nbsp;&bull;&nbsp; <b>Base &middot; +4w, +13w</b> — the market's average move over the same horizon
+      across <i>all</i> weeks. The gap between each side and Base is what the extreme has historically added.
+      A descriptive back-look, <b>not</b> a forecast.
+    </p>
+    <table class="fwd">
+      <thead>
+        <tr>
+          <th>Market</th><th>Bucket</th><th class="center">Data (yrs)</th>
+          <th class="center">Long n</th><th class="center">L +4w</th><th class="center">L +13w</th>
+          <th class="center">Short n</th><th class="center">S +4w</th><th class="center">S +13w</th>
+          <th class="center">Base +4w</th><th class="center">Base +13w</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in fwd_rows %}
+        <tr>
+          <td class="market">{{ r.market }}</td>
+          <td>{{ r.asset }}</td>
+          <td class="center">{{ r.yrs }}</td>
+          <td class="center">{{ r.epL }}</td>
+          <td class="center" style="color:{% if r.long4_dir > 0 %}#1B5E20{% elif r.long4_dir < 0 %}#B71C1C{% else %}#888{% endif %};font-weight:700">{{ r.long4 }}</td>
+          <td class="center" style="color:{% if r.long13_dir > 0 %}#1B5E20{% elif r.long13_dir < 0 %}#B71C1C{% else %}#888{% endif %};font-weight:700">{{ r.long13 }}</td>
+          <td class="center">{{ r.epS }}</td>
+          <td class="center" style="color:{% if r.short4_dir > 0 %}#1B5E20{% elif r.short4_dir < 0 %}#B71C1C{% else %}#888{% endif %};font-weight:700">{{ r.short4 }}</td>
+          <td class="center" style="color:{% if r.short13_dir > 0 %}#1B5E20{% elif r.short13_dir < 0 %}#B71C1C{% else %}#888{% endif %};font-weight:700">{{ r.short13 }}</td>
+          <td class="center" style="color:{% if r.base4_dir > 0 %}#1B5E20{% elif r.base4_dir < 0 %}#B71C1C{% else %}#888{% endif %}">{{ r.base4 }}</td>
+          <td class="center" style="color:{% if r.base13_dir > 0 %}#1B5E20{% elif r.base13_dir < 0 %}#B71C1C{% else %}#888{% endif %}">{{ r.base13 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="banner">Forward Returns After Positioning Extremes &mdash; study</div>
+    <p class="summary" style="margin-top:2mm">No markets are at a crowded positioning extreme this week, so
+      there is nothing to study here. (If the positioning data above is also empty, the price history may be
+      too short &mdash; the study runs on the full Bloomberg price history.)</p>
+    {% endif %}
+
+    <div class="banner newpage">Positioning Charts &mdash; every market</div>
+    <p class="summary" style="margin-top:2mm">
+      Per market: gross <b style="color:#1F5FA8">long</b> bars up, gross <b style="color:#C62828">short</b>
+      bars down, the <b>net</b> line over the top, and the underlying <b>price</b> on the right axis.
+      The lower panel is the COT Index; shaded bands mark the crowded zones.
+    </p>
+    <div class="chartbook">
+      {% set ns = namespace(sec=None) %}
+      {% for p in products %}
+      {% if p.sector != ns.sec %}<div class="sectorband">{{ p.sector }}</div>{% set ns.sec = p.sector %}{% endif %}
+      <div class="section">
+        <div class="chart"><img src="{{ p.img }}" alt="COT chart"></div>
+        {% if p.seas %}<div class="chart"><img src="{{ p.seas }}" alt="positioning seasonality"></div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      Source: U.S. CFTC Commitments of Traders, weekly (Tuesday as-of, published Friday), Futures-and-Options
+      combined. Commodities use the Disaggregated report's <b>Managed Money</b> bucket; financial futures (equity
+      indices, rates, FX) use the Traders-in-Financial-Futures <b>Leveraged Funds</b> bucket (managed money has no
+      analogue there). Net = long &minus; short contracts. The COT Index is the net position's position within its
+      own 3-year min&ndash;max range; positioning extremes are frequently read as contrarian but are descriptive, not
+      a recommendation. ICE-Europe (Brent, Gasoil, Robusta), Eurex and other non-US markets are not covered by the
+      CFTC and are omitted. Generated by the internal Strategy Monitor for information only &mdash; not investment
+      advice or a solicitation.
+    </div>
+  </div>
+</body>
+</html>

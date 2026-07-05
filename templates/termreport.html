@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>  /* term has a 10-column table — keep it tight */
+  table { font-size: 7.5pt; }
+  thead th, tbody td { padding: 1.4mm 1.6mm; }
+  /* the 1-day 1σ price move, STACKED under each tenor's vol so the wide table stays narrow */
+  td .sd { display: block; font-size: 5.6pt; color: #777; font-weight: 400; line-height: 1.15; }
+  th .hsd { display: block; font-size: 5pt; font-weight: 400; opacity: 0.6; line-height: 1.1; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Vol Term Structure</h1>
+      <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      ATM implied-vol curve <b>1M / 3M / 6M / 12M</b> across <b>{{ n_markets }}</b> markets &nbsp;·&nbsp;
+      <span class="cheap">{{ n_steep }} steep</span> (contango, front cheap → buy front) &nbsp;·&nbsp;
+      <span class="rich">{{ n_inv }} inverted</span> (backwardation, front rich → sell front).
+      Slope = 3M − 1M; flagged when its z-score vs the trailing year is
+      <b>above +{{ zflag }}</b> (steep) or <b>below −{{ zflag }}</b> (inverted).
+    </p>
+
+    <div class="section">
+      <div class="banner">Curve Shape &mdash; 1M vs 3M</div>
+      <div class="chart"><img src="{{ scatter }}" alt="1M vs 3M scatter"></div>
+    </div>
+
+    <div class="section">
+      <div class="banner">Most Stretched &mdash; ranked by 3M&minus;1M slope z-score</div>
+      <div class="chart"><img src="{{ bars }}" alt="Slope z-score bar chart"></div>
+    </div>
+
+    <div class="section">
+      <div class="banner">Curve Shapes &mdash; implied (solid) vs realized (dashed)</div>
+      <div class="chart"><img src="{{ curves }}" alt="Per-product curve small multiples"></div>
+    </div>
+
+    <div class="section">
+      <div class="banner">Vol-Risk Premium by Tenor</div>
+      <div class="chart"><img src="{{ vrp }}" alt="VRP by tenor"></div>
+    </div>
+
+    {% if rows %}
+    <div class="banner">Flagged Opportunities</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Market</th><th>Instrument</th><th class="center">Signal</th>
+          <th class="center">1M<span class="hsd">(&plusmn;1&sigma;)</span></th><th class="center">3M<span class="hsd">(&plusmn;1&sigma;)</span></th><th class="center">6M<span class="hsd">(&plusmn;1&sigma;)</span></th><th class="center">12M<span class="hsd">(&plusmn;1&sigma;)</span></th>
+          <th class="center">Slope</th><th class="center">z (1y)</th><th class="center">%ile</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
+          <td class="market">{{ r.market }} <span style="color:#999">· {{ r.asset }}</span></td>
+          <td>{{ r.ticker }}</td>
+          <td class="center sig">{{ r.signal }}{% if r.direction > 0 %} &#9650;{% elif r.direction < 0 %} &#9660;{% endif %}</td>
+          <td class="center">{{ r.iv_1m }}{% if r.iv_1m_sd %}<span class="sd">(&plusmn;{{ r.iv_1m_sd }})</span>{% endif %}</td>
+          <td class="center">{{ r.iv_3m }}{% if r.iv_3m_sd %}<span class="sd">(&plusmn;{{ r.iv_3m_sd }})</span>{% endif %}</td>
+          <td class="center">{{ r.iv_6m }}{% if r.iv_6m_sd %}<span class="sd">(&plusmn;{{ r.iv_6m_sd }})</span>{% endif %}</td>
+          <td class="center">{{ r.iv_12m }}{% if r.iv_12m_sd %}<span class="sd">(&plusmn;{{ r.iv_12m_sd }})</span>{% endif %}</td>
+          <td class="center">{{ r.slope }}</td>
+          <td class="center">{{ r.z }}</td>
+          <td class="center">{{ r.pctl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      ATM implied vol at constant maturities (listed: option surface; FX: OTC tenor vols).
+      Figures in brackets are the corresponding <b>1-day 1-standard-deviation move</b> in the contract's own
+      price units (vol &divide; &radic;252 &times; price), to the decimals it trades in. Slope = 3M − 1M
+      (vol points); z-score and percentile are vs the trailing 1 year. Contango (3M &gt; 1M) is the normal,
+      calm state; backwardation (1M &gt; 3M) signals near-term stress. VRP-by-tenor compares each tenor's
+      implied to the matched realized (1M↔21d, 3M↔63d, 6M↔126d, 12M↔252d). STIRs and non-US equity indices
+      are excluded. Generated by the internal Strategy Monitor for information only &mdash; not investment
+      advice or a solicitation. Source data is subject to your market-data licence terms; verify
+      redistribution rights before external use.
+    </div>
+  </div>
+</body>
+</html>

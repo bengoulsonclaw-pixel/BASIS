@@ -1,0 +1,12 @@
+# BASIS — house theme (Analysis · Strategy · Indicators).
+# This block is the DARK default: it paints the app on-brand before the app's
+# own CSS loads. The in-app sun/moon toggle re-skins to light at runtime
+# (see src/brand.py). primaryColor drives the active strategy button, the
+# "Generate PDF" buttons, checkboxes, sliders and focus highlights.
+[theme]
+base = "dark"
+primaryColor = "#F5C518"
+backgroundColor = "#0A0A0A"
+secondaryBackgroundColor = "#161616"
+textColor = "#ECEEF1"
+font = "sans serif"

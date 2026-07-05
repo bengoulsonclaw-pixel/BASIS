@@ -1,0 +1,89 @@
+<style>
+  /* ===== Shared "Morning Coffee" house style — used by every report ==========
+     Matches Futures_Movements/main.py exactly: A4, 0.30" margins, an INSET 1.55"
+     black sidebar (0.30" white all around it) with a ~0.04" yellow stripe, a
+     5.92" content column, pure #000 black, Arial, 23pt title / 11pt banners.
+     Edit here once and every report (table / vol / skew / term / mean-reversion)
+     stays in lockstep. The 0.30" top/bottom inset lives on @page (not on .content
+     padding) so it repeats on EVERY page — otherwise continuation-page banners ride
+     up to the very top edge, above the fixed sidebar. */
+  @page { size: A4; margin: 0.3in 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: Arial, "Helvetica Neue", sans-serif; color: #222;
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  :root {
+    --black:#000000; --dark:#2B2B2B; --yellow:#F5C518; --lgray:#F2F2F2;
+    --pos-bg:#E8F5E9; --pos-tx:#1B5E20; --neg-bg:#FFEBEE; --neg-tx:#B71C1C;
+  }
+
+  /* Inset black sidebar band: 0.30" white margin all around, 1.55" wide, yellow
+     stripe on its right edge — fixed so it repeats identically on every page.
+     top/bottom: 0 because the @page 0.30" margin already supplies that inset. */
+  .sidebar {
+    position: fixed; top: 0; left: 0.30in; bottom: 0; width: 1.55in;
+    background: var(--black); border-right: 0.04in solid var(--yellow);
+    color: #fff; padding: 0.26in 0.14in; z-index: 2;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .sidebar .logo img { width: 100%; display: block; }
+  .sidebar .contact .label { color: var(--yellow); font-weight: 700; font-size: 7.5pt; margin-bottom: 1mm; }
+  .sidebar .contact .name  { font-size: 7.5pt; margin-bottom: 1mm; }
+  .sidebar .contact .email { font-size: 5.5pt; color: #dcdcdc; overflow-wrap: anywhere; line-height: 1.5; }
+
+  /* Content column: starts right of the band (0.30 + 1.55 + 0.20 gutter = 2.05"),
+     0.30" right margin → 5.92" wide. Top/bottom inset comes from the @page margin
+     (every page); padding here would inset page 1 only and let later pages ride up. */
+  .content { margin-left: 2.05in; margin-right: 0.30in; padding: 0;
+             position: relative; z-index: 1; }
+
+  .watermark { position: fixed; left: 2.05in; right: 0.30in; bottom: 0; z-index: 0; pointer-events: none; }
+  .watermark img { width: 100%; opacity: 0.22; filter: grayscale(1); }
+
+  .titleband { background: var(--black); padding: 3pt 7pt; }
+  .titleband h1 { margin: 0; color: #fff; font-size: 23pt; font-weight: 700; line-height: 1.05; }
+  .titleband .sub { color: var(--yellow); font-style: italic; font-size: 12pt; margin-top: 1mm; }
+
+  .trigger { font-size: 9pt; color: #333; margin-top: 3mm; padding: 2mm 3mm;
+             background: #FFF8E1; border-left: 3pt solid var(--yellow); }
+
+  .banner { background: var(--black); color: var(--yellow); font-weight: 700; text-transform: uppercase;
+            font-size: 11pt; letter-spacing: .3px; padding: 3.5pt 6pt; margin-top: 5mm; break-after: avoid; }
+  .banner .sig { float: right; text-transform: none; }
+  .banner .sig.long { color: #8BE6A0; }
+  .banner .sig.short { color: #FF9A8B; }
+
+  .summary { font-size: 8.5pt; color: #333; margin: 3mm 0 0; }
+  .summary b { color: #111; }
+  .summary .rich { color: var(--neg-tx); font-weight: 700; }
+  .summary .cheap { color: var(--pos-tx); font-weight: 700; }
+
+  .stats { font-size: 8pt; color: #333; margin: 2mm 0; }
+  .stats b { color: #111; }
+
+  .chart { margin-top: 2mm; }
+  .chart img { width: 100%; display: block; }
+  .section { break-inside: avoid; }
+
+  hr.rule { border: 0; border-top: 1pt solid var(--yellow); margin: 4mm 0 3mm; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-top: 2mm; }
+  thead th { background: var(--dark); color: #fff; text-align: left; font-weight: 700;
+             padding: 2.75pt 4.5pt; border: 0.75pt solid #555; }
+  tbody td { padding: 2.4pt 4.5pt; border: 0.75pt solid #CCC; vertical-align: top; }
+  th.center, td.center { text-align: center; }
+  td.market { font-weight: 600; color: #111; }
+  tr.long  td { background: var(--pos-bg); }
+  tr.short td { background: var(--neg-bg); }
+  tr.flat  td { background: var(--lgray); }
+  td.sig { font-weight: 700; white-space: nowrap; }
+  tr.long  td.sig { color: var(--pos-tx); }
+  tr.short td.sig { color: var(--neg-tx); }
+  tr.flat  td.sig { color: var(--dark); }
+
+  .legend { font-size: 7.5pt; margin-top: 3mm; }
+  .legend .sw { padding: 0.5mm 2mm; margin-right: 1mm; }
+
+  .disclaimer { font-weight: 700; font-size: 7pt; color: #888; margin-top: 4mm; letter-spacing: .3px; }
+  .fine { font-size: 7pt; color: #aaa; margin-top: 2mm; line-height: 1.45; }
+</style>

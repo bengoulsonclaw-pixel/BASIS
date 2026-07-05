@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: Arial, "Helvetica Neue", sans-serif; color: #222; background: #fff;
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* One continuous layout: a single full-height sidebar + a flowing content column.
+     align-items:stretch makes the sidebar as tall as the whole content (no per-page repeat). */
+  .wrap { display: flex; width: 640px; align-items: stretch; }
+  .sidebar { width: 120px; flex-shrink: 0; background: #0A0A0A; border-right: 4px solid #F5C518;
+             color: #fff; padding: 16px 12px; }
+  .sidebar .logo img { width: 100%; display: block; }
+  .sidebar .contact { margin-top: 22px; }
+  .sidebar .contact .label { color: #F5C518; font-weight: 700; font-size: 8.5px; letter-spacing: .4px; margin-bottom: 5px; }
+  .sidebar .contact .nm { font-size: 12px; font-weight: 700; color: #fff; line-height: 1.25; margin-bottom: 7px; }
+  .sidebar .contact .em { font-size: 8px; color: #d8d8d8; line-height: 1.55; overflow-wrap: break-word; word-break: normal; margin-bottom: 3px; }
+
+  .content { flex: 1; min-width: 0; padding: 12px 14px 16px; }
+  .titleband { background: #0A0A0A; padding: 5px 9px; }
+  .titleband h1 { margin: 0; color: #fff; font-size: 17px; font-weight: 700; line-height: 1.05; }
+  .titleband .sub { color: #F5C518; font-style: italic; font-size: 9px; margin-top: 2px; }
+  .summary { font-size: 10.5px; color: #333; line-height: 1.45; margin: 8px 0 0; }
+  .summary b { color: #111; }
+  .summary .cheap { color: #2E7D32; font-weight: 700; }
+  .summary .rich { color: #C62828; font-weight: 700; }
+  .banner { background: #0A0A0A; color: #F5C518; font-weight: 700; text-transform: uppercase;
+            font-size: 9.5px; letter-spacing: .3px; padding: 3px 6px; margin-top: 12px; }
+  .chart img { width: 100%; display: block; margin-top: 5px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8px; margin-top: 5px; }
+  thead th { background: #2B2B2B; color: #fff; text-align: left; font-weight: 700; padding: 2px 3px; }
+  tbody td { padding: 2px 3px; border: 0.5px solid #ccc; vertical-align: top; }
+  th.ctr, td.ctr { text-align: center; }
+  td.market { font-weight: 600; color: #111; }
+  tr.long td { background: #E8F5E9; }
+  tr.short td { background: #FFEBEE; }
+  td.sig { font-weight: 700; white-space: nowrap; }
+  tr.long td.sig { color: #1B5E20; }
+  tr.short td.sig { color: #B71C1C; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="sidebar">
+      <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP">{% endif %}</div>
+      <div class="contact">
+        <div class="label">Contact</div>
+        <div class="nm">Ben I. Goulson</div>
+        <div class="em">Benjamin.Goulson@<wbr>xpi.com.br</div>
+        <div class="em">Futures.Offshore@<wbr>xpi.us</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="titleband">
+        <h1>COT Positioning</h1>
+        <div class="sub">Reports dated {{ report_date }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+      </div>
+
+      <p class="summary">{{ commentary | safe }}</p>
+
+      <div class="banner">COT Index Heatmap &mdash; whole book, last 26 weeks</div>
+      <div class="chart"><img src="{{ heatmap }}" alt="heatmap"></div>
+
+      <div class="banner">Positioning by COT Index &mdash; whole book</div>
+      <div class="chart"><img src="{{ rank }}" alt="ranked positioning"></div>
+
+      {% if crowded %}
+      <div class="banner">Crowded Markets &mdash; positioning at a 3-year extreme</div>
+      <table>
+        <thead><tr>
+          <th>Market</th><th>Bucket</th><th class="ctr">Signal</th>
+          <th class="ctr">Net</th><th class="ctr">%OI</th><th class="ctr">COT Idx</th>
+        </tr></thead>
+        <tbody>
+          {% for r in crowded %}
+          <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
+            <td class="market">{{ r.market }}</td><td>{{ r.category }}</td>
+            <td class="ctr sig">{{ r.signal }}{% if r.direction > 0 %} &#9650;{% elif r.direction < 0 %} &#9660;{% endif %}</td>
+            <td class="ctr">{{ r.net }}</td><td class="ctr">{{ r.pct_oi }}</td><td class="ctr">{{ r.idx }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if fwd %}
+      <div class="banner">Forward Returns After Positioning Extremes</div>
+      <table>
+        <thead><tr>
+          <th>Market</th><th class="ctr">Data yrs</th>
+          <th class="ctr">Long n</th><th class="ctr">After long +13w</th>
+          <th class="ctr">Short n</th><th class="ctr">After short +13w</th><th class="ctr">Base +13w</th>
+        </tr></thead>
+        <tbody>
+          {% for r in fwd %}
+          <tr>
+            <td class="market">{{ r.market }}</td><td class="ctr">{{ r.yrs }}</td>
+            <td class="ctr">{{ r.epL }}</td>
+            <td class="ctr" style="font-weight:700;color:{% if r.long13_dir>0 %}#1B5E20{% elif r.long13_dir<0 %}#B71C1C{% else %}#888{% endif %}">{{ r.long13 }}</td>
+            <td class="ctr">{{ r.epS }}</td>
+            <td class="ctr" style="font-weight:700;color:{% if r.short13_dir>0 %}#1B5E20{% elif r.short13_dir<0 %}#B71C1C{% else %}#888{% endif %}">{{ r.short13 }}</td>
+            <td class="ctr" style="color:{% if r.base13_dir>0 %}#1B5E20{% elif r.base13_dir<0 %}#B71C1C{% else %}#888{% endif %}">{{ r.base13 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

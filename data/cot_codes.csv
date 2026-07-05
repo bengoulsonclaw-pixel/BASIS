@@ -1,0 +1,49 @@
+universe_ticker,product,asset,cftc_code,report,category,cftc_contract_name,bbg_long_fo,bbg_short_fo,bbg_net_fo
+CLA Comdty,WTI Crude,Energy,067651,Disaggregated,Managed Money,WTI-PHYSICAL,CFCDQMML,CFCDQMMS,CFCDQMMN
+XBA Comdty,RBOB Gasoline,Energy,111659,Disaggregated,Managed Money,GASOLINE RBOB,CFCDRMML,CFCDRMMS,CFCDRMMN
+NGA Comdty,Henry Hub Nat Gas,Energy,023651,Disaggregated,Managed Money,NAT GAS NYME,CFCDOMML,CFCDOMMS,CFCDOMMN
+HOA Comdty,Heating Oil (ULSD),Energy,022651,Disaggregated,Managed Money,NY HARBOR ULSD,CFCDNMML,CFCDNMMS,CFCDNMMN
+GCA Comdty,Gold,Metals,088691,Disaggregated,Managed Money,GOLD,CFCDUMML,CFCDUMMS,CFCDUMMN
+SIA Comdty,Silver,Metals,084691,Disaggregated,Managed Money,SILVER,CFCDSMML,CFCDSMMS,CFCDSMMN
+PLA Comdty,Platinum,Metals,076651,Disaggregated,Managed Money,PLATINUM,DCO3OMML,DCO3OMMS,DCO3OMMN
+PAA Comdty,Palladium,Metals,075651,Disaggregated,Managed Money,PALLADIUM,DCO3NMML,DCO3NMMS,DCO3NMMN
+HGA Comdty,Copper (COMEX),Metals,085692,Disaggregated,Managed Money,COPPER- #1,CFCDTMML,CFCDTMMS,CFCDTMMN
+C A Comdty,Corn,Agriculture,002602,Disaggregated,Managed Money,CORN,CFCDCMML,CFCDCMMS,CFCDCMMN
+S A Comdty,Soybeans,Agriculture,005602,Disaggregated,Managed Money,SOYBEANS,CFCDGMML,CFCDGMMS,CFCDGMMN
+W A Comdty,Wheat (Chicago),Agriculture,001602,Disaggregated,Managed Money,WHEAT-SRW,CFCDAMML,CFCDAMMS,CFCDAMMN
+KWA Comdty,Wheat (KC),Agriculture,001612,Disaggregated,Managed Money,WHEAT-HRW,CFCDBMML,CFCDBMMS,CFCDBMMN
+SMA Comdty,Soybean Meal,Agriculture,026603,Disaggregated,Managed Money,SOYBEAN MEAL,CFCDIMML,CFCDIMMS,CFCDIMMN
+BOA Comdty,Soybean Oil,Agriculture,007601,Disaggregated,Managed Money,SOYBEAN OIL,CFCDHMML,CFCDHMMS,CFCDHMMN
+RRA Comdty,Rough Rice,Agriculture,039601,Disaggregated,Managed Money,ROUGH RICE,DCO2HMML,DCO2HMMS,DCO2HMMN
+KCA Comdty,Coffee (Arabica),Softs,083731,Disaggregated,Managed Money,COFFEE C,CFCDMMML,CFCDMMMS,CFCDMMMN
+CCA Comdty,Cocoa,Softs,073732,Disaggregated,Managed Money,COCOA,CFCDKMML,CFCDKMMS,CFCDKMMN
+SBA Comdty,Sugar No.11,Softs,080732,Disaggregated,Managed Money,SUGAR NO. 11,CFCDLMML,CFCDLMMS,CFCDLMMN
+CTA Comdty,Cotton,Softs,033661,Disaggregated,Managed Money,COTTON NO. 2,CFCDJMML,CFCDJMMS,CFCDJMMN
+JOA Comdty,Orange Juice (FCOJ),Softs,040701,Disaggregated,Managed Money,FRZN CONCENTRATED ORANGE JUICE,DCO2IMML,DCO2IMMS,DCO2IMMN
+LHA Comdty,Lean Hogs,Softs,054642,Disaggregated,Managed Money,LEAN HOGS,CFCDDMML,CFCDDMMS,CFCDDMMN
+LCA Comdty,Live Cattle,Softs,057642,Disaggregated,Managed Money,LIVE CATTLE,CFCDEMML,CFCDEMMS,CFCDEMMN
+FCA Comdty,Feeder Cattle,Softs,061641,Disaggregated,Managed Money,FEEDER CATTLE,CFCDFMML,CFCDFMMS,CFCDFMMN
+ESA Index,S&P 500 E-mini,Indices,13874A,Traders in Financial Futures,Leveraged Funds,E-MINI S&P 500,IMMTENCL,IMMTENCS,IMMTENCN
+NQA Index,Nasdaq 100 E-mini,Indices,209742,Traders in Financial Futures,Leveraged Funds,NASDAQ MINI,IMMPNNCL,IMMPNNCS,IMMPNNCN
+RTYA Index,Russell 2000 E-mini,Indices,239742,Traders in Financial Futures,Leveraged Funds,RUSSELL E-MINI,CFC6TNCL,CFC6TNCS,CFC6TNCN
+DMA Index,Dow E-mini,Indices,124603,Traders in Financial Futures,Leveraged Funds,DJIA x $5,CBTODNCL,CBTODNCS,CBTODNCN
+NKA Index,Nikkei 225,Indices,240743,Traders in Financial Futures,Leveraged Funds,NIKKEI STOCK AVERAGE YEN DENOM,CNYCTNCL,CNYCTNCS,CNYCTNCN
+FFA Comdty,30-Day Fed Funds,STIRs,045601,Traders in Financial Futures,Leveraged Funds,FED FUNDS,CBTTTNCL,CBTTTNCS,CBTTTNCN
+SFRA Comdty,3M SOFR,STIRs,134741,Traders in Financial Futures,Leveraged Funds,SOFR-3M,,,
+SERA Comdty,1M SOFR,STIRs,134742,Traders in Financial Futures,Leveraged Funds,SOFR-1M,,,
+USA Comdty,US Long Bond,Bonds,020601,Traders in Financial Futures,Leveraged Funds,UST BOND,CBTOTNCL,CBTOTNCS,CBTOTNCN
+WNA Comdty,Ultra US Bond,Bonds,020604,Traders in Financial Futures,Leveraged Funds,ULTRA UST BOND,CBTOBNCL,CBTOBNCS,CBTOBNCN
+UXYA Comdty,Ultra 10Y Note,Bonds,043607,Traders in Financial Futures,Leveraged Funds,ULTRA UST 10Y,CFC4ZNCL,CFC4ZNCS,CFC4ZNCN
+TYA Comdty,US 10Y Note,Bonds,043602,Traders in Financial Futures,Leveraged Funds,UST 10Y NOTE,CBTPTNCL,CBTPTNCS,CBTPTNCN
+FVA Comdty,US 5Y Note,Bonds,044601,Traders in Financial Futures,Leveraged Funds,UST 5Y NOTE,CBTP5NCL,CBTP5NCS,CBTP5NCN
+TUA Comdty,US 2Y Note,Bonds,042601,Traders in Financial Futures,Leveraged Funds,UST 2Y NOTE,CBTO2NCL,CBTO2NCS,CBTO2NCN
+ECA Curncy,Euro (EUR/USD),FX,099741,Traders in Financial Futures,Leveraged Funds,EURO FX,IMMPFNCL,IMMPFNCS,IMMPFNCN
+BPA Curncy,British Pound (GBP),FX,096742,Traders in Financial Futures,Leveraged Funds,BRITISH POUND,IMMOPNCL,IMMOPNCS,IMMOPNCN
+JYA Curncy,Japanese Yen (JPY),FX,097741,Traders in Financial Futures,Leveraged Funds,JAPANESE YEN,IMMOJNCL,IMMOJNCS,IMMOJNCN
+SFA Curncy,Swiss Franc (CHF),FX,092741,Traders in Financial Futures,Leveraged Funds,SWISS FRANC,IMMTSNCL,IMMTSNCS,IMMTSNCN
+CDA Curncy,Canadian Dollar (CAD),FX,090741,Traders in Financial Futures,Leveraged Funds,CANADIAN DOLLAR,IMMOCNCL,IMMOCNCS,IMMOCNCN
+ADA Curncy,Australian Dollar (AUD),FX,232741,Traders in Financial Futures,Leveraged Funds,AUSTRALIAN DOLLAR,IMMOANCL,IMMOANCS,IMMOANCN
+NVA Curncy,New Zealand Dollar (NZD),FX,112741,Traders in Financial Futures,Leveraged Funds,NZ DOLLAR,IMMTZNCL,IMMTZNCS,IMMTZNCN
+PEA Curncy,Mexican Peso (MXN),FX,095741,Traders in Financial Futures,Leveraged Funds,MEXICAN PESO,IMMPMNCL,IMMPMNCS,IMMPMNCN
+BRA Curncy,Brazilian Real (BRL),FX,102741,Traders in Financial Futures,Leveraged Funds,BRAZILIAN REAL,IMMOVNCL,IMMOVNCS,IMMOVNCN
+RAA Curncy,South African Rand (ZAR),FX,122741,Traders in Financial Futures,Leveraged Funds,SO AFRICAN RAND,CFC4ANCL,CFC4ANCS,CFC4ANCN

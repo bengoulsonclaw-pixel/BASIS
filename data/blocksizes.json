@@ -1,0 +1,484 @@
+{
+  "blocks": {
+    "XPA Index": {
+      "fut": "200",
+      "opt": "200",
+      "strat": "N/A \u2014 nearest-quarterly only, no roll blocks (7+ leg option strategies: 1 lot/leg)",
+      "note": "ASX block (BTF): nearest quarterly only, not within 5 business days of expiry; options all months."
+    },
+    "CAA Index": {
+      "fut": "600",
+      "opt": "200",
+      "strat": "Each leg (liquid 2-leg packages); one leg suffices for illiquid/multi-leg",
+      "note": "Euronext LIS (pre-trade) thresholds from 03-Jun-2026; post-trade deferral tiers 3,400 fut / 720 opt."
+    },
+    "GXA Index": {
+      "fut": "250",
+      "opt": "350",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES; ODAX incl. weekly expiries."
+    },
+    "DMA Index": {
+      "fut": "Not eligible outright",
+      "opt": "Not eligible",
+      "strat": "Each leg (BTIC spreads)",
+      "note": "Outright futures blocks not permitted \u2014 BTIC (YMT) only: 500 RTH / 100 ETH / 100 ATH; no block-eligible options listing."
+    },
+    "VGA Index": {
+      "fut": "2,000",
+      "opt": "1,000",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES; options incl. weeklies under OESX."
+    },
+    "Z A Index": {
+      "fut": "500",
+      "opt": "500",
+      "strat": "Sum of legs \u2265 strategy min (1,000)",
+      "note": "Strategy blocks 1,000; TIC blocks 50; flex/block-only option series min 1."
+    },
+    "KMA Index": {
+      "fut": "20",
+      "opt": "20",
+      "strat": "Per instrument \u2014 listed futures spreads are themselves block-eligible",
+      "note": "KRX negotiated block: front-month/settlement-week series min 20 (max 5,000 per application; options max 10,000); other months min 1."
+    },
+    "NQA Index": {
+      "fut": "Not eligible outright",
+      "opt": "20",
+      "strat": "Each leg (options combos & BTIC spreads)",
+      "note": "Outright futures blocks not permitted \u2014 BTIC (NQT) only: 500 RTH / 100 ETH / 100 ATH."
+    },
+    "NKA Index": {
+      "fut": "1 (J-NET)",
+      "opt": "1 (J-NET)",
+      "strat": "N/A \u2014 each issue trades as its own J-NET trade (min 1)",
+      "note": "OSE has no block-minimum concept \u2014 J-NET off-auction accepts 1 lot or more; Nikkei 225 mini options min 10; micro futures not J-NET eligible."
+    },
+    "RTYA Index": {
+      "fut": "40",
+      "opt": "40",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": "Outright blocks permitted, all hours; BTIC (RLT) also 40."
+    },
+    "ESA Index": {
+      "fut": "Not eligible outright",
+      "opt": "100",
+      "strat": "Each leg (options combos & BTIC spreads)",
+      "note": "Outright futures blocks not permitted \u2014 BTIC (EST) only: 500 RTH / 100 ETH / 100 ATH; options 250 if executed as a derived-price block."
+    },
+    "SMA Index": {
+      "fut": "500",
+      "opt": "300",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES."
+    },
+    "SERA Comdty": {
+      "fut": "500 RTH / 250 ETH / 125 ATH",
+      "opt": "1,000 RTH / 500 ETH / 250 ATH",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "FFA Comdty": {
+      "fut": "2,000 RTH / 1,000 ETH / 500 ATH",
+      "opt": "Standard options not eligible",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": "6M & 12M mid-curve options: 1,500 RTH / 750 ETH / 375 ATH."
+    },
+    "TKYA Comdty": {
+      "fut": "750 white / 375 red / 125 back",
+      "opt": "250 white / 100 red / 100 mid-curve",
+      "strat": "Sum of legs \u2265 strategy min (2\u00d7 outright: 1,500 white / 750 red / 250 back)",
+      "note": "IFEU tiers by colour."
+    },
+    "ERA Comdty": {
+      "fut": "3,000 white / 1,500 red / 500 back",
+      "opt": "3,000 white / 1,000 red / 1,000 mid-curve",
+      "strat": "Sum of legs \u2265 strategy min (2\u00d7 outright: 6,000 white / 3,000 red / 1,000 back)",
+      "note": "IFEU tiers by colour (White = front 4 quarterlies; serials 500); strategy blocks \u2248 2\u00d7 outright."
+    },
+    "SFRA Comdty": {
+      "fut": "2,000 RTH / 1,000 ETH / 500 ATH",
+      "opt": "5,000 RTH / 2,500 ETH / 1,250 ATH",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": "Mid-curve options same thresholds as standards."
+    },
+    "SFIA Comdty": {
+      "fut": "250",
+      "opt": "500 white / 250 red / 250 mid-curve",
+      "strat": "Sum of legs \u2265 strategy min (500)",
+      "note": "Futures 250 all months (White = front 5 expiries for the options tiers); strategy blocks 500."
+    },
+    "UBA Comdty": {
+      "fut": "100",
+      "opt": "50",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES."
+    },
+    "OEA Comdty": {
+      "fut": "3,000",
+      "opt": "250",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES."
+    },
+    "RXA Comdty": {
+      "fut": "2,000",
+      "opt": "100",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES; OGBL incl. weekly expiries."
+    },
+    "DUA Comdty": {
+      "fut": "4,000",
+      "opt": "500",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES."
+    },
+    "OATA Comdty": {
+      "fut": "250",
+      "opt": "100",
+      "strat": "Each leg (TES strategy min = outright min)",
+      "note": "Eurex TES."
+    },
+    "G A Comdty": {
+      "fut": "500",
+      "opt": "100",
+      "strat": "Sum of legs \u2265 strategy min (front 500 / other months 1,000)",
+      "note": "Strategy blocks in non-front months 1,000; deferred-publication tier 1,500."
+    },
+    "TYA Comdty": {
+      "fut": "5,000 RTH / 2,500 ETH / 1,250 ATH",
+      "opt": "7,500 RTH / 3,750 ETH / 1,875 ATH",
+      "strat": "Cal spreads PROHIBITED \u00b7 inter & options combos: each leg",
+      "note": ""
+    },
+    "TUA Comdty": {
+      "fut": "5,000 RTH / 2,500 ETH / 1,250 ATH",
+      "opt": "2,000 RTH / 1,000 ETH / 500 ATH",
+      "strat": "Cal spreads PROHIBITED \u00b7 inter & options combos: each leg",
+      "note": ""
+    },
+    "FVA Comdty": {
+      "fut": "5,000 RTH / 2,500 ETH / 1,250 ATH",
+      "opt": "7,500 RTH / 3,750 ETH / 1,875 ATH",
+      "strat": "Cal spreads PROHIBITED \u00b7 inter & options combos: each leg",
+      "note": ""
+    },
+    "USA Comdty": {
+      "fut": "2,000 RTH / 1,000 ETH / 500 ATH",
+      "opt": "5,000 RTH / 2,500 ETH / 1,250 ATH",
+      "strat": "Cal spreads PROHIBITED \u00b7 inter (NOB etc.) & options combos: each leg",
+      "note": "Treasury futures calendar-spread blocks prohibited (all Treasuries)."
+    },
+    "UXYA Comdty": {
+      "fut": "3,000 RTH / 1,500 ETH / 750 ATH",
+      "opt": "1,400 RTH / 700 ETH / 350 ATH",
+      "strat": "Cal spreads PROHIBITED \u00b7 inter & options combos: each leg",
+      "note": ""
+    },
+    "WNA Comdty": {
+      "fut": "1,500 RTH / 750 ETH / 375 ATH",
+      "opt": "800 RTH / 600 ETH / 300 ATH",
+      "strat": "Cal spreads PROHIBITED \u00b7 inter & options combos: each leg",
+      "note": ""
+    },
+    "COA Comdty": {
+      "fut": "100",
+      "opt": "25",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Options minimum is the IFEU 'all ICE oil options' tier."
+    },
+    "CUAA Comdty": {
+      "fut": "5",
+      "opt": "5",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Swap-style monthly futures; option is the CVR average-price option."
+    },
+    "MOA Comdty": {
+      "fut": "50",
+      "opt": "25",
+      "strat": "Not specified in the Endex policy \u2014 confirm before sizing at the min",
+      "note": "EUA on ICE Endex; EUA Mini 1; UKA (IFEU) 10 fut / 5 opt."
+    },
+    "QSA Comdty": {
+      "fut": "100",
+      "opt": "25",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Options minimum is the IFEU 'all ICE oil options' tier."
+    },
+    "HOA Comdty": {
+      "fut": "25",
+      "opt": "25",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": ""
+    },
+    "NGA Comdty": {
+      "fut": "50",
+      "opt": "100",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Options min is ON (American); European financial options (LN) 15."
+    },
+    "XBA Comdty": {
+      "fut": "25",
+      "opt": "25",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": ""
+    },
+    "FJSA Comdty": {
+      "fut": "1",
+      "opt": "1",
+      "strat": "N/A \u2014 minimum is 1 lot",
+      "note": "TFM/TFO on ICE Endex; USD/MMBtu first-line (TFU) 5."
+    },
+    "CLA Comdty": {
+      "fut": "50",
+      "opt": "100",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Options (LO) minimum sits above the futures minimum."
+    },
+    "ALEA Comdty": {
+      "fut": "5",
+      "opt": "5",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": ""
+    },
+    "HGA Comdty": {
+      "fut": "20 active / 5 other months",
+      "opt": "10",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Futures min is month-dependent: 20 in the nearby + second active month, 5 elsewhere."
+    },
+    "GCA Comdty": {
+      "fut": "25",
+      "opt": "25",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Weekly gold options 10."
+    },
+    "SCOA Comdty": {
+      "fut": "5",
+      "opt": "5",
+      "strat": "One leg meeting the min qualifies the whole strategy",
+      "note": "SGX Negotiated Large Trade (NLT); multi-leg OK if one leg meets the minimum."
+    },
+    "PAA Comdty": {
+      "fut": "10",
+      "opt": "10",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": ""
+    },
+    "PLA Comdty": {
+      "fut": "10",
+      "opt": "10",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": ""
+    },
+    "SIA Comdty": {
+      "fut": "25",
+      "opt": "15",
+      "strat": "Sum of legs (inter-commodity: \u2265 the larger min)",
+      "note": "Weekly silver options 10."
+    },
+    "C A Comdty": {
+      "fut": "140",
+      "opt": "200",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "RRA Comdty": {
+      "fut": "10",
+      "opt": "20",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "SMA Comdty": {
+      "fut": "50",
+      "opt": "75",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "BOA Comdty": {
+      "fut": "50",
+      "opt": "75",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "S A Comdty": {
+      "fut": "100",
+      "opt": "75",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "W A Comdty": {
+      "fut": "100",
+      "opt": "75",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "KWA Comdty": {
+      "fut": "50",
+      "opt": "75",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "CCA Comdty": {
+      "fut": "Not eligible",
+      "opt": "350",
+      "strat": "Sum of legs (options strategies)",
+      "note": "IFUS blocks are options-only for cocoa; calendar-spread options 100."
+    },
+    "KCA Comdty": {
+      "fut": "250",
+      "opt": "250",
+      "strat": "Sum of legs (inter-commodity: \u2265 the largest min)",
+      "note": "100 as the Arabica leg of the Arabica/Robusta arb; calendar-spread options 100."
+    },
+    "CTA Comdty": {
+      "fut": "500",
+      "opt": "250",
+      "strat": "Sum of legs (inter-commodity: \u2265 the largest min)",
+      "note": "Calendar-spread options 100."
+    },
+    "FCA Comdty": {
+      "fut": "50",
+      "opt": "100",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": "Livestock spread blocks: intra-commodity = sum of legs; inter-commodity = sum of legs meeting the largest leg's minimum."
+    },
+    "LHA Comdty": {
+      "fut": "50",
+      "opt": "100",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "LCA Comdty": {
+      "fut": "50",
+      "opt": "100",
+      "strat": "Fut spreads: sum of legs \u00b7 options combos: each leg",
+      "note": ""
+    },
+    "JOA Comdty": {
+      "fut": "Not eligible",
+      "opt": "100",
+      "strat": "Sum of legs (options strategies)",
+      "note": "IFUS blocks are options-only for FCOJ."
+    },
+    "DFA Comdty": {
+      "fut": "Not eligible outright",
+      "opt": "Not eligible",
+      "strat": "N/A \u2014 not block-eligible",
+      "note": "IFEU softs have no outright block facility \u2014 170 lots only as the Robusta leg of the IFUS arb."
+    },
+    "SBA Comdty": {
+      "fut": "250",
+      "opt": "250",
+      "strat": "Sum of legs (inter-commodity: \u2265 the largest min)",
+      "note": "100 as the No.11 leg of the No.11/White arb; calendar-spread options 100."
+    },
+    "ADA Curncy": {
+      "fut": "20 monthly / 100 quarterly",
+      "opt": "250",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "BRA Curncy": {
+      "fut": "50",
+      "opt": "50",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "BPA Curncy": {
+      "fut": "20 monthly / 100 quarterly",
+      "opt": "250",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "CDA Curncy": {
+      "fut": "20 monthly / 100 quarterly",
+      "opt": "250",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "CCA Curncy": {
+      "fut": "10",
+      "opt": "20",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "ECA Curncy": {
+      "fut": "20 monthly / 150 quarterly",
+      "opt": "250",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "HEA Curncy": {
+      "fut": "10",
+      "opt": "20",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "SIRA Curncy": {
+      "fut": "10",
+      "opt": "50",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "ISA Curncy": {
+      "fut": "10",
+      "opt": "20",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "JYA Curncy": {
+      "fut": "20 monthly / 150 quarterly",
+      "opt": "250",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "KOA Curncy": {
+      "fut": "10",
+      "opt": "20",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "PEA Curncy": {
+      "fut": "100",
+      "opt": "50",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": "Options minimum sits below the futures minimum."
+    },
+    "NVA Curncy": {
+      "fut": "50",
+      "opt": "50",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "NOA Curncy": {
+      "fut": "10",
+      "opt": "No options listed",
+      "strat": "Sum of legs (futures spreads)",
+      "note": ""
+    },
+    "PPA Curncy": {
+      "fut": "10",
+      "opt": "20",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "RAA Curncy": {
+      "fut": "50",
+      "opt": "50",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    },
+    "SEA Curncy": {
+      "fut": "10",
+      "opt": "No options listed",
+      "strat": "Sum of legs (futures spreads)",
+      "note": ""
+    },
+    "SFA Curncy": {
+      "fut": "100",
+      "opt": "250",
+      "strat": "Sum of legs (futures AND options combos)",
+      "note": ""
+    }
+  }
+}

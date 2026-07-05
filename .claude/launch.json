@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "basis",
+      "runtimeExecutable": "C:/Users/Ben/OneDrive/Desktop/AI/strategy-dashboard/.venv/Scripts/streamlit.exe",
+      "runtimeArgs": ["run", "app.py", "--server.port", "8520", "--server.headless", "true", "--browser.gatherUsageStats", "false"],
+      "port": 8520
+    }
+  ]
+}

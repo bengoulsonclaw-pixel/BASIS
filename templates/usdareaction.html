@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 8pt; }
+  thead th, tbody td { padding: 1.6mm 1.8mm; }
+  .lead { font-size: 8.5pt; color: #333; margin: 2mm 0; }
+  .demo { background: #FFF8E1; border-left: 3pt solid var(--yellow); padding: 2mm 3mm;
+          font-size: 8pt; color: #333; margin: 2.5mm 0; }
+  .sub2 { font-size: 9pt; font-weight: 700; color: #000; margin: 3mm 0 0.5mm; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>{{ title }}</h1>
+      <div class="sub">Reaction &mdash; {{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    {% if demo %}
+    <div class="demo"><b>DEMONSTRATION using {{ year }} data</b> — this is exactly how the live note reads. It
+      runs against the fresh print the moment NASS posts it.</div>
+    {% endif %}
+
+    {% if full %}
+    <p class="summary">
+      USDA's <b>Acreage</b> and <b>Grain Stocks</b> reports for {{ year }} — planted area vs the <b>March
+      intentions</b> and year-ago, wheat by class, and June-1 stocks with the <b>on-farm/off-farm</b> split and
+      <b>implied use</b>. More acres / more stocks = bearish; fewer / stronger use = bullish.
+    </p>
+    {% else %}
+    <p class="summary">
+      USDA <b>Grain Stocks</b> — <b>{{ label }}</b> ({{ year }}): total stocks vs a year ago, the
+      <b>on-farm vs off-farm</b> split, and the implied <b>{{ quarter }}</b> use (disappearance). More stocks =
+      bearish; stronger use = bullish. Pair with the stocks-to-use and export-demand picture in the AG
+      Fundamentals report.
+    </p>
+    {% endif %}
+
+    {% if pending %}
+    <div class="demo">June Acreage isn't released yet for {{ year }} — showing March intentions; actuals and the
+      surprise populate the instant NASS posts them.</div>
+    {% endif %}
+
+    {% if full %}
+    <div class="banner">Planted Acreage &mdash; vs March Intentions &amp; Year-Ago</div>
+    <table>
+      <thead><tr>
+        <th>Crop</th><th class="center">Planted (M ac)</th><th class="center">March intent.</th>
+        <th class="center">vs intentions</th>{% if has_consensus %}<th class="center">vs expected</th>{% endif %}
+        <th class="center">vs year-ago</th><th class="center">Read</th>
+      </tr></thead>
+      <tbody>
+        {% for r in acre %}
+        <tr class="{{ r.cls }}"><td class="market">{{ r.crop }}</td><td class="center">{{ r.actual }}</td>
+          <td class="center">{{ r.mar }}</td><td class="center">{{ r.vs_mar }}</td>
+          {% if has_consensus %}<td class="center">{{ r.vs_exp }}</td>{% endif %}
+          <td class="center">{{ r.vs_yr }}</td>
+          <td class="center sig">{{ r.read }}{% if r.cls == 'long' %} &#9650;{% elif r.cls == 'short' %} &#9660;{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="sub2">Wheat by class &mdash; planted (the SRW / HRW / spring split that drives the wheat spreads)</div>
+    <table>
+      <thead><tr><th>Class</th><th class="center">Planted (M ac)</th><th class="center">vs year-ago</th><th class="center">Read</th></tr></thead>
+      <tbody>
+        {% for r in wclass %}
+        <tr class="{{ r.cls }}"><td class="market">{{ r.crop }}</td><td class="center">{{ r.actual }}</td>
+          <td class="center">{{ r.vs_yr }}</td>
+          <td class="center sig">{{ r.read }}{% if r.cls == 'long' %} &#9650;{% elif r.cls == 'short' %} &#9660;{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="banner">{{ label }} Grain Stocks &mdash; total, on-farm vs off-farm</div>
+    <table>
+      <thead><tr>
+        <th>Crop</th><th class="center">Total (bn bu)</th><th class="center">vs year-ago</th>
+        {% if has_consensus %}<th class="center">vs expected</th>{% endif %}
+        <th class="center">On-farm</th><th class="center">Off-farm</th><th class="center">Read</th>
+      </tr></thead>
+      <tbody>
+        {% for r in stk %}
+        <tr class="{{ r.cls }}"><td class="market">{{ r.crop }}</td><td class="center">{{ r.total }}</td>
+          <td class="center">{{ r.vs_yr }}</td>{% if has_consensus %}<td class="center">{{ r.vs_exp }}</td>{% endif %}
+          <td class="center">{{ r.on }}</td><td class="center">{{ r.off }}</td>
+          <td class="center sig">{{ r.read }}{% if r.cls == 'long' %} &#9650;{% elif r.cls == 'short' %} &#9660;{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if dis %}
+    <div class="sub2">Implied {{ quarter }} disappearance (use) &mdash; prior-quarter minus this-quarter stocks</div>
+    <table>
+      <thead><tr><th>Crop</th><th class="center">Implied use (bn bu)</th><th class="center">vs year-ago</th><th class="center">Read</th></tr></thead>
+      <tbody>
+        {% for r in dis %}
+        <tr class="{{ r.cls }}"><td class="market">{{ r.crop }}</td><td class="center">{{ r.use }}</td>
+          <td class="center">{{ r.vs_yr }}</td>
+          <td class="center sig">{{ r.read }}{% if r.cls == 'long' %} &#9650;{% elif r.cls == 'short' %} &#9660;{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="banner">How to read it</div>
+    <p class="lead">
+      {% if full %}<b>Acreage above March intentions / year-ago</b> = more new-crop supply = bearish; below =
+      bullish. {% endif %}<b>Stocks above year-ago</b> = looser balance = bearish; below = tighter = bullish.
+      <b>On-farm heavy</b> (on-farm rising faster than off-farm) = farmers holding grain — latent selling
+      pressure to come. {% if dis %}<b>Implied use up</b> (prior-quarter minus this-quarter stocks vs a year
+      ago) = stronger feed/residual demand = bullish.{% endif %}
+      {% if not has_consensus %}<br/><b>Tip:</b> drop a <code>data/usda_consensus.json</code> (per crop:
+      acres in M, stocks in bn bu) to add the <b>actual-vs-trade-expectations</b> surprise.{% endif %}
+    </p>
+
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      Source: USDA NASS Grain Stocks{% if full %} and Acreage{% endif %} (national), via the Quick Stats API.
+      {% if full %}“March intentions” = the Prospective Plantings estimate; “actual” = the June Acreage estimate.
+      {% endif %}On-farm / off-farm from the stocks position series; implied use = prior-quarter minus
+      this-quarter all-positions stocks, shown only where the quarter has no new-crop harvest (a positive draw). Free U.S.-government
+      data. Information only &mdash; not investment advice or a solicitation.
+    </div>
+  </div>
+</body>
+</html>

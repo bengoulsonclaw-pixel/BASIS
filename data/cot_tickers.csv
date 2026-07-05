@@ -1,0 +1,50 @@
+universe,product,cftc_series,mic,spec_category,fo_long,fo_short,fo_net,futonly_long,futonly_short,futonly_net
+ESA Index,S&P 500 E-mini,S&P 500 stock index - E-mini,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMTENCL,IMMTENCS,IMMTENCN,TFF1NLFL,TFF1NLFS,TFF1NLFN
+NQA Index,Nasdaq 100 E-mini,NASDAQ 100 stock index - Mini,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMPNNCL,IMMPNNCS,IMMPNNCN,TFF1RLFL,TFF1RLFS,TFF1RLFN
+RTYA Index,Russell 2000 E-mini,Russell 2000 index - E-mini,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),CFC6TNCL,CFC6TNCS,CFC6TNCN,TFF2TLFL,TFF2TLFS,TFF2TLFN
+DMA Index,Dow E-mini,Dow Jones Industrial Average - Mini,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CBTODNCL,CBTODNCS,CBTODNCN,TFF1KLFL,TFF1KLFS,TFF1KLFN
+NKA Index,Nikkei 225 (CME JPY),Nikkei 225 stock index (JPY),XCME,leveraged funds (TFF) / non-commercial F&O (legacy),CNYCTNCL,CNYCTNCS,CNYCTNCN,TFF2BLFL,TFF2BLFS,TFF2BLFN
+FFA Comdty,30-Day Fed Funds,30-day US federal funds,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CBTTTNCL,CBTTTNCS,CBTTTNCN,TFF2JLFL,TFF2JLFS,TFF2JLFN
+USA Comdty,US Long Bond,US treasury bonds,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CBTOTNCL,CBTOTNCS,CBTOTNCN,TFF2ELFL,TFF2ELFS,TFF2ELFN
+WNA Comdty,Ultra US Bond,US treasury bonds - Ultra-long,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CBTOBNCL,CBTOBNCS,CBTOBNCN,TFF2FLFL,TFF2FLFS,TFF2FLFN
+UXYA Comdty,Ultra 10Y Note,10-year US treasury bonds - Ultra-long,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CFC4ZNCL,CFC4ZNCS,CFC4ZNCN,TFF2ZLFL,TFF2ZLFS,TFF2ZLFN
+TYA Comdty,US 10Y Note,10-year US treasury note,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CBTPTNCL,CBTPTNCS,CBTPTNCN,TFF2HLFL,TFF2HLFS,TFF2HLFN
+FVA Comdty,US 5Y Note,5-year US treasury note,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CBTP5NCL,CBTP5NCS,CBTP5NCN,TFF2ILFL,TFF2ILFS,TFF2ILFN
+TUA Comdty,US 2Y Note,2-year US treasury note,XCBT,leveraged funds (TFF) / non-commercial F&O (legacy),CBTO2NCL,CBTO2NCS,CBTO2NCN,TFF2GLFL,TFF2GLFS,TFF2GLFN
+ECA Curncy,EUR/USD,EUR/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMPFNCL,IMMPFNCS,IMMPFNCN,TFF1ELFL,TFF1ELFS,TFF1ELFN
+BPA Curncy,GBP/USD,GBP/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMOPNCL,IMMOPNCS,IMMOPNCN,TFF1CLFL,TFF1CLFS,TFF1CLFN
+JYA Curncy,JPY/USD,JPY/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMOJNCL,IMMOJNCS,IMMOJNCN,TFF1DLFL,TFF1DLFS,TFF1DLFN
+SFA Curncy,CHF/USD,CHF/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMTSNCL,IMMTSNCS,IMMTSNCN,TFF1BLFL,TFF1BLFS,TFF1BLFN
+CDA Curncy,CAD/USD,CAD/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMOCNCL,IMMOCNCS,IMMOCNCN,TFF1ALFL,TFF1ALFS,TFF1ALFN
+ADA Curncy,AUD/USD,AUD/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMOANCL,IMMOANCS,IMMOANCN,TFF1FLFL,TFF1FLFS,TFF1FLFN
+NVA Curncy,NZD/USD,NZD/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMTZNCL,IMMTZNCS,IMMTZNCN,TFF1ILFL,TFF1ILFS,TFF1ILFN
+PEA Curncy,MXN/USD,MXN/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMPMNCL,IMMPMNCS,IMMPMNCN,TFF1HLFL,TFF1HLFS,TFF1HLFN
+BRA Curncy,BRL/USD,BRL/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),IMMOVNCL,IMMOVNCS,IMMOVNCN,TFF2VLFL,TFF2VLFS,TFF2VLFN
+RAA Curncy,ZAR/USD,ZAR/USD,XCME,leveraged funds (TFF) / non-commercial F&O (legacy),CFC4ANCL,CFC4ANCS,CFC4ANCN,TFF2WLFL,TFF2WLFS,TFF2WLFN
+CLA Comdty,WTI Crude,WTI (XNYM),XNYM,managed money (disaggregated),CFCDQMML,CFCDQMMS,CFCDQMMN,CFFDQMML,CFFDQMMS,CFFDQMMN
+COA Comdty,Brent Crude (ICE),Brent,IFEU,managed money (disaggregated),ICCBBMML,ICCBBMMS,ICCBBMMN,ICFUBMML,ICFUBMMS,ICFUBMMN
+XBA Comdty,RBOB Gasoline,Gasoline - RBOB,XNYM,managed money (disaggregated),CFCDRMML,CFCDRMMS,CFCDRMMN,CFFDRMML,CFFDRMMS,CFFDRMMN
+NGA Comdty,Henry Hub Nat Gas,Natural gas,XNYM,managed money (disaggregated),CFCDOMML,CFCDOMMS,CFCDOMMN,CFFDOMML,CFFDOMMS,CFFDOMMN
+HOA Comdty,Heating Oil (ULSD),Heating oil - #2,XNYM,managed money (disaggregated),CFCDNMML,CFCDNMMS,CFCDNMMN,CFFDNMML,CFFDNMMS,CFFDNMMN
+QSA Comdty,Gasoil (ICE),Gasoil,IFEU,managed money (disaggregated),ICCBAMML,ICCBAMMS,ICCBAMMN,ICFUAMML,ICFUAMMS,ICFUAMMN
+GCA Comdty,Gold,Gold (XCME),XCEC,managed money (disaggregated),CFCDUMML,CFCDUMMS,CFCDUMMN,CFFDUMML,CFFDUMMS,CFFDUMMN
+SIA Comdty,Silver,Silver,XCEC,managed money (disaggregated),CFCDSMML,CFCDSMMS,CFCDSMMN,CFFDSMML,CFFDSMMS,CFFDSMMN
+PLA Comdty,Platinum,Platinum,XNYM,managed money (disaggregated),DCO3OMML,DCO3OMMS,DCO3OMMN,DFU3OMML,DFU3OMMS,DFU3OMMN
+PAA Comdty,Palladium,Palladium,XNYM,managed money (disaggregated),DCO3NMML,DCO3NMMS,DCO3NMMN,DFU3NMML,DFU3NMMS,DFU3NMMN
+HGA Comdty,Copper (COMEX),Copper - High-grade,XCEC,managed money (disaggregated),CFCDTMML,CFCDTMMS,CFCDTMMN,CFFDTMML,CFFDTMMS,CFFDTMMN
+C A Comdty,Corn,Corn,XCBT,managed money (disaggregated),CFCDCMML,CFCDCMMS,CFCDCMMN,CFFDCMML,CFFDCMMS,CFFDCMMN
+S A Comdty,Soybeans,Soybeans,XCBT,managed money (disaggregated),CFCDGMML,CFCDGMMS,CFCDGMMN,CFFDGMML,CFFDGMMS,CFFDGMMN
+W A Comdty,Wheat (Chicago),Wheat - SRW,XCBT,managed money (disaggregated),CFCDAMML,CFCDAMMS,CFCDAMMN,CFFDAMML,CFFDAMMS,CFFDAMMN
+KWA Comdty,Wheat (KC),Wheat - HRW,XKBT,managed money (disaggregated),CFCDBMML,CFCDBMMS,CFCDBMMN,CFFDBMML,CFFDBMMS,CFFDBMMN
+SMA Comdty,Soybean Meal,Soybean meal,XCBT,managed money (disaggregated),CFCDIMML,CFCDIMMS,CFCDIMMN,CFFDIMML,CFFDIMMS,CFFDIMMN
+BOA Comdty,Soybean Oil,Soybean oil,XCBT,managed money (disaggregated),CFCDHMML,CFCDHMMS,CFCDHMMN,CFFDHMML,CFFDHMMS,CFFDHMMN
+RRA Comdty,Rough Rice,Rice - Rough,XCBT,managed money (disaggregated),DCO2HMML,DCO2HMMS,DCO2HMMN,DFU2HMML,DFU2HMMS,DFU2HMMN
+KCA Comdty,Coffee (Arabica),Coffee - C,IFUS,managed money (disaggregated),CFCDMMML,CFCDMMMS,CFCDMMMN,CFFDMMML,CFFDMMMS,CFFDMMMN
+DFA Comdty,Robusta Coffee (ICE),Coffee - Robusta,IFEU,managed money (disaggregated),DLICBMML,DLICBMMS,DLICBMMN,DLIFBMML,DLIFBMMS,DLIFBMMN
+CCA Comdty,Cocoa (ICE US),Cocoa (IFUS),IFUS,managed money (disaggregated),CFCDKMML,CFCDKMMS,CFCDKMMN,CFFDKMML,CFFDKMMS,CFFDKMMN
+SBA Comdty,Sugar No.11,Sugar - #11,IFUS,managed money (disaggregated),CFCDLMML,CFCDLMMS,CFCDLMMN,CFFDLMML,CFFDLMMS,CFFDLMMN
+CTA Comdty,Cotton,Cotton - #2,IFUS,managed money (disaggregated),CFCDJMML,CFCDJMMS,CFCDJMMN,CFFDJMML,CFFDJMMS,CFFDJMMN
+JOA Comdty,Orange Juice (FCOJ),Orange juice - Frozen concentrated,IFUS,managed money (disaggregated),DCO2IMML,DCO2IMMS,DCO2IMMN,DFU2IMML,DFU2IMMS,DFU2IMMN
+LHA Comdty,Lean Hogs,Lean hogs,XCME,managed money (disaggregated),CFCDDMML,CFCDDMMS,CFCDDMMN,CFFDDMML,CFFDDMMS,CFFDDMMN
+LCA Comdty,Live cattle,Live cattle,XCME,managed money (disaggregated),CFCDEMML,CFCDEMMS,CFCDEMMN,CFFDEMML,CFFDEMMS,CFFDEMMN
+FCA Comdty,Feeder Cattle,Feeder cattle,XCME,managed money (disaggregated),CFCDFMML,CFCDFMMS,CFCDFMMN,CFFDFMML,CFFDFMMS,CFFDFMMN

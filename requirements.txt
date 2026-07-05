@@ -1,0 +1,26 @@
+# BASIS Strategy Monitor — Python dependencies (pinned to the versions it was built with).
+#
+# On the WORK PC, install these OFFLINE from the bundled wheels\ folder (no internet needed):
+#     .venv\Scripts\python -m pip install --no-index --find-links wheels -r requirements.txt
+# See SETUP_WORK_PC.md for the full, step-by-step setup.
+#
+# Core (PyPI):
+streamlit==1.58.0
+pandas==3.0.3
+numpy==2.4.6
+pyarrow==24.0.0
+matplotlib==3.10.9
+altair==6.1.0
+Jinja2==3.1.6
+openpyxl==3.1.5
+playwright==1.60.0
+pypdfium2==5.9.0      # in-app PDF preview — rasterises report pages; add its wheel to wheels\ for the offline work-PC install
+tzdata               # zoneinfo timezone DB (needed on Windows for the Market Hours timeline + COT scheduler)
+
+# --- Bloomberg live data ---------------------------------------------------------------
+# Included in the offline wheels\ bundle, so the install line above picks them up too.
+# If you ever install them online, blpapi lives on Bloomberg's own package index:
+#     pip install --index-url https://blpapi.bloomberg.com/repository/releases/python/simple/ blpapi==3.26.4.2
+#     pip install xbbg==1.2.6
+xbbg==1.2.6
+blpapi==3.26.4.2
