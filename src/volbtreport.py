@@ -26,7 +26,7 @@ MAX_EVENT_ROWS = 16      # daily re-striking logs 60+ rows — keep the sheet on
 
 
 def _usd(v: float) -> str:
-    return f"-${abs(v):,.0f}" if v < 0 else f"${v:,.0f}"
+    return f"-${abs(v):,.0f}" if v < -0.5 else f"${abs(v):,.0f}"
 
 
 def _dates(d: dict) -> list[date]:
@@ -36,15 +36,18 @@ def _dates(d: dict) -> list[date]:
 def cum_png(d: dict) -> str:
     """Cumulative P&L — net (gold) with each leg faint; re-strikes ticked below."""
     s = d["summary"]
+    single = bool(s.get("single"))
     dates = _dates(d)
     fig, ax = plt.subplots(figsize=(6.1, 2.9))
-    ax.plot(dates, d["buy_cum"], color=CHEAP, lw=1.2, alpha=0.55,
-            label=f"Buy {s['buy_name']}")
-    ax.plot(dates, d["sell_cum"], color=RICH, lw=1.2, alpha=0.55,
-            label=f"Sell {s['sell_name']}")
+    if not single:
+        ax.plot(dates, d["buy_cum"], color=CHEAP, lw=1.2, alpha=0.55,
+                label=f"Buy {s['buy_name']}")
+        ax.plot(dates, d["sell_cum"], color=RICH, lw=1.2, alpha=0.55,
+                label=f"Sell {s['sell_name']}")
     ax.plot(dates, d["cum_net"], color=GOLD, lw=2.2, label="Net")
     ax.axhline(0, color=BLACK, lw=0.8)
-    lo = min(min(d["cum_net"]), min(d["buy_cum"]), min(d["sell_cum"]))
+    lo = (min(d["cum_net"]) if single else
+          min(min(d["cum_net"]), min(d["buy_cum"]), min(d["sell_cum"])))
     rs = [dt for dt, f in zip(dates, d["restrike"]) if f]
     if rs:
         ax.plot(rs, [lo] * len(rs), ls="", marker="^", ms=3.2, color=NEUTRAL,
@@ -91,12 +94,18 @@ def att_png(d: dict) -> str:
 def iv_png(d: dict) -> str:
     """The implied vols behind the daily marks, plus the spread the trade is long."""
     s = d["summary"]
+    single = bool(s.get("single"))
     dates = _dates(d)
-    spread = [b - v for b, v in zip(d["buy_iv"], d["sell_iv"])]
     fig, ax = plt.subplots(figsize=(6.1, 2.4))
-    ax.plot(dates, d["buy_iv"], color=CHEAP, lw=1.8, label=f"{s['buy_name']} IV")
-    ax.plot(dates, d["sell_iv"], color=RICH, lw=1.8, label=f"{s['sell_name']} IV")
-    ax.plot(dates, spread, color=GOLD, lw=1.8, label="Spread (buy − sell)")
+    if single:
+        key = "buy_iv" if s.get("buy") else "sell_iv"
+        name = s["buy_name"] or s["sell_name"]
+        ax.plot(dates, d[key], color=GOLD, lw=1.8, label=f"{name} IV")
+    else:
+        spread = [b - v for b, v in zip(d["buy_iv"], d["sell_iv"])]
+        ax.plot(dates, d["buy_iv"], color=CHEAP, lw=1.8, label=f"{s['buy_name']} IV")
+        ax.plot(dates, d["sell_iv"], color=RICH, lw=1.8, label=f"{s['sell_name']} IV")
+        ax.plot(dates, spread, color=GOLD, lw=1.8, label="Spread (buy − sell)")
     ax.axhline(0, color=BLACK, lw=0.8)
     ax.set_ylabel("vol points")
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
@@ -113,22 +122,35 @@ WEIGHT_LABEL = {"gamma": "dollar-gamma neutral", "vega": "vega neutral",
                 "beta_vega": "β-weighted vega", "premium": "premium flat"}
 RESTRIKE_LABEL = {"never": "no re-striking", "daily": "re-struck ATM daily",
                   "threshold": "re-struck on drift ≥ {x:g}× the implied daily move"}
+EVENT_LABEL = {"entry": "Entry", "daily": "Re-strike (daily)",
+               "threshold": "Re-strike (drift)", "exit": "Exit"}
 
 
 def render_html(d: dict) -> str:
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     s = d["summary"]
+    single = bool(s.get("single"))
+    side_k = "buy" if s.get("buy") else "sell"
+    prod = s["buy_name"] or s["sell_name"]
     events = d.get("events", [])
     shown = events[:MAX_EVENT_ROWS - 1] + events[-1:] if len(events) > MAX_EVENT_ROWS else events
-    rows = [{
-        "date": date.fromisoformat(str(e.get("date", ""))[:10]).strftime("%d %b %y"),
-        "event": e.get("event", ""),
-        "buy_k": f"{e['buy_K']:,.2f}", "sell_k": f"{e['sell_K']:,.2f}",
-        "buy_iv": f"{e['buy_iv']:.2f}", "sell_iv": f"{e['sell_iv']:.2f}",
-        "ratio": ("—" if e.get("sell_per_buy") in (None, "") or e["event"] == "exit"
-                  else f"{float(e['sell_per_buy']):.3f}"),
-        "lots": f"{e['buy_lots']:.1f} / {e['sell_lots']:.1f}",
-    } for e in shown]
+    if single:
+        rows = [{
+            "date": date.fromisoformat(str(e.get("date", ""))[:10]).strftime("%d %b %y"),
+            "event": EVENT_LABEL.get(e.get("event", ""), e.get("event", "")),
+            "one_k": f"{e[f'{side_k}_K']:,.2f}", "one_iv": f"{e[f'{side_k}_iv']:.2f}",
+            "lots": f"{e[f'{side_k}_lots']:.1f}",
+        } for e in shown]
+    else:
+        rows = [{
+            "date": date.fromisoformat(str(e.get("date", ""))[:10]).strftime("%d %b %y"),
+            "event": EVENT_LABEL.get(e.get("event", ""), e.get("event", "")),
+            "buy_k": f"{e['buy_K']:,.2f}", "sell_k": f"{e['sell_K']:,.2f}",
+            "buy_iv": f"{e['buy_iv']:.2f}", "sell_iv": f"{e['sell_iv']:.2f}",
+            "ratio": ("—" if e.get("sell_per_buy") in (None, "") or e["event"] == "exit"
+                      else f"{float(e['sell_per_buy']):.3f}"),
+            "lots": f"{e['buy_lots']:.1f} / {e['sell_lots']:.1f}",
+        } for e in shown]
     fmt_d = lambda iso: date.fromisoformat(iso[:10]).strftime("%d %b %Y")
     restrike_note = RESTRIKE_LABEL[s["restrike"]].format(x=s.get("restrike_mult", 1.0))
     corr, corr_note = d.get("corr"), ""
@@ -141,7 +163,12 @@ def render_html(d: dict) -> str:
             corr_note += f"; implied-vol-change correlation {corr['iv_1y']:+.2f} / {corr['iv_1m']:+.2f}"
         corr_note += "."
     return env.get_template("volbtreport.html").render(
-        buy=s["buy_name"], sell=s["sell_name"],
+        buy=s["buy_name"], sell=s["sell_name"], single=single, prod=prod,
+        side_word="long" if side_k == "buy" else "short",
+        deal_line=(f"{'Long' if side_k == 'buy' else 'Short'} {prod} vol, delta-hedged"
+                   if single else f"Buy {s['buy_name']} vol / sell {s['sell_name']} vol"),
+        one_iv=f"{s[f'entry_iv_{side_k}']:.1f}", one_rlz=f"{s[f'rlz_{side_k}']:.1f}",
+        one_gap=f"{s[f'entry_iv_{side_k}'] - s[f'rlz_{side_k}']:+.1f}",
         entry=fmt_d(s["entry"]), exit=fmt_d(s["exit"]), expiry=fmt_d(s["expiry"]),
         weighting=WEIGHT_LABEL.get(s["weighting"], s["weighting"]),
         restrike_note=restrike_note, corr_note=corr_note, n_days=s["n_days"],

@@ -44,7 +44,8 @@ DARK = dict(
     name="dark",
     canvas="#0A0A0A", surface="#161616", surface2="#1F1F1F",
     border="#2A2A2A", border_soft="rgba(255,255,255,.08)",
-    text="#ECEEF1", text_dim="#9AA0A8", caption="#8A8F96",
+    btn="#35353F", btn_border="#45454E", btn_hover="#42424E",
+    text="#ECEEF1", text_dim="#CBD0D7", caption="#D2D7DD",
     sidebar="#101010",
     gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.14)",
     bracket="#8A8F96", tagline="#8A8F96",
@@ -54,7 +55,8 @@ LIGHT = dict(
     name="light",
     canvas="#FFFFFF", surface="#F6F6F6", surface2="#ECECEC",
     border="#E3E3E3", border_soft="#ECECEC",
-    text="#1A1A1A", text_dim="#5A5A5A", caption="#6A6A6A",
+    btn="#FFFFFF", btn_border="#C4C4C4", btn_hover="#EEEEEE",
+    text="#1A1A1A", text_dim="#3A3D42", caption="#42454A",
     sidebar="#F6F6F6",
     gold="#F5C518", gold_deep="#C8901A", gold_soft="rgba(245,197,24,.16)",
     bracket="#9A9A9A", tagline="#6A6A6A",
@@ -196,6 +198,11 @@ h1, h2, h3, h4, h5, h6 { color:$text; font-weight:700; letter-spacing:.2px; }
 button[data-testid="stBaseButton-header"] { background:transparent !important; color:$text_dim !important; }
 [data-testid="stCaptionContainer"], small, .stCaption,
 [data-testid="stCaptionContainer"] * { color:$caption !important; }
+/* main-content captions: larger + roomier so the dense help lines read easily */
+.block-container [data-testid="stCaptionContainer"],
+.block-container [data-testid="stCaptionContainer"] * {
+    font-size:.95rem !important; line-height:1.55 !important;
+}
 a, a:visited { color:$gold; }
 hr { border-color:$border; }
 .block-container { padding-top:2.4rem; }
@@ -205,14 +212,22 @@ hr { border-color:$border; }
 [data-testid="stSidebar"] * { color:$text; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:$caption !important; }
 
-/* buttons — secondary */
+/* buttons — secondary: a clearly lighter, bordered, slightly raised tile so buttons obviously
+   read as clickable everywhere (they used to sit at ~canvas colour and vanish). */
 .stButton>button, .stDownloadButton>button { border-radius:9px; font-weight:600; }
-button[kind="secondary"], button[data-testid="stBaseButton-secondary"] {
-    background:$surface; color:$text; border:1px solid $border;
+button[kind="secondary"], button[data-testid="stBaseButton-secondary"], .stDownloadButton>button {
+    background:$btn !important; color:$text !important; border:1px solid $gold !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.28);
+    transition: background .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease;
 }
-button[kind="secondary"]:hover, button[data-testid="stBaseButton-secondary"]:hover {
-    border-color:$gold; color:$gold;
+button[kind="secondary"]:hover, button[data-testid="stBaseButton-secondary"]:hover,
+.stDownloadButton>button:hover {
+    background:$btn_hover !important; border-color:$gold !important; color:$gold !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.35);
 }
+/* sidebar nav: keep the clear fill+border (visible/clickable) but FLAT — no raised shadow — so the
+   stacked nav list stays clean; the raised look is reserved for main-content action buttons. */
+[data-testid="stSidebar"] .stButton>button { box-shadow:none !important; }
 /* buttons — primary (gold tile, dark label in both themes) */
 button[kind="primary"], button[data-testid="stBaseButton-primary"] {
     background:$gold !important; border:1px solid $gold !important;
@@ -233,6 +248,9 @@ input, textarea,
 [data-baseweb="select"]>div, [data-baseweb="textarea"] {
     background:$surface !important; color:$text !important; border-color:$border !important;
 }
+/* SELECT dropdowns (selectbox / multiselect) get the same gold left-accent as the expander
+   dropdowns — so every "open me" control reads the same way. */
+[data-baseweb="select"]>div { border-left:4px solid $gold !important; }
 [data-baseweb="popover"] [role="listbox"], [data-baseweb="menu"], [role="option"] {
     background:$surface !important; color:$text !important;
 }
@@ -259,9 +277,25 @@ input, textarea,
     flex-shrink:0 !important; background:transparent !important; color:#0A0A0A !important; }
 
 /* expander / containers / metric */
-[data-testid="stExpander"] { background:$surface; border:1px solid $border; border-radius:11px; }
+/* dropdowns (expanders): a gold-tinted header, gold left-accent and gold chevron so they clearly
+   read as openable dropdowns — visibly different from the grey action buttons. */
+[data-testid="stExpander"] { background:$surface; border:1px solid $btn_border; border-radius:10px; }
+[data-testid="stExpander"] summary {
+    background:linear-gradient(90deg, $gold_soft, $btn 62%) !important;
+    border-left:4px solid $gold !important; border-radius:8px;
+    font-weight:700; padding:.5rem .8rem !important;
+}
 [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { color:$text; }
-[data-testid="stMetric"] { background:$surface; border:1px solid $border; border-radius:11px; padding:.55rem .85rem; }
+[data-testid="stExpander"] summary:hover { background:$btn_hover !important; }
+[data-testid="stExpander"] summary:hover, [data-testid="stExpander"] summary:hover * { color:$gold !important; }
+[data-testid="stExpander"] summary svg,
+[data-testid="stExpander"] [data-testid="stExpanderToggleIcon"],
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
+    fill:$gold !important; color:$gold !important;
+}
+/* metric / label cards: a clear NEUTRAL (grey) ring so they stand out as info boxes — distinct from
+   the GOLD interactive elements (buttons get a gold ring + fill; dropdowns a gold accent). */
+[data-testid="stMetric"] { background:$surface; border:1.5px solid $btn_border; border-radius:11px; padding:.6rem .9rem; }
 [data-testid="stMetricValue"] { color:$text; }
 [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * { color:$text_dim; }
 

@@ -394,6 +394,15 @@ def refresh_constituents() -> dict:
     return uni
 
 
+def cached_universe() -> dict:
+    """The last WRITTEN membership (constituents.json) when one exists, else load_universe().
+    For pages that only need names/sectors (Company Fundamentals): in bloomberg mode
+    load_universe() re-pulls INDX_MEMBERS live — ~30s+ of dead screen on a first click —
+    while the cache (refreshed by every pull / morning snapshot) answers instantly."""
+    cached = _read_cache()
+    return cached if cached else load_universe()
+
+
 def get_quotes(tickers) -> pd.DataFrame:
     """DataFrame indexed by ticker, columns ['last','pct'] (pct = overnight % vs prior close)."""
     tickers = list(dict.fromkeys(tickers))

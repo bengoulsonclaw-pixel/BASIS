@@ -155,6 +155,21 @@ def run() -> dict:
     except Exception as e:
         print(f"  (Equities snapshot skipped: {e})")
 
+    # Company fundamentals — WEEKLY-guarded append to data/equities/fundamentals.parquet
+    # (fundamentals move slowly; a fresh-enough last pull is left alone). Guarded the same way:
+    # a failure never blocks the snapshot, a dead pull never wipes the DB.
+    try:
+        from src import eqfunda
+        fr = eqfunda.maybe_refresh(max_age_days=7)
+        if fr.get("skipped"):
+            print(f"  Fundamentals: last pull {fr.get('last_pull')} is {fr.get('age_days')}d old — kept.")
+        elif fr.get("ok"):
+            print(f"  Fundamentals: {fr.get('n_tickers', 0)} names appended ({fr.get('last_pull')}).")
+        else:
+            print(f"  Fundamentals pull skipped: {fr.get('reason')}")
+    except Exception as e:
+        print(f"  (Fundamentals pull skipped: {e})")
+
     manifest = {
         "created": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
         "as_of": str(prices.index.max().date()) if len(prices) else "",

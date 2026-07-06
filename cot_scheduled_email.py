@@ -122,6 +122,55 @@ def _build_email_image():
     return None
 
 
+# ── Gmail API (OAuth) — the app-password SMTP path is blocked by Google (535 BadCredentials).
+#    Reuse the Morning Coffee OAuth token (token.json in the MC folder, minted by its
+#    gmail_auth.py) so the desk sends never break on an app-password change again. ─────────────
+_GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send",
+                 "https://www.googleapis.com/auth/gmail.modify"]
+_GMAIL_DIR = MC_MAIN.parent            # token.json / credentials.json live with Morning Coffee
+_GMAIL_SVC = None
+
+
+def _gmail_service():
+    """Authenticated Gmail API service (token.json, auto-refreshed)."""
+    global _GMAIL_SVC
+    if _GMAIL_SVC is not None:
+        return _GMAIL_SVC
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    from googleapiclient.discovery import build
+    tok = _GMAIL_DIR / "token.json"
+    creds = Credentials.from_authorized_user_file(str(tok), _GMAIL_SCOPES)
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            tok.write_text(creds.to_json(), encoding="utf-8")
+        else:
+            raise RuntimeError(f"Gmail token invalid — re-run gmail_auth.py in {_GMAIL_DIR}")
+    _GMAIL_SVC = build("gmail", "v1", credentials=creds, cache_discovery=False)
+    return _GMAIL_SVC
+
+
+def _gmail_send(msg) -> None:
+    """Send a prepared MIME message via the Gmail API (recipients taken from the msg To
+    header), retrying transient drops that can abort the multi-MB report upload."""
+    import base64
+    import time
+    global _GMAIL_SVC
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    last = None
+    for attempt in range(4):
+        try:
+            _gmail_service().users().messages().send(userId="me", body={"raw": raw}).execute()
+            return
+        except Exception as e:
+            last = e
+            print(f"  (send attempt {attempt + 1} failed: {str(e)[:80]} — retrying)")
+            _GMAIL_SVC = None                    # drop the dead connection; rebuild next try
+            time.sleep(4 * (attempt + 1))
+    raise last
+
+
 def send_email(pdf_path: Path, asof, dry_run: bool = False, to_override=None, subject_note=""):
     sender, app_pw, recipients = load_email_cfg()
     recipients = to_override or _managed_recipients("cot", recipients)
@@ -179,9 +228,7 @@ def send_email(pdf_path: Path, asof, dry_run: bool = False, to_override=None, su
     if dry_run:
         print(f"[dry-run] would send '{subject}' to {recipients} — {note} + a {mb:.1f} MB attachment")
         return
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as s:
-        s.login(sender, app_pw)
-        s.sendmail(sender, recipients, msg.as_string())
+    _gmail_send(msg)
     print(f"Emailed '{subject}' ({note} + {mb:.1f} MB attachment) to {', '.join(recipients)}")
 
 
@@ -215,9 +262,7 @@ def send_report_email(pdf_path, subject, intro_html, attachment_name,
     if dry_run:
         print(f"[dry-run] would send '{subject}' to {recipients}")
         return recipients
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as s:
-        s.login(sender, app_pw)
-        s.sendmail(sender, recipients, msg.as_string())
+    _gmail_send(msg)
     return recipients
 
 

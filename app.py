@@ -39,6 +39,8 @@ from src import tascore
 from src import markethours
 from src import blocksizes
 from src import equities
+from src import eqfunda
+from src import eqcorr
 from src.universe import INSTRUMENTS
 
 ROOT = Path(__file__).parent
@@ -1065,8 +1067,8 @@ def render_sector_filter() -> None:
             key, [tk for tk in tks if INSTRUMENTS[tk][2] not in off_a and tk not in off_t])
 
     on = _sf_enabled()
-    with st.expander(f"🗂️  Sectors & products — {len(on)}/{len(INSTRUMENTS)} instruments on",
-                     expanded=universe.filter_active()):
+    st.markdown(f"#### 🗂️  Sectors & products — {len(on)}/{len(INSTRUMENTS)} instruments on")
+    with st.container():
         st.caption("Hit a group to switch the whole sector on or off. Open its dropdown to drill in "
                    "by region / asset class and toggle individual contracts.")
         groups = [g[0] for g in _FILTER_GROUPS]
@@ -1094,10 +1096,11 @@ def render_sector_filter() -> None:
         st.caption(f"📌 **Startup default: {n_def}/{len(INSTRUMENTS)} markets.** Arrange the selection "
                    "how you want it, then **Set default** to change what loads each launch.")
 
-        for group, _classes, mode in _FILTER_GROUPS:
+        _gcols = st.columns(len(_FILTER_GROUPS))          # 4 group dropdowns side by side, evenly sized
+        for _gi, (group, _classes, mode) in enumerate(_FILTER_GROUPS):
             gsecs = [s for s in secs if s[0] == group]
             gtks = {tk for s in gsecs for tk in s[2]}
-            with st.expander(f"{group}  —  {len(gtks & on)}/{len(gtks)} markets", expanded=False):
+            with _gcols[_gi], st.expander(f"{group}  —  {len(gtks & on)}/{len(gtks)} markets", expanded=False):
                 last_region = None
                 for _g, path, tks, key in gsecs:
                     if mode == "region_asset":
@@ -1501,6 +1504,406 @@ def render_equities_home() -> None:
     _equities_overnight_moves(sel, snap)
     _econ_figures()
     _equities_heatmap(sel)
+
+
+# ── Company Fundamentals (Equities) ───────────────────────────────────────────
+_EQF_GOOD_CSS = "color:#137333;font-weight:700"
+_EQF_BAD_CSS = "color:#c5221f;font-weight:700"
+
+# Preset screens — thresholds are SECTOR percentiles (like-for-like within GICS sector),
+# except 'raw<=' which caps the raw value (a payout ratio over ~80% strains the dividend
+# whatever the sector norms are).
+_EQF_PRESETS = {
+    "All companies": [],
+    "Quality — high ROE, low leverage": [("RETURN_COM_EQY", ">=", 70.0),
+                                         ("TOT_DEBT_TO_TOT_EQY", "<=", 40.0)],
+    "Cheap vs sector — fwd P/E + EV/EBITDA": [("BEST_PE_RATIO", "<=", 30.0),
+                                              ("EV_TO_T12M_EBITDA", "<=", 40.0)],
+    "Growth — revenue + EPS": [("SALES_GROWTH", ">=", 60.0), ("EPS_GROWTH", ">=", 60.0)],
+    "Income — yield with a sustainable payout": [("EQY_DVD_YLD_IND", ">=", 70.0),
+                                                 ("DVD_PAYOUT_RATIO", "raw<=", 80.0)],
+}
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _eqf_frame(index_keys: tuple):
+    """Fundamentals frame + sector percentiles for the selected indices (cached; cleared by
+    'Pull fundamentals'). Uses the CACHED membership — a live INDX_MEMBERS re-pull here made
+    the first click on the page sit on a dead screen for ~30s+ in Bloomberg mode."""
+    df, asof, src = eqfunda.company_frame(universe=equities.cached_universe(),
+                                          index_keys=list(index_keys))
+    return (eqfunda.add_sector_percentiles(df) if not df.empty else df), asof, src
+
+
+def _eqf_styles(sub: pd.DataFrame, field: str) -> list:
+    """Row-aligned CSS for one metric column — coloured only in the sector-percentile tails,
+    direction-aware (low is the good end for multiples/leverage, high for the rest)."""
+    out = []
+    for _, r in sub.iterrows():
+        g = eqfunda.goodness(field, r.get(field + "__pctl"))
+        out.append(_EQF_GOOD_CSS if g > 0 else _EQF_BAD_CSS if g < 0 else "")
+    return out
+
+
+def _eqf_screener(df: pd.DataFrame) -> None:
+    labels = {f["field"]: f["label"] for f in eqfunda.FIELDS}
+    c1, c2 = st.columns([2, 3])
+    preset = c1.selectbox("Preset screen", list(_EQF_PRESETS), key="eqf_preset")
+    sectors = sorted(df["sector"].dropna().unique())
+    sec_sel = c2.multiselect("Sectors", sectors, key="eqf_sectors", help="Blank = all sectors.")
+    metric_opts = [f["field"] for f in eqfunda.FIELDS if f["kind"] not in ("text", "date")]
+    cols = st.multiselect("Metrics (columns)", metric_opts, default=eqfunda.SCREENER_DEFAULT,
+                          format_func=lambda f: labels[f], key="eqf_cols") or eqfunda.SCREENER_DEFAULT
+    cols = [f for f in cols if f in df.columns]        # a field a pull didn't return can't be a column
+    sub = df[df["sector"].isin(sec_sel)] if sec_sel else df
+    for f, op, thr in _EQF_PRESETS[preset]:
+        col = f if op == "raw<=" else f + "__pctl"
+        if col not in sub.columns:
+            continue                                   # metric absent from this pull — skip this leg
+        v = pd.to_numeric(sub[col], errors="coerce")
+        sub = sub[v.notna() & ((v >= thr) if op == ">=" else (v <= thr))]
+    if sub.empty or not cols:
+        st.caption("No companies pass this screen in the current selection.")
+        return
+    if "CRNCY_ADJ_MKT_CAP" in sub.columns:
+        sub = sub.sort_values("CRNCY_ADJ_MKT_CAP", ascending=False, na_position="last")
+    disp = pd.DataFrame({"Company": sub["name"].values, "Sector": sub["sector"].values,
+                         "Index": sub["indices"].values})
+    fmt, colorers = {}, []
+    for f in cols:
+        disp[labels[f]] = pd.to_numeric(sub[f], errors="coerce").values
+        fmt[labels[f]] = (lambda _f: lambda v: eqfunda.fmt_value(_f, v))(f)
+        colorers.append(([labels[f]], (lambda sty: lambda col: sty)(_eqf_styles(sub, f))))
+    st.caption(f"**{len(disp)}** companies · sorted by market cap · **green / red = top / bottom "
+               "20% of the stock's own GICS sector** on that metric, direction-aware (low is the "
+               "good end for valuation multiples and leverage, high for the rest).")
+    brand.themed_dataframe(disp, fmt, colorers=colorers, na_rep="—", height=520)
+
+
+def _eqf_group_rows(row, peers: pd.DataFrame) -> dict:
+    """{group: [{label,value,median,pctl,pctl_txt,good}, ...]} for one company vs its GICS
+    sector peers — the tearsheet's (and the PDF's) building block."""
+    out: dict = {}
+    for spec in eqfunda.FIELDS:
+        if spec["kind"] in ("text", "date"):
+            continue                                   # currency / next report live in the header
+        f = spec["field"]
+        med = pd.to_numeric(peers[f], errors="coerce").median() if f in peers.columns else float("nan")
+        p = row.get(f + "__pctl")
+        p = None if (p is None or p != p) else float(p)
+        out.setdefault(spec["group"], []).append({
+            "label": spec["label"], "value": eqfunda.fmt_value(f, row.get(f)),
+            "median": eqfunda.fmt_value(f, med),
+            "pctl": p, "pctl_txt": "—" if p is None else eqfunda.ordinal(p),
+            "good": eqfunda.goodness(f, p),
+        })
+    return out
+
+
+def _eqf_tearsheet(df: pd.DataFrame, asof: str, src: str) -> None:
+    d = df.sort_values("name").reset_index(drop=True)
+    lab = (d["name"] + "  (" + d["ticker"] + ")").tolist()
+    pick = st.selectbox("Company", lab, key="eqf_co")
+    row = d.iloc[lab.index(pick)]
+    bits = [row["sector"], row["indices"], row["region"],
+            "Mkt cap " + eqfunda.fmt_value("CRNCY_ADJ_MKT_CAP", row.get("CRNCY_ADJ_MKT_CAP")),
+            eqfunda.fmt_value("CRNCY", row.get("CRNCY")),
+            "next report " + eqfunda.fmt_value("EXPECTED_REPORT_DT", row.get("EXPECTED_REPORT_DT"))]
+    st.markdown(f"### {row['name']}")
+    st.caption("  ·  ".join(str(b) for b in bits if b and b != "—") + f"  ·  as of {asof} ({src}).")
+    peers = df[df["sector"] == row["sector"]]
+    groups = _eqf_group_rows(row, peers)
+    st.caption("**Sector pctl** places the value inside the stock's own GICS sector "
+               f"({len(peers)} names in the current index selection) — coloured only at the "
+               "tails (top/bottom 20%), direction-aware. Values at an extreme of their sector "
+               "range may be worth a closer look.")
+    cols2 = st.columns(2)
+    for i, g in enumerate(eqfunda.GROUP_ORDER):
+        rows = groups.get(g)
+        if not rows:
+            continue
+        with cols2[i % 2]:
+            st.markdown(f"**{g}**")
+            tbl = pd.DataFrame([{"Metric": r["label"], "Value": r["value"],
+                                 "Sector median": r["median"], "Sector pctl": r["pctl_txt"]}
+                                for r in rows])
+            sty = [_EQF_GOOD_CSS if r["good"] > 0 else _EQF_BAD_CSS if r["good"] < 0 else ""
+                   for r in rows]
+            brand.themed_dataframe(tbl, {}, colorers=[(["Sector pctl"], (lambda s: lambda col: s)(sty))],
+                                   height=int(40 + 35.2 * len(rows)))
+
+    with st.expander("📈 Metric history — builds as pulls append to the database"):
+        mf = st.selectbox("Metric", [f["field"] for f in eqfunda.FIELDS
+                                     if f["kind"] not in ("text", "date")],
+                          format_func=lambda f: eqfunda.SPEC[f]["label"], key="eqf_hist_f")
+        h = eqfunda.field_history(mf)
+        s = h[row["ticker"]].dropna() if row["ticker"] in getattr(h, "columns", []) else pd.Series(dtype=float)
+        if len(s) >= 2:
+            st.line_chart(s, height=220)
+        else:
+            st.caption(f"{len(s)} stored point(s) for this name so far — the trend chart appears "
+                       "once a couple of weekly pulls have accumulated.")
+
+    st.divider()
+    rc1, rc2 = st.columns([1, 2])
+    if rc1.button("📄 Generate tearsheet PDF", key="eqf_pdf_btn", use_container_width=True):
+        payload = {
+            "asof": asof, "mode": src, "name": str(row["name"]), "ticker": str(row["ticker"]),
+            "sector": str(row["sector"]), "region": str(row["region"]), "indices": str(row["indices"]),
+            "mktcap": eqfunda.fmt_value("CRNCY_ADJ_MKT_CAP", row.get("CRNCY_ADJ_MKT_CAP")),
+            "crncy": eqfunda.fmt_value("CRNCY", row.get("CRNCY")),
+            "next_report": eqfunda.fmt_value("EXPECTED_REPORT_DT", row.get("EXPECTED_REPORT_DT")),
+            "n_peers": int(len(peers)),
+            "groups": [{"name": g, "rows": groups[g]} for g in eqfunda.GROUP_ORDER if g in groups],
+        }
+        with st.spinner("Building the tearsheet…"):
+            try:
+                with tempfile.TemporaryDirectory() as _t:
+                    _in = Path(_t) / "payload.json"
+                    _out = Path(_t) / "Company_Fundamentals.pdf"
+                    _in.write_text(json.dumps(payload), encoding="utf-8")
+                    r = subprocess.run(
+                        [sys.executable, str(ROOT / "src" / "eqfundareport.py"), str(_in), str(_out)],
+                        capture_output=True, text=True, timeout=180)
+                    if r.returncode == 0 and _out.exists():
+                        st.session_state["eqf_pdf"] = _out.read_bytes()
+                        st.session_state["eqf_pdf_name"] = (
+                            "Company_Fundamentals_" + re.sub(r"\W+", "_", str(row["name"])) + ".pdf")
+                    else:
+                        st.error("Report failed:\n\n" + (r.stderr or r.stdout or "unknown error")[-2000:])
+            except Exception as e:
+                st.error(f"Report failed:\n\n{e}")
+    rc2.caption("A branded one-page fundamentals tearsheet for this company — the four metric "
+                "groups with sector medians and percentiles, on the house style.")
+    if st.session_state.get("eqf_pdf"):
+        st.download_button("⬇️  Download " + st.session_state.get("eqf_pdf_name", "Company_Fundamentals.pdf"),
+                           data=st.session_state["eqf_pdf"],
+                           file_name=st.session_state.get("eqf_pdf_name", "Company_Fundamentals.pdf"),
+                           mime="application/pdf", key="eqf_pdf_dl")
+        email_report_ui("eqf_email", "eqfunda", st.session_state["eqf_pdf"],
+                        subject=f"BASIS — Company Fundamentals: {row['name']}",
+                        attachment_name=st.session_state.get("eqf_pdf_name", "Company_Fundamentals.pdf"))
+
+
+def _eqf_peers(df: pd.DataFrame) -> None:
+    d = df.sort_values("name").reset_index(drop=True)
+    lab = (d["name"] + "  (" + d["ticker"] + ")").tolist()
+    sel = st.multiselect("Companies (2–6)", lab, key="eqf_peer_sel", max_selections=6,
+                         help="Pick a name and its peers — e.g. the sector rivals across indices.")
+    if len(sel) < 2:
+        st.caption("Pick at least two companies to compare side by side.")
+        return
+    rows_d = [d.iloc[lab.index(x)] for x in sel]
+    recs, best = [], {}
+    for spec in eqfunda.FIELDS:
+        if spec["kind"] in ("text", "date"):
+            continue
+        f = spec["field"]
+        vals = pd.Series([pd.to_numeric(r.get(f), errors="coerce") for r in rows_d],
+                         index=sel, dtype=float)
+        rec = {"Group": spec["group"], "Metric": spec["label"]}
+        for x in sel:
+            rec[x] = eqfunda.fmt_value(f, vals[x])
+        recs.append(rec)
+        if spec["better"] and vals.notna().any():
+            best[spec["label"]] = vals.idxmax() if spec["better"] == "high" else vals.idxmin()
+    disp = pd.DataFrame(recs)
+    colorers = [([x], (lambda s: lambda col: s)(
+                    [(_EQF_GOOD_CSS if best.get(r["Metric"]) == x else "") for r in recs]))
+                for x in sel]
+    st.caption("**Green = best of the selected group** on that metric, direction-aware; context "
+               "metrics with no better/worse end (yield, payout, size) stay unmarked.")
+    brand.themed_dataframe(disp, {}, colorers=colorers, height=int(40 + 35.2 * len(recs)))
+
+
+def render_eq_fundamentals() -> None:
+    st.subheader("🏢 Company Fundamentals")
+    st.caption("The research fundamentals — valuation, profitability, leverage, growth and income "
+               "— for every index constituent, always ranked **within GICS sector** so a bank's "
+               "P/B is judged against banks, not software. Every pull **appends** to the "
+               "fundamentals database, so trends accumulate over time.")
+    c1, c2 = st.columns([1, 2])
+    if c1.button("📥 Pull fundamentals", use_container_width=True, key="eqf_pull",
+                 help="Pull ~30 fundamentals per constituent from Bloomberg (needs the Terminal) "
+                      "and append them to the database. Fundamentals move slowly — the morning "
+                      "snapshot also re-pulls them weekly."):
+        with st.spinner("Pulling fundamentals…"):
+            try:
+                res = eqfunda.refresh()
+                if res.get("ok"):
+                    _eqf_frame.clear()
+                    st.success(f"Fundamentals pulled — {res.get('n_tickers', 0)} names appended "
+                               f"({res.get('last_pull', '')}).")
+                    st.rerun()
+                else:
+                    st.error(f"Pull failed: {res.get('reason', 'unknown')}")
+            except Exception as e:
+                st.error(f"Pull failed: {e}")
+    c2.caption(f"**Database:** {eqfunda.data_status()}."
+               + ("" if MODE == "bloomberg"
+                  else "  ·  _Off-Terminal a pull writes synthetic demo rows — live values need "
+                       "Bloomberg mode on the work PC._"))
+    _keys = list(equities.INDICES.keys())
+    sel = st.multiselect("Indices", _keys, default=_keys, key="eqf_idx",
+                         help="Scope the screener / tearsheet / peers to these indices.")
+    with st.spinner("Loading the fundamentals database…"):
+        df, asof, src = _eqf_frame(tuple(sel or _keys))
+    if df.empty:
+        st.caption("No universe loaded — pull equities data first (Equities Home).")
+        return
+    t1, t2, t3 = st.tabs(["🔎 Screener", "📇 Company tearsheet", "⚖️ Peer comparison"])
+    with t1:
+        _eqf_screener(df)
+    with t2:
+        _eqf_tearsheet(df, asof, src)
+    with t3:
+        _eqf_peers(df)
+
+
+# ── Single Stock Correlations (Equities) ──────────────────────────────────────
+_EQC_MAX_MAP = 60          # heatmap name cap — melted matrices must stay under Altair's 5k-row limit
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _eqc_set(index_keys: tuple, p1: str, p2: str, thr: float, mode: str):
+    """Stock-pair correlation set (cached so widget reruns don't re-pull history;
+    `mode` keys the cache to the data source). Uses the CACHED membership for the
+    same reason the fundamentals page does — a live INDX_MEMBERS re-pull here would
+    sit on a dead screen in Bloomberg mode."""
+    return eqcorr.compute(equities.cached_universe(), list(index_keys), p1, p2, thr)
+
+
+def render_eq_correlations() -> None:
+    import altair as alt
+
+    st.subheader("🔗  Single Stock Correlations")
+    st.caption(
+        "Every pair of index constituents, correlated on **daily log returns** over two trailing "
+        "windows. **Time period 1 is the screen**: only pairs whose correlation clears the "
+        "threshold survive, and the time-period-2 and difference maps are drawn for exactly those "
+        "companies — the names that traded as one, and whether they still do. A strongly negative "
+        "cell on the third map is a pair whose usual lockstep has loosened; pairs at an extreme "
+        "may be worth a closer look.")
+
+    _keys = list(equities.INDICES.keys())
+    sel = st.multiselect("Indices", _keys, default=_keys, key="eqc_idx",
+                         help="Stocks from these indices form the pair universe "
+                              "(a stock in several indices counts once).")
+    c1, c2, c3 = st.columns([1, 1, 1.6])
+    p1 = c1.selectbox("Time period 1 (screen)", eqcorr.PERIOD_ORDER,
+                      index=eqcorr.PERIOD_ORDER.index(eqcorr.DEFAULT_P1), key="eqc_p1",
+                      help="The trailing window the threshold screens on.")
+    p2 = c2.selectbox("Time period 2 (compare)", eqcorr.PERIOD_ORDER,
+                      index=eqcorr.PERIOD_ORDER.index(eqcorr.DEFAULT_P2), key="eqc_p2",
+                      help="The surviving pairs are re-correlated over this window.")
+    thr = c3.slider("Keep pairs with period-1 correlation ≥", 0.0, 1.0,
+                    eqcorr.DEFAULT_THRESHOLD, 0.01, key="eqc_thr")
+
+    with st.spinner("Correlating the pairs…"):
+        cs = _eqc_set(tuple(sel or _keys), p1, p2, float(thr), MODE)
+    if cs is None:
+        st.info("Not enough stocks with price history in that selection — pull equities "
+                "data first (Equities Home).")
+        return
+    st.caption(f"**{cs.n_universe}** stocks screened over the trailing {p1.lower()} · "
+               f"**{len(cs.corr1)}** names in **{len(cs.pairs)}** pairs ≥ {thr:.2f} · "
+               f"as of {cs.asof:%Y-%m-%d} · {cs.source}."
+               + (f"  ·  **{len(cs.dropped)}** excluded (too little history)."
+                  if cs.dropped else ""))
+    if cs.pairs.empty:
+        st.info(f"No pair correlates at or above {thr:.2f} over the trailing {p1.lower()} — "
+                "lower the threshold (or widen the index selection).")
+        return
+
+    # heatmaps: cap at the names behind the strongest pairs so the melt stays renderable
+    kept = list(cs.corr1.columns)
+    if len(kept) > _EQC_MAX_MAP:
+        top = []
+        for _, r in cs.pairs.iterrows():
+            for t in (r["a"], r["b"]):
+                if t not in top:
+                    top.append(t)
+            if len(top) >= _EQC_MAX_MAP:
+                break
+        kept = [t for t in cs.corr1.columns if t in set(top)]
+        st.caption(f"Maps show the **{len(kept)}** names behind the strongest pairs "
+                   f"(of {len(cs.corr1)}) — the full pair list is in the table below.")
+    names = cs.names
+    order = [names[t] for t in kept]
+    M1 = cs.corr1.loc[kept, kept].rename(index=names, columns=names)
+    M2 = cs.corr2.loc[kept, kept].rename(index=names, columns=names)
+    D = cs.diff.loc[kept, kept].rename(index=names, columns=names)
+    hgt = max(340, 26 * len(kept))
+    text_ok = len(kept) <= 16
+
+    def _tidy(mat):
+        d = mat.copy()
+        d.index.name = "row"
+        return d.reset_index().melt("row", var_name="col", value_name="corr").dropna(subset=["corr"])
+
+    def _heat(tidy, title, *, domain, fmt="+.2f", extra_tips=()):
+        tips = [alt.Tooltip("row:N", title=""), alt.Tooltip("col:N", title="vs"),
+                alt.Tooltip("corr:Q", title=title, format=fmt), *extra_tips]
+        enc_x = alt.X("col:N", sort=order, title=None,
+                      axis=alt.Axis(labelAngle=-40, labelFontSize=11, orient="top", labelLimit=140))
+        enc_y = alt.Y("row:N", sort=order, title=None,
+                      axis=alt.Axis(labelFontSize=11, labelLimit=140))
+        base = alt.Chart(tidy)
+        rect = base.mark_rect(stroke=brand.palette()["canvas"], strokeWidth=1.5).encode(
+            x=enc_x, y=enc_y,
+            color=alt.Color("corr:Q",
+                            scale=alt.Scale(scheme="redblue", domain=domain, reverse=True),
+                            legend=alt.Legend(title=None, format="+.1f", gradientLength=160)),
+            tooltip=tips)
+        layers = [rect]
+        if text_ok:
+            span_ = max(abs(domain[0]), abs(domain[1]))
+            layers.append(base.mark_text(fontSize=11).encode(
+                x=enc_x, y=enc_y, text=alt.Text("corr:Q", format=fmt),
+                color=alt.condition(f"abs(datum.corr) > {span_ * 0.55}",
+                                    alt.value("#F5F5F5"), alt.value("#1A1A1A")),
+                tooltip=tips))
+        return alt.layer(*layers).properties(height=hgt, title=title)
+
+    if len(kept) <= 30:                          # side-by-side while the labels still read
+        h1, h2 = st.columns(2)
+        with h1:
+            brand.show_chart(_heat(_tidy(M1), f"Time period 1 — {p1}", domain=[-1, 1]))
+        with h2:
+            brand.show_chart(_heat(_tidy(M2), f"Time period 2 — {p2}", domain=[-1, 1]))
+    else:
+        brand.show_chart(_heat(_tidy(M1), f"Time period 1 — {p1}", domain=[-1, 1]))
+        brand.show_chart(_heat(_tidy(M2), f"Time period 2 — {p2}", domain=[-1, 1]))
+
+    dt = _tidy(D)
+    dt["cp1"] = [M1.loc[r, c] for r, c in zip(dt["row"], dt["col"])]
+    dt["cp2"] = [M2.loc[r, c] for r, c in zip(dt["row"], dt["col"])]
+    span = float(np.ceil(dt["corr"].abs().max() * 10) / 10) if len(dt) else 0.2
+    span = max(span, 0.2)
+    brand.show_chart(_heat(dt, f"{p2} − {p1} — where the relationship has shifted",
+                           domain=[-span, span],
+                           extra_tips=(alt.Tooltip("cp1:Q", title=p1, format="+.2f"),
+                                       alt.Tooltip("cp2:Q", title=p2, format="+.2f"))))
+
+    # ---- the pairs behind the maps -------------------------------------------
+    st.divider()
+    st.markdown(f"**Qualifying pairs — {p1} correlation ≥ {thr:.2f}**")
+    pt = cs.pairs
+    shown = pt.head(200)
+    disp = pd.DataFrame({
+        "Pair": [f"{cs.names[a]}  ↔  {cs.names[b]}" for a, b in zip(shown["a"], shown["b"])],
+        "Sectors": [sa if sa == sb else f"{sa} / {sb}"
+                    for sa, sb in zip(shown["sector_a"], shown["sector_b"])],
+        f"Corr ({p1})": shown["c1"].values, f"Corr ({p2})": shown["c2"].values,
+        "Δ (2−1)": shown["d"].values,
+    })
+    brand.themed_dataframe(
+        disp, {f"Corr ({p1})": "{:+.2f}", f"Corr ({p2})": "{:+.2f}", "Δ (2−1)": "{:+.2f}"},
+        na_rep="—", height=min(560, int(38 + 35 * len(disp))))
+    st.caption(("Top 200 of " + f"{len(pt)} pairs, " if len(pt) > 200 else "")
+               + f"ranked by the {p1.lower()} correlation. Δ is the period-2 minus period-1 "
+                 "correlation — the pairs whose co-movement has moved furthest from the screen "
+                 "window may be worth a closer look.")
 
 
 def render_morning_coffee() -> None:
@@ -2714,7 +3117,7 @@ def render_vol_backtester() -> None:
         "then read where the P&L actually came from — gamma vs theta vs vega vs costs.")
 
     def _usd(v: float) -> str:
-        return f"-${abs(v):,.0f}" if v < 0 else f"${v:,.0f}"
+        return f"-${abs(v):,.0f}" if v < -0.5 else f"${abs(v):,.0f}"
 
     # ---- trade definition ----------------------------------------------------
     tickers = _vbt_vol_tickers(MODE)
@@ -2722,17 +3125,31 @@ def render_vol_backtester() -> None:
         st.caption(f"{len(INSTRUMENTS) - len(tickers)} universe products are hidden here — "
                    "their tickers publish no option surface (e.g. Eurex futures generics; "
                    "use the cash-index twin, which is listed).")
-    def _lab(t): return f"{INSTRUMENTS[t][0]}  ·  {t}"
+    _NONE = "— none —"
+    def _lab(t): return t if t == _NONE else f"{INSTRUMENTS[t][0]}  ·  {t}"
+    opts = [_NONE] + tickers
     c1, c2 = st.columns(2)
-    buy = c1.selectbox("BUY vol (long straddles)", tickers,
-                       index=tickers.index("NQA Index") if "NQA Index" in tickers else 0,
+    buy = c1.selectbox("BUY vol (long straddles) — optional", opts,
+                       index=opts.index("NQA Index") if "NQA Index" in opts else 1,
                        format_func=_lab, key="vbt_buy")
-    sell = c2.selectbox("SELL vol (short straddles)", tickers,
-                        index=tickers.index("ESA Index") if "ESA Index" in tickers else 0,
+    sell = c2.selectbox("SELL vol (short straddles) — optional", opts,
+                        index=opts.index("ESA Index") if "ESA Index" in opts else 0,
                         format_func=_lab, key="vbt_sell")
-    if buy == sell:
-        st.error("Pick two different products.")
+    buy = None if buy == _NONE else buy
+    sell = None if sell == _NONE else sell
+    if not (buy or sell):
+        st.error("Pick at least one product — one leg on its own trades that product's "
+                 "implied against its own realized; two legs make the spread.")
         return
+    if buy and sell and buy == sell:
+        st.error("Pick two different products (or set one side to none for a single-leg trade).")
+        return
+    single = not (buy and sell)
+    if single:
+        _sname = INSTRUMENTS[(buy or sell)][0]
+        st.caption(f"**Single-product mode** — {'buying' if buy else 'selling'} {_sname} straddles, "
+                   "delta-hedged with its own futures at every settlement: the P&L is its implied "
+                   "vol vs its own realized. Add a product on the other side to trade the spread.")
     # the pair-correlation panel renders HERE (right under the products), but is
     # filled further down once the entry date widget exists — it correlates up to entry.
     corr_slot = st.container()
@@ -2749,7 +3166,8 @@ def render_vol_backtester() -> None:
           "beta_vega": "β-weighted vega — vol-market-neutral",
           "premium": "Premium flat — zero net outlay"}
     weighting = c5.selectbox("Leg ratio (nets to zero at entry / each re-strike)",
-                             list(_W), format_func=_W.get, key="vbt_w")
+                             list(_W), format_func=_W.get, key="vbt_w", disabled=single,
+                             help="Two-leg spreads only — a single leg is simply sized by its lots.")
 
     _R = {"never": "Never — hold the entry strikes",
           "daily": "Daily — new ATM straddles every settlement",
@@ -2762,10 +3180,13 @@ def render_vol_backtester() -> None:
 
     # ---- pair correlation — rendered into corr_slot, up top under the products ----
     with corr_slot:
-        pc = _vbt_pair_corr(buy, sell, entry.isoformat(), MODE)
-        st.markdown(f"**Pair correlation up to {entry:%d %b %Y}** — how these two usually move "
-                    "together (daily changes), and whether that link has drifted lately.")
-        if pc is None:
+        pc = _vbt_pair_corr(buy, sell, entry.isoformat(), MODE) if not single else None
+        if not single:
+            st.markdown(f"**Pair correlation up to {entry:%d %b %Y}** — how these two usually move "
+                        "together (daily changes), and whether that link has drifted lately.")
+        if single:
+            pass                                    # no pair, no panel
+        elif pc is None:
             st.info("Not enough shared history to correlate this pair.")
         else:
             k1, k2, k3, k4 = st.columns(4)
@@ -2827,17 +3248,19 @@ def render_vol_backtester() -> None:
         exit_bd = a4.number_input("Exit N bus. days before expiry", 0, 20, 5, 1, key="vbt_exit",
                                   help="Pin-risk gamma in the final days isn't a realistic backtest — step aside before it.")
         b1, b2 = st.columns(2)
-        mult_buy = b1.number_input(f"$ per 1.0 point — {buy}", 0.0, 1e9,
-                                   float(volbt.point_value(buy)), key=f"vbt_mb_{buy}")
-        mult_sell = b2.number_input(f"$ per 1.0 point — {sell}", 0.0, 1e9,
-                                    float(volbt.point_value(sell)), key=f"vbt_ms_{sell}")
-        if not mult_buy or not mult_sell:
-            st.warning("Unknown contract point value — the leg ratio needs it. Set it above.")
+        mult_buy = (b1.number_input(f"$ per 1.0 point — {buy}", 0.0, 1e9,
+                                    float(volbt.point_value(buy)), key=f"vbt_mb_{buy}")
+                    if buy else None)
+        mult_sell = (b2.number_input(f"$ per 1.0 point — {sell}", 0.0, 1e9,
+                                     float(volbt.point_value(sell)), key=f"vbt_ms_{sell}")
+                     if sell else None)
+        if (buy and not mult_buy) or (sell and not mult_sell):
+            st.warning("Unknown contract point value — greeks need it in dollars. Set it above.")
         st.caption("Non-USD contracts are carried at 1 local-currency point = $1 — fine for the "
                    "ratio and shape; read the P&L as local currency.")
 
     if st.button("▶  Run backtest", type="primary", key="vbt_run",
-                 disabled=not (mult_buy and mult_sell)):
+                 disabled=bool((buy and not mult_buy) or (sell and not mult_sell))):
         try:
             with st.spinner("Repricing and hedging settlement by settlement…"):
                 st.session_state["vbt_res"] = volbt.run_backtest(
@@ -2845,7 +3268,7 @@ def render_vol_backtester() -> None:
                     restrike_mult=float(restrike_mult), buy_lots=float(buy_lots),
                     opt_cost_vol=float(opt_cost), fut_cost_bp=float(fut_cost),
                     exit_bd_before_expiry=int(exit_bd),
-                    mult_override={buy: float(mult_buy), sell: float(mult_sell)})
+                    mult_override={t: float(m) for t, m in ((buy, mult_buy), (sell, mult_sell)) if t})
             st.session_state.pop("vbt_pdf", None)
         except ValueError as e:
             st.session_state.pop("vbt_res", None)
@@ -2861,24 +3284,44 @@ def render_vol_backtester() -> None:
     # ---- headline --------------------------------------------------------------
     src_note = ("live Bloomberg" if s["mode"] == "bloomberg"
                 else "snapshot" if s["mode"] == "snapshot" else "synthetic demo")
-    st.markdown(f"#### Buy {s['buy_name']} vol / sell {s['sell_name']} vol — "
-                f"{s['entry']:%d %b %Y} → {s['exit']:%d %b %Y}  ·  exp {s['expiry']:%d %b %Y}")
-    st.caption(f"{_W[s['weighting']]}  ·  re-strike: {_R[s['restrike']]}"
-               + (f" (X={s['restrike_mult']:g})" if s['restrike'] == 'threshold' else "")
-               + f"  ·  {s['buy_lots']:g} buy straddles × ratio {s['sell_per_buy_entry']:.2f} at entry"
-               + (f"  ·  vol-β {s['beta']:.2f} ({s['beta_obs']} obs)" if s['weighting'] == 'beta_vega' else "")
-               + f"  ·  data: {src_note}")
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Net P&L", _usd(s["total"]))
-    m1.caption(f"max drawdown {_usd(s['max_dd'])}")
-    m2.metric(f"Buy leg — {s['buy_name']}", _usd(s["total_buy"]))
-    m2.caption(f"entry IV {s['entry_iv_buy']:.1f} · realized {s['rlz_buy']:.1f}")
-    m3.metric(f"Sell leg — {s['sell_name']}", _usd(s["total_sell"]))
-    m3.caption(f"entry IV {s['entry_iv_sell']:.1f} · realized {s['rlz_sell']:.1f}")
-    m4.metric("IV spread @ entry", f"{s['entry_iv_spread']:+.1f} vol")
-    m4.caption(f"realized spread {s['rlz_spread']:+.1f} vol over the hold")
-    m5.metric("Re-strikes", f"{s['n_restrikes']}")
-    m5.caption(f"all-in costs {_usd(s['costs'])}")
+    _single = bool(s.get("single"))
+    _rs_note = (f" (X={s['restrike_mult']:g})" if s['restrike'] == 'threshold' else "")
+    if _single:
+        _k = "buy" if s.get("buy") else "sell"
+        _pname = s["buy_name"] or s["sell_name"]
+        _dirn = "Buy" if _k == "buy" else "Sell"
+        st.markdown(f"#### {_dirn} {_pname} vol, delta-hedged — implied vs its own realized — "
+                    f"{s['entry']:%d %b %Y} → {s['exit']:%d %b %Y}  ·  exp {s['expiry']:%d %b %Y}")
+        st.caption(f"{s['buy_lots']:g} straddles  ·  re-strike: {_R[s['restrike']]}{_rs_note}"
+                   f"  ·  data: {src_note}")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Net P&L", _usd(s["total"]))
+        m1.caption(f"max drawdown {_usd(s['max_dd'])}")
+        m2.metric("Entry IV", f"{s[f'entry_iv_{_k}']:.1f}")
+        m2.caption("what the straddles were struck at")
+        m3.metric("Realized over hold", f"{s[f'rlz_{_k}']:.1f}")
+        _gap = s[f'entry_iv_{_k}'] - s[f'rlz_{_k}']
+        m3.caption(f"entry IV − realized: {_gap:+.1f} vol")
+        m4.metric("Re-strikes", f"{s['n_restrikes']}")
+        m4.caption(f"all-in costs {_usd(s['costs'])}")
+    else:
+        st.markdown(f"#### Buy {s['buy_name']} vol / sell {s['sell_name']} vol — "
+                    f"{s['entry']:%d %b %Y} → {s['exit']:%d %b %Y}  ·  exp {s['expiry']:%d %b %Y}")
+        st.caption(f"{_W[s['weighting']]}  ·  re-strike: {_R[s['restrike']]}{_rs_note}"
+                   + f"  ·  {s['buy_lots']:g} buy straddles × ratio {s['sell_per_buy_entry']:.2f} at entry"
+                   + (f"  ·  vol-β {s['beta']:.2f} ({s['beta_obs']} obs)" if s['weighting'] == 'beta_vega' else "")
+                   + f"  ·  data: {src_note}")
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("Net P&L", _usd(s["total"]))
+        m1.caption(f"max drawdown {_usd(s['max_dd'])}")
+        m2.metric(f"Buy leg — {s['buy_name']}", _usd(s["total_buy"]))
+        m2.caption(f"entry IV {s['entry_iv_buy']:.1f} · realized {s['rlz_buy']:.1f}")
+        m3.metric(f"Sell leg — {s['sell_name']}", _usd(s["total_sell"]))
+        m3.caption(f"entry IV {s['entry_iv_sell']:.1f} · realized {s['rlz_sell']:.1f}")
+        m4.metric("IV spread @ entry", f"{s['entry_iv_spread']:+.1f} vol")
+        m4.caption(f"realized spread {s['rlz_spread']:+.1f} vol over the hold")
+        m5.metric("Re-strikes", f"{s['n_restrikes']}")
+        m5.caption(f"all-in costs {_usd(s['costs'])}")
 
     cc = brand.chart_colors()
     d = res.daily.reset_index()
@@ -2886,14 +3329,16 @@ def render_vol_backtester() -> None:
     d["sell_cum"] = d["sell_pnl"].cumsum()
 
     # ---- chart 1: cumulative P&L, net + per leg, re-strikes ticked --------------
-    st.markdown("**Cumulative P&L** — net in gold; each leg (options + its hedges) faint; "
-                "▲ marks a re-strike.")
-    cum_df = pd.concat([
-        pd.DataFrame({"date": d["date"], "pnl": d["cum_net"], "Series": "Net"}),
-        pd.DataFrame({"date": d["date"], "pnl": d["buy_cum"], "Series": f"Buy {s['buy_name']}"}),
-        pd.DataFrame({"date": d["date"], "pnl": d["sell_cum"], "Series": f"Sell {s['sell_name']}"}),
-    ])
-    dom = ["Net", f"Buy {s['buy_name']}", f"Sell {s['sell_name']}"]
+    st.markdown("**Cumulative P&L** — net in gold"
+                + ("" if _single else "; each leg (options + its hedges) faint")
+                + "; ▲ marks a re-strike.")
+    _frames = [pd.DataFrame({"date": d["date"], "pnl": d["cum_net"], "Series": "Net"})]
+    dom = ["Net"]
+    if not _single:
+        _frames += [pd.DataFrame({"date": d["date"], "pnl": d["buy_cum"], "Series": f"Buy {s['buy_name']}"}),
+                    pd.DataFrame({"date": d["date"], "pnl": d["sell_cum"], "Series": f"Sell {s['sell_name']}"})]
+        dom += [f"Buy {s['buy_name']}", f"Sell {s['sell_name']}"]
+    cum_df = pd.concat(_frames)
     line = alt.Chart(cum_df).mark_line(strokeWidth=2.2).encode(
         x=alt.X("date:T", title=None),
         y=alt.Y("pnl:Q", title="cumulative P&L ($)"),
@@ -2930,15 +3375,23 @@ def render_vol_backtester() -> None:
     brand.show_chart((bar + alt.Chart(pd.DataFrame({"x": [0.0]})).mark_rule(
         color=cc["muted"]).encode(x="x:Q")).properties(height=210))
 
-    # ---- chart 3: the two implied vols + the spread ------------------------------
-    st.markdown("**Implied vols in the marks** — each leg's fixed-strike vol at the trade's "
-                "days-to-expiry, and the spread the trade is long.")
-    iv_df = pd.concat([
-        pd.DataFrame({"date": d["date"], "iv": d["buy_iv"], "Series": f"{s['buy_name']} IV"}),
-        pd.DataFrame({"date": d["date"], "iv": d["sell_iv"], "Series": f"{s['sell_name']} IV"}),
-        pd.DataFrame({"date": d["date"], "iv": d["buy_iv"] - d["sell_iv"], "Series": "Spread (buy − sell)"}),
-    ])
-    ivdom = [f"{s['buy_name']} IV", f"{s['sell_name']} IV", "Spread (buy − sell)"]
+    # ---- chart 3: the implied vols in the marks (+ spread when two legs) ---------
+    if _single:
+        st.markdown("**Implied vol in the marks** — the fixed-strike vol at the trade's "
+                    "days-to-expiry, i.e. what the straddles were marked (and re-struck) at.")
+        _kk = "buy" if s.get("buy") else "sell"
+        _pn = s["buy_name"] or s["sell_name"]
+        iv_df = pd.DataFrame({"date": d["date"], "iv": d[f"{_kk}_iv"], "Series": f"{_pn} IV"})
+        ivdom = [f"{_pn} IV"]
+    else:
+        st.markdown("**Implied vols in the marks** — each leg's fixed-strike vol at the trade's "
+                    "days-to-expiry, and the spread the trade is long.")
+        iv_df = pd.concat([
+            pd.DataFrame({"date": d["date"], "iv": d["buy_iv"], "Series": f"{s['buy_name']} IV"}),
+            pd.DataFrame({"date": d["date"], "iv": d["sell_iv"], "Series": f"{s['sell_name']} IV"}),
+            pd.DataFrame({"date": d["date"], "iv": d["buy_iv"] - d["sell_iv"], "Series": "Spread (buy − sell)"}),
+        ])
+        ivdom = [f"{s['buy_name']} IV", f"{s['sell_name']} IV", "Spread (buy − sell)"]
     ivc = alt.Chart(iv_df).mark_line(strokeWidth=2).encode(
         x=alt.X("date:T", title=None), y=alt.Y("iv:Q", title="vol points"),
         color=alt.Color("Series:N", scale=alt.Scale(domain=ivdom,
@@ -2948,38 +3401,142 @@ def render_vol_backtester() -> None:
                  alt.Tooltip("iv:Q", format=".2f")])
     brand.show_chart((ivc + zero).properties(height=280))
 
-    # ---- chart 4: dollar greeks — is the neutrality decaying? --------------------
+    # ---- chart 4: dollar greeks — is the neutrality / exposure decaying? ---------
     st.markdown("**Dollar greeks by leg** — how the chosen neutrality decays between "
-                "re-strikes (equal lines = neutral).")
+                "re-strikes (equal lines = neutral)." if not _single else
+                "**Dollar greeks** — how the position's gamma and vega evolve between "
+                "re-strikes (gamma fades as spot drifts from strike; re-striking restores it).")
+    _gleg = []
+    if s.get("buy"):
+        _gleg.append(("buy", f"Buy {s['buy_name']}", cc["long"]))
+    if s.get("sell"):
+        _gleg.append(("sell", f"Sell {s['sell_name']}", cc["short"]))
     g1, g2 = st.columns(2)
     for col, field, lab in ((g1, "gamma_usd", "$ gamma (Γ·F²·mult)"),
                             (g2, "vega_usd", "$ vega (per vol pt)")):
-        gdf = pd.concat([
-            pd.DataFrame({"date": d["date"], "v": d[f"buy_{field}"], "Leg": f"Buy {s['buy_name']}"}),
-            pd.DataFrame({"date": d["date"], "v": d[f"sell_{field}"], "Leg": f"Sell {s['sell_name']}"}),
-        ])
+        gdf = pd.concat([pd.DataFrame({"date": d["date"], "v": d[f"{k}_{field}"], "Leg": nm})
+                         for k, nm, _c in _gleg])
         ch = alt.Chart(gdf).mark_line(strokeWidth=2).encode(
             x=alt.X("date:T", title=None), y=alt.Y("v:Q", title=lab),
             color=alt.Color("Leg:N", scale=alt.Scale(
-                domain=[f"Buy {s['buy_name']}", f"Sell {s['sell_name']}"],
-                range=[cc["long"], cc["short"]]), legend=alt.Legend(title=None, orient="top")),
+                domain=[nm for _k, nm, _c in _gleg],
+                range=[c for _k, _nm, c in _gleg]), legend=alt.Legend(title=None, orient="top")),
             tooltip=[alt.Tooltip("date:T"), alt.Tooltip("Leg:N"), alt.Tooltip("v:Q", format=",.0f")])
         with col:
             brand.show_chart(ch.properties(height=240))
 
     # ---- events + daily detail ---------------------------------------------------
     st.markdown("**Trade log** — entry, every re-strike (new strikes, IVs, ratio), exit.")
+    _EV = {"entry": "Entry", "daily": "Re-strike (daily)",
+           "threshold": "Re-strike (drift)", "exit": "Exit"}
     ev = res.events.copy()
-    brand.themed_dataframe(ev, fmt={
-        "buy_K": "{:,.2f}".format, "sell_K": "{:,.2f}".format,
-        "buy_iv": "{:.2f}".format, "sell_iv": "{:.2f}".format,
-        "sell_per_buy": "{:.3f}".format, "buy_lots": "{:.1f}".format,
-        "sell_lots": "{:.1f}".format}, height=min(380, 45 + 35 * len(ev)))
+    ev["event"] = ev["event"].map(lambda e: _EV.get(e, e))
+    ev = ev.rename(columns={
+        "date": "Date", "event": "Event", "buy_K": "Buy strike",
+        "sell_K": "Sell strike", "buy_iv": "Buy IV", "sell_iv": "Sell IV",
+        "sell_per_buy": "Ratio (sell per buy)", "buy_lots": "Buy lots",
+        "sell_lots": "Sell lots"})
+    if _single:
+        _drop_side = "Sell" if s.get("buy") else "Buy"
+        ev = ev.drop(columns=[c for c in ev.columns if c.startswith(_drop_side)]
+                     + ["Ratio (sell per buy)"])
+    _ev_fmt = {"Buy strike": "{:,.2f}".format, "Sell strike": "{:,.2f}".format,
+               "Buy IV": "{:.2f}".format, "Sell IV": "{:.2f}".format,
+               "Ratio (sell per buy)": "{:.3f}".format, "Buy lots": "{:.1f}".format,
+               "Sell lots": "{:.1f}".format}
+    brand.themed_dataframe(ev, fmt={c: f for c, f in _ev_fmt.items() if c in ev.columns},
+                           na_rep="—", height=min(380, 45 + 35 * len(ev)))
+    if _single:
+        _legs_line = (f"product = {s['buy_name'] or s['sell_name']} "
+                      f"({'long' if s.get('buy') else 'short'} vol, delta-hedged)")
+        _ratio_bullet = ""
+        _lots_bullet = f"- **Lots** — the straddles held, fixed at {s['buy_lots']:g} throughout.\n"
+    else:
+        _legs_line = f"buy leg = {s['buy_name']}, sell leg = {s['sell_name']}"
+        _ratio_bullet = (f"- **Ratio (sell per buy)** — sell straddles per one buy straddle, re-solved "
+                         f"from that day's greeks so the chosen neutrality "
+                         f"({_W[s['weighting']].split(' — ')[0]}) is restored. Blank on Exit "
+                         "(nothing is struck, only closed).\n")
+        _lots_bullet = (f"- **Buy/Sell lots** — the resulting position sizes: buy lots stay fixed at "
+                        f"{s['buy_lots']:g}, sell lots move with the ratio.\n")
+    st.markdown(f"""
+*How to read the trade log — {_legs_line}.*
+- **Date / Event** — each time the position was (re)struck. **Entry** opens it; each **Re-strike** closes the old straddles and strikes fresh ATM ones (*daily* = every settlement, *drift* = a settle moved ≥ X implied daily moves from its strike); **Exit** closes everything at the pre-expiry buffer (set under Advanced).
+- **Strike** — the new at-the-money strike, i.e. that day's settlement.
+- **IV** — the implied vol the fresh straddles were dealt at. Compare down the column to see the level the trade kept re-entering at.
+{_ratio_bullet}{_lots_bullet}""")
     with st.expander("Daily detail — marks, attribution, costs"):
-        cols = ["buy_F", "buy_K", "buy_iv", "sell_F", "sell_K", "sell_iv",
-                "buy_pnl", "sell_pnl", "net_gamma", "net_theta", "net_vega",
-                "net_resid", "cost", "net", "cum_net", "restrike"]
-        st.dataframe(res.daily[cols].round(2), use_container_width=True, height=420)
+        cols = {}
+        for _kk, _KK in (("buy", "Buy"), ("sell", "Sell")):
+            if s.get(_kk):
+                cols.update({f"{_kk}_F": f"{_KK} settle", f"{_kk}_K": f"{_KK} strike",
+                             f"{_kk}_iv": f"{_KK} IV"})
+        for _kk, _KK in (("buy", "Buy"), ("sell", "Sell")):
+            if s.get(_kk):
+                cols[f"{_kk}_pnl"] = f"{_KK} leg P&L" if not _single else "Leg P&L"
+        cols.update({"net_gamma": "Gamma P&L", "net_theta": "Theta P&L",
+                     "net_vega": "Vega P&L", "net_resid": "Higher-order",
+                     "cost": "Costs", "net": "Net P&L", "cum_net": "Cumulative",
+                     "restrike": "Re-strike"})
+        st.dataframe(res.daily[list(cols)].round(2).rename(columns=cols),
+                     use_container_width=True, height=420)
+        st.markdown(f"""
+**How to read this table** — {_legs_line}.
+
+*The marks — state of each leg at that day's settlement*
+- **Buy/Sell settle** — the settlement price of each leg that day: what the options are marked against and the level the deltas are hedged at.
+- **Buy/Sell strike** — the strike the straddle is currently holding. On entry and every re-strike day it equals the settle (struck at-the-money); between re-strikes the settle drifts away from it, and that gap is what the threshold rule watches.
+- **Buy/Sell IV** — the implied vol used to mark that leg's straddle: the fixed-strike vol at the trade's remaining days-to-expiry (surface-interpolated, smile-adjusted when settle has drifted from strike). The difference between the two IV columns is the spread the trade is long.
+
+*The P&L — dollars, that day*
+- **Buy/Sell leg P&L** — each leg's total day P&L: option mark-to-market **plus its futures hedge**, signed from your book's perspective (a short straddle losing value shows positive). The two legs minus costs sum to Net P&L.
+- **Costs** — transaction costs charged that day: option crossing on entry/exit/re-strike days, hedge slippage otherwise.
+- **Net P&L / Cumulative** — the package's day P&L and its running total (the gold line in the chart above).
+
+*The attribution — where the day's net came from (these explain Net P&L, they don't add to it separately)*
+- **Gamma P&L** — the realized-vol engine: ½ × gamma × (price move)², netted across legs. Positive when the leg you're long gamma on moved more than the leg you're short.
+- **Theta P&L** — the carry: decay paid on the long leg minus decay collected on the short leg (Mondays carry the weekend). Gamma and theta are two sides of the same bet — over the trade you want gamma earned to beat theta paid.
+- **Vega P&L** — the implied re-mark: each leg's vega × that day's IV move. Mark-to-market on the IV spread; dominates if you exit early rather than grind to expiry.
+- **Higher-order** — the leftover after delta/gamma/theta/vega. Small and noisy is healthy; persistently large means the greek breakdown is straining (huge moves, vol jumping with spot).
+- **Re-strike** — 1 on days the package was rolled to fresh ATM strikes and re-ratioed (the entry row shows 1 because entering is the first strike).
+
+*Sanity identity:* for any day, Buy leg P&L + Sell leg P&L ≈ Gamma + Theta + Vega + Higher-order — the delta piece is absent because the futures hedge cancels it by construction.
+""")
+
+    with st.expander("Trade blotter — every ticket behind the P&L"):
+        bl = getattr(res, "trades", None)
+        if bl is None or bl.empty:
+            st.info("Re-run the backtest to populate the blotter (added after this run).")
+        else:
+            view = st.radio("Show", ["All tickets", "Options only", "Futures hedges only"],
+                            horizontal=True, key="vbt_blotter_view")
+            b = bl.copy()
+            if view == "Options only":
+                b = b[b["instrument"] != "future"]
+            elif view == "Futures hedges only":
+                b = b[b["instrument"] == "future"]
+            b["instrument"] = b["instrument"].str.capitalize()
+            b["action"] = b["action"].str.capitalize()
+            b["leg"] = b["leg"].map({"buy": "Buy vol", "sell": "Sell vol"})
+            b = b.rename(columns={
+                "date": "Date", "leg": "Leg", "product": "Product",
+                "instrument": "Instrument", "action": "Action", "lots": "Lots",
+                "strike": "Strike", "price": "Price", "cash": "Cash ($)",
+                "reason": "Reason"})
+            st.dataframe(b.round({"Lots": 2, "Strike": 2, "Price": 2, "Cash ($)": 0}),
+                         use_container_width=True, height=420, hide_index=True)
+            _esc = lambda v: _usd(v).replace("$", "\\$")   # bare $…$ pairs trigger st.markdown's LaTeX mode
+            st.caption(f"Blotter check: the Cash column sums to {_esc(float(bl['cash'].sum()))} "
+                       f"= Net P&L {_esc(s['total'])} + Costs {_esc(s['costs'])} — every position "
+                       "opened here is also closed here, so the tickets reconstruct the P&L exactly.")
+            st.markdown(f"""
+*How to read the blotter — {_legs_line}.*
+- **Prices are Black-76 model values at that day's settlement** (settlement price + that day's surface vol) — i.e. mid. The cost assumptions, when set, are charged separately in the Daily detail *Costs* column, never baked into these prices. At entry and re-strikes the call and put prices are identical by construction: an at-the-money-forward straddle with r = 0 has call = put.
+- **Entry / Re-strike open** — striking fresh ATM calls + puts on both legs (buy-vol leg buys them, sell-vol leg sells them); Strike = that day's settle.
+- **Re-strike close** — unwinding the old strikes at their current marks just before striking new ones. **Exit close** — the final unwind at the pre-expiry buffer.
+- **Delta hedge** — the futures traded at settlement to flatten the package delta. Lots is the *change* in the hedge position that day (the running position is minus the leg's option delta × lots held). On re-strike days the hedge adjusts in one net ticket alongside the new strikes; *Delta hedge (close)* flattens the book on the way out.
+- **Cash ($)** — signed premium/notional: sells positive, buys negative, × the contract point value.
+""")
 
     # ---- PDF tearsheet -------------------------------------------------------------
     st.divider()
@@ -2996,9 +3553,10 @@ def render_vol_backtester() -> None:
                     "buy_iv": [float(x) for x in d["buy_iv"]],
                     "sell_iv": [float(x) for x in d["sell_iv"]],
                     "restrike": [int(x) for x in d["restrike"]],
-                    "events": json.loads(ev.to_json(orient="records", date_format="iso")),
+                    "events": json.loads(res.events.to_json(orient="records", date_format="iso")),
                 }
-                _pcr = _vbt_pair_corr(s["buy"], s["sell"], s["entry"].isoformat(), MODE)
+                _pcr = (_vbt_pair_corr(s["buy"], s["sell"], s["entry"].isoformat(), MODE)
+                        if (s.get("buy") and s.get("sell")) else None)
                 if _pcr is not None:
                     def _n(v):
                         return None if pd.isna(v) else round(float(v), 3)
@@ -3293,6 +3851,13 @@ div.st-key-basis_logo_home div[data-testid="stButton"] button {
     width: 100%; height: 100%; min-height: 0; padding: 0;
     opacity: 0; cursor: pointer; border: none; background: transparent; box-shadow: none;
 }
+/* Hide stale sidebar entries IMMEDIATELY on a rerun. Streamlit only removes replaced elements
+   when the whole run finishes, so switching FICC <-> Equities left the old side's nav buttons
+   lingering greyed-out while the new page pulled its data. Scoped to the sidebar: the main
+   column keeps the default grey-out (hiding it there would blank charts on every rerun). */
+section[data-testid="stSidebar"] div[data-testid="stElementContainer"][data-stale="true"] {
+    display: none;
+}
 </style>"""
 
 # ----- sidebar: navigation -------------------------------------------------
@@ -3347,7 +3912,9 @@ with st.sidebar:
         _nav_button("⚙️  Universe", "Universe")
     else:
         st.caption("**EQUITIES**  ·  US + European indices")
-        _nav_button("🏠  Equities Home", "eq:Home")
+        # No "Equities Home" entry — the 📈 Equities side button (and the logo) already land there.
+        _nav_button("🏢  Company Fundamentals", "eq:Fundamentals")
+        _nav_button("🔗  Single Stock Correlations", "eq:Correlations")
 
 # ----- BASIS masthead (big on Home/Morning Coffee, compact on inner pages) -
 brand.masthead(compact=st.session_state.active not in ("Home", "Morning Coffee", "eq:Home"))
@@ -3443,7 +4010,13 @@ def render_universe():
 # ----- EQUITIES side: its own home (and future pages), dispatched before the FICC pipeline so the
 # futures report-popup + group-tab switcher never run on the Equities side -----------------------
 if side == "Equities":
-    render_equities_home(); st.stop()
+    if active == "eq:Fundamentals":
+        render_eq_fundamentals()
+    elif active == "eq:Correlations":
+        render_eq_correlations()
+    else:
+        render_equities_home()
+    st.stop()
 
 # ----- report-day alert: full-screen popup at each release time, on top of any page -----
 render_report_popup()

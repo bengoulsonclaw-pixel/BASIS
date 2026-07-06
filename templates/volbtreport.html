@@ -30,28 +30,40 @@
   <div class="content">
     <div class="titleband">
       <h1>Vol Swap Backtest</h1>
-      <div class="sub">Buy {{ buy }} vol / sell {{ sell }} vol &nbsp;|&nbsp; XP Inc. Global Macro</div>
+      <div class="sub">{{ deal_line }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
     </div>
 
     <p class="summary">
-      Delta-hedged <b>ATM straddle spread</b>: long {{ buy }} volatility against short {{ sell }}
-      volatility on the <b>{{ expiry }}</b> expiry, entered <b>{{ entry }}</b> and closed
-      <b>{{ exit }}</b> ({{ n_days }} settlements). Legs sized <b>{{ weighting }}</b>
-      ({{ buy_lots }} buy straddles &times; ratio {{ ratio }} at entry), {{ restrike_note }};
-      deltas re-hedged with futures at every settlement. Marks reconstructed with Black-76 from
-      the desk's vol surfaces ({{ mode }} data).
+      Delta-hedged <b>ATM straddle{% if not single %} spread{% endif %}</b>:
+      {% if single %}{{ side_word }} <b>{{ prod }}</b> volatility, hedged with its own futures
+      &mdash; its implied against its own realized &mdash;{% else %}long {{ buy }} volatility
+      against short {{ sell }} volatility{% endif %} on the <b>{{ expiry }}</b> expiry, entered
+      <b>{{ entry }}</b> and closed <b>{{ exit }}</b> ({{ n_days }} settlements).
+      {% if single %}<b>{{ buy_lots }}</b> straddles{% else %}Legs sized <b>{{ weighting }}</b>
+      ({{ buy_lots }} buy straddles &times; ratio {{ ratio }} at entry){% endif %},
+      {{ restrike_note }}; deltas re-hedged with futures at every settlement. Marks reconstructed
+      with Black-76 from the desk's vol surfaces ({{ mode }} data).
       {% if corr_note %}<br><b>{{ corr_note }}</b>{% endif %}
     </p>
 
     <div class="kpis">
       <div class="kpi"><div class="lab">Net P&amp;L</div>
         <div class="val">{{ total }}</div><div class="note">max drawdown {{ max_dd }}</div></div>
+      {% if single %}
+      <div class="kpi"><div class="lab">Entry IV &mdash; {{ prod }}</div>
+        <div class="val">{{ one_iv }}</div><div class="note">what the straddles were struck at</div></div>
+      <div class="kpi"><div class="lab">Realized over hold</div>
+        <div class="val">{{ one_rlz }}</div><div class="note">close-to-close, annualised</div></div>
+      <div class="kpi"><div class="lab">IV &minus; realized</div>
+        <div class="val">{{ one_gap }}</div><div class="note">vol points, at entry</div></div>
+      {% else %}
       <div class="kpi"><div class="lab">Buy leg &mdash; {{ buy }}</div>
         <div class="val">{{ total_buy }}</div><div class="note">IV {{ buy_iv }} in / realized {{ buy_rlz }}</div></div>
       <div class="kpi"><div class="lab">Sell leg &mdash; {{ sell }}</div>
         <div class="val">{{ total_sell }}</div><div class="note">IV {{ sell_iv }} in / realized {{ sell_rlz }}</div></div>
       <div class="kpi"><div class="lab">IV spread in / realized</div>
         <div class="val">{{ iv_spread }} / {{ rlz_spread }}</div><div class="note">vol points, buy &minus; sell</div></div>
+      {% endif %}
       <div class="kpi"><div class="lab">Re-strikes / costs</div>
         <div class="val">{{ n_restrikes }}</div><div class="note">all-in costs {{ costs }}</div></div>
     </div>
@@ -74,15 +86,31 @@
     <div class="banner">Trade Log &mdash; entry, re-strikes, exit</div>
     <table>
       <thead>
+        {% if single %}
+        <tr>
+          <th>Date</th><th>Event</th><th class="center">{{ prod }} K</th>
+          <th class="center">{{ prod }} IV</th><th class="center">Lots</th>
+        </tr>
+        {% else %}
         <tr>
           <th>Date</th><th>Event</th><th class="center">{{ buy }} K</th>
           <th class="center">{{ sell }} K</th><th class="center">{{ buy }} IV</th>
           <th class="center">{{ sell }} IV</th><th class="center">Ratio</th>
           <th class="center">Lots (buy / sell)</th>
         </tr>
+        {% endif %}
       </thead>
       <tbody>
         {% for r in rows %}
+        {% if single %}
+        <tr>
+          <td>{{ r.date }}</td>
+          <td class="market">{{ r.event }}</td>
+          <td class="center">{{ r.one_k }}</td>
+          <td class="center">{{ r.one_iv }}</td>
+          <td class="center">{{ r.lots }}</td>
+        </tr>
+        {% else %}
         <tr>
           <td>{{ r.date }}</td>
           <td class="market">{{ r.event }}</td>
@@ -93,6 +121,7 @@
           <td class="center">{{ r.ratio }}</td>
           <td class="center">{{ r.lots }}</td>
         </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>

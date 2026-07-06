@@ -107,6 +107,8 @@ class Greeks:
     gamma: float   # d delta / d F
     vega: float    # price points per 1 VOL POINT
     theta: float   # price points per YEAR (negative)
+    call: float = np.nan   # the straddle's call half, price points (blotter prices)
+    put: float = np.nan    # ... and the put half; value = call + put
 
 
 def straddle_greeks(F: float, K: float, vol_pts: float, tau_years: float) -> Greeks:
@@ -118,12 +120,13 @@ def straddle_greeks(F: float, K: float, vol_pts: float, tau_years: float) -> Gre
     N, phi = (lambda x: 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))), \
              (lambda x: math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi))
     call = F * N(d1) - K * N(d2)
-    value = 2.0 * call - (F - K)                      # call + put via parity (r=0)
-    return Greeks(value=value,
+    put = call - (F - K)                              # parity (r=0); equal when ATM
+    return Greeks(value=call + put,
                   delta=2.0 * N(d1) - 1.0,
                   gamma=2.0 * phi(d1) / (F * st),
                   vega=2.0 * F * phi(d1) * math.sqrt(tau) / 100.0,
-                  theta=-F * phi(d1) * sigma / math.sqrt(tau))
+                  theta=-F * phi(d1) * sigma / math.sqrt(tau),
+                  call=call, put=put)
 
 
 # ── per-ticker vol lookup: term-structure pillars + 1M smile ────────────────
@@ -217,6 +220,7 @@ class Result:
     events: pd.DataFrame      # entry / re-strikes / exit log
     summary: dict
     warnings: list = field(default_factory=list)
+    trades: pd.DataFrame | None = None   # the blotter: every option/futures ticket
 
 
 @dataclass
@@ -289,17 +293,28 @@ def _ratio(mode: str, gb: Greeks, gs: Greeks, Fb: float, Fs: float,
     raise ValueError(f"unknown weighting '{mode}'")
 
 
-def run_backtest(buy: str, sell: str, entry: date, expiry: date,
+def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
                  weighting: str = "gamma", restrike: str = "threshold",
                  restrike_mult: float = 1.0, buy_lots: float = 10.0,
                  opt_cost_vol: float = 0.10, fut_cost_bp: float = 0.5,
                  exit_bd_before_expiry: int = 5, end: date | None = None,
                  mult_override: dict | None = None) -> Result:
-    """Run the delta-hedged straddle spread. Costs: option trades pay
-    `opt_cost_vol` vol points on the dollar vega traded (half the quoted vol
-    spread); futures hedges pay `fut_cost_bp` bp of the notional traded."""
+    """Run the delta-hedged straddle trade.
+
+    Two products (buy + sell) -> the spread; ONE product (only `buy` = long vol,
+    or only `sell` = short vol) -> a single leg, delta-hedged with its own
+    futures, so the P&L is that product's implied vs its OWN realized. In
+    single-leg mode `weighting` is ignored (size = `buy_lots` straddles).
+
+    Costs: option trades pay `opt_cost_vol` vol points on the dollar vega traded
+    (half the quoted vol spread); futures hedges pay `fut_cost_bp` bp of the
+    notional traded."""
     warnings: list[str] = []
-    tickers = [buy, sell]
+    leg_defs = {k: t for k, t in (("buy", buy), ("sell", sell)) if t}
+    if not leg_defs:
+        raise ValueError("pick at least one product")
+    single = len(leg_defs) == 1
+    tickers = list(leg_defs.values())
     start_hist = pd.Timestamp(entry) - pd.Timedelta(days=420)   # β + realized stats
     end_ts = pd.Timestamp(min(end, expiry) if end else expiry)
 
@@ -339,14 +354,29 @@ def run_backtest(buy: str, sell: str, entry: date, expiry: date,
         if mults[t] <= 0:
             raise ValueError(f"no point value for {t} — set one on the page")
 
-    n_beta, beta = vol_beta(iv1m, buy, sell, entry)
-    if weighting == "beta_vega" and n_beta < 60:
-        warnings.append(f"vol-β lookback too thin ({n_beta} obs) — using β=1 (plain vega)")
+    if single:
+        n_beta, beta = 0, 1.0
+    else:
+        n_beta, beta = vol_beta(iv1m, buy, sell, entry)
+        if weighting == "beta_vega" and n_beta < 60:
+            warnings.append(f"vol-β lookback too thin ({n_beta} obs) — using β=1 (plain vega)")
 
-    legs = {"buy": LegState(buy, mults[buy]), "sell": LegState(sell, mults[sell])}
+    legs = {k: LegState(t, mults[t]) for k, t in leg_defs.items()}
     sides = {"buy": 1.0, "sell": -1.0}
-    rows, events = [], []
+    rows, events, trades = [], [], []
     cost_opt_total = cost_fut_total = 0.0
+
+    def _trade(day, k: str, leg: LegState, instrument: str, action: str,
+               lots: float, price: float, strike: float, reason: str) -> None:
+        """One blotter ticket. Prices are the Black-76 model value at that day's
+        settlement (mid) — the cost assumptions are charged separately, never
+        baked into these prices. Cash: sells +, buys −, × point value."""
+        trades.append({"date": day.date(), "leg": k, "product": product_name(leg.ticker),
+                       "instrument": instrument, "action": action, "lots": float(lots),
+                       "strike": float(strike) if np.isfinite(strike) else np.nan,
+                       "price": float(price),
+                       "cash": (1.0 if action == "sell" else -1.0) * lots * price * leg.mult,
+                       "reason": reason})
 
     def _mark(leg: LegState, day) -> tuple[float, float, Greeks]:
         F = float(px.loc[day, leg.ticker])
@@ -369,22 +399,35 @@ def run_backtest(buy: str, sell: str, entry: date, expiry: date,
                     raise ValueError(f"no vol for {leg.ticker} on {day.date()}")
                 vol[k] = leg.vol                      # stale surface: carry the mark
             g[k] = straddle_greeks(F[k], F[k], vol[k], tau_d / 365.0)
-        r = _ratio("vega" if (weighting == "beta_vega" and n_beta < 60) else weighting,
-                   g["buy"], g["sell"], F["buy"], F["sell"],
-                   legs["buy"].mult, legs["sell"].mult, beta)
-        n = {"buy": buy_lots, "sell": buy_lots * r}
+        if single:
+            r = np.nan                              # no second leg to ratio against
+            n = {k: buy_lots for k in legs}
+        else:
+            r = _ratio("vega" if (weighting == "beta_vega" and n_beta < 60) else weighting,
+                       g["buy"], g["sell"], F["buy"], F["sell"],
+                       legs["buy"].mult, legs["sell"].mult, beta)
+            n = {"buy": buy_lots, "sell": buy_lots * r}
         c_opt = c_fut = 0.0
         for k, leg in legs.items():
             c_opt += opt_cost_vol * g[k].vega * n[k] * leg.mult
             new_hedge = -sides[k] * n[k] * g[k].delta
             c_fut += abs(new_hedge - leg.hedge) * F[k] * leg.mult * fut_cost_bp / 1e4
+            act = "buy" if k == "buy" else "sell"
+            reason = "Entry" if tag == "entry" else "Re-strike open"
+            _trade(day, k, leg, "call", act, n[k], g[k].call, F[k], reason)
+            _trade(day, k, leg, "put", act, n[k], g[k].put, F[k], reason)
+            dq = new_hedge - leg.hedge
+            if abs(dq) > 1e-9:
+                _trade(day, k, leg, "future", "buy" if dq > 0 else "sell",
+                       abs(dq), F[k], np.nan, "Delta hedge")
             leg.n, leg.K, leg.hedge = n[k], F[k], new_hedge
             leg.g, leg.F, leg.vol = g[k], F[k], vol[k]
             leg.tau_d = max((expiry - day.date()).days, 1)
         events.append({"date": day.date(), "event": tag,
-                       "buy_K": F["buy"], "sell_K": F["sell"],
-                       "buy_iv": vol["buy"], "sell_iv": vol["sell"],
-                       "sell_per_buy": r, "buy_lots": n["buy"], "sell_lots": n["sell"]})
+                       "buy_K": F.get("buy", np.nan), "sell_K": F.get("sell", np.nan),
+                       "buy_iv": vol.get("buy", np.nan), "sell_iv": vol.get("sell", np.nan),
+                       "sell_per_buy": r, "buy_lots": n.get("buy", np.nan),
+                       "sell_lots": n.get("sell", np.nan)})
         return c_opt, c_fut
 
     # ---- entry ----------------------------------------------------------------
@@ -430,16 +473,24 @@ def run_backtest(buy: str, sell: str, entry: date, expiry: date,
 
         # ---- close / re-strike at today's settlement ----------------------------
         if last:
+            for k, leg in legs.items():
+                act = "sell" if k == "buy" else "buy"
+                _trade(day, k, leg, "call", act, leg.n, leg.g.call, leg.K, "Exit close")
+                _trade(day, k, leg, "put", act, leg.n, leg.g.put, leg.K, "Exit close")
+                if abs(leg.hedge) > 1e-9:
+                    _trade(day, k, leg, "future", "buy" if leg.hedge < 0 else "sell",
+                           abs(leg.hedge), leg.F, np.nan, "Delta hedge (close)")
             c_opt = sum(opt_cost_vol * leg.g.vega * leg.n * leg.mult for leg in legs.values())
             c_fut = sum(abs(leg.hedge) * leg.F * leg.mult * fut_cost_bp / 1e4
                         for leg in legs.values())
             cost_opt_total += c_opt; cost_fut_total += c_fut
             row["cost"] = c_opt + c_fut
+            _a = lambda k, a: getattr(legs[k], a) if k in legs else np.nan
             events.append({"date": day.date(), "event": "exit",
-                           "buy_K": legs["buy"].K, "sell_K": legs["sell"].K,
-                           "buy_iv": legs["buy"].vol, "sell_iv": legs["sell"].vol,
-                           "sell_per_buy": np.nan, "buy_lots": legs["buy"].n,
-                           "sell_lots": legs["sell"].n})
+                           "buy_K": _a("buy", "K"), "sell_K": _a("sell", "K"),
+                           "buy_iv": _a("buy", "vol"), "sell_iv": _a("sell", "vol"),
+                           "sell_per_buy": np.nan, "buy_lots": _a("buy", "n"),
+                           "sell_lots": _a("sell", "n")})
         else:
             do_restrike = restrike == "daily"
             if restrike == "threshold":
@@ -449,6 +500,10 @@ def run_backtest(buy: str, sell: str, entry: date, expiry: date,
                     if abs(leg.F / leg.K - 1.0) >= restrike_mult * move:
                         do_restrike = True
             if do_restrike:
+                for k, leg in legs.items():
+                    act = "sell" if k == "buy" else "buy"
+                    _trade(day, k, leg, "call", act, leg.n, leg.g.call, leg.K, "Re-strike close")
+                    _trade(day, k, leg, "put", act, leg.n, leg.g.put, leg.K, "Re-strike close")
                 c_close = sum(opt_cost_vol * leg.g.vega * leg.n * leg.mult
                               for leg in legs.values())
                 c_opt, c_fut = _open(day, restrike)
@@ -460,6 +515,10 @@ def run_backtest(buy: str, sell: str, entry: date, expiry: date,
                 for k, leg in legs.items():
                     new_hedge = -sides[k] * leg.n * leg.g.delta
                     c_fut += abs(new_hedge - leg.hedge) * leg.F * leg.mult * fut_cost_bp / 1e4
+                    dq = new_hedge - leg.hedge
+                    if abs(dq) > 1e-9:
+                        _trade(day, k, leg, "future", "buy" if dq > 0 else "sell",
+                               abs(dq), leg.F, np.nan, "Delta hedge")
                     leg.hedge = new_hedge
                 cost_fut_total += c_fut
                 row["cost"] = c_fut
@@ -470,23 +529,32 @@ def run_backtest(buy: str, sell: str, entry: date, expiry: date,
         rows.append(row)
 
     daily = pd.DataFrame(rows).set_index("date")
+    for k in ("buy", "sell"):                       # single-leg: absent side reads flat
+        if k not in legs:
+            for col, val in ((f"{k}_F", np.nan), (f"{k}_K", np.nan), (f"{k}_iv", np.nan),
+                             (f"{k}_pnl", 0.0), (f"{k}_gamma_usd", np.nan),
+                             (f"{k}_vega_usd", np.nan)):
+                daily[col] = val
     daily["cum_net"] = daily["net"].cumsum()
 
     # ---- summary ---------------------------------------------------------------
     hold = px.loc[days[0]:days[-1]]
     rlz = (np.log(hold).diff().std() * SQRT252 * 100.0)
     summary = {
-        "buy": buy, "sell": sell, "buy_name": product_name(buy), "sell_name": product_name(sell),
+        "buy": buy, "sell": sell, "single": single,
+        "buy_name": product_name(buy) if buy else "",
+        "sell_name": product_name(sell) if sell else "",
         "mode": MODE, "weighting": weighting, "restrike": restrike,
         "restrike_mult": restrike_mult, "buy_lots": buy_lots,
         "opt_cost_vol": opt_cost_vol, "fut_cost_bp": fut_cost_bp,
         "entry": days[0].date(), "exit": days[-1].date(), "expiry": expiry,
         "n_days": len(days) - 1, "beta": beta, "beta_obs": n_beta,
-        "mult_buy": mults[buy], "mult_sell": mults[sell],
-        "entry_iv_buy": entry_iv["buy"], "entry_iv_sell": entry_iv["sell"],
-        "entry_iv_spread": entry_iv["buy"] - entry_iv["sell"],
-        "rlz_buy": float(rlz[buy]), "rlz_sell": float(rlz[sell]),
-        "rlz_spread": float(rlz[buy] - rlz[sell]),
+        "mult_buy": mults.get(buy, np.nan), "mult_sell": mults.get(sell, np.nan),
+        "entry_iv_buy": entry_iv.get("buy", np.nan), "entry_iv_sell": entry_iv.get("sell", np.nan),
+        "entry_iv_spread": (entry_iv["buy"] - entry_iv["sell"]) if not single else np.nan,
+        "rlz_buy": float(rlz[buy]) if buy else np.nan,
+        "rlz_sell": float(rlz[sell]) if sell else np.nan,
+        "rlz_spread": float(rlz[buy] - rlz[sell]) if not single else np.nan,
         "total": float(daily["net"].sum()),
         "total_buy": float(daily["buy_pnl"].sum()),
         "total_sell": float(daily["sell_pnl"].sum()),
@@ -503,4 +571,4 @@ def run_backtest(buy: str, sell: str, entry: date, expiry: date,
         "sell_per_buy_entry": float(events[0]["sell_per_buy"]),
     }
     return Result(daily=daily, events=pd.DataFrame(events), summary=summary,
-                  warnings=warnings)
+                  warnings=warnings, trades=pd.DataFrame(trades))
