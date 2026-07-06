@@ -45,6 +45,7 @@ DARK = dict(
     canvas="#0A0A0A", surface="#161616", surface2="#1F1F1F",
     border="#2A2A2A", border_soft="rgba(255,255,255,.08)",
     btn="#35353F", btn_border="#45454E", btn_hover="#42424E",
+    btn_gold="#514727", btn_gold_hover="#63562E", label_ring="rgba(245,197,24,.55)",
     text="#ECEEF1", text_dim="#CBD0D7", caption="#D2D7DD",
     sidebar="#101010",
     gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.14)",
@@ -56,6 +57,7 @@ LIGHT = dict(
     canvas="#FFFFFF", surface="#F6F6F6", surface2="#ECECEC",
     border="#E3E3E3", border_soft="#ECECEC",
     btn="#FFFFFF", btn_border="#C4C4C4", btn_hover="#EEEEEE",
+    btn_gold="#FBF3D0", btn_gold_hover="#F6E9A8", label_ring="rgba(200,144,26,.6)",
     text="#1A1A1A", text_dim="#3A3D42", caption="#42454A",
     sidebar="#F6F6F6",
     gold="#F5C518", gold_deep="#C8901A", gold_soft="rgba(245,197,24,.16)",
@@ -212,17 +214,18 @@ hr { border-color:$border; }
 [data-testid="stSidebar"] * { color:$text; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:$caption !important; }
 
-/* buttons — secondary: a clearly lighter, bordered, slightly raised tile so buttons obviously
-   read as clickable everywhere (they used to sit at ~canvas colour and vanish). */
+/* buttons — secondary: gold ring + gold-TINTED FILL, so a button is the most obviously
+   clickable thing on the page. The visual ladder: label = thin gold ring only (no fill),
+   button = gold ring + gold-tinted fill, primary/active = solid gold tile. */
 .stButton>button, .stDownloadButton>button { border-radius:9px; font-weight:600; }
 button[kind="secondary"], button[data-testid="stBaseButton-secondary"], .stDownloadButton>button {
-    background:$btn !important; color:$text !important; border:1px solid $gold !important;
+    background:$btn_gold !important; color:$text !important; border:1px solid $gold !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.28);
     transition: background .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease;
 }
 button[kind="secondary"]:hover, button[data-testid="stBaseButton-secondary"]:hover,
 .stDownloadButton>button:hover {
-    background:$btn_hover !important; border-color:$gold !important; color:$gold !important;
+    background:$btn_gold_hover !important; border-color:$gold !important; color:$gold !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.35);
 }
 /* sidebar nav: keep the clear fill+border (visible/clickable) but FLAT — no raised shadow — so the
@@ -241,6 +244,22 @@ button[data-testid="stBaseButton-primary"]:focus {
 }
 /* the label is an inner <p>/<span> Streamlit colours light — force it dark on the gold tile */
 button[kind="primary"] *, button[data-testid="stBaseButton-primary"] * { color:#0A0A0A !important; }
+
+/* widget labels: a thin gold RING (no fill) so labels stand out — one rung below buttons
+   on the ladder (buttons carry ring + gold fill; a ring alone means "this names a control,
+   it isn't the control"). width:fit-content keeps the ring hugging the text. */
+[data-testid="stWidgetLabel"] {
+    border:1px solid $label_ring; border-radius:7px;
+    padding:.12rem .55rem; width:fit-content; max-width:100%;
+    margin-bottom:.3rem; background:transparent;
+}
+[data-testid="stWidgetLabel"] p { color:$text_dim; }
+/* checkbox/toggle labels sit BESIDE the control, not above it — a ring there boxes the
+   whole row awkwardly, so leave those unringed. */
+[data-testid="stCheckbox"] [data-testid="stWidgetLabel"],
+[data-testid="stToggle"] [data-testid="stWidgetLabel"] {
+    border:none; padding:0; margin-bottom:0;
+}
 
 /* inputs / selects / popovers */
 input, textarea,
