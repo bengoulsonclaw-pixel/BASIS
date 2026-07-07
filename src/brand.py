@@ -403,7 +403,11 @@ def sidebar_logo() -> None:
     pal = palette()
     st.markdown(
         f'<div style="padding:.15rem 0 .35rem">{header_svg(pal, height=84)}'
-        f'<div class="basis-tag" style="margin-top:.5rem;text-align:center">Research Monitor</div></div>',
+        # Negative top margin pulls the tag up into the svg box's empty bottom band; the
+        # bottom margin pushes the FICC/Equities row down the same amount — leaving the tag
+        # at the OPTICAL midpoint between the drawn wordmark and the buttons (~12px each).
+        f'<div class="basis-tag" style="margin-top:-.5rem;margin-bottom:.4rem;'
+        f'text-align:center">Research Monitor</div></div>',
         unsafe_allow_html=True,
     )
 
