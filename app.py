@@ -643,12 +643,14 @@ def _load_snap():
 def _go(dest: str) -> None:
     """on_click nav handler — runs before the rerun, so the highlight stays in sync."""
     st.session_state.active = dest
+    st.session_state["_scroll_top"] = True      # new page opens at the top
 
 
 def _set_side(s: str) -> None:
     """Switch between the FICC (futures) and Equities sides; land on that side's home page."""
     st.session_state.side = s
     st.session_state.active = "eq:Home" if s == "Equities" else "Home"
+    st.session_state["_scroll_top"] = True
 
 
 def _nav_button(label: str, dest: str) -> None:
@@ -4062,6 +4064,26 @@ with st.sidebar:
 
 # ----- BASIS masthead (the full lockup, same size on every page) -----------
 brand.masthead()
+
+# Nav clicks flag a scroll reset — the destination page should open at the top (Streamlit
+# otherwise keeps the previous page's scroll position across the rerun). Retries cover the
+# content still streaming in after the first scroll.
+if st.session_state.pop("_scroll_top", False):
+    import streamlit.components.v1 as components
+    # keyed container so the theme CSS can hide this block entirely — the 0-height iframe
+    # would otherwise still eat a 16px flex gap between masthead and content
+    with st.container(key="basis_scroll_top"):
+        components.html(
+            "<script>"
+            "const up = () => {"
+            "  const d = window.parent.document;"
+            "  d.querySelectorAll('section[data-testid=\"stMain\"],"
+            " [data-testid=\"stAppViewContainer\"]')"
+            "    .forEach(el => el.scrollTo({top: 0, behavior: 'instant'}));"
+            "  window.parent.scrollTo({top: 0, behavior: 'instant'});"
+            "};"
+            "up(); setTimeout(up, 150); setTimeout(up, 400);"
+            "</script>", height=0)
 
 # ----- default landing view -----------------------------------------------
 if "active" not in st.session_state:

@@ -217,6 +217,11 @@ button[data-testid="stBaseButton-header"] { background:transparent !important; c
 }
 a, a:visited { color:$gold; }
 hr { border-color:$border; }
+/* the scroll-to-top script block: zero visual footprint — its 0-height iframe would still
+   eat a 16px flex gap between the masthead and the page. display:none iframes still run
+   their scripts. (Hide both the keyed block and, on newer Streamlit, its layout wrapper.) */
+div.st-key-basis_scroll_top,
+[data-testid="stLayoutWrapper"]:has(> .st-key-basis_scroll_top) { display:none; }
 .block-container { padding-top:2.9rem; }   /* clears the fixed header with margin to spare */
 
 /* sidebar */
