@@ -223,6 +223,16 @@ hr { border-color:$border; }
 [data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border; }
 [data-testid="stSidebar"] * { color:$text; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:$caption !important; }
+/* pull the logo block up: shrink the near-empty header strip (it only holds the collapse
+   arrow) and drop its 16px bottom margin... */
+[data-testid="stSidebarHeader"] {
+    padding:.35rem .75rem !important; height:auto !important; margin-bottom:0 !important;
+}
+/* ...and remove the invisible style-carrier markdown above the logo — at zero height it
+   still eats a full 16px flex gap. */
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(> [data-testid="stMarkdown"] style) {
+    display:none;
+}
 /* the logo + FICC/Equities switch stay pinned to the top while the nav list scrolls;
    the opaque sidebar-colour background hides the entries sliding beneath. Sticky must sit
    on the stLayoutWrapper AROUND the keyed block — the keyed block itself fills its wrapper
@@ -393,7 +403,7 @@ def sidebar_logo() -> None:
     pal = palette()
     st.markdown(
         f'<div style="padding:.15rem 0 .35rem">{header_svg(pal, height=84)}'
-        f'<div class="basis-tag" style="margin-top:.5rem">Strategy Monitor</div></div>',
+        f'<div class="basis-tag" style="margin-top:.5rem">Research Monitor</div></div>',
         unsafe_allow_html=True,
     )
 
