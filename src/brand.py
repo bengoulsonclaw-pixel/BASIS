@@ -40,26 +40,29 @@ _FONT = ("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
 # brochure): yellow #F5C518 · rich black #0A0A0A · dark grey #2A2A2A ·
 # off-white #F6F6F6 · white #FFFFFF. Dark = XP rich black + yellow; light = the
 # white "brochure" look (white / off-white / near-black + the same XP yellow).
+# Both palettes are LAYERED rather than flat: the canvas sits a clear step away from the
+# card surfaces and the sidebar, so pages read as zones instead of one solid black/white
+# sheet. Dark = slate greys lifted off pure black; light = a grey canvas with white cards.
 DARK = dict(
     name="dark",
-    canvas="#0A0A0A", glass="rgba(10,10,10,.78)", surface="#161616", surface2="#1F1F1F",
-    border="#2A2A2A", border_soft="rgba(255,255,255,.08)",
-    btn="#35353F", btn_border="#45454E", btn_hover="#42424E",
-    btn_gold="#514727", btn_gold_hover="#63562E", label_ring="rgba(245,197,24,.55)",
+    canvas="#14171C", glass="rgba(20,23,28,.78)", surface="#1D2127", surface2="#262B32",
+    border="#343A43", border_soft="rgba(255,255,255,.10)",
+    btn="#3A404A", btn_border="#4A515C", btn_hover="#464D58",
+    btn_gold="#564C2A", btn_gold_hover="#685C33", label_ring="rgba(245,197,24,.55)",
     text="#ECEEF1", text_dim="#CBD0D7", caption="#D2D7DD",
-    sidebar="#101010",
+    sidebar="#0F1114",
     gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.14)",
     bracket="#8A8F96", tagline="#8A8F96",
     word=(("0", "#EEF0F3"), ("0.5", "#C0C5CC"), ("0.72", "#CBA53C"), ("1", "#F4CC3A")),
 )
 LIGHT = dict(
     name="light",
-    canvas="#FFFFFF", glass="rgba(255,255,255,.8)", surface="#F6F6F6", surface2="#ECECEC",
-    border="#E3E3E3", border_soft="#ECECEC",
-    btn="#FFFFFF", btn_border="#C4C4C4", btn_hover="#EEEEEE",
+    canvas="#EDEFF3", glass="rgba(237,239,243,.8)", surface="#FFFFFF", surface2="#F3F5F8",
+    border="#CFD4DB", border_soft="#DEE2E8",
+    btn="#FFFFFF", btn_border="#C4C4C4", btn_hover="#F1F3F6",
     btn_gold="#FBF3D0", btn_gold_hover="#F6E9A8", label_ring="rgba(200,144,26,.6)",
     text="#1A1A1A", text_dim="#3A3D42", caption="#42454A",
-    sidebar="#F6F6F6",
+    sidebar="#E3E6EB",
     gold="#F5C518", gold_deep="#C8901A", gold_soft="rgba(245,197,24,.16)",
     bracket="#9A9A9A", tagline="#6A6A6A",
     word=(("0", "#1A1A1A"), ("0.58", "#1A1A1A"), ("0.73", "#C8901A"), ("1", "#E0A81C")),
