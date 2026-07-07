@@ -663,15 +663,15 @@ def _nav_button(label: str, dest: str) -> None:
 # (rendered just before the page dispatch, so it works for generic strategy pages AND the special
 # dispatched pages like the Reports Calendar and OPEC report). member = (button label, active key).
 _GROUP_TABS = {
-    "Market Information": [("🕒 Market Hours", "Market Hours"),
+    "Market Information": [("📅 Reports Calendar", "Release Calendar"),
+                           ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🔗 Correlations", "Product Correlations")],
     "Trade Testing":      [("🏛️ Fed Path", "Fed Path"),
                            ("🧪 Vol Backtester", "Vol Backtester")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
-    "Fundamentals":       [("📅 Reports Calendar", "Release Calendar"),
-                           ("AG Fundamentals", "AG Fundamentals"),
+    "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
                            ("🛢️ OPEC Report", "OPEC Report")],
 }
 _TAB_MEMBERS_OF = {dest: members for members in _GROUP_TABS.values() for _lbl, dest in members}
@@ -690,12 +690,15 @@ def _render_group_tabs(active_page: str) -> None:
 
 
 def _data_badge(snap) -> None:
-    """Compact, always-visible data-source status for the sidebar."""
+    """Compact, always-visible data-source status for the sidebar. Healthy states render as
+    a subtle caption (same voice as "Signals as of" below); only problem states — demo /
+    missing data — keep the loud warning box."""
     if MODE == "bloomberg":
-        st.success("Live Bloomberg", icon="✅")
+        st.caption("🟢 Live Bloomberg")
     elif MODE == "snapshot" and snap and snap.get("source") == "bloomberg":
-        _pulled = f" · pulled {_to_et(snap['created'])}" if snap.get("created") else ""
-        st.success(f"Snapshot · {snap.get('as_of', '?')}{_pulled}", icon="📦")
+        _pulled = f"<br>pulled {_to_et(snap['created'])}" if snap.get("created") else ""
+        st.caption(f"📦 Snapshot: **{snap.get('as_of', '?')}**{_pulled}",
+                   unsafe_allow_html=True)
     elif MODE == "snapshot" and snap:
         st.warning(f"Demo snapshot ({snap.get('source', '?')})", icon="⚠️")
     elif MODE == "snapshot":
@@ -1760,6 +1763,77 @@ def render_eq_fundamentals() -> None:
         _eqf_tearsheet(df, asof, src)
     with t3:
         _eqf_peers(df)
+
+
+# ── Earnings Calendar (Equities) ──────────────────────────────────────────────
+def _ecal_shift(delta):
+    y, m = st.session_state.get("ecal_ym", (0, 0))
+    m += delta
+    if m < 1:
+        m, y = 12, y - 1
+    elif m > 12:
+        m, y = 1, y + 1
+    st.session_state["ecal_ym"] = (y, m)
+
+
+def _ecal_today():
+    t = datetime.now(ZoneInfo("America/New_York")).date()
+    st.session_state["ecal_ym"] = (t.year, t.month)
+
+
+def render_eq_earnings() -> None:
+    """Month-grid of every constituent's next expected earnings date — the Equities twin of
+    the FICC fundamental-reports calendar (same repcal grid, chips coloured by GICS sector)."""
+    from src import eqearncal, repcal
+    import calendar as _cmod
+    st.subheader("📅 Earnings calendar")
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    _keys = list(equities.INDICES.keys())
+    fc1, fc2 = st.columns([3, 3])
+    sel = fc1.multiselect("Indices", _keys, default=_keys, key="ecal_idx",
+                          help="Scope the calendar to these indices.")
+    with st.spinner("Loading the fundamentals database…"):
+        df, asof, src = _eqf_frame(tuple(sel or _keys))
+    if df.empty:
+        st.caption("No universe loaded — pull equities data first (Equities Home).")
+        return
+    sectors = sorted(df["sector"].dropna().unique())
+    sec_sel = fc2.multiselect("Sectors", sectors, key="ecal_sectors", help="Blank = all sectors.")
+    dff = df[df["sector"].isin(sec_sel)] if sec_sel else df
+    n_dated = int(pd.to_datetime(dff.get("EXPECTED_REPORT_DT"), errors="coerce").notna().sum())
+    st.caption(f"**{n_dated}** of {len(dff)} companies in the selection have a Bloomberg expected "
+               f"report date (from the {asof} {src} pull). Each date is the company's **next** "
+               "expected report, so the grid fills roughly one quarter ahead and rolls forward "
+               "with the weekly fundamentals pull. Busy days show the biggest names by market "
+               "cap plus a **⋯ more** chip — hover any chip for the details.")
+
+    # ----- month navigation: Today / ‹ / › / Month Year (same pattern as the FICC calendar) -----
+    st.session_state.setdefault("ecal_ym", (today.year, today.month))
+    n1, n2, n3, n4 = st.columns([1.1, 0.7, 0.7, 6])
+    n1.button("Today", key="ecal_today_btn", on_click=_ecal_today, use_container_width=True)
+    n2.button("‹", key="ecal_prev", on_click=_ecal_shift, args=(-1,), use_container_width=True)
+    n3.button("›", key="ecal_next", on_click=_ecal_shift, args=(1,), use_container_width=True)
+    cy, cm = st.session_state["ecal_ym"]
+    n4.markdown(f"<div style='font-size:21px;font-weight:700;padding-top:2px'>{_cmod.month_name[cm]} {cy}</div>",
+                unsafe_allow_html=True)
+
+    st.markdown(repcal.month_html(eqearncal.events(dff), cy, cm, today), unsafe_allow_html=True)
+    st.markdown(eqearncal.legend_html(), unsafe_allow_html=True)
+
+    with st.expander("📋 List view — upcoming earnings, soonest first"):
+        d = dff.copy()
+        d["_dt"] = pd.to_datetime(d.get("EXPECTED_REPORT_DT"), errors="coerce")
+        d = d[d["_dt"].notna() & (d["_dt"].dt.date >= today)].sort_values("_dt")
+        if d.empty:
+            st.caption("No dated upcoming reports in the current selection.")
+        else:
+            brand.themed_dataframe(pd.DataFrame({
+                "Date": d["_dt"].dt.strftime("%a %d %b %Y"),
+                "Company": d["name"], "Ticker": d["ticker"].str.split().str[0],
+                "Sector": d["sector"], "Index": d["indices"],
+                "Mkt cap": [eqfunda.fmt_value("CRNCY_ADJ_MKT_CAP", v)
+                            for v in d.get("CRNCY_ADJ_MKT_CAP", pd.Series(index=d.index))],
+            }), {}, height=520)
 
 
 # ── Single Stock Correlations (Equities) ──────────────────────────────────────
@@ -4030,10 +4104,10 @@ with st.sidebar:
     if _side == "FICC":
         _nav_button("🎯  Confluence", "Confluence")
         _nav_button("☕  Morning Coffee", "Morning Coffee")
-        # Market Information (Market Hours / Block Sizes / Correlations) collapses to one entry above the
-        # strategies; Trade Testing (Fed Path + Vol Backtester) sits just below them. Both carry the
-        # tab-row switcher (_render_group_tabs).
-        _nav_button("🗂️  Market Information", "Market Hours")
+        # Market Information (Reports Calendar / Market Hours / Block Sizes / Correlations) collapses to one
+        # entry above the strategies; Trade Testing (Fed Path + Vol Backtester) sits just below them. Both
+        # carry the tab-row switcher (_render_group_tabs).
+        _nav_button("🗂️  Market Information", "Release Calendar")
         st.caption("**STRATEGIES**")
         for _group, _strats in NAV_GROUPS.items():
             # Each strategy group collapses to ONE sidebar entry; its members are reached from within
@@ -4046,7 +4120,7 @@ with st.sidebar:
             elif _group == "Positioning & Flow":
                 _nav_button("📊  Positioning & Flow", "COT Reports")
             elif _group == "Fundamentals":
-                _nav_button("🌍  Fundamentals", "Release Calendar")
+                _nav_button("🌍  Fundamentals", "AG Fundamentals")
             else:                                   # any future group: caption + its individual buttons
                 st.caption(_group)
                 for _s in _strats:
@@ -4060,6 +4134,7 @@ with st.sidebar:
         st.caption("**EQUITIES**  ·  US + European indices")
         # No "Equities Home" entry — the 📈 Equities side button (and the logo) already land there.
         _nav_button("🏢  Company Fundamentals", "eq:Fundamentals")
+        _nav_button("📅  Earnings Calendar", "eq:Earnings")
         _nav_button("🔗  Single Stock Correlations", "eq:Correlations")
 
 # ----- BASIS masthead (the full lockup, same size on every page) -----------
@@ -4178,6 +4253,8 @@ def render_universe():
 if side == "Equities":
     if active == "eq:Fundamentals":
         render_eq_fundamentals()
+    elif active == "eq:Earnings":
+        render_eq_earnings()
     elif active == "eq:Correlations":
         render_eq_correlations()
     else:
