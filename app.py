@@ -457,7 +457,7 @@ def _vol_charts(threshold):
     yorder = fls["market"].tolist()
     yenc = alt.Y("market:N", sort=yorder, title=None)
     bz = alt.Chart(fls)
-    seg = bz.mark_rule(color=cc["muted"], strokeWidth=2).encode(x=alt.X("rv:Q", title="annualised vol (%)"), x2="iv:Q", y=yenc)
+    seg = bz.mark_rule(color=cc["muted"], strokeWidth=2.6).encode(x=alt.X("rv:Q", title="annualised vol (%)"), x2="iv:Q", y=yenc)
     rv_pt = bz.mark_point(filled=True, size=95, color=cc["muted"], stroke="white", strokeWidth=0.6).encode(x="rv:Q", y=yenc, tooltip=tip)
     iv_pt = bz.mark_point(filled=True, size=95, stroke="white", strokeWidth=0.6).encode(x="iv:Q", y=yenc, color=color, tooltip=tip)
     st.markdown("Grey dot = realized · coloured dot = implied · the bar between them is the spread.")
@@ -493,8 +493,8 @@ def _vol_charts(threshold):
             scol = cc["short"] if fl.loc[fl["market"] == pick, "flag"].iloc[0].startswith("Rich") else cc["long"]
             sp_area = alt.Chart(g).mark_area(opacity=0.22, color=scol).encode(
                 x=alt.X("date:T", title=None), y=alt.Y("spread:Q", title="implied − realized (vol pts)"))
-            sp_line = alt.Chart(g).mark_line(color=scol, strokeWidth=1.5).encode(x="date:T", y="spread:Q")
-            px_line = alt.Chart(g).mark_line(color=cc["ink"], strokeWidth=1.3).encode(
+            sp_line = alt.Chart(g).mark_line(color=scol, strokeWidth=2.1).encode(x="date:T", y="spread:Q")
+            px_line = alt.Chart(g).mark_line(color=cc["ink"], strokeWidth=1.9).encode(
                 x="date:T", y=alt.Y("price:Q", title="underlying price", scale=alt.Scale(zero=False)))
             brand.show_chart(alt.layer(sp_area + sp_line, px_line).resolve_scale(y="independent").properties(height=320))
 
@@ -555,7 +555,7 @@ def _skew_charts(threshold):
     if not fld.empty:
         yenc = alt.Y("market:N", sort=fld["market"].tolist(), title=None)
         bz = alt.Chart(fld)
-        seg = bz.mark_rule(color=cc["muted"], strokeWidth=2).encode(x=alt.X("call:Q", title="wing vol (%)"), x2="put:Q", y=yenc)
+        seg = bz.mark_rule(color=cc["muted"], strokeWidth=2.6).encode(x=alt.X("call:Q", title="wing vol (%)"), x2="put:Q", y=yenc)
         cpt = bz.mark_point(filled=True, size=95, color=cc["muted"], stroke="white", strokeWidth=0.6).encode(x="call:Q", y=yenc, tooltip=tip)
         ppt = bz.mark_point(filled=True, size=95, stroke="white", strokeWidth=0.6).encode(x="put:Q", y=yenc, color=color, tooltip=tip)
         st.markdown("Grey dot = call wing · coloured dot = put wing · the bar between them is the skew.")
@@ -614,7 +614,7 @@ def _term_charts(threshold):
     _tmap = {"iv_1m": "1M", "iv_3m": "3M", "iv_6m": "6M", "iv_12m": "12M"}
     cur = fl.melt(id_vars=["market", "flag"], value_vars=list(_tmap), var_name="tenor", value_name="iv")
     cur["tenor"] = cur["tenor"].map(_tmap)
-    curve = alt.Chart(cur).mark_line(point=True, strokeWidth=1.6).encode(
+    curve = alt.Chart(cur).mark_line(point=True, strokeWidth=2.2).encode(
         x=alt.X("tenor:N", sort=["1M", "3M", "6M", "12M"], title="tenor"),
         y=alt.Y("iv:Q", title="ATM vol (%)", scale=alt.Scale(zero=False)),
         color=alt.Color("market:N", legend=alt.Legend(title=None, orient="right")),
@@ -1849,7 +1849,7 @@ def render_eq_correlations() -> None:
         enc_y = alt.Y("row:N", sort=order, title=None,
                       axis=alt.Axis(labelFontSize=11, labelLimit=140))
         base = alt.Chart(tidy)
-        rect = base.mark_rect(stroke=brand.palette()["canvas"], strokeWidth=1.5).encode(
+        rect = base.mark_rect(stroke=brand.palette()["canvas"], strokeWidth=2.1).encode(
             x=enc_x, y=enc_y,
             color=alt.Color("corr:Q",
                             scale=alt.Scale(scheme="redblue", domain=domain, reverse=True),
@@ -2170,12 +2170,12 @@ def render_ta_overview() -> None:
                         _fbase = alt.Chart(_fch).encode(x="date:T")
                         flag_layers += [
                             _fbase.mark_area(opacity=0.22, color=_fcol).encode(y="lower:Q", y2="upper:Q"),
-                            _fbase.mark_line(color=_fcol, strokeWidth=1.0).encode(y="upper:Q"),
-                            _fbase.mark_line(color=_fcol, strokeWidth=1.0).encode(y="lower:Q"),
-                            _fbase.mark_line(color=_fcol, strokeDash=[6, 3], strokeWidth=1.8).encode(y="breakout:Q"),
+                            _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="upper:Q"),
+                            _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="lower:Q"),
+                            _fbase.mark_line(color=_fcol, strokeDash=[6, 3], strokeWidth=2.4).encode(y="breakout:Q"),
                             alt.Chart(pd.DataFrame({"date": [_fi["pole_base"][0], _fi["pole_tip"][0]],
                                                     "price": [_fi["pole_base"][1], _fi["pole_tip"][1]]})).mark_line(
-                                color="#B0B0B0", strokeWidth=2.2).encode(x="date:T", y="price:Q"),
+                                color="#B0B0B0", strokeWidth=2.8).encode(x="date:T", y="price:Q"),
                         ]
                 if "Support & Resistance" in strset:
                     _, _isr = _sr.sr_chart_data(tk)
@@ -2200,17 +2200,17 @@ def render_ta_overview() -> None:
                 for _lab, _ser in lines.items():
                     _ldf[_lab] = _ser.reindex(win.index).to_numpy(dtype=float)
                 _long = _ldf.melt("date", var_name="Indicator", value_name="val").dropna(subset=["val"])
-                layers.append(alt.Chart(_long).mark_line(strokeWidth=1.2).encode(
+                layers.append(alt.Chart(_long).mark_line(strokeWidth=1.8).encode(
                     x="date:T", y=alt.Y("val:Q", scale=alt.Scale(zero=False)),
                     color=alt.Color("Indicator:N", legend=alt.Legend(orient="top", title=None, labelFontSize=11)),
                     tooltip=[alt.Tooltip("Indicator:N"), alt.Tooltip("val:Q", format=",.2f")]))
-            layers.append(base.mark_line(color=_cc["ink"], strokeWidth=1.7).encode(
+            layers.append(base.mark_line(color=_cc["ink"], strokeWidth=2.3).encode(
                 y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False), axis=alt.Axis(labelFontSize=11)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")]))
             for pv, cv in rules:
                 if np.isfinite(pv):
                     layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
-                        color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.2).encode(y="y:Q"))
+                        color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
             brand.show_chart(alt.layer(*layers).resolve_scale(y="shared").properties(height=300))
 
             # RSI subpanel when momentum is one of the flaggers (oscillator → its own panel).
@@ -2221,7 +2221,7 @@ def render_ta_overview() -> None:
                     _mcd = None
                 if _mcd is not None and not _mcd.empty:
                     _rb = alt.Chart(_mcd.tail(180)).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)))
-                    _rsi = _rb.mark_line(color="#7E57C2", strokeWidth=1.4).encode(
+                    _rsi = _rb.mark_line(color="#7E57C2", strokeWidth=2).encode(
                         y=alt.Y("rsi:Q", title="RSI", scale=alt.Scale(domain=[0, 100]),
                                 axis=alt.Axis(values=[0, 30, 50, 70, 100], labelFontSize=11)))
                     _ob = alt.Chart(pd.DataFrame({"y": [70]})).mark_rule(color=_cc["short"], strokeDash=[4, 3]).encode(y="y:Q")
@@ -2977,7 +2977,7 @@ def render_fed_path() -> None:
     path_df["date"] = pd.to_datetime(path_df["date"])
     dom = ["Market-implied", "Your scenario"]
     rng = [cc["series"], cc["accent"]]
-    line = alt.Chart(path_df).mark_line(interpolate="step-after", strokeWidth=2.4).encode(
+    line = alt.Chart(path_df).mark_line(interpolate="step-after", strokeWidth=3).encode(
         x=alt.X("date:T", title=None),
         y=alt.Y("mid:Q", title="Target midpoint (%)", scale=alt.Scale(zero=False)),
         color=alt.Color("Path:N", scale=alt.Scale(domain=dom, range=rng),
@@ -3091,10 +3091,21 @@ def _vbt_vol_tickers(mode: str) -> list:
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
+def _vbt_pair_corr_cached(buy: str, sell: str, asof_iso: str, mode: str):
+    """Pair-correlation stats, cached so widget reruns don't re-pull history
+    (`mode` keys the cache to the data source). Raises instead of returning
+    None so a transient feed failure is NOT cached for the TTL."""
+    pc = volbt.correlation_stats(buy, sell, date.fromisoformat(asof_iso))
+    if pc is None:
+        raise RuntimeError("no shared history")
+    return pc
+
+
 def _vbt_pair_corr(buy: str, sell: str, asof_iso: str, mode: str):
-    """Pair-correlation stats for the backtester page, cached so widget reruns
-    don't re-pull history (`mode` keys the cache to the data source)."""
-    return volbt.correlation_stats(buy, sell, date.fromisoformat(asof_iso))
+    try:
+        return _vbt_pair_corr_cached(buy, sell, asof_iso, mode)
+    except Exception:
+        return None
 
 
 def render_vol_backtester() -> None:
@@ -3161,7 +3172,8 @@ def render_vol_backtester() -> None:
     expiries = volbt.quarterly_expiries(entry + timedelta(days=40), 8)
     expiry = c4.selectbox("Option expiry (both legs)", expiries,
                           format_func=lambda d: f"{d:%b %Y}  ·  3rd Fri {d:%d %b}", key="vbt_exp")
-    _W = {"gamma": "Dollar-gamma neutral — realized-vol trade",
+    _W = {"rn_gamma": "Risk-normalised gamma (Γ·F²·σ²) — equal expected gamma earn, theta-flat",
+          "gamma": "Dollar-gamma neutral — realized-vol trade",
           "vega": "Vega neutral — implied-spread trade",
           "beta_vega": "β-weighted vega — vol-market-neutral",
           "premium": "Premium flat — zero net outlay"}
@@ -3215,27 +3227,39 @@ def render_vol_backtester() -> None:
                 else:
                     st.caption(f"The 1M return correlation is in the {pc.pctl:.0f}th percentile of its "
                                "rolling 1-year range — in line with how this pair normally trades.")
-            with st.expander("Rolling 1M correlation over the past year — the breakdown picture"):
-                cc0 = brand.chart_colors()
-                rp = pc.rolling_px.rename("corr").reset_index()
-                rp.columns = ["date", "corr"]; rp["Series"] = "Returns (21d rolling)"
-                ri = pc.rolling_iv.rename("corr").reset_index()
-                ri.columns = ["date", "corr"]; ri["Series"] = "IV changes (21d rolling)"
-                cdf = pd.concat([rp, ri.dropna(subset=["corr"])])
-                cdom = ["Returns (21d rolling)", "IV changes (21d rolling)"]
-                cchart = alt.Chart(cdf).mark_line(strokeWidth=2).encode(
-                    x=alt.X("date:T", title=None),
-                    y=alt.Y("corr:Q", title="correlation", scale=alt.Scale(domain=[-1, 1])),
-                    color=alt.Color("Series:N", scale=alt.Scale(domain=cdom,
-                                    range=[cc0["series"], cc0["accent"]]),
-                                    legend=alt.Legend(title=None, orient="top")),
-                    tooltip=[alt.Tooltip("date:T"), alt.Tooltip("Series:N"),
-                             alt.Tooltip("corr:Q", format="+.2f")])
-                lvl = alt.Chart(pd.DataFrame({"y": [pc.px_1y]})).mark_rule(
-                    color=cc0["muted"], strokeDash=[5, 3]).encode(y="y:Q")
-                brand.show_chart((cchart + lvl).properties(height=230))
-                st.caption("Dashed line = the 1-year return-correlation level. A rolling line well "
-                           "below it is the 'breakdown' to watch when trading one product against the other.")
+            st.markdown("**Rolling 1M correlation over the past year** — the breakdown picture.")
+            cc0 = brand.chart_colors()
+            rp = pc.rolling_px.rename("corr").reset_index()
+            rp.columns = ["date", "corr"]; rp["Series"] = "Returns (21d rolling)"
+            ri = pc.rolling_iv.rename("corr").reset_index()
+            ri.columns = ["date", "corr"]; ri["Series"] = "IV changes (21d rolling)"
+            cdf = pd.concat([rp, ri.dropna(subset=["corr"])])
+            cdom = ["Returns (21d rolling)", "IV changes (21d rolling)"]
+            # fit the axis to the data (a tight pair reads as a flat line on a
+            # fixed -1..1 axis); pad a touch, keep the dashed 1Y level in frame,
+            # clamp to the +/-1 bounds. NaN-proof: a NaN in a Vega domain
+            # renders a silently blank chart, so fall back to [-1, 1].
+            _cvals = np.append(cdf["corr"].to_numpy(dtype=float), float(pc.px_1y))
+            _cvals = _cvals[np.isfinite(_cvals)]
+            _clo, _chi = (float(_cvals.min()), float(_cvals.max())) if len(_cvals) else (-1.0, 1.0)
+            _cpad = max(0.05, (_chi - _clo) * 0.15)
+            cchart = alt.Chart(cdf).mark_line(strokeWidth=3).encode(
+                x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)),
+                y=alt.Y("corr:Q", title="correlation",
+                        scale=alt.Scale(domain=[max(-1.0, _clo - _cpad),
+                                                min(1.0, _chi + _cpad)]),
+                        axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
+                color=alt.Color("Series:N", scale=alt.Scale(domain=cdom,
+                                range=[cc0["series"], cc0["accent"]]),
+                                legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("Series:N"),
+                         alt.Tooltip("corr:Q", title="Corr", format="+.2f")])
+            lvl = alt.Chart(pd.DataFrame({"y": [pc.px_1y]})).mark_rule(
+                color=cc0["muted"], strokeDash=[5, 3]).encode(y="y:Q")
+            brand.show_chart((cchart + lvl).properties(
+                height=270, title="Rolling 1M correlation (dashed = 1Y level)"))
+            st.caption("Dashed line = the 1-year return-correlation level. A rolling line well "
+                       "below it is the 'breakdown' to watch when trading one product against the other.")
 
     with st.expander("Advanced — sizing, costs, exit, point values"):
         a1, a2, a3, a4 = st.columns(4)
@@ -3323,6 +3347,66 @@ def render_vol_backtester() -> None:
         m5.metric("Re-strikes", f"{s['n_restrikes']}")
         m5.caption(f"all-in costs {_usd(s['costs'])}")
 
+    # ---- cash greeks — at entry and at the latest marks; total then per product -
+    _GC = ["Straddles", "$ Delta", "$ Gamma (per 1%)", "$ Vega (per vol pt)",
+           "$ Theta (per day)", "$ Premium"]
+
+    def _cash_greeks(spec, pnl_total):
+        """spec rows: (label, sign, F, K, iv, lots, mult, tau_years, cum_pnl) →
+        cash-greek table, TOTAL (net) on top. The TOTAL P&L is passed in because
+        it includes costs, which aren't attributed to either leg."""
+        rows, tot = [], {c: 0.0 for c in _GC}
+        for label, sgn, F, K, iv, n, m, tau, pnl in spec:
+            g = volbt.straddle_greeks(F, K, iv, tau)
+            row = {"Position": label, "Straddles": sgn * n,
+                   "$ Delta": sgn * g.delta * n * F * m,
+                   "$ Gamma (per 1%)": sgn * g.gamma * F * F * n * m / 100.0,
+                   "$ Vega (per vol pt)": sgn * g.vega * n * m,
+                   "$ Theta (per day)": sgn * g.theta / 365.0 * n * m,
+                   "$ Premium": sgn * g.value * n * m,
+                   "$ P&L (cum.)": pnl}
+            rows.append(row)
+            for c in tot:
+                tot[c] += row[c]
+        tot = {k2: (0.0 if abs(v) < 0.005 else v) for k2, v in tot.items()}  # kill -0 dust
+        return pd.DataFrame([{"Position": "TOTAL (net)", **tot,
+                              "$ P&L (cum.)": pnl_total}] + rows)
+
+    _ev0, _evN = res.events.iloc[0], res.events.iloc[-1]
+    _dN = res.daily.iloc[-1]
+    _tau0 = max((s["expiry"] - s["entry"]).days, 1) / 365.0
+    _tauN = max((s["expiry"] - s["exit"]).days, 1) / 365.0
+    _spec0, _specN = [], []
+    for _gk, _gK, _gsgn in (("buy", "Buy", 1.0), ("sell", "Sell", -1.0)):
+        if not s.get(_gk):
+            continue
+        _lab = f"{_gK} — {s[f'{_gk}_name']}"
+        _gm = float(s[f"mult_{_gk}"])
+        _spec0.append((_lab, _gsgn, float(_ev0[f"{_gk}_K"]), float(_ev0[f"{_gk}_K"]),
+                       float(_ev0[f"{_gk}_iv"]), float(_ev0[f"{_gk}_lots"]), _gm, _tau0,
+                       0.0))
+        _specN.append((_lab, _gsgn, float(_dN[f"{_gk}_F"]), float(_dN[f"{_gk}_K"]),
+                       float(_dN[f"{_gk}_iv"]), float(_evN[f"{_gk}_lots"]), _gm, _tauN,
+                       float(s[f"total_{_gk}"])))
+    st.markdown("**Cash greeks** — TOTAL first, then by product. **\\$ Delta** = the underlying "
+                "notional the options carry (the futures hedge holds the opposite, so the book "
+                "runs flat); **\\$ Gamma** = \\$ delta picked up per 1% spot move; **\\$ Theta** = "
+                "the day's rent paid/collected; **\\$ Premium** = market value of the options "
+                "(net = held − short); **\\$ P&L (cum.)** = each leg's cumulative P&L to that "
+                "date (options + its hedges) — the TOTAL row also carries the costs, which "
+                "belong to neither leg.")
+    _gfmt = {"Straddles": "{:+,.1f}".format, "$ Delta": "{:+,.0f}".format,
+             "$ Gamma (per 1%)": "{:+,.0f}".format, "$ Vega (per vol pt)": "{:+,.0f}".format,
+             "$ Theta (per day)": "{:+,.0f}".format, "$ Premium": "{:+,.0f}".format,
+             "$ P&L (cum.)": "{:+,.0f}".format}
+    st.caption(f"At entry — {s['entry']:%d %b %Y} (as struck)")
+    _g0 = _cash_greeks(_spec0, float(res.daily["net"].iloc[0]))
+    brand.themed_dataframe(_g0, fmt=_gfmt, height=45 + 35 * len(_g0))
+    st.caption(f"Latest — {s['exit']:%d %b %Y} (final marks before close-out; re-strikes "
+               "re-size the position along the way — see the dollar-greeks chart)")
+    _gN = _cash_greeks(_specN, float(s["total"]))
+    brand.themed_dataframe(_gN, fmt=_gfmt, height=45 + 35 * len(_gN))
+
     cc = brand.chart_colors()
     d = res.daily.reset_index()
     d["buy_cum"] = d["buy_pnl"].cumsum()
@@ -3339,22 +3423,27 @@ def render_vol_backtester() -> None:
                     pd.DataFrame({"date": d["date"], "pnl": d["sell_cum"], "Series": f"Sell {s['sell_name']}"})]
         dom += [f"Buy {s['buy_name']}", f"Sell {s['sell_name']}"]
     cum_df = pd.concat(_frames)
-    line = alt.Chart(cum_df).mark_line(strokeWidth=2.2).encode(
-        x=alt.X("date:T", title=None),
-        y=alt.Y("pnl:Q", title="cumulative P&L ($)"),
+    _xax = alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12))
+    halo = alt.Chart(cum_df[cum_df["Series"] == "Net"]).mark_line(
+        color=cc["halo"], strokeWidth=5.6).encode(x=_xax, y="pnl:Q")
+    line = alt.Chart(cum_df).mark_line(strokeWidth=3.4).encode(
+        x=_xax,
+        y=alt.Y("pnl:Q", title="cumulative P&L ($)",
+                axis=alt.Axis(labelFontSize=12, titleFontSize=13, format="~s")),
         color=alt.Color("Series:N", scale=alt.Scale(domain=dom,
                         range=[cc["accent"], cc["long"], cc["short"]]),
-                        legend=alt.Legend(title=None, orient="top")),
-        opacity=alt.condition(alt.datum.Series == "Net", alt.value(1.0), alt.value(0.45)),
-        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("Series:N"),
+                        legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
+        opacity=alt.condition(alt.datum.Series == "Net", alt.value(1.0), alt.value(0.5)),
+        tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("Series:N"),
                  alt.Tooltip("pnl:Q", title="P&L ($)", format="+,.0f")])
     rs_df = d[d["restrike"] == 1]
-    ticks = alt.Chart(rs_df).mark_point(shape="triangle-up", filled=True, size=42,
+    ticks = alt.Chart(rs_df).mark_point(shape="triangle-up", filled=True, size=60,
                                         color=cc["muted"]).encode(
-        x="date:T", y=alt.value(6),
+        x="date:T", y=alt.value(8),
         tooltip=[alt.Tooltip("date:T", title="Re-strike")])
     zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(color=cc["muted"]).encode(y="y:Q")
-    brand.show_chart((line + ticks + zero).properties(height=330))
+    brand.show_chart((halo + line + ticks + zero).properties(
+        height=360, title="Cumulative P&L — net (gold) vs each leg · ▲ re-strikes"))
 
     # ---- chart 2: attribution ----------------------------------------------------
     st.markdown("**P&L attribution** — where it came from: gamma (realized vol) vs theta "
@@ -3364,16 +3453,60 @@ def render_vol_backtester() -> None:
                       "Higher-order (resid.)", "Costs", "NET"],
         "value": [s["gamma_pnl"], s["theta_pnl"], s["vega_pnl"], s["resid_pnl"],
                   -s["costs"], s["total"]]})
+    att["value"] = att["value"].apply(lambda v: 0.0 if abs(v) < 0.5 else v)   # no "-0" labels
     att["kind"] = np.where(att["component"] == "NET", "net",
                            np.where(att["value"] >= 0, "pos", "neg"))
+    _aspan = float(att["value"].abs().max()) or 1.0
+    _asort = list(att["component"])
     bar = alt.Chart(att).mark_bar().encode(
-        x=alt.X("value:Q", title="P&L ($)"),
-        y=alt.Y("component:N", sort=list(att["component"]), title=None),
+        x=alt.X("value:Q", title="P&L ($)",
+                scale=alt.Scale(domain=[-_aspan * 1.35, _aspan * 1.35]),
+                axis=alt.Axis(labelFontSize=12, titleFontSize=13, format="~s")),
+        y=alt.Y("component:N", sort=_asort, title=None, axis=alt.Axis(labelFontSize=12)),
         color=alt.Color("kind:N", scale=alt.Scale(domain=["pos", "neg", "net"],
                         range=[cc["long"], cc["short"], cc["accent"]]), legend=None),
-        tooltip=[alt.Tooltip("component:N"), alt.Tooltip("value:Q", format="+,.0f")])
-    brand.show_chart((bar + alt.Chart(pd.DataFrame({"x": [0.0]})).mark_rule(
-        color=cc["muted"]).encode(x="x:Q")).properties(height=210))
+        tooltip=[alt.Tooltip("component:N", title="Component"),
+                 alt.Tooltip("value:Q", title="P&L ($)", format="+,.0f")])
+    _tpos = alt.Chart(att[att["value"] >= 0]).mark_text(
+        align="left", dx=6, fontSize=12, fontWeight="bold", color=cc["ink"]).encode(
+        x="value:Q", y=alt.Y("component:N", sort=_asort),
+        text=alt.Text("value:Q", format="+,.0f"))
+    _tneg = alt.Chart(att[att["value"] < 0]).mark_text(
+        align="right", dx=-6, fontSize=12, fontWeight="bold", color=cc["ink"]).encode(
+        x="value:Q", y=alt.Y("component:N", sort=_asort),
+        text=alt.Text("value:Q", format="+,.0f"))
+    brand.show_chart((bar + _tpos + _tneg + alt.Chart(pd.DataFrame({"x": [0.0]})).mark_rule(
+        color=cc["muted"]).encode(x="x:Q")).properties(
+        height=250, title="P&L attribution — labelled in $"))
+    with st.expander("How these bars are computed"):
+        st.markdown("""
+Each bar is a daily decomposition summed over the whole backtest. Every settlement day,
+each leg's option P&L is split using the **previous day's greeks** (the position actually
+held overnight), netted across legs:
+
+- **Gamma (realized)** — ½ × gamma × (price move)² × lots × point value. The convexity
+  payoff: you earn on the *square* of the move, direction-irrelevant. This is the
+  "realized vol" engine — big daily moves make it large, quiet days make it tiny.
+- **Theta (carry)** — theta × days elapsed × lots × point value. The rent on holding the
+  options — paid if long, collected if short (weekends land as three days of it on
+  Monday). Theta is what the market *charges* for gamma, priced off implied vol.
+- **Vega (IV re-mark)** — vega × (change in the implied vol used to mark the position).
+  Pure mark-to-market from the surface moving, including the roll along the term
+  structure as expiry approaches. Unlike gamma/theta it isn't "banked" daily — it's only
+  locked in because the position is closed at exit.
+- **Delta** — computed too but never shown: the futures hedge is reset to exactly minus
+  the position delta at every settlement, so the hedge P&L cancels the delta term
+  identically (it holds to the cent, every day).
+- **Higher-order** — the day's actual option P&L minus all of the above. The Taylor-series
+  remainder: what a first-order greek split can't capture — very large single-day jumps
+  (gamma itself changes mid-move), spot and vol moving together. Small and noisy = the
+  attribution is trustworthy; persistently large = read the other bars with caution.
+- **Costs** — every transaction cost charged (options crossed at entry/exit/re-strikes,
+  futures hedges), shown negative.
+
+**NET = Gamma + Theta + Vega + Higher-order − Costs** — an accounting identity with the
+cumulative P&L line above, not an estimate.
+""")
 
     # ---- chart 3: the implied vols in the marks (+ spread when two legs) ---------
     if _single:
@@ -3392,14 +3525,18 @@ def render_vol_backtester() -> None:
             pd.DataFrame({"date": d["date"], "iv": d["buy_iv"] - d["sell_iv"], "Series": "Spread (buy − sell)"}),
         ])
         ivdom = [f"{s['buy_name']} IV", f"{s['sell_name']} IV", "Spread (buy − sell)"]
-    ivc = alt.Chart(iv_df).mark_line(strokeWidth=2).encode(
-        x=alt.X("date:T", title=None), y=alt.Y("iv:Q", title="vol points"),
+    ivc = alt.Chart(iv_df).mark_line(strokeWidth=3).encode(
+        x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)),
+        y=alt.Y("iv:Q", title="vol points",
+                axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
         color=alt.Color("Series:N", scale=alt.Scale(domain=ivdom,
                         range=[cc["long"], cc["short"], cc["accent"]]),
-                        legend=alt.Legend(title=None, orient="top")),
-        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("Series:N"),
-                 alt.Tooltip("iv:Q", format=".2f")])
-    brand.show_chart((ivc + zero).properties(height=280))
+                        legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
+        tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("Series:N"),
+                 alt.Tooltip("iv:Q", title="Vol", format=".2f")])
+    brand.show_chart((ivc + zero).properties(
+        height=300, title="Implied vols marking the trade" +
+        ("" if _single else " · spread (gold)")))
 
     # ---- chart 4: dollar greeks — is the neutrality / exposure decaying? ---------
     st.markdown("**Dollar greeks by leg** — how the chosen neutrality decays between "
@@ -3412,18 +3549,22 @@ def render_vol_backtester() -> None:
     if s.get("sell"):
         _gleg.append(("sell", f"Sell {s['sell_name']}", cc["short"]))
     g1, g2 = st.columns(2)
-    for col, field, lab in ((g1, "gamma_usd", "$ gamma (Γ·F²·mult)"),
-                            (g2, "vega_usd", "$ vega (per vol pt)")):
-        gdf = pd.concat([pd.DataFrame({"date": d["date"], "v": d[f"{k}_{field}"], "Leg": nm})
+    for col, field, lab, _gdiv in ((g1, "gamma_usd", "$ gamma per 1% (Γ·F²·mult ÷ 100)", 100.0),
+                                   (g2, "vega_usd", "$ vega (per vol pt)", 1.0)):
+        gdf = pd.concat([pd.DataFrame({"date": d["date"], "v": d[f"{k}_{field}"] / _gdiv, "Leg": nm})
                          for k, nm, _c in _gleg])
-        ch = alt.Chart(gdf).mark_line(strokeWidth=2).encode(
-            x=alt.X("date:T", title=None), y=alt.Y("v:Q", title=lab),
+        ch = alt.Chart(gdf).mark_line(strokeWidth=3).encode(
+            x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)),
+            y=alt.Y("v:Q", title=lab,
+                    axis=alt.Axis(labelFontSize=12, titleFontSize=13, format="~s")),
             color=alt.Color("Leg:N", scale=alt.Scale(
                 domain=[nm for _k, nm, _c in _gleg],
-                range=[c for _k, _nm, c in _gleg]), legend=alt.Legend(title=None, orient="top")),
-            tooltip=[alt.Tooltip("date:T"), alt.Tooltip("Leg:N"), alt.Tooltip("v:Q", format=",.0f")])
+                range=[c for _k, _nm, c in _gleg]),
+                legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
+            tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("Leg:N"),
+                     alt.Tooltip("v:Q", title=lab, format=",.0f")])
         with col:
-            brand.show_chart(ch.properties(height=240))
+            brand.show_chart(ch.properties(height=260))
 
     # ---- events + daily detail ---------------------------------------------------
     st.markdown("**Trade log** — entry, every re-strike (new strikes, IVs, ratio), exit.")
@@ -3677,7 +3818,7 @@ def render_sector_correlations() -> None:
         enc_y = alt.Y("row:N", sort=ax_order, title=None,
                       axis=alt.Axis(labelFontSize=11, labelLimit=140))
         base = alt.Chart(tidy)
-        rect = base.mark_rect(stroke=brand.palette()["canvas"], strokeWidth=1.5).encode(
+        rect = base.mark_rect(stroke=brand.palette()["canvas"], strokeWidth=2.1).encode(
             x=enc_x, y=enc_y,
             color=alt.Color("corr:Q",
                             scale=alt.Scale(scheme="redblue", domain=domain, reverse=True),
@@ -3735,7 +3876,7 @@ def render_sector_correlations() -> None:
         dd.columns = ["date", "Average (signed)", "Average |corr|"]
         dmelt = dd.melt("date", var_name="Series", value_name="corr")
         ddom = ["Average (signed)", "Average |corr|"]
-        dline = alt.Chart(dmelt).mark_line(strokeWidth=2).encode(
+        dline = alt.Chart(dmelt).mark_line(strokeWidth=2.6).encode(
             x=alt.X("date:T", title=None),
             y=alt.Y("corr:Q", title="avg pairwise correlation",
                     scale=alt.Scale(zero=False)),
@@ -3865,16 +4006,19 @@ with st.sidebar:
     st.markdown(_LOGO_HOME_CSS, unsafe_allow_html=True)
     _side = st.session_state.get("side", "FICC")
     _home_dest = "eq:Home" if _side == "Equities" else "Home"
-    with st.container(key="basis_logo_home"):
-        brand.sidebar_logo()
-        st.button("Home", key="basis_logo_home_btn", on_click=_go, args=(_home_dest,),
-                  use_container_width=True)
-    # FICC / Equities — the two sides of BASIS, toggled directly under the logo.
-    _sc1, _sc2 = st.columns(2)
-    _sc1.button("📊  FICC", key="side_ficc", use_container_width=True,
-                type="primary" if _side == "FICC" else "secondary", on_click=_set_side, args=("FICC",))
-    _sc2.button("📈  Equities", key="side_equities", use_container_width=True,
-                type="primary" if _side == "Equities" else "secondary", on_click=_set_side, args=("Equities",))
+    # Logo + the FICC/Equities switch live in one sticky wrapper (styled in brand._CSS) so
+    # they stay pinned at the top of the sidebar while the nav list scrolls beneath them.
+    with st.container(key="basis_sidebar_sticky"):
+        with st.container(key="basis_logo_home"):
+            brand.sidebar_logo()
+            st.button("Home", key="basis_logo_home_btn", on_click=_go, args=(_home_dest,),
+                      use_container_width=True)
+        # FICC / Equities — the two sides of BASIS, toggled directly under the logo.
+        _sc1, _sc2 = st.columns(2)
+        _sc1.button("📊  FICC", key="side_ficc", use_container_width=True,
+                    type="primary" if _side == "FICC" else "secondary", on_click=_set_side, args=("FICC",))
+        _sc2.button("📈  Equities", key="side_equities", use_container_width=True,
+                    type="primary" if _side == "Equities" else "secondary", on_click=_set_side, args=("Equities",))
     snap = _load_snap()
     _data_badge(snap)
     df, meta = load_signals()
@@ -3916,8 +4060,8 @@ with st.sidebar:
         _nav_button("🏢  Company Fundamentals", "eq:Fundamentals")
         _nav_button("🔗  Single Stock Correlations", "eq:Correlations")
 
-# ----- BASIS masthead (big on Home/Morning Coffee, compact on inner pages) -
-brand.masthead(compact=st.session_state.active not in ("Home", "Morning Coffee", "eq:Home"))
+# ----- BASIS masthead (the full lockup, same size on every page) -----------
+brand.masthead()
 
 # ----- default landing view -----------------------------------------------
 if "active" not in st.session_state:
@@ -4208,7 +4352,7 @@ if active == "Trend":
             # coloured green (up / Long) or red (down / Short) — the signal made visible.
             win = pd.DataFrame({"date": [info["mom_date"], cdata["date"].iloc[-1]],
                                 "price": [info["mom_price"], info["last"]]})
-            win_ln = alt.Chart(win).mark_line(strokeDash=[5, 3], strokeWidth=2.4, color=_dir).encode(
+            win_ln = alt.Chart(win).mark_line(strokeDash=[5, 3], strokeWidth=3, color=_dir).encode(
                 x="date:T", y="price:Q")
             win_pts = alt.Chart(win).mark_point(size=95, filled=True, color=_dir).encode(
                 x="date:T", y="price:Q",
@@ -4301,7 +4445,7 @@ if active in ("MA Crossover", "MA Swing"):
             m = pd.concat([m, bridge]).sort_values(["seg", "date"])
             _rise, _fall = f"MA{cfg.fast} rising", f"MA{cfg.fast} falling"
             m["Slope"] = np.where(m["fast_rising"], _rise, _fall)
-            fast_ln = alt.Chart(m).mark_line(strokeWidth=2.4).encode(
+            fast_ln = alt.Chart(m).mark_line(strokeWidth=3).encode(
                 x="date:T", y="fast:Q", detail="seg:N",
                 color=alt.Color("Slope:N", scale=alt.Scale(domain=[_rise, _fall], range=[_cc["long"], _cc["short"]]),
                                 legend=alt.Legend(orient="top", title=None, labelFontSize=12)),
@@ -4366,19 +4510,19 @@ if active == "Flag Breakout":
         band = base.mark_area(opacity=0.15, color=_edge).encode(
             y=alt.Y("lower:Q", title="Price", scale=alt.Scale(zero=False),
                     axis=alt.Axis(labelFontSize=12, titleFontSize=13)), y2="upper:Q")
-        brk_ln = base.mark_line(color=_edge, strokeDash=[6, 3], strokeWidth=2).encode(y="breakout:Q")
-        price_ln = base.mark_line(color=_cc["ink"], strokeWidth=1.8).encode(
+        brk_ln = base.mark_line(color=_edge, strokeDash=[6, 3], strokeWidth=2.6).encode(y="breakout:Q")
+        price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.4).encode(
             y="price:Q",
             tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
         pole_df = pd.DataFrame({"date": [info["pole_base"][0], info["pole_tip"][0]],
                                 "price": [info["pole_base"][1], info["pole_tip"][1]]})
-        pole_ln = alt.Chart(pole_df).mark_line(color=_cc["muted"], strokeWidth=2.5).encode(x="date:T", y="price:Q")
+        pole_ln = alt.Chart(pole_df).mark_line(color=_cc["muted"], strokeWidth=3.1).encode(x="date:T", y="price:Q")
         pole_pts = alt.Chart(pole_df).mark_point(color=_cc["muted"], size=70, filled=True).encode(x="date:T", y="price:Q")
         today = alt.Chart(cdata.iloc[[-1]]).mark_point(color=_edge, size=140, filled=True).encode(x="date:T", y="price:Q")
         tgt_ln = alt.Chart(pd.DataFrame({"y": [info["target"]]})).mark_rule(
-            color=_cc["long"], strokeDash=[2, 2], strokeWidth=1.4).encode(y="y:Q")
+            color=_cc["long"], strokeDash=[2, 2], strokeWidth=2).encode(y="y:Q")
         stop_ln = alt.Chart(pd.DataFrame({"y": [info["stop"]]})).mark_rule(
-            color=_cc["short"], strokeDash=[2, 2], strokeWidth=1.4).encode(y="y:Q")
+            color=_cc["short"], strokeDash=[2, 2], strokeWidth=2).encode(y="y:Q")
         return (band + brk_ln + tgt_ln + stop_ln + pole_ln + price_ln + pole_pts + today).properties(
             height=height,
             title=f"{title_market} — {info['type'].lower()}: flagpole, consolidation channel, dashed "
@@ -4511,7 +4655,7 @@ if active == "Support & Resistance":
             c4.metric("Levels mapped", str(len(info["levels"])))
             _cc = brand.chart_colors()
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
-            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=1.6).encode(
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
                 y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
@@ -4564,22 +4708,22 @@ if active == "Fibonacci Retracement":
             c4.metric("R:R", "—" if not np.isfinite(info["rr"]) else f"{info['rr']:.1f}:1",
                       help="Target = the prior swing extreme; stop beyond the 78.6% level.")
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
-            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=1.6).encode(
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
                 y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
             lv = pd.DataFrame(info["levels"])
             lv["label"] = (lv["ratio"] * 100).map(lambda r: f"{r:.1f}%")
-            rules = alt.Chart(lv).mark_rule(opacity=0.8, strokeWidth=1.2).encode(
+            rules = alt.Chart(lv).mark_rule(opacity=0.8, strokeWidth=1.8).encode(
                 y="price:Q", color=alt.condition("datum.key", alt.value(_cc["accent"]), alt.value(_cc["muted"])))
             txt = alt.Chart(lv).mark_text(align="left", dx=3, fontSize=9, color="#777").encode(
                 x=alt.value(2), y="price:Q", text="label:N")
             leg_df = pd.DataFrame({"date": [info["lo_date"], info["hi_date"]], "price": [info["lo"], info["hi"]]})
-            leg_ln = alt.Chart(leg_df).mark_line(color=_cc["muted"], strokeWidth=2.0, point=True).encode(x="date:T", y="price:Q")
+            leg_ln = alt.Chart(leg_df).mark_line(color=_cc["muted"], strokeWidth=2.6, point=True).encode(x="date:T", y="price:Q")
             tgt = alt.Chart(pd.DataFrame({"y": [info["target"]]})).mark_rule(
-                color=_cc["long"], strokeDash=[2, 2], strokeWidth=1.3).encode(y="y:Q")
+                color=_cc["long"], strokeDash=[2, 2], strokeWidth=1.9).encode(y="y:Q")
             stp = alt.Chart(pd.DataFrame({"y": [info["stop"]]})).mark_rule(
-                color=_cc["short"], strokeDash=[2, 2], strokeWidth=1.3).encode(y="y:Q")
+                color=_cc["short"], strokeDash=[2, 2], strokeWidth=1.9).encode(y="y:Q")
             today = alt.Chart(cdata.iloc[[-1]]).mark_point(
                 color=(_cc["long"] if info["direction"] > 0 else _cc["short"] if info["direction"] < 0 else _cc["muted"]),
                 size=130, filled=True).encode(x="date:T", y="price:Q")
@@ -4622,14 +4766,14 @@ if active == "Breakout & Retest":
                       else "✗ unconfirmed" if info["vol_confirm"] is False else "—",
                       help="Did the breakout bar trade ≥1.3× its trailing average?")
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
-            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=1.6).encode(
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
                 y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
             level_ln = alt.Chart(pd.DataFrame({"y": [info["level"]]})).mark_rule(
-                color=_edge, strokeDash=[6, 3], strokeWidth=1.8).encode(y="y:Q")
+                color=_edge, strokeDash=[6, 3], strokeWidth=2.4).encode(y="y:Q")
             broke_ln = alt.Chart(pd.DataFrame({"x": [info["broke_date"]]})).mark_rule(
-                color=_cc["muted"], strokeWidth=1.2).encode(x="x:T")
+                color=_cc["muted"], strokeWidth=1.8).encode(x="x:T")
             today = alt.Chart(cdata.iloc[[-1]]).mark_point(color=_edge, size=140, filled=True).encode(x="date:T", y="price:Q")
             chart = (price_ln + level_ln + broke_ln + today).properties(
                 height=420, title=f"{sel} — {info['signal'].lower()}: dashed = broken level (now "
@@ -4664,13 +4808,13 @@ if active == "Momentum (RSI/MACD)":
             c3.metric("MACD", info["macd_state"].title())
             c4.metric("Divergence", info["divergence"].title())
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
-            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=1.6).encode(
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
                 y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
             brand.show_chart(price_ln.properties(height=240, title=f"{sel} — price"))
 
-            rsi_ln = base.mark_line(color="#7E57C2", strokeWidth=1.6).encode(
+            rsi_ln = base.mark_line(color="#7E57C2", strokeWidth=2.2).encode(
                 y=alt.Y("rsi:Q", title="RSI", scale=alt.Scale(domain=[0, 100]),
                         axis=alt.Axis(values=[0, 30, 50, 70, 100], labelFontSize=12, titleFontSize=13)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("rsi:Q", title="RSI", format=".0f")])
@@ -4682,8 +4826,8 @@ if active == "Momentum (RSI/MACD)":
             hist_bars = base.mark_bar().encode(
                 y=alt.Y("macd_hist:Q", title="MACD", axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 color=alt.condition("datum.macd_hist >= 0", alt.value(_cc["long"]), alt.value(_cc["short"])))
-            macd_ln = base.mark_line(color=_cc["ink"], strokeWidth=1.5).encode(y="macd:Q")
-            sig_ln = base.mark_line(color=_cc["accent"], strokeWidth=1.5).encode(y="macd_signal:Q")
+            macd_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.1).encode(y="macd:Q")
+            sig_ln = base.mark_line(color=_cc["accent"], strokeWidth=2.1).encode(y="macd_signal:Q")
             brand.show_chart((hist_bars + macd_ln + sig_ln).properties(
                 height=170, title="MACD 12/26/9 — line (black) · signal (gold) · histogram"))
             st.caption(f"**{info['signal']}** — RSI {info['rsi']:.0f}, MACD {info['macd_state']}, "
@@ -4718,14 +4862,14 @@ if active == "Bollinger Squeeze":
             band = base.mark_area(opacity=0.12, color=_cc["series"]).encode(
                 y=alt.Y("lower:Q", title="Price", scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)), y2="upper:Q")
-            up_ln = base.mark_line(color=_cc["muted"], strokeWidth=1.0).encode(y="upper:Q")
-            lo_ln = base.mark_line(color=_cc["muted"], strokeWidth=1.0).encode(y="lower:Q")
-            mid_ln = base.mark_line(color=_cc["accent"], strokeDash=[4, 3], strokeWidth=1.2).encode(y="mid:Q")
-            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=1.6).encode(
+            up_ln = base.mark_line(color=_cc["muted"], strokeWidth=1.6).encode(y="upper:Q")
+            lo_ln = base.mark_line(color=_cc["muted"], strokeWidth=1.6).encode(y="lower:Q")
+            mid_ln = base.mark_line(color=_cc["accent"], strokeDash=[4, 3], strokeWidth=1.8).encode(y="mid:Q")
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
                 y="price:Q", tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
             brand.show_chart((band + up_ln + lo_ln + mid_ln + price_ln).properties(
                 height=380, title=f"{sel} — Bollinger Bands (20, 2σ): mid (gold dashes), ±2σ envelope"))
-            bw_ln = base.mark_line(color="#7E57C2", strokeWidth=1.5).encode(
+            bw_ln = base.mark_line(color="#7E57C2", strokeWidth=2.1).encode(
                 y=alt.Y("bandwidth:Q", title="Bandwidth", axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("bandwidth:Q", title="Bandwidth", format=".4f")])
             brand.show_chart(bw_ln.properties(height=150, title="Bandwidth — (upper−lower)/mid; lows = squeezes"))
@@ -5090,11 +5234,11 @@ if active == "COT Reports":
     short_bar = base.mark_bar(color=_cc["short"]).encode(
         y="negshort:Q",
         tooltip=[alt.Tooltip("date:T", title="Week"), alt.Tooltip("short:Q", title="Short", format=",")])
-    net_outline = base.mark_line(color=_cc["halo"], strokeWidth=4.6).encode(y="net:Q")  # halo separates net
-    net_line = base.mark_line(color=_cc["accent"], strokeWidth=2.8).encode(             # gold net, thick
+    net_outline = base.mark_line(color=_cc["halo"], strokeWidth=5.2).encode(y="net:Q")  # halo separates net
+    net_line = base.mark_line(color=_cc["accent"], strokeWidth=3.4).encode(             # gold net, thick
         y="net:Q", tooltip=[alt.Tooltip("date:T", title="Week"), alt.Tooltip("net:Q", title="Net", format=",")])
     contracts = alt.layer(long_bar, short_bar, net_outline, net_line)
-    price_line = base.mark_line(color=_cc["ink"], strokeWidth=1.6).encode(
+    price_line = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
         y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
                 axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
         tooltip=[alt.Tooltip("price:Q", title="Price", format=",.2f")])
@@ -5117,8 +5261,8 @@ if active == "COT Reports":
     band_area = band_base.mark_area(color=_cc["muted"], opacity=0.30).encode(
         y=alt.Y("npo_p10:Q", title="Net % OI", axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
         y2="npo_p90:Q")
-    band_med = band_base.mark_line(color=_cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="npo_med:Q")
-    band_line = band_base.mark_line(color=_cc["ink"], strokeWidth=1.6).encode(
+    band_med = band_base.mark_line(color=_cc["muted"], strokeDash=[4, 3], strokeWidth=1.6).encode(y="npo_med:Q")
+    band_line = band_base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
         y="net_pct_oi:Q",
         tooltip=[alt.Tooltip("date:T", title="Week"), alt.Tooltip("net_pct_oi:Q", title="Net %OI", format=".1f")])
     band_chart = alt.layer(band_area, band_med, band_line).properties(
@@ -5139,11 +5283,11 @@ if active == "COT Reports":
         _seas_band = _sx.mark_area(color=_cc["muted"], opacity=0.35).encode(
             y=alt.Y("p25:Q", title="Net % OI", axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
             y2="p75:Q")
-        _seas_med = _sx.mark_line(color=_cc["series"], strokeWidth=2).encode(
+        _seas_med = _sx.mark_line(color=_cc["series"], strokeWidth=2.6).encode(
             y="med:Q", tooltip=[alt.Tooltip("woy:Q", title="Week"),
                                 alt.Tooltip("med:Q", title="Median %OI", format=".1f")])
-        _seas_halo = _sx.mark_line(color=_cc["halo"], strokeWidth=4).encode(y="current:Q")
-        _seas_cur = _sx.mark_line(color=_cc["accent"], strokeWidth=2.4).encode(
+        _seas_halo = _sx.mark_line(color=_cc["halo"], strokeWidth=4.6).encode(y="current:Q")
+        _seas_cur = _sx.mark_line(color=_cc["accent"], strokeWidth=3).encode(
             y="current:Q", tooltip=[alt.Tooltip("woy:Q", title="Week"),
                                     alt.Tooltip("current:Q", title=f"{_seas_info['cur_year']} %OI", format=".1f")])
         _seas_chart = alt.layer(_seas_band, _seas_med, _seas_halo, _seas_cur).properties(
@@ -5426,7 +5570,7 @@ if active == "Put/Call Ratios":
                      alt.Tooltip("pc:Q", title="P/C", format=".2f")])
         parity = alt.Chart(pd.DataFrame({"y": [1.0]})).mark_rule(
             color=_cc["muted"], strokeDash=[4, 3]).encode(y="y:Q")
-        price_line = alt.Chart(g).mark_line(color=_cc["short"], strokeWidth=1.4).encode(
+        price_line = alt.Chart(g).mark_line(color=_cc["short"], strokeWidth=2).encode(
             x="date:T", y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
                                 axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
             tooltip=[alt.Tooltip("price:Q", title="Price", format=",.2f")])
@@ -5453,7 +5597,7 @@ if active == "Put/Call Ratios":
             vlayers = [vbars]
             if pd.notna(drow["avg_day"]):
                 avg_rule = alt.Chart(pd.DataFrame({"y": [float(drow["avg_day"])]})).mark_rule(
-                    color=_cc["ink"], strokeDash=[5, 3], strokeWidth=1.5).encode(y="y:Q")
+                    color=_cc["ink"], strokeDash=[5, 3], strokeWidth=2.1).encode(y="y:Q")
                 vlayers.append(avg_rule)
             vol_chart = alt.layer(*vlayers).properties(
                 height=230,

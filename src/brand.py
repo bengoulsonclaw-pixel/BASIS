@@ -152,10 +152,15 @@ def header_svg(pal: dict, height: int = 34, tagline: bool = False) -> str:
         f'<circle cx="150" cy="52" r="8.5" fill="url(#go_{u})"/></g>'
     )
     if not tagline:
+        # viewBox trimmed to the drawn content (mark ends ~x107, wordmark ~x368) so no dead
+        # slack on the right; width:100% + height:auto lets it fill a narrow container
+        # (the sidebar) at full size and shrink cleanly rather than letterbox.
+        nat_w = round(height * 368 / 120)
         return (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 120" '
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 368 120" '
             f'height="{height}" role="img" aria-label="BASIS" '
-            f'style="display:block;font-family:{_FONT}">'
+            f'style="display:block;width:100%;max-width:{nat_w}px;height:auto;'
+            f'font-family:{_FONT}">'
             f'{defs}{mark}'
             f'<text x="132" y="82" font-family="{_FONT}" font-size="76" font-weight="700" '
             f'letter-spacing="2.5" fill="url(#bw_{u})">BASIS</text>'
@@ -218,6 +223,14 @@ hr { border-color:$border; }
 [data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border; }
 [data-testid="stSidebar"] * { color:$text; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:$caption !important; }
+/* the logo + FICC/Equities switch stay pinned to the top while the nav list scrolls;
+   the opaque sidebar-colour background hides the entries sliding beneath. Sticky must sit
+   on the stLayoutWrapper AROUND the keyed block — the keyed block itself fills its wrapper
+   exactly, leaving sticky no room to pin. */
+[data-testid="stSidebar"] [data-testid="stLayoutWrapper"]:has(> .st-key-basis_sidebar_sticky) {
+    position:sticky; top:0; z-index:20;
+    background:$sidebar; padding-bottom:.3rem;
+}
 
 /* buttons — secondary: gold ring + gold-TINTED FILL, so a button is the most obviously
    clickable thing on the page. The visual ladder: label = thin gold ring only (no fill),
@@ -379,24 +392,21 @@ def sidebar_logo() -> None:
     """BASIS lockup at the top of the sidebar (replaces the old title)."""
     pal = palette()
     st.markdown(
-        f'<div style="padding:.15rem 0 .35rem">{header_svg(pal, height=50)}'
+        f'<div style="padding:.15rem 0 .35rem">{header_svg(pal, height=84)}'
         f'<div class="basis-tag" style="margin-top:.5rem">Strategy Monitor</div></div>',
         unsafe_allow_html=True,
     )
 
 
-def masthead(compact: bool = False) -> None:
-    """Main-column masthead: BASIS logo on the left, sun/moon toggle on the right,
-    closed with a gold hairline rule. `compact=True` swaps the big home lockup for
-    a small mark+wordmark so inner pages keep their vertical space for content."""
+def masthead() -> None:
+    """Main-column masthead: the full BASIS lockup (wordmark + tagline) on the left,
+    sun/moon toggle on the right, closed with a gold hairline rule. The same size on
+    every page — Home and inner pages alike."""
     pal = palette()
     left, right = st.columns([0.82, 0.18], vertical_alignment="center")
     with left:
-        if compact:
-            logo = f'<div style="padding:.25rem 0">{header_svg(pal, height=38)}</div>'
-        else:
-            logo = (f'<div style="padding:.15rem 0 .3rem">'
-                    f'{header_svg(pal, height=84, tagline=True)}</div>')
+        logo = (f'<div style="padding:.15rem 0 .3rem">'
+                f'{header_svg(pal, height=84, tagline=True)}</div>')
         st.markdown(logo, unsafe_allow_html=True)
     with right:
         dark = theme() == "dark"
@@ -462,6 +472,8 @@ def _alt_theme_config() -> dict:
     return {"config": {
         "background": "transparent",
         "view": {"stroke": "transparent"},
+        "line": {"strokeWidth": 2.4},      # default for lines that don't set a width
+        "trail": {"size": 2.4},
         "axis": {"labelColor": pal["text_dim"], "titleColor": pal["text_dim"],
                  "domainColor": pal["border"], "tickColor": pal["border"],
                  "gridColor": pal["border_soft"]},
