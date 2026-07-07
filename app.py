@@ -86,7 +86,11 @@ def _to_et(local_str) -> str:
     'H:MM AM ET · DD Mon YYYY'. This box runs on UTC-5, so it's converted to actual
     New York time (DST-aware), matching the Morning Coffee heatmap stamp."""
     try:
-        dt = datetime.strptime(str(local_str)[:19], "%Y-%m-%d %H:%M:%S")
+        raw = str(local_str)[:19]
+        try:
+            dt = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
+        except ValueError:                      # minute-precision stamps (signals as_of)
+            dt = datetime.strptime(raw[:16], "%Y-%m-%d %H:%M")
         et = dt.replace(tzinfo=datetime.now().astimezone().tzinfo).astimezone(
             ZoneInfo("America/New_York"))
         t = et.strftime("%I:%M %p").lstrip("0")
@@ -4099,7 +4103,7 @@ with st.sidebar:
     _data_badge(snap)
     df, meta = load_signals()
     if _side == "FICC":
-        st.caption(f"Signals as of: **{meta.get('as_of', 'n/a')}**")
+        st.caption(f"Signals as of: **{_to_et(meta.get('as_of', 'n/a'))}**")
     st.divider()
     if _side == "FICC":
         _nav_button("🎯  Confluence", "Confluence")
