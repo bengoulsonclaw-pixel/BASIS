@@ -42,7 +42,7 @@ _FONT = ("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
 # white "brochure" look (white / off-white / near-black + the same XP yellow).
 DARK = dict(
     name="dark",
-    canvas="#0A0A0A", surface="#161616", surface2="#1F1F1F",
+    canvas="#0A0A0A", glass="rgba(10,10,10,.78)", surface="#161616", surface2="#1F1F1F",
     border="#2A2A2A", border_soft="rgba(255,255,255,.08)",
     btn="#35353F", btn_border="#45454E", btn_hover="#42424E",
     btn_gold="#514727", btn_gold_hover="#63562E", label_ring="rgba(245,197,24,.55)",
@@ -54,7 +54,7 @@ DARK = dict(
 )
 LIGHT = dict(
     name="light",
-    canvas="#FFFFFF", surface="#F6F6F6", surface2="#ECECEC",
+    canvas="#FFFFFF", glass="rgba(255,255,255,.8)", surface="#F6F6F6", surface2="#ECECEC",
     border="#E3E3E3", border_soft="#ECECEC",
     btn="#FFFFFF", btn_border="#C4C4C4", btn_hover="#EEEEEE",
     btn_gold="#FBF3D0", btn_gold_hover="#F6E9A8", label_ring="rgba(200,144,26,.6)",
@@ -192,7 +192,12 @@ html, body, .stApp, [data-testid="stAppViewContainer"],
 .stApp, .stMarkdown, p, li, label, span,
 div[data-testid="stMarkdownContainer"] { color:$text; }
 h1, h2, h3, h4, h5, h6 { color:$text; font-weight:700; letter-spacing:.2px; }
-[data-testid="stHeader"] { background:$canvas; }
+/* frosted translucent header: content scrolling beneath shows through a blur instead of
+   being hard-amputated by an opaque bar (the "cut-off button" effect). */
+[data-testid="stHeader"] {
+    background:$glass;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
 [data-testid="stToolbar"], [data-testid="stDecoration"] { background:transparent; color:$text_dim; }
 [data-testid="stAppDeployButton"] { display:none; }   /* hide Streamlit "Deploy" */
 /* hide the run-status / "Stop" toolbar pill (long jobs already show st.spinner). */
@@ -207,7 +212,7 @@ button[data-testid="stBaseButton-header"] { background:transparent !important; c
 }
 a, a:visited { color:$gold; }
 hr { border-color:$border; }
-.block-container { padding-top:2.4rem; }
+.block-container { padding-top:2.9rem; }   /* clears the fixed header with margin to spare */
 
 /* sidebar */
 [data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border; }
