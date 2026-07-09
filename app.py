@@ -23,7 +23,8 @@ import pandas as pd
 import streamlit as st
 
 import run_daily
-from src.datafeed import MODE, get_live_quote, get_history, get_implied_vol_history
+from src.datafeed import (MODE, get_live_quote, get_history, get_implied_vol_history,
+                          get_realized_vol_history)
 from src.specs import SPECS, reflag_rows, trigger_default, save_trigger_default
 from src import universe
 from src import brand
@@ -711,6 +712,35 @@ def _data_badge(snap) -> None:
         st.warning("DEMO MODE — synthetic", icon="⚠️")
 
 
+def _ficc_moves_frame() -> pd.DataFrame:
+    """Overnight per-contract move frame — columns Market · Sector · pct · last · sigma, STIRs
+    excluded, sorted by σ (biggest movers first). σ = the move ÷ the contract's own ~1-month daily
+    move std. Shared by the Overnight-moves table and the on-screen FICC heatmap so both read from
+    one source (the underlying Bloomberg calls are cached). Empty frame when there's no live quote."""
+    live = get_live_quote(list(universe.enabled_tickers()))
+    live = live.dropna(subset=["pct"]) if not live.empty else live
+    if live.empty:
+        return pd.DataFrame(columns=["Market", "Sector", "pct", "last", "sigma"])
+    try:
+        sd = get_history(list(universe.enabled_tickers())).pct_change().tail(21).std()
+    except Exception:
+        sd = None
+
+    def _sigma(tk, pct):
+        s = sd.get(tk) if sd is not None else None
+        if s is None or s != s or s <= 1e-9:
+            return float("nan")
+        return (pct / 100.0) / s
+
+    rows = [{"Market": INSTRUMENTS.get(tk, (tk, 0.0, "", ""))[0],
+             "Sector": INSTRUMENTS.get(tk, (tk, 0.0, "", ""))[2],
+             "pct": float(r["pct"]), "last": float(r["last"]),
+             "sigma": _sigma(tk, float(r["pct"]))}
+            for tk, r in live.iterrows()
+            if INSTRUMENTS.get(tk, (tk, 0.0, "", ""))[2] not in {"STIRs"}]   # STIRs: price vol ≈ 0
+    return pd.DataFrame(rows).sort_values("sigma", ascending=False)
+
+
 def _overnight_moves(snap) -> None:
     """Overnight net change (previous settle -> snapshot pull), expressed in σ."""
     st.subheader("Overnight moves")
@@ -720,31 +750,12 @@ def _overnight_moves(snap) -> None:
                    "(needs the Terminal). It records each contract's move from the previous "
                    "trading day's settle to the moment the snapshot is pulled.")
         return
-    _live = get_live_quote(list(universe.enabled_tickers()))
-    _live = _live.dropna(subset=["pct"]) if not _live.empty else _live
-    if _live.empty:
+    _mv = _ficc_moves_frame()
+    if _mv.empty:
         st.caption("No overnight quote available.")
         return
-    try:
-        _sd = get_history(list(universe.enabled_tickers())).pct_change().tail(21).std()
-    except Exception:
-        _sd = None
-
-    def _sigma(tk, pct):
-        sd = _sd.get(tk) if _sd is not None else None
-        if sd is None or sd != sd or sd <= 1e-9:
-            return float("nan")
-        return (pct / 100.0) / sd
-
-    _LOWVOL = {"STIRs"}
-    _rows = [{"Market": INSTRUMENTS.get(tk, (tk, 0.0, "", ""))[0],
-              "Sector": INSTRUMENTS.get(tk, (tk, 0.0, "", ""))[2],
-              "% (settle→pull)": float(r["pct"]),
-              "Last": float(r["last"]),
-              "σ (1m)": _sigma(tk, float(r["pct"]))}
-             for tk, r in _live.iterrows()
-             if INSTRUMENTS.get(tk, (tk, 0.0, "", ""))[2] not in _LOWVOL]
-    _mv = pd.DataFrame(_rows).sort_values("σ (1m)", ascending=False)
+    _mv = (_mv.rename(columns={"pct": "% (settle→pull)", "last": "Last", "sigma": "σ (1m)"})
+              [["Market", "Sector", "% (settle→pull)", "Last", "σ (1m)"]])
     _asof = (snap or {}).get("live_as_of") or (snap or {}).get("created", "")
     st.caption("Move from the previous trading day's **settlement** to the snapshot pull"
                + (f" · prices as of **{_to_et(_asof)}**" if _asof else "")
@@ -903,17 +914,33 @@ def _econ_figures() -> None:
 
 
 def _home_heatmap() -> None:
-    """The Morning Coffee report heatmap on Home — refreshed on every Bloomberg
-    snapshot pull (see _regen_mc_heatmap) and on a full Morning Coffee run."""
-    heat = _mc_heatmap_path()
+    """On-screen FICC market heatmap — a native HTML treemap (tile area ∝ σ, green up / red down),
+    grouped by sector, built live from the overnight-moves frame. Renders crisp via components.html
+    rather than pasting the Morning Coffee report PNG."""
+    from src import heatmap_html
+    import streamlit.components.v1 as components
     st.divider()
     st.subheader("Market heatmap")
-    if not heat.exists():
-        st.caption("Appears after the next **Pull Bloomberg Snapshot** (or a Morning Coffee run).")
+    mvf = _ficc_moves_frame()
+    mvf = mvf.dropna(subset=["sigma"]) if not mvf.empty else mvf
+    if mvf.empty:
+        st.caption("Appears once an overnight quote is available "
+                   "(**Pull Bloomberg Snapshot**, or a Morning Coffee run).")
         return
-    st.image(str(heat), use_container_width=True)
-    st.caption("The Morning Coffee map — overnight moves in σ by sector. Refreshes on every "
-               "**Pull Bloomberg Snapshot** and on a Morning Coffee run.")
+    st.caption("**Tile size = how many σ the contract moved overnight** (vs its own ~1-month daily "
+               "vol) — colour is direction (green up / red down), deepening with |σ|. Grouped by "
+               "sector; hover a tile for the name, % and σ.")
+    sections = []                                   # one band per sector; tiles = products (1-level)
+    for sec in list(dict.fromkeys(mvf["Sector"])):
+        ds = mvf[mvf["Sector"] == sec]
+        items = [(r["Market"], float(r["pct"]) if r["pct"] == r["pct"] else 0.0,
+                  float(r["sigma"]) if r["sigma"] == r["sigma"] else None)
+                 for _, r in ds.iterrows()]
+        if items:
+            sections.append((sec, [(sec, items)]))
+    height = int(min(700, max(320, 120 + 84 * len(sections))))
+    components.html(heatmap_html.render_html(sections, height, sub_headers=False),
+                    height=height + 6, scrolling=False)
 
 
 def _mc_commentary(log: str) -> str:
@@ -1441,14 +1468,14 @@ def _equities_overnight_moves(index_keys, snap) -> None:
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def _eq_heatmap_img(index_keys: tuple):
-    """Finviz-style treemap PNG (tile area ∝ |σ|, green/red by direction) — index band → GICS sector
-    column → stock tiles. Cached; cleared by the Pull/Refresh buttons. Returns a PIL image or None."""
-    from src import eqheatmap
+def _eq_heatmap_sections(index_keys: tuple):
+    """Nested treemap data for the Equities heatmap: [(index, [(gics_sector, [(name, pct, σ)…])…])…],
+    ordered by index then canonical GICS sector ("Other"/extras last). Cached; cleared by the
+    Pull/Refresh buttons. Returns [] when there's no overnight data."""
     f = _eq_movers(tuple(index_keys))
     f = f.dropna(subset=["sigma"]) if not f.empty else f
     if f.empty:
-        return None
+        return []
     sections = []
     for key in [k for k in index_keys if (f["index"] == k).any()]:
         di = f[f["index"] == key]
@@ -1465,21 +1492,24 @@ def _eq_heatmap_img(index_keys: tuple):
                                for _, r in ds.iterrows()]))
         if subs:
             sections.append((key, subs))
-    if not sections:
-        return None
-    return eqheatmap.render_image(sections, 12.0, max(3.2, 1.55 * len(sections)), dpi=140)
+    return sections
 
 
 def _equities_heatmap(index_keys) -> None:
+    from src import heatmap_html
+    import streamlit.components.v1 as components
     st.subheader("Market heatmap")
     st.caption("**Tile size = how many standard deviations (σ) the stock moved overnight** — colour "
                "is direction (green up / red down), deepening with |σ|. Grouped by index, then GICS "
-               "sector." + ("" if MODE == "bloomberg" else f"  ·  _{equities.data_status()}_"))
-    img = _eq_heatmap_img(tuple(index_keys))
-    if img is None:
+               "sector; hover a tile for the name, % and σ."
+               + ("" if MODE == "bloomberg" else f"  ·  _{equities.data_status()}_"))
+    sections = _eq_heatmap_sections(tuple(index_keys))
+    if not sections:
         st.caption("No overnight data to chart.")
         return
-    st.image(img, use_container_width=True)
+    height = int(min(1320, max(380, 40 + 172 * len(sections))))
+    components.html(heatmap_html.render_html(sections, height, sub_headers=True),
+                    height=height + 6, scrolling=False)
 
 
 def render_equities_home() -> None:
@@ -1497,7 +1527,7 @@ def render_equities_home() -> None:
             with st.spinner("Pulling equities from Bloomberg…"):
                 try:
                     equities.refresh_constituents()
-                    _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_img.clear()
+                    _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
                     st.success("Equities data refreshed."); st.rerun()
                 except Exception as e:
                     st.error(f"Pull failed: {e}")
@@ -1505,7 +1535,7 @@ def render_equities_home() -> None:
             st.info("Demo mode (no Terminal) — showing the built-in synthetic equities universe.")
     if c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
                  help="Re-pull the latest overnight quotes."):
-        _eq_movers.clear(); _eq_heatmap_img.clear(); st.rerun()
+        _eq_movers.clear(); _eq_heatmap_sections.clear(); st.rerun()
     _n = sum(len(v) for v in _eq_universe().values())
     c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
                + equities.data_status() + ".")
@@ -2180,19 +2210,36 @@ def render_ta_overview() -> None:
     def _sector(k):
         return "pair" if " / " in str(k) else (INSTRUMENTS.get(k, (k, 0.0, "", ""))[2] or "—")
 
-    # --- stacked signals (2+ strategies), ranked by conviction score ---
+    # --- stacked signals (2+ strategies), ranked by conviction score. The table is
+    #     click-selectable: picking a row drives the per-product chart panel below. ---
     multi = prod[prod["n"] >= 2]
+    sel_pos = 0
     if not multi.empty:
         st.markdown("##### Stacked signals — flagged by 2 or more strategies (ranked by conviction)")
+        st.caption("**Click a product** to bring up its charts — every indicator that flagged it — below.")
         rows = []
         for r in multi.itertuples(index=False):
             tags = ", ".join(_STRAT_SHORT.get(s, s) + _arrow(d) for s, d, _st in r.tags)
             net = "⚠ mixed" if r.conflict else ("▲ long" if r.net_dir > 0 else "▼ short" if r.net_dir < 0 else "—")
             rows.append({"Market": r.market, "Sector": _sector(r.instruments), "# Str": int(r.n),
                          "Net": net, "Conviction": r.conviction, "Score": abs(r.score), "Flagged by": tags})
-        brand.themed_dataframe(pd.DataFrame(rows), {"Conviction": "{:.0f}", "Score": "{:.0f}"})
-        st.caption("▲ long · ▼ short · ⚠ strategies disagree. **Score** = Σ signed strength across the "
-                   "strategies (confluence × strength); **Conviction** = their mean strength (0–100).")
+        # A palette-styled, single-row-selectable grid (mirrors brand.themed_dataframe's theming
+        # but returns the selection event so a click can drive the charts below).
+        _pal = brand.palette()
+        _sty = (pd.DataFrame(rows).style
+                .format({"Conviction": "{:.0f}", "Score": "{:.0f}"})
+                .set_properties(**{"background-color": _pal["surface"], "color": _pal["text"]}))
+        _evt = st.dataframe(_sty, use_container_width=True, hide_index=True,
+                            on_select="rerun", selection_mode="single-row", key="ta_stack_table")
+        try:
+            _sel = _evt.selection["rows"]
+        except Exception:
+            _sel = []
+        if _sel:
+            sel_pos = int(_sel[0])
+        st.caption("▲ long · ▼ short · ⚠ strategies disagree. Click a row to chart that product below. "
+                   "**Score** = Σ signed strength across the strategies (confluence × strength); "
+                   "**Conviction** = their mean strength (0–100).")
 
     # --- per-strategy counts + one-click drill-down into each page ---
     st.markdown("##### By strategy")
@@ -2202,11 +2249,14 @@ def render_ta_overview() -> None:
               for s in tascore.TA_STRATEGIES]
     brand.themed_dataframe(pd.DataFrame(counts), {})
 
-    # --- gallery: charts for the top stacked setups, drawing the INDICATORS that flagged them ---
-    gallery = multi.head(6)
+    # --- charts for the SELECTED stacked product (default: the top row), drawing the
+    #     indicators that flagged it. Driven by the table selection above. ---
+    gallery = multi.iloc[[sel_pos]] if not multi.empty else multi.iloc[0:0]
     if not gallery.empty:
-        st.markdown("##### Top stacked setups — charts")
-        st.caption("Each chart draws **what triggered the flags**: Bollinger bands, the moving averages "
+        _sel_name = str(gallery.iloc[0]["market"])
+        st.markdown(f"##### Charts — {_sel_name}")
+        st.caption("Charts for the **selected** stacked product (click another row above to switch). Each "
+                   "chart draws **what triggered the flags**: Bollinger bands, the moving averages "
                    "(MA crossover 50/200 · swing 20/50 · trend 20/100), the flag channel, and the "
                    "support/resistance, broken and flag-breakout levels. RSI is shown below when momentum "
                    "flags it. (Mean Reversion is a pair spread, so it's noted but not overlaid here.)")
@@ -3170,6 +3220,32 @@ def _vbt_vol_tickers(mode: str) -> list:
         return list(INSTRUMENTS)
 
 
+@st.cache_data(show_spinner=False, ttl=600)
+def _vbt_vol_rows(tickers: tuple, mode: str) -> list:
+    """Current IV / RV / z per ticker, straight from the vol report's cached
+    cross-section (volatility.parquet) — the same numbers the Volatility page
+    shows. A ticker missing from the cross-section comes back with iv=None."""
+    try:
+        det = pd.read_parquet(VOL_DETAIL_FILE)
+    except Exception:
+        det = pd.DataFrame()
+    out = []
+    for t in tickers:
+        rows = det[det["ticker"] == t] if not det.empty else pd.DataFrame()
+        if len(rows):
+            r = rows.iloc[0]
+            out.append({"ticker": t, "name": str(r["market"]),
+                        "iv": float(r["iv"]), "rv": float(r["rv"]),
+                        "spread": float(r["spread"]),
+                        "z": None if pd.isna(r["z"]) else float(r["z"]),
+                        "pctl": None if pd.isna(r.get("pctl", np.nan)) else float(r["pctl"]),
+                        "signal": str(r.get("signal", "—"))})
+        else:
+            out.append({"ticker": t, "name": INSTRUMENTS.get(t, (t,))[0], "iv": None,
+                        "rv": None, "spread": None, "z": None, "pctl": None, "signal": "—"})
+    return out
+
+
 @st.cache_data(show_spinner=False, ttl=1800)
 def _vbt_pair_corr_cached(buy: str, sell: str, asof_iso: str, mode: str):
     """Pair-correlation stats, cached so widget reruns don't re-pull history
@@ -3199,6 +3275,11 @@ def render_vol_backtester() -> None:
           div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] > div {
               font-size: 1.05rem !important; line-height: 1.3 !important;
               white-space: normal !important; overflow-wrap: anywhere; }
+          /* the date input renders as a flat box — give it the same gold outline
+             as the product pickers so it reads as an interactive control */
+          div[data-testid="stDateInput"] > div {
+              border: 2px solid #F5C518 !important; border-radius: 8px; }
+          div[data-testid="stDateInput"] input { font-weight: 600; }
         </style>""", unsafe_allow_html=True)
     st.caption(
         "Backtest a **buy-vol vs sell-vol** idea from the volatility report: ATM straddles on a "
@@ -3241,6 +3322,31 @@ def render_vol_backtester() -> None:
         st.caption(f"**Single-product mode** — {'buying' if buy else 'selling'} {_sname} straddles, "
                    "delta-hedged with its own futures at every settlement: the P&L is its implied "
                    "vol vs its own realized. Add a product on the other side to trade the spread.")
+    # ---- vol-report snapshot: the numbers behind "why this product" -------------
+    _vrows = _vbt_vol_rows(tuple(t for t in (buy, sell) if t), MODE)
+    if _vrows:
+        st.markdown("**Volatility report snapshot** — today's implied vs realized and the "
+                    "spread z-score, straight from the Volatility page's cross-section.")
+        _vcols = st.columns(max(len(_vrows), 2))
+        for _vc, _vr in zip(_vcols, _vrows):
+            with _vc:
+                if _vr["iv"] is None:
+                    st.metric(_vr["name"], "not scored")
+                    st.caption("not in today's vol cross-section — run **Re-run signals**")
+                else:
+                    st.metric(f"{_vr['name']} — IV / RV",
+                              f"{_vr['iv']:.1f} / {_vr['rv']:.1f}",
+                              delta=f"spread {_vr['spread']:+.1f} vol · z {_vr['z']:+.2f}"
+                              if _vr["z"] is not None else f"spread {_vr['spread']:+.1f} vol",
+                              delta_color="off")
+                    _sig = _vr["signal"] if _vr["signal"] not in ("—", "nan") else "no flag"
+                    def _ord(n_):
+                        n_ = int(round(n_))
+                        sfx = "th" if 10 <= n_ % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n_ % 10, "th")
+                        return f"{n_}{sfx}"
+                    st.caption((f"{_ord(_vr['pctl'])} pctl of its 1y spread range · " if _vr["pctl"] is not None else "")
+                               + f"vol report: {_sig}")
+
     # the pair-correlation panel renders HERE (right under the products), but is
     # filled further down once the entry date widget exists — it correlates up to entry.
     corr_slot = st.container()
@@ -3343,25 +3449,46 @@ def render_vol_backtester() -> None:
 
     with st.expander("Advanced — sizing, costs, exit, point values"):
         a1, a2, a3, a4 = st.columns(4)
-        buy_lots = a1.number_input("Buy-leg straddles (lots)", 1.0, 100000.0, 100.0, 10.0,
+        buy_lots = a1.number_input("Buy-leg straddles (lots)", 1.0, 100000.0,
+                                   trigger_default("VolBT lots", 100.0), 10.0,
                                    key="vbt_lots", help="Sell-leg lots follow from the ratio.")
-        opt_cost = a2.number_input("Option cost (vol pts per trade)", 0.0, 2.0, 0.0, 0.05,
-                                   key="vbt_copt", help="Half the quoted vol spread, charged on the dollar vega traded — entry, exit and every re-strike. 0 = frictionless.")
-        fut_cost = a3.number_input("Futures cost (bp of notional)", 0.0, 10.0, 0.0, 0.25,
-                                   key="vbt_cfut", help="Charged on every delta-hedge trade. 0 = frictionless.")
-        exit_bd = a4.number_input("Exit N bus. days before expiry", 0, 20, 5, 1, key="vbt_exit",
+        opt_cost = a2.number_input("Option cost (per lot)", 0.0, 10000.0,
+                                   trigger_default("VolBT opt cost", 0.0), 0.5,
+                                   key="vbt_copt", help="Charged per option contract traded (a straddle = call + put = 2 lots) — entry, exit and every re-strike. Same currency as the instrument. 0 = frictionless.")
+        fut_cost = a3.number_input("Futures cost (per lot)", 0.0, 10000.0,
+                                   trigger_default("VolBT fut cost", 0.0), 0.5,
+                                   key="vbt_cfut", help="Charged per futures contract traded, on every delta hedge. Same currency as the instrument. 0 = frictionless.")
+        exit_bd = a4.number_input("Exit N bus. days before expiry", 0, 20,
+                                  int(trigger_default("VolBT exit bd", 5)), 1, key="vbt_exit",
                                   help="Pin-risk gamma in the final days isn't a realistic backtest — step aside before it.")
         b1, b2 = st.columns(2)
-        mult_buy = (b1.number_input(f"$ per 1.0 point — {buy}", 0.0, 1e9,
+        mult_buy = (b1.number_input(f"{volbt.currency(buy)} per 1.0 point — {buy}", 0.0, 1e9,
                                     float(volbt.point_value(buy)), key=f"vbt_mb_{buy}")
                     if buy else None)
-        mult_sell = (b2.number_input(f"$ per 1.0 point — {sell}", 0.0, 1e9,
+        mult_sell = (b2.number_input(f"{volbt.currency(sell)} per 1.0 point — {sell}", 0.0, 1e9,
                                      float(volbt.point_value(sell)), key=f"vbt_ms_{sell}")
                      if sell else None)
         if (buy and not mult_buy) or (sell and not mult_sell):
             st.warning("Unknown contract point value — greeks need it in dollars. Set it above.")
-        st.caption("Non-USD contracts are carried at 1 local-currency point = $1 — fine for the "
-                   "ratio and shape; read the P&L as local currency.")
+        st.caption("Enter point values in the contract's **own currency** — non-USD legs are "
+                   "converted to USD automatically at the entry-date FX rate (frozen for the "
+                   "run, from the FX futures in the universe), so mixed-currency pairs ratio "
+                   "and net correctly in dollars.")
+        _dc1, _dc2 = st.columns([1, 3])
+        if _dc1.button("📌 Set as default", key="vbt_set_def", use_container_width=True,
+                       help="Save lots, both costs and the exit buffer as this page's "
+                            "startup defaults — they load on every launch."):
+            save_trigger_default("VolBT lots", float(buy_lots))
+            save_trigger_default("VolBT opt cost", float(opt_cost))
+            save_trigger_default("VolBT fut cost", float(fut_cost))
+            save_trigger_default("VolBT exit bd", int(exit_bd))
+            st.toast(f"Saved as defaults: {buy_lots:g} lots · opt {opt_cost:g}/lot · "
+                     f"fut {fut_cost:g}/lot · exit {int(exit_bd)} bd.", icon="📌")
+        _dc2.caption(f"📌 Current defaults: **{trigger_default('VolBT lots', 100):g}** lots · "
+                     f"option **{trigger_default('VolBT opt cost', 0):g}**/lot · "
+                     f"futures **{trigger_default('VolBT fut cost', 0):g}**/lot · "
+                     f"exit **{int(trigger_default('VolBT exit bd', 5))}** bus. days — change the "
+                     "values above and click Set as default to update.")
 
     if st.button("▶  Run backtest", type="primary", key="vbt_run",
                  disabled=bool((buy and not mult_buy) or (sell and not mult_sell))):
@@ -3370,7 +3497,7 @@ def render_vol_backtester() -> None:
                 st.session_state["vbt_res"] = volbt.run_backtest(
                     buy, sell, entry, expiry, weighting=weighting, restrike=restrike,
                     restrike_mult=float(restrike_mult), buy_lots=float(buy_lots),
-                    opt_cost_vol=float(opt_cost), fut_cost_bp=float(fut_cost),
+                    opt_cost_lot=float(opt_cost), fut_cost_lot=float(fut_cost),
                     exit_bd_before_expiry=int(exit_bd),
                     mult_override={t: float(m) for t, m in ((buy, mult_buy), (sell, mult_sell)) if t})
             st.session_state.pop("vbt_pdf", None)
@@ -3428,21 +3555,32 @@ def render_vol_backtester() -> None:
         m5.caption(f"all-in costs {_usd(s['costs'])}")
 
     # ---- cash greeks — at entry and at the latest marks; total then per product -
-    _GC = ["Straddles", "$ Delta", "$ Gamma (per 1%)", "$ Vega (per vol pt)",
-           "$ Theta (per day)", "$ Premium"]
+    # Raw greeks (blue, contract units) sit LEFT of each dollar greek (black).
+    _GC = ["Straddles", "Delta (lots)", "$ Delta", "Gamma (Δ/pt)", "$ Gamma (per 1%)",
+           "Vega (pts)", "$ Vega (per vol pt)", "Theta (pts/day)", "$ Theta (per day)",
+           "Premium (pts)", "$ Premium"]
+    _GC_RAW = ["Delta (lots)", "Gamma (Δ/pt)", "Vega (pts)", "Theta (pts/day)",
+               "Premium (pts)"]
 
     def _cash_greeks(spec, pnl_total):
         """spec rows: (label, sign, F, K, iv, lots, mult, tau_years, cum_pnl) →
-        cash-greek table, TOTAL (net) on top. The TOTAL P&L is passed in because
-        it includes costs, which aren't attributed to either leg."""
+        greeks table, TOTAL (net) on top. Raw greeks are position-level in the
+        contract's own units; $ greeks convert via point value (and FX). The
+        TOTAL P&L is passed in because it includes costs, which belong to
+        neither leg."""
         rows, tot = [], {c: 0.0 for c in _GC}
         for label, sgn, F, K, iv, n, m, tau, pnl in spec:
             g = volbt.straddle_greeks(F, K, iv, tau)
             row = {"Position": label, "Straddles": sgn * n,
+                   "Delta (lots)": sgn * g.delta * n,
                    "$ Delta": sgn * g.delta * n * F * m,
+                   "Gamma (Δ/pt)": sgn * g.gamma * n,
                    "$ Gamma (per 1%)": sgn * g.gamma * F * F * n * m / 100.0,
+                   "Vega (pts)": sgn * g.vega * n,
                    "$ Vega (per vol pt)": sgn * g.vega * n * m,
+                   "Theta (pts/day)": sgn * g.theta / 365.0 * n,
                    "$ Theta (per day)": sgn * g.theta / 365.0 * n * m,
+                   "Premium (pts)": sgn * g.value * n,
                    "$ Premium": sgn * g.value * n * m,
                    "$ P&L (cum.)": pnl}
             rows.append(row)
@@ -3468,24 +3606,42 @@ def render_vol_backtester() -> None:
         _specN.append((_lab, _gsgn, float(_dN[f"{_gk}_F"]), float(_dN[f"{_gk}_K"]),
                        float(_dN[f"{_gk}_iv"]), float(_evN[f"{_gk}_lots"]), _gm, _tauN,
                        float(s[f"total_{_gk}"])))
-    st.markdown("**Cash greeks** — TOTAL first, then by product. **\\$ Delta** = the underlying "
-                "notional the options carry (the futures hedge holds the opposite, so the book "
-                "runs flat); **\\$ Gamma** = \\$ delta picked up per 1% spot move; **\\$ Theta** = "
-                "the day's rent paid/collected; **\\$ Premium** = market value of the options "
-                "(net = held − short); **\\$ P&L (cum.)** = each leg's cumulative P&L to that "
-                "date (options + its hedges) — the TOTAL row also carries the costs, which "
-                "belong to neither leg.")
-    _gfmt = {"Straddles": "{:+,.1f}".format, "$ Delta": "{:+,.0f}".format,
-             "$ Gamma (per 1%)": "{:+,.0f}".format, "$ Vega (per vol pt)": "{:+,.0f}".format,
-             "$ Theta (per day)": "{:+,.0f}".format, "$ Premium": "{:+,.0f}".format,
+    st.markdown("**Greeks** — TOTAL first, then by product. Raw greeks in "
+                ":blue[**blue**] (contract units: delta in futures lots, gamma as delta per "
+                "1.0 point, vega / theta / premium in price points); dollar greeks beside them "
+                "convert via point value (and entry FX). **\\$ Delta** = the underlying notional "
+                "the options carry (the futures hedge holds the opposite); **\\$ Gamma** = \\$ "
+                "delta picked up per 1% spot move; **\\$ P&L (cum.)** = each leg's cumulative "
+                "P&L to that date — the TOTAL row also carries the costs, which belong to "
+                "neither leg. On a mixed pair the TOTAL of the blue columns adds different "
+                "contracts' units, so read it as indicative; the \\$ columns are the comparable "
+                "ones.")
+    _gfmt = {"Straddles": "{:+,.1f}".format,
+             "Delta (lots)": "{:+,.2f}".format, "$ Delta": "{:+,.0f}".format,
+             "Gamma (Δ/pt)": "{:+,.4f}".format, "$ Gamma (per 1%)": "{:+,.0f}".format,
+             "Vega (pts)": "{:+,.1f}".format, "$ Vega (per vol pt)": "{:+,.0f}".format,
+             "Theta (pts/day)": "{:+,.1f}".format, "$ Theta (per day)": "{:+,.0f}".format,
+             "Premium (pts)": "{:+,.0f}".format, "$ Premium": "{:+,.0f}".format,
              "$ P&L (cum.)": "{:+,.0f}".format}
+    _gpal = brand.palette()
+    _gsurf = str(_gpal.get("surface", "#ffffff")).lstrip("#")
+    try:
+        _glum = (0.299 * int(_gsurf[0:2], 16) + 0.587 * int(_gsurf[2:4], 16)
+                 + 0.114 * int(_gsurf[4:6], 16))
+    except Exception:
+        _glum = 255.0
+    # bright blue on the dark theme, deep blue on light — the theme 'series' tone
+    # is too dim to read in a table cell
+    _graw_blue = "#82B4FF" if _glum < 128 else "#1F5FA8"
+    _gcolor = [([c for c in _GC_RAW],
+                lambda col: [f"color:{_graw_blue}; font-weight:600"] * len(col))]
     st.caption(f"At entry — {s['entry']:%d %b %Y} (as struck)")
     _g0 = _cash_greeks(_spec0, float(res.daily["net"].iloc[0]))
-    brand.themed_dataframe(_g0, fmt=_gfmt, height=45 + 35 * len(_g0))
+    brand.themed_dataframe(_g0, fmt=_gfmt, colorers=_gcolor, height=45 + 35 * len(_g0))
     st.caption(f"Latest — {s['exit']:%d %b %Y} (final marks before close-out; re-strikes "
                "re-size the position along the way — see the dollar-greeks chart)")
     _gN = _cash_greeks(_specN, float(s["total"]))
-    brand.themed_dataframe(_gN, fmt=_gfmt, height=45 + 35 * len(_gN))
+    brand.themed_dataframe(_gN, fmt=_gfmt, colorers=_gcolor, height=45 + 35 * len(_gN))
 
     cc = brand.chart_colors()
     d = res.daily.reset_index()
@@ -3511,7 +3667,7 @@ def render_vol_backtester() -> None:
         y=alt.Y("pnl:Q", title="cumulative P&L ($)",
                 axis=alt.Axis(labelFontSize=12, titleFontSize=13, format="~s")),
         color=alt.Color("Series:N", scale=alt.Scale(domain=dom,
-                        range=[cc["accent"], cc["long"], cc["short"]]),
+                        range=[cc["accent"], cc["series"], cc["short"]]),
                         legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
         opacity=alt.condition(alt.datum.Series == "Net", alt.value(1.0), alt.value(0.5)),
         tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("Series:N"),
@@ -3536,11 +3692,14 @@ def render_vol_backtester() -> None:
     att["value"] = att["value"].apply(lambda v: 0.0 if abs(v) < 0.5 else v)   # no "-0" labels
     att["kind"] = np.where(att["component"] == "NET", "net",
                            np.where(att["value"] >= 0, "pos", "neg"))
-    _aspan = float(att["value"].abs().max()) or 1.0
+    _alo = min(0.0, float(att["value"].min()))
+    _ahi = max(0.0, float(att["value"].max()))
+    _arng = (_ahi - _alo) or 1.0
     _asort = list(att["component"])
     bar = alt.Chart(att).mark_bar().encode(
         x=alt.X("value:Q", title="P&L ($)",
-                scale=alt.Scale(domain=[-_aspan * 1.35, _aspan * 1.35]),
+                scale=alt.Scale(domain=[_alo - _arng * (0.18 if _alo < 0 else 0.02),
+                                        _ahi + _arng * 0.18]),
                 axis=alt.Axis(labelFontSize=12, titleFontSize=13, format="~s")),
         y=alt.Y("component:N", sort=_asort, title=None, axis=alt.Axis(labelFontSize=12)),
         color=alt.Color("kind:N", scale=alt.Scale(domain=["pos", "neg", "net"],
@@ -3610,7 +3769,7 @@ cumulative P&L line above, not an estimate.
         y=alt.Y("iv:Q", title="vol points",
                 axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
         color=alt.Color("Series:N", scale=alt.Scale(domain=ivdom,
-                        range=[cc["long"], cc["short"], cc["accent"]]),
+                        range=[cc["series"], cc["short"], cc["accent"]]),
                         legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
         tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("Series:N"),
                  alt.Tooltip("iv:Q", title="Vol", format=".2f")])
@@ -3625,7 +3784,7 @@ cumulative P&L line above, not an estimate.
                 "re-strikes (gamma fades as spot drifts from strike; re-striking restores it).")
     _gleg = []
     if s.get("buy"):
-        _gleg.append(("buy", f"Buy {s['buy_name']}", cc["long"]))
+        _gleg.append(("buy", f"Buy {s['buy_name']}", cc["series"]))
     if s.get("sell"):
         _gleg.append(("sell", f"Sell {s['sell_name']}", cc["short"]))
     g1, g2 = st.columns(2)
@@ -3783,7 +3942,40 @@ cumulative P&L line above, not an estimate.
                         return None if pd.isna(v) else round(float(v), 3)
                     payload["corr"] = {"px_1y": _n(_pcr.px_1y), "px_1m": _n(_pcr.px_1m),
                                        "iv_1y": _n(_pcr.iv_1y), "iv_1m": _n(_pcr.iv_1m),
-                                       "pctl": _n(_pcr.pctl)}
+                                       "pctl": _n(_pcr.pctl),
+                                       "rolling": {
+                                           "dates": [x.date().isoformat()
+                                                     for x in _pcr.rolling_px.index],
+                                           "px": [_n(v) for v in _pcr.rolling_px],
+                                           "iv": [_n(v) for v in _pcr.rolling_iv],
+                                           "level": _n(_pcr.px_1y)}}
+                _legs_t = [t for t in (s["buy"], s["sell"]) if t]
+                payload["volctx"] = _vbt_vol_rows(tuple(_legs_t), MODE)
+                _ivh = get_implied_vol_history(_legs_t)
+                _rvh = get_realized_vol_history(_legs_t)
+                _vh = {}
+                for _t in _legs_t:
+                    if _t not in _ivh.columns:
+                        continue
+                    _ivs = _ivh[_t].dropna().iloc[-252:]
+                    if _ivs.empty:
+                        continue
+                    _rvs = (_rvh[_t].reindex(_ivs.index) if _t in _rvh.columns
+                            else pd.Series(index=_ivs.index, dtype=float))
+                    _vh[_t] = {"name": INSTRUMENTS.get(_t, (_t,))[0],
+                               "dates": [x.date().isoformat() for x in _ivs.index],
+                               "iv": [float(v) for v in _ivs],
+                               "rv": [None if pd.isna(v) else float(v) for v in _rvs]}
+                payload["volhist"] = _vh
+                if getattr(res, "trades", None) is not None and not res.trades.empty:
+                    payload["blotter"] = json.loads(
+                        res.trades.to_json(orient="records", date_format="iso"))
+                payload["greeks"] = {
+                    "entry_caption": f"At entry — {s['entry']:%d %b %Y} (as struck)",
+                    "latest_caption": f"Latest — {s['exit']:%d %b %Y} (final marks before close-out)",
+                    "entry": json.loads(_g0.to_json(orient="records")),
+                    "latest": json.loads(_gN.to_json(orient="records")),
+                }
                 with tempfile.TemporaryDirectory() as _t:
                     _in = Path(_t) / "volbt.json"
                     _out = Path(_t) / "Vol_Backtest_Tearsheet.pdf"
@@ -4153,15 +4345,22 @@ if st.session_state.pop("_scroll_top", False):
     # would otherwise still eat a 16px flex gap between masthead and content
     with st.container(key="basis_scroll_top"):
         components.html(
+            # Re-assert top for ~2.5s (heavy pages keep drawing in and can carry the old
+            # scroll offset back), but stop instantly if the user scrolls on purpose.
             "<script>"
+            "const P = window.parent, D = P.document;"
+            "let cancelled = false;"
+            "const cancel = () => { cancelled = true; };"
+            "['wheel','touchstart','keydown'].forEach(ev =>"
+            "  D.addEventListener(ev, cancel, {once:true, passive:true}));"
             "const up = () => {"
-            "  const d = window.parent.document;"
-            "  d.querySelectorAll('section[data-testid=\"stMain\"],"
+            "  if (cancelled) return;"
+            "  D.querySelectorAll('section[data-testid=\"stMain\"],"
             " [data-testid=\"stAppViewContainer\"]')"
             "    .forEach(el => el.scrollTo({top: 0, behavior: 'instant'}));"
-            "  window.parent.scrollTo({top: 0, behavior: 'instant'});"
+            "  P.scrollTo({top: 0, behavior: 'instant'});"
             "};"
-            "up(); setTimeout(up, 150); setTimeout(up, 400);"
+            "up(); [150, 400, 900, 1600, 2500].forEach(t => setTimeout(up, t));"
             "</script>", height=0)
 
 # ----- default landing view -----------------------------------------------
