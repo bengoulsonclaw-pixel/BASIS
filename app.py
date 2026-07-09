@@ -4339,12 +4339,12 @@ with st.sidebar:
     st.divider()
     if _side == "FICC":
         st.caption("**MODULES**")
-        _nav_button("🎯  Confluence", "Confluence")
-        _nav_button("☕  Morning Coffee", "Morning Coffee")
         # Market Information (Reports Calendar / Market Hours / Block Sizes / Correlations) collapses to one
         # entry; Trade Testing (Fed Path + Vol Backtester) sits below the groups. Both carry
         # the tab-row switcher (_render_group_tabs).
         _nav_button("🗂️  Market Information", "Release Calendar")
+        _nav_button("🎯  Confluence", "Confluence")
+        _nav_button("☕  Morning Coffee", "Morning Coffee")
         for _group, _strats in NAV_GROUPS.items():
             # Each strategy group collapses to ONE sidebar entry; its members are reached from within
             # that page — the TA overview's "By strategy" drill-down grid, or the tab-row switcher
