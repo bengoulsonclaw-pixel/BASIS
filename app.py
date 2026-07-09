@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -648,14 +649,14 @@ def _load_snap():
 def _go(dest: str) -> None:
     """on_click nav handler — runs before the rerun, so the highlight stays in sync."""
     st.session_state.active = dest
-    st.session_state["_scroll_top"] = True      # new page opens at the top
+    st.session_state["_scroll_top_ts"] = time.time()    # new page opens at the top
 
 
 def _set_side(s: str) -> None:
     """Switch between the FICC (futures) and Equities sides; land on that side's home page."""
     st.session_state.side = s
     st.session_state.active = "eq:Home" if s == "Equities" else "Home"
-    st.session_state["_scroll_top"] = True
+    st.session_state["_scroll_top_ts"] = time.time()
 
 
 def _nav_button(label: str, dest: str) -> None:
@@ -2143,6 +2144,18 @@ def render_confluence() -> None:
                                      use_container_width=True, on_click=_go, args=(s,))
 
 
+def _ta_quicknav(current: str | None = None) -> None:
+    """Quick-switch buttons for the technical strategies — the same 2×5 set as the Technical
+    Analysis hub. Shown on the hub and at the top of each technical-strategy page so the user
+    can flip between them without the sidebar; the current page's button is highlighted."""
+    cols = st.columns(5)
+    for i, s in enumerate(tascore.TA_STRATEGIES):
+        cols[i % 5].button(
+            _STRAT_SHORT.get(s, s), key=f"tanav_{current or 'hub'}_{s}",
+            use_container_width=True, type="primary" if s == current else "secondary",
+            on_click=_go, args=(s,))
+
+
 def render_ta_overview() -> None:
     import altair as alt
     from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
@@ -2154,12 +2167,39 @@ def render_ta_overview() -> None:
                "strategies agree × how strong each is, longs netted against shorts). Open a strategy to "
                "tune its trigger and see its charts.")
 
+    with st.expander("ℹ️  How “Conviction” and “Score” are calculated"):
+        st.markdown(
+            "Every strategy speaks its own language — a z-score, a 0–100 readiness/proximity, a momentum "
+            "score, a return %, an MA-gap %. To rank products across all of them, each flagged signal is "
+            "put on one common scale, then aggregated per product in **three steps**.\n\n"
+            "**1 · Each flagged signal → a _strength_ (0–100).** How far the metric sits toward "
+            "“full conviction”:\n\n"
+            "> `strength = min(100, |metric| ÷ full-scale × 100)`\n\n"
+            "where **full-scale** (the metric magnitude that scores 100) is:\n\n"
+            "| Strategy | Native metric | = 100 at |\n"
+            "|---|---|---|\n"
+            "| Mean Reversion | \\|z-score\\| | 3.0 |\n"
+            "| Trend | \\|3-month return\\| | 25% |\n"
+            "| MA Crossover / MA Swing | \\|MA gap\\| | 10% |\n"
+            "| Flag Breakout · S&R · Fibonacci · Breakout & Retest · Momentum · Bollinger Squeeze | "
+            "already 0–100 (readiness / proximity / momentum / squeeze) | used as-is |\n\n"
+            "**2 · Conviction (0–100) = the _average_ strength** of the strategies flagging that product — "
+            "how strong the signals are on average, *regardless of how many* agree.\n\n"
+            "**3 · Score = the _signed sum_ of those strengths** — long signals count **＋**, short **－** — "
+            "displayed as **|Score|**:\n\n"
+            "> `Score = | Σ (±strength) |`\n\n"
+            "So Score rewards **both** confluence (more agreeing strategies) **and** strength, while "
+            "opposing calls partly cancel. The **sign** of that sum sets the **Net** column "
+            "(▲ long / ▼ short, or ⚠ *mixed* when both sides fire), and **|Score| ranks the table**.\n\n"
+            "**Worked example.** Three strategies flag a product **Long** at strengths 90 / 80 / 70 and one "
+            "flags it **Short** at 60 → Conviction = (90+80+70+60) ÷ 4 = **75**; "
+            "Score = |＋90＋80＋70－60| = **180** (the short partly cancels); Net = **▲ long**. If instead all "
+            "four agreed Long, Score = |90+80+70+60| = **300** — same conviction, far higher stacked score."
+        )
+
     # Quick-nav row (top of page): open any strategy's own page — trigger control, full table, charts.
     st.caption("Open a strategy for its trigger control, full table and charts:")
-    bcols = st.columns(5)
-    for i, s in enumerate(tascore.TA_STRATEGIES):
-        bcols[i % 5].button(_STRAT_SHORT.get(s, s), key=f"ta_go_{s}", use_container_width=True,
-                            on_click=_go, args=(s,))
+    _ta_quicknav()
 
     df, meta = load_signals()
     flagged = tascore.ta_flagged(_filter_signals(df))
@@ -4337,9 +4377,12 @@ with st.sidebar:
 brand.masthead()
 
 # Nav clicks flag a scroll reset — the destination page should open at the top (Streamlit
-# otherwise keeps the previous page's scroll position across the rerun). Retries cover the
-# content still streaming in after the first scroll.
-if st.session_state.pop("_scroll_top", False):
+# otherwise keeps the previous page's scroll position across the rerun). A TIME WINDOW, not
+# a one-shot flag: pages that st.rerun() on entry (e.g. Technical Analysis) abort the first
+# run — a popped flag died with it and the page kept the old scroll. Any run starting within
+# the window emits the reset, so chained reruns still land at the top.
+_nav_ts = st.session_state.get("_scroll_top_ts", 0)
+if time.time() - _nav_ts < 1.5:
     import streamlit.components.v1 as components
     # keyed container so the theme CSS can hide this block entirely — the 0-height iframe
     # would otherwise still eat a 16px flex gap between masthead and content
@@ -4347,7 +4390,10 @@ if st.session_state.pop("_scroll_top", False):
         components.html(
             # Re-assert top for ~2.5s (heavy pages keep drawing in and can carry the old
             # scroll offset back), but stop instantly if the user scrolls on purpose.
-            "<script>"
+            # The nav timestamp is baked into the markup: identical content would let the
+            # frontend REUSE the previous iframe without re-running its script (the scroll
+            # then silently doesn't happen — the "works once after a restart" bug).
+            f"<script>/* nav:{_nav_ts} */"
             "const P = window.parent, D = P.document;"
             "let cancelled = false;"
             "const cancel = () => { cancelled = true; };"
@@ -4504,6 +4550,11 @@ if active == "Universe":
 # ----- a strategy page is active ------------------------------------------
 st.header(active)
 st.caption(STRATEGY_BLURB.get(active, ""))
+
+# Quick-switch nav between the technical strategies (same buttons as the TA hub) so the user
+# can flip between strategy pages without the sidebar — on the technical-strategy pages only.
+if active in tascore.TA_STRATEGIES:
+    _ta_quicknav(active)
 
 # Shrink + wrap the metric-card VALUE font so long values ("Long (buy the dip)", "50.0% @
 # 616.5", "Squeeze — upside watch") fit the narrow cards instead of truncating. Applies to
