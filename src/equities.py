@@ -41,8 +41,16 @@ INDICES = {
     "FTSE 100":      ("FTSE 100",      "UKX Index",  "UK"),
     "DAX 40":        ("DAX 40",        "DAX Index",  "EU"),
     "CAC 40":        ("CAC 40",        "CAC Index",  "EU"),
+    "Russell 2000":  ("Russell 2000",  "RTY Index",  "US"),
 }
 REGION_OF = {k: v[2] for k, v in INDICES.items()}
+
+# Indices whose live membership is huge (Russell 2000 = ~2000 names). They're OPT-IN on the
+# heavy pages (all-pairs correlations, dispersion, home movers/quotes) and default-on only
+# where breadth is the point (the earnings calendar). DEFAULT_INDICES is the standard
+# multiselect default for the heavy pages.
+HEAVY_INDICES = {"Russell 2000"}
+DEFAULT_INDICES = [k for k in INDICES if k not in HEAVY_INDICES]
 
 # GICS sectors (11) — the "category" the heatmap groups by.
 GICS_SECTORS = ["Information Technology", "Communication Services", "Consumer Discretionary",
@@ -230,6 +238,37 @@ _MOCK_CONSTITUENTS = {
         ("TTE FP Equity", "TotalEnergies", _EN),
         ("ENGI FP Equity", "Engie", _UT), ("VIE FP Equity", "Veolia", _UT),
         ("AI FP Equity", "Air Liquide", _MAT), ("URW FP Equity", "Unibail-Rodamco", _RE),
+    ],
+    # Representative small caps — live Bloomberg replaces this with the full ~2000-name
+    # INDX_MEMBERS membership; the mock keeps the demo calendar/heatmap looking genuine.
+    "Russell 2000": [
+        ("FN US Equity", "Fabrinet", _IT), ("CALX US Equity", "Calix", _IT),
+        ("PLXS US Equity", "Plexus", _IT), ("ITRI US Equity", "Itron", _IT),
+        ("ACLS US Equity", "Axcelis", _IT), ("SITM US Equity", "SiTime", _IT),
+        ("PI US Equity", "Impinj", _IT), ("DIOD US Equity", "Diodes", _IT),
+        ("SUPN US Equity", "Supernus", _HC), ("CORT US Equity", "Corcept", _HC),
+        ("KRYS US Equity", "Krystal Biotech", _HC), ("ADMA US Equity", "ADMA Biologics", _HC),
+        ("PTGX US Equity", "Protagonist", _HC),
+        ("GBCI US Equity", "Glacier Bancorp", _FIN), ("ONB US Equity", "Old National", _FIN),
+        ("UBSI US Equity", "United Bankshares", _FIN), ("EBC US Equity", "Eastern Bankshares", _FIN),
+        ("WAFD US Equity", "WaFd", _FIN),
+        ("BOOT US Equity", "Boot Barn", _CD), ("PLAY US Equity", "Dave & Buster's", _CD),
+        ("WGO US Equity", "Winnebago", _CD), ("M US Equity", "Macy's", _CD),
+        ("UNFI US Equity", "United Natural Foods", _CS), ("CHEF US Equity", "Chefs' Warehouse", _CS),
+        ("ANDE US Equity", "Andersons", _CS),
+        ("ALG US Equity", "Alamo Group", _IND), ("AGX US Equity", "Argan", _IND),
+        ("ROAD US Equity", "Construction Partners", _IND), ("MYRG US Equity", "MYR Group", _IND),
+        ("GVA US Equity", "Granite Construction", _IND),
+        ("SM US Equity", "SM Energy", _EN), ("CRC US Equity", "California Resources", _EN),
+        ("PTEN US Equity", "Patterson-UTI", _EN), ("LBRT US Equity", "Liberty Energy", _EN),
+        ("NWE US Equity", "NorthWestern", _UT), ("AVA US Equity", "Avista", _UT),
+        ("OTTR US Equity", "Otter Tail", _UT),
+        ("HWKN US Equity", "Hawkins", _MAT), ("IOSP US Equity", "Innospec", _MAT),
+        ("MTX US Equity", "Minerals Technologies", _MAT),
+        ("APLE US Equity", "Apple Hospitality", _RE), ("SKT US Equity", "Tanger", _RE),
+        ("IIPR US Equity", "Innovative Industrial", _RE),
+        ("TGNA US Equity", "Tegna", _Cm), ("ZD US Equity", "Ziff Davis", _Cm),
+        ("IAS US Equity", "Integral Ad Science", _Cm),
     ],
 }
 
