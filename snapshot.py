@@ -19,9 +19,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.datafeed import (MODE, get_history, get_volume_history, get_implied_vol_history,
-                          get_live_quote, get_skew_components, get_term_structure, get_putcall,
-                          get_oi_chain, TENOR_LABELS, _PUTCALL_KEYS, _OI_COLS, OI_SNAPSHOT_TICKERS)
+from src.datafeed import (MODE, get_history, get_yield_history, get_volume_history,
+                          get_implied_vol_history, get_live_quote, get_skew_components,
+                          get_term_structure, get_putcall, get_oi_chain, TENOR_LABELS,
+                          _PUTCALL_KEYS, _OI_COLS, OI_SNAPSHOT_TICKERS)
 from src.universe import INSTRUMENTS
 
 SNAP = Path(__file__).parent / "data" / "snapshot"
@@ -33,7 +34,7 @@ OI_CHAIN_CAPTURE_EXPIRIES = 24
 # Snapshot frames, in workbook order (one parquet + one Excel sheet each). The option chain
 # (oi_chain) is the odd one out — a tidy LONG grid with a `ticker` column, not date-indexed —
 # so it's saved/read directly rather than through _save.
-FRAMES = (["prices", "volume", "implied_vol", "skew_put", "skew_call", "skew_atm"]
+FRAMES = (["prices", "yields", "volume", "implied_vol", "skew_put", "skew_call", "skew_atm"]
           + [f"term_{lab.lower()}" for lab in TENOR_LABELS]
           + [f"putcall_{k}" for k in _PUTCALL_KEYS] + ["oi_chain", "live"])
 
@@ -103,11 +104,67 @@ def run_oi() -> int:
     return n
 
 
-def run() -> dict:
-    """Pull the DAILY inputs (LIVE if DATAFEED_MODE=bloomberg) and cache to data/snapshot/.
-    Option OI chains are NOT pulled here — they're a separate weekly job (run_oi / --oi)."""
+def run_equities() -> dict:
+    """The EQUITIES daily pull — index membership + overnight quotes/short history, plus the
+    weekly-guarded Company Fundamentals refresh. Its own job (CLI --equities, and the
+    'Pull equities data' button on the Equities home) so FICC and Equities pull separately.
+    Guarded like the futures pull: a dead pull never wipes the caches. Also stamps the
+    snapshot manifest's 'equities' entry so both sides' provenance lives in one place."""
+    eq = {}
+    try:
+        from src import equities
+        eq = equities.build_snapshot()
+        print(f"  Equities: {eq.get('n_memberships', 0)} constituents / {eq.get('n_unique', 0)} "
+              f"unique across {len(eq.get('indices', {}))} indices"
+              if eq.get("ok") else f"  Equities snapshot skipped: {eq.get('reason')}")
+    except Exception as e:
+        print(f"  (Equities snapshot skipped: {e})")
+
+    # Company fundamentals — WEEKLY-guarded append to data/equities/fundamentals.parquet
+    # (fundamentals move slowly; a fresh-enough last pull is left alone). Guarded the same way:
+    # a failure never blocks the pull, a dead pull never wipes the DB.
+    try:
+        from src import eqfunda
+        fr = eqfunda.maybe_refresh(max_age_days=7)
+        if fr.get("skipped"):
+            print(f"  Fundamentals: last pull {fr.get('last_pull')} is {fr.get('age_days')}d old — kept.")
+        elif fr.get("ok"):
+            print(f"  Fundamentals: {fr.get('n_tickers', 0)} names appended ({fr.get('last_pull')}).")
+        else:
+            print(f"  Fundamentals pull skipped: {fr.get('reason')}")
+    except Exception as e:
+        print(f"  (Fundamentals pull skipped: {e})")
+
+    if eq.get("ok"):                       # record the pull in the shared manifest
+        SNAP.mkdir(parents=True, exist_ok=True)
+        m = _existing_manifest()
+        m["equities"] = eq.get("indices", {})
+        m["equities_pulled"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+        (SNAP / "manifest.json").write_text(json.dumps(m, indent=2))
+    return eq
+
+
+def run(include_equities: bool = False) -> dict:
+    """Pull the DAILY FICC inputs (LIVE if DATAFEED_MODE=bloomberg) and cache to data/snapshot/.
+    Option OI chains are NOT pulled here — they're a separate weekly job (run_oi / --oi).
+    The Equities side has its OWN pull (run_equities / --equities); pass include_equities=True
+    (CLI --with-equities) to chain both in one run."""
     tickers = list(INSTRUMENTS)
     prices = get_history(tickers)
+    # GUARD — never overwrite a good snapshot with nothing. When the Bloomberg Terminal is
+    # closed / logged out the pull returns an EMPTY price frame; because prices.parquet is
+    # every report's offline fallback, saving that empties the whole book (exactly how the
+    # Morning Coffee report ended up with 0/80 products). Keep what's on disk and bail —
+    # the same protection the weekly OI job (run_oi) already applies.
+    if prices is None or getattr(prices, "empty", True) or len(prices) == 0:
+        SNAP.mkdir(parents=True, exist_ok=True)
+        prev = _existing_manifest()
+        prev["last_skipped_pull"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+        (SNAP / "manifest.json").write_text(json.dumps(prev, indent=2))
+        print("Snapshot pull returned NO price data (is the Bloomberg Terminal open + logged "
+              "in?) — KEPT the existing snapshot; nothing was overwritten.")
+        return prev
+    ylds = get_yield_history(tickers)                 # benchmark yields for bond futures (FI TA)
     volume = get_volume_history(tickers)              # daily contract volume (flag confirmation)
     iv = get_implied_vol_history(tickers)
     skew = get_skew_components(tickers)
@@ -117,6 +174,7 @@ def run() -> dict:
     live_as_of = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
 
     _save(prices, "prices")
+    _save(ylds, "yields")
     _save(volume, "volume")
     _save(iv, "implied_vol")
     _save(skew["put"], "skew_put")
@@ -143,32 +201,11 @@ def run() -> dict:
     except Exception as e:
         print(f"  (COT price DB update skipped: {e})")
 
-    # Equities side — cache the index membership + overnight quotes/history so the Equities pages run
-    # off the same daily snapshot (Terminal-closed). Guarded: a failure never blocks the snapshot.
+    # Equities are a SEPARATE pull (run_equities / --equities, wired to the Equities home
+    # page) so the FICC morning pull stays fast — chain both with include_equities=True.
     eq = {}
-    try:
-        from src import equities
-        eq = equities.build_snapshot()
-        print(f"  Equities: {eq.get('n_memberships', 0)} constituents / {eq.get('n_unique', 0)} "
-              f"unique across {len(eq.get('indices', {}))} indices"
-              if eq.get("ok") else f"  Equities snapshot skipped: {eq.get('reason')}")
-    except Exception as e:
-        print(f"  (Equities snapshot skipped: {e})")
-
-    # Company fundamentals — WEEKLY-guarded append to data/equities/fundamentals.parquet
-    # (fundamentals move slowly; a fresh-enough last pull is left alone). Guarded the same way:
-    # a failure never blocks the snapshot, a dead pull never wipes the DB.
-    try:
-        from src import eqfunda
-        fr = eqfunda.maybe_refresh(max_age_days=7)
-        if fr.get("skipped"):
-            print(f"  Fundamentals: last pull {fr.get('last_pull')} is {fr.get('age_days')}d old — kept.")
-        elif fr.get("ok"):
-            print(f"  Fundamentals: {fr.get('n_tickers', 0)} names appended ({fr.get('last_pull')}).")
-        else:
-            print(f"  Fundamentals pull skipped: {fr.get('reason')}")
-    except Exception as e:
-        print(f"  (Fundamentals pull skipped: {e})")
+    if include_equities:
+        eq = run_equities()
 
     manifest = {
         "created": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -181,7 +218,8 @@ def run() -> dict:
         "oi_as_of": prev.get("oi_as_of", ""),  # when that weekly OI capture last ran
         "live_as_of": live_as_of,             # when the prior-settle->now quote was pulled
         "live_n": int(live["pct"].notna().sum()) if "pct" in live.columns else 0,
-        "equities": eq.get("indices", {}) if eq.get("ok") else {},
+        # futures-only pulls carry the LAST equities pull's record forward, not blank it
+        "equities": eq.get("indices", {}) if eq.get("ok") else prev.get("equities", {}),
     }
     SNAP.mkdir(parents=True, exist_ok=True)
     (SNAP / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -208,6 +246,10 @@ def main():
     ap.add_argument("--excel", default="", help="dump the cached snapshot to this .xlsx and exit")
     ap.add_argument("--oi", action="store_true",
                     help="WEEKLY job: capture ONLY the fixed-income option chains (run Mondays)")
+    ap.add_argument("--equities", action="store_true",
+                    help="run ONLY the Equities pull (membership + quotes + fundamentals)")
+    ap.add_argument("--with-equities", action="store_true",
+                    help="chain the Equities pull onto the FICC snapshot (old combined behaviour)")
     args = ap.parse_args()
     if args.excel:
         export_excel(args.excel)
@@ -216,7 +258,11 @@ def main():
     if args.oi:
         run_oi()
         return
-    m = run()
+    if args.equities:
+        eq = run_equities()
+        print(json.dumps(eq, indent=2, default=str))
+        return
+    m = run(include_equities=args.with_equities)
     print("Snapshot written to", SNAP)
     print(json.dumps(m, indent=2))
 
