@@ -270,7 +270,8 @@ def main():
     if args.equities:
         eq = run_equities()
         print(json.dumps(eq, indent=2, default=str))
-        return
+        # nonzero on a dead pull so the app's button shows the failure instead of "refreshed"
+        raise SystemExit(0 if eq.get("ok") else 1)
     m = run(include_equities=args.with_equities)
     print("Snapshot written to", SNAP)
     print(json.dumps(m, indent=2))

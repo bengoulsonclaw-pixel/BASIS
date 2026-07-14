@@ -1668,16 +1668,16 @@ def render_equities_home() -> None:
                  help="The Equities side's own Bloomberg pull — index membership, overnight "
                       "quotes/history and the (weekly-guarded) fundamentals refresh. Separate "
                       "from the FICC snapshot pull. Needs the Terminal."):
-        if MODE == "bloomberg":
-            # Same-day guard: an equities re-pull re-spends thousands of Bloomberg hits
-            # (the daily-capacity budget) on near-identical data, so it asks first.
-            _today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
-            if str((snap or {}).get("equities_pulled", ""))[:10] == _today:
-                st.session_state["eq_pull_confirm"] = True
-            else:
-                st.session_state["eq_pull_go"] = True
+        # No app-mode gate: the app itself runs in snapshot mode all day — the pull SUBPROCESS
+        # sets DATAFEED_MODE=bloomberg, same as the FICC snapshot button. If the Terminal is
+        # closed the pull fails gracefully and never wipes the caches.
+        # Same-day guard: an equities re-pull re-spends thousands of Bloomberg hits
+        # (the daily-capacity budget) on near-identical data, so it asks first.
+        _today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        if str((snap or {}).get("equities_pulled", ""))[:10] == _today:
+            st.session_state["eq_pull_confirm"] = True
         else:
-            st.info("Demo mode (no Terminal) — showing the built-in synthetic equities universe.")
+            st.session_state["eq_pull_go"] = True
     if st.session_state.get("eq_pull_confirm"):
         st.warning(f"⚡ Equities **already pulled today** "
                    f"({_to_et((snap or {}).get('equities_pulled', ''))}). Pulling again re-spends "
