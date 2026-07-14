@@ -110,7 +110,7 @@ def run_equities() -> dict:
     'Pull equities data' button on the Equities home) so FICC and Equities pull separately.
     Guarded like the futures pull: a dead pull never wipes the caches. Also stamps the
     snapshot manifest's 'equities' entry so both sides' provenance lives in one place."""
-    eq = {}
+    eq, fr = {}, {}
     try:
         from src import equities
         eq = equities.build_snapshot()
@@ -135,6 +135,12 @@ def run_equities() -> dict:
     except Exception as e:
         print(f"  (Fundamentals pull skipped: {e})")
 
+    # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit):
+    # ~3 per name for quotes/history + ~30 per name actually re-pulled by fundamentals.
+    est = int(eq.get("n_unique", 0) or 0) * 3 + int(fr.get("n_tickers", 0) or 0) * 30
+    if est:
+        print(f"  Estimated Bloomberg hits this pull: ~{est:,} (security x field, rough)")
+
     if eq.get("ok"):                       # record the pull in the shared manifest
         SNAP.mkdir(parents=True, exist_ok=True)
         m = _existing_manifest()
@@ -150,6 +156,9 @@ def run(include_equities: bool = False) -> dict:
     The Equities side has its OWN pull (run_equities / --equities); pass include_equities=True
     (CLI --with-equities) to chain both in one run."""
     tickers = list(INSTRUMENTS)
+    # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit): the FICC
+    # pull touches ~20 fields per contract across prices/yields/vols/skew/term/put-call/live.
+    print(f"  Estimated Bloomberg hits this pull: ~{len(tickers) * 20:,} (security x field, rough)")
     prices = get_history(tickers)
     # GUARD — never overwrite a good snapshot with nothing. When the Bloomberg Terminal is
     # closed / logged out the pull returns an EMPTY price frame; because prices.parquet is

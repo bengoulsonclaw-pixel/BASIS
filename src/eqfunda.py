@@ -238,12 +238,15 @@ def _read_manifest() -> dict:
 
 
 def _append_db(long_df: pd.DataFrame, asof: str, source: str) -> dict:
-    """Append a pull to the DB (idempotent per date: a same-day re-pull replaces that date's
-    rows, never duplicates them). Never wipes history."""
+    """Append a pull to the DB (idempotent per ticker+date: a same-day re-pull replaces that
+    date's rows FOR THE TICKERS PULLED, never duplicates them — and never touches other
+    tickers pulled the same day, so a Russell-only top-up can't wipe that morning's core
+    pull). Never wipes history."""
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     db = _read_db()
     if db is not None and not db.empty:
-        db = db[db["as_of"] != asof]
+        pulled = set(long_df["ticker"])
+        db = db[~((db["as_of"] == asof) & (db["ticker"].isin(pulled)))]
         long_df = pd.concat([db, long_df], ignore_index=True)
     long_df.to_parquet(_DB_FILE, index=False)
     manifest = {
@@ -281,18 +284,59 @@ def refresh(tickers=None) -> dict:
     return {"ok": True, "n_values": n_vals, **manifest}
 
 
-def maybe_refresh(max_age_days: int = 7, tickers=None) -> dict:
-    """snapshot.py's weekly guard — fundamentals move slowly, so the morning snapshot only
-    re-pulls them when the last pull is older than `max_age_days`."""
-    last = _read_manifest().get("last_pull", "")
-    if last:
-        try:
-            age = (pd.Timestamp.today().normalize() - pd.Timestamp(last)).days
-            if age < max_age_days:
-                return {"ok": True, "skipped": True, "last_pull": last, "age_days": int(age)}
-        except (TypeError, ValueError):
-            pass
-    return refresh(tickers)
+def _age_days(stamp: str) -> int:
+    try:
+        return int((pd.Timestamp.today().normalize() - pd.Timestamp(stamp)).days)
+    except (TypeError, ValueError):
+        return 10 ** 6                       # never pulled -> due now
+
+
+def maybe_refresh(max_age_days: int = 7, heavy_age_days: int = 30, tickers=None) -> dict:
+    """The pull guard — fundamentals move slowly, so only re-pull what's stale. TIERED for
+    Bloomberg's daily data capacity: the core indices refresh weekly, but the HEAVY indices
+    (Russell 2000 — ~2000 names x ~30 fields ≈ 70k hits per pull) only every `heavy_age_days`.
+    An explicit `tickers` list bypasses the tiering (pull exactly those, guarded weekly)."""
+    m0 = _read_manifest()
+    if tickers is not None:                  # explicit list: old single-cycle behaviour
+        if _age_days(m0.get("last_pull", "")) < max_age_days:
+            return {"ok": True, "skipped": True, "last_pull": m0.get("last_pull"),
+                    "age_days": _age_days(m0.get("last_pull", ""))}
+        return refresh(tickers)
+
+    uni = equities.load_universe()
+    heavy_keys = getattr(equities, "HEAVY_INDICES", set())
+    core = {c["ticker"] for k, rows in uni.items() if k not in heavy_keys for c in rows}
+    heavy = {c["ticker"] for k, rows in uni.items() if k in heavy_keys for c in rows} - core
+
+    core_due = _age_days(m0.get("last_pull", "")) >= max_age_days
+    heavy_due = bool(heavy) and _age_days(m0.get("last_heavy_pull", "")) >= heavy_age_days
+    if not core_due and not heavy_due:
+        return {"ok": True, "skipped": True, "last_pull": m0.get("last_pull"),
+                "age_days": _age_days(m0.get("last_pull", "")),
+                "last_heavy_pull": m0.get("last_heavy_pull", "")}
+
+    to_pull = sorted((core if core_due else set()) | (heavy if heavy_due else set()))
+    res = refresh(to_pull)
+    if res.get("ok"):
+        # refresh()->_append_db rewrote the manifest — re-stamp the per-tier pull dates it
+        # doesn't know about (core-only pulls must not look like a fresh heavy pull and
+        # vice versa).
+        m = _read_manifest()
+        today = pd.Timestamp.today().strftime("%Y-%m-%d")
+        m["last_heavy_pull"] = today if heavy_due else m0.get("last_heavy_pull", "")
+        if not core_due:                     # heavy-only pull: core stamp stays put
+            m["last_pull"] = m0.get("last_pull", today)
+        _MANIFEST_FILE.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
+        res.update({"pulled_core": core_due, "pulled_heavy": heavy_due})
+    return res
+
+
+def staleness() -> dict:
+    """Pull-age summary for the UI notes: when each tier was last pulled and how old it is."""
+    m = _read_manifest()
+    return {"last_pull": m.get("last_pull", ""), "core_age": _age_days(m.get("last_pull", "")),
+            "last_heavy_pull": m.get("last_heavy_pull", ""),
+            "heavy_age": _age_days(m.get("last_heavy_pull", ""))}
 
 
 # ── read seams ────────────────────────────────────────────────────────────────
@@ -316,12 +360,15 @@ def _add_derived(wide: pd.DataFrame) -> pd.DataFrame:
 
 
 def latest_wide(tickers=None):
-    """(DataFrame ticker x FIELD from the latest pull, asof, source). Falls back to on-the-fly
-    mock values (not written to the DB) when no pull exists yet."""
+    """(DataFrame ticker x FIELD — each ticker's NEWEST stored values, asof, source). Falls
+    back to on-the-fly mock values (not written to the DB) when no pull exists yet.
+    Per-ticker latest (not latest-date-only): core indices refresh weekly but heavy ones
+    (Russell 2000) monthly to respect Bloomberg's daily capacity, so the freshest rows for
+    different names legitimately live on different pull dates."""
     db = _read_db()
     if db is not None and not db.empty:
         asof = str(db["as_of"].max())
-        wide = _pivot(db[db["as_of"] == asof])
+        wide = _pivot(db.sort_values("as_of"))     # aggfunc="last" -> newest row per ticker/field
         source = _read_manifest().get("source", "?")
     else:
         tk = list(tickers) if tickers else _universe_tickers()

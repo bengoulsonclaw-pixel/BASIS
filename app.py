@@ -24,8 +24,9 @@ import pandas as pd
 import streamlit as st
 
 import run_daily
-from src.datafeed import (MODE, get_live_quote, get_history, get_implied_vol_history,
-                          get_realized_vol_history)
+from src.datafeed import (MODE, get_live_quote, get_history, get_history_ta,
+                          get_implied_vol_history, get_realized_vol_history,
+                          get_term_structure, stale_iv_reasons)
 from src.specs import SPECS, reflag_rows, trigger_default, save_trigger_default
 from src import universe
 from src import brand
@@ -40,9 +41,12 @@ from src import worldclock
 from src import tascore
 from src import markethours
 from src import blocksizes
+from src import futyield
+from src import optbuilder
 from src import equities
 from src import eqfunda
 from src import eqcorr
+from src import eqdisp
 from src.universe import INSTRUMENTS
 
 ROOT = Path(__file__).parent
@@ -69,6 +73,7 @@ WASDEREPORT_CLI = ROOT / "src" / "wasdereport.py"
 FLAGREPORT_CLI = ROOT / "src" / "flagreport.py"
 FLAG_DETAIL_FILE = ROOT / "data" / "signals" / "flag_breakout.parquet"
 TAREPORT_CLI = ROOT / "src" / "tareport.py"
+CONVREPORT_CLI = ROOT / "src" / "convreport.py"
 SNAPSHOT_CLI = ROOT / "snapshot.py"
 SNAPSHOT_DIR = ROOT / "data" / "snapshot"
 SNAPSHOT_MANIFEST = SNAPSHOT_DIR / "manifest.json"
@@ -402,6 +407,7 @@ def _vol_charts(threshold):
     """On-page implied-vs-realized charts (scatter + ranked z-bars), read straight from the
     cached volatility cross-section so they show on the page WITHOUT generating the PDF."""
     import altair as alt
+    from src import volcorr
     if not VOL_DETAIL_FILE.exists():
         st.info("No volatility cross-section yet — compute signals first (sidebar → **Re-run signals**).")
         return
@@ -416,6 +422,39 @@ def _vol_charts(threshold):
     thr = float(threshold) if threshold is not None else 1.5
     d["flag"] = np.where(d["z"] >= thr, "Rich — sell vol",
                 np.where(d["z"] <= -thr, "Cheap — buy vol", "Neutral"))
+
+    # ---- Relative-value peer finder: return / IV-change correlation (matches Product Correlations page) ----
+    _metric_lbl = st.radio("Relative-value peers — correlate on", ["Returns", "IV changes", "Realized vol"],
+                           index=2, horizontal=True, key="vol_rv_metric",
+                           help="The same measures as the Product Correlations page. Returns = how prices move "
+                                "together (direction); IV changes = how 1M implied vols move together (what you "
+                                "trade); Realized vol = how delivered vols move together (whether they turn "
+                                "volatile in sync).")
+    _metric = {"IV changes": "iv", "Realized vol": "realized"}.get(_metric_lbl, "returns")
+    _moves = {"iv": "implied vol", "realized": "realized vol"}.get(_metric, "price")
+    _corrname = {"iv": "IV-change", "realized": "realized-vol"}.get(_metric, "return")
+    cm = volcorr.load(_metric)
+    corr_thr = (st.slider(f"Show {_corrname}-correlated peers ≥ (%)", 50, 99, 80, key="vol_rv_thr",
+                          help=f"Products whose {_moves} moves with each one at least this closely — 1-yr "
+                               f"{_corrname} correlation, matching the Product Correlations page. Hover any point "
+                               "or use the focus panel below to see your sell/buy-against candidates.") / 100.0
+                ) if cm is not None else 0.80
+    _sig = {1: "▼ cheap", -1: "▲ rich", 0: "—"}
+    _mk = {r.ticker: r.market for r in d.itertuples(index=False)}
+    _dir = {r.ticker: (1 if str(r.flag).startswith("Cheap") else -1 if str(r.flag).startswith("Rich") else 0)
+            for r in d.itertuples(index=False)}
+    _uni = list(_mk.keys())
+
+    def _peerstr(tk):
+        if cm is None:
+            return "—"
+        ps = volcorr.peers(tk, cm, corr_thr, universe=_uni)
+        if not ps:
+            return f"none ≥{int(corr_thr*100)}%"
+        parts = [f"{_mk[p]} {c*100:.0f}% {_sig[_dir.get(p, 0)]}" for p, c in ps[:8]]
+        return " · ".join(parts) + (f"  +{len(ps)-8} more" if len(ps) > 8 else "")
+    d["peers"] = [_peerstr(tk) for tk in d["ticker"]]
+
     cc = brand.chart_colors()
     dom, rng = ["Rich — sell vol", "Cheap — buy vol", "Neutral"], [cc["short"], cc["long"], cc["muted"]]
     color = alt.Color("flag:N", scale=alt.Scale(domain=dom, range=rng),
@@ -424,7 +463,8 @@ def _vol_charts(threshold):
            alt.Tooltip("iv_lbl:N", title="Implied"),
            alt.Tooltip("rv_lbl:N", title="Realized"),
            alt.Tooltip("spread:Q", title="Spread", format="+.1f"),
-           alt.Tooltip("z:Q", title="z (1y)", format="+.2f")]
+           alt.Tooltip("z:Q", title="z (1y)", format="+.2f"),
+           alt.Tooltip("peers:N", title=f"RV peers ≥{int(corr_thr*100)}%")]
 
     hi = float(max(d["iv"].max(), d["rv"].max())) * 1.05
     fair = alt.Chart(pd.DataFrame({"v": [0, hi]})).mark_line(
@@ -450,6 +490,33 @@ def _vol_charts(threshold):
         color=cc["muted"], strokeDash=[3, 3]).encode(x="z:Q")
     st.markdown(f"**All markets ranked by spread z-score** &nbsp;·&nbsp; flagged in colour; dashed lines = your trigger (±{thr:g}).")
     brand.show_chart((bars + rule).properties(height=max(260, 15 * len(allp))))
+
+    # ---- Relative-value: pick a product, see its vol-correlated peers + their signal ----
+    if cm is not None:
+        st.markdown("#### Relative-value — what to trade against it")
+        pick = st.selectbox("Focus product — show its vol-correlated peers",
+                            d.sort_values("market")["market"].tolist(), key="vol_rv_pick")
+        prow = d[d["market"] == pick].iloc[0]
+        st.markdown(f"**{pick}** — {prow['flag']} &nbsp;·&nbsp; implied {prow['iv']:.1f} / realized "
+                    f"{prow['rv']:.1f} &nbsp;·&nbsp; z {prow['z']:+.2f}")
+        _ps = volcorr.peers(prow["ticker"], cm, corr_thr, universe=_uni)
+        if _ps:
+            _cmap = dict(_ps)
+            pk = d[d["ticker"].isin(_cmap)].copy()
+            pk["_c"] = pk["ticker"].map(_cmap)
+            pk = pk.sort_values("_c", ascending=False)
+            ptbl = pk.assign(Corr=(pk["_c"] * 100).map("{:.0f}%".format),
+                             Spread=pk["spread"].map("{:+.1f}".format),
+                             Z=pk["z"].map("{:+.2f}".format))[
+                ["market", "Corr", "iv_lbl", "rv_lbl", "Spread", "Z", "flag"]].rename(columns={
+                "market": "Peer", "iv_lbl": "Implied (±1σ)", "rv_lbl": "Realized (±1σ)",
+                "Z": "z (1y)", "flag": "Signal"})
+            st.dataframe(ptbl, use_container_width=True, hide_index=True)
+            st.caption(f"Peers whose {_moves} moves with **{pick}** ≥ {int(corr_thr*100)}% (1-yr {_corrname} "
+                       "correlation, matching the Product Correlations page). If it screens cheap, sell vol on a "
+                       "**rich** peer against it — and vice-versa.")
+        else:
+            st.caption(f"Nothing correlates ≥ {int(corr_thr*100)}% with {pick} — lower the threshold above to surface more.")
 
     # ---- Flagged opportunities: dumbbell + table + per-market 1-year history ----
     fl = d[d["flag"] != "Neutral"].reindex(d.loc[d["flag"] != "Neutral", "z"].abs()
@@ -672,7 +739,7 @@ _GROUP_TABS = {
     "Market Information": [("📅 Reports Calendar", "Release Calendar"),
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
-                           ("🔗 Correlations", "Product Correlations")],
+                           ("🧮 Fut / Yield", "Fut Yield")],
     "Trade Testing":      [("🏛️ Fed Path", "Fed Path"),
                            ("🧪 Vol Backtester", "Vol Backtester")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
@@ -742,9 +809,28 @@ def _ficc_moves_frame() -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("sigma", ascending=False)
 
 
+def _all_filtered_off() -> bool:
+    """True when the Sectors & products filter has switched EVERY instrument off — data may
+    well exist, but nothing is enabled to show. Lets Home say 'the filter is off' instead of the
+    misleading 'no quote available' when the movers table / heatmap come back empty."""
+    try:
+        return not universe.enabled_tickers()
+    except Exception:
+        return False
+
+
+def _filtered_off_notice() -> None:
+    st.warning("🗂️ **All sectors are switched off** in the Sectors & products filter above — "
+               "click **All** there to bring the markets back. (Your data is fine; nothing is "
+               "just enabled to display.)")
+
+
 def _overnight_moves(snap) -> None:
     """Overnight net change (previous settle -> snapshot pull), expressed in σ."""
     st.subheader("Overnight moves")
+    if _all_filtered_off():
+        _filtered_off_notice()
+        return
     _have_live = (SNAPSHOT_DIR / "live.parquet").exists()
     if MODE == "snapshot" and not _have_live:
         st.caption("No live overnight quote captured yet — click **Pull Bloomberg Snapshot** "
@@ -922,6 +1008,9 @@ def _home_heatmap() -> None:
     import streamlit.components.v1 as components
     st.divider()
     st.subheader("Market heatmap")
+    if _all_filtered_off():
+        _filtered_off_notice()
+        return
     mvf = _ficc_moves_frame()
     mvf = mvf.dropna(subset=["sigma"]) if not mvf.empty else mvf
     if mvf.empty:
@@ -963,6 +1052,34 @@ def _mc_sidecar():
         return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
     except Exception:
         return None
+
+
+def _mc_native_heatmap(side) -> bool:
+    """Draw the app-native FICC treemap (same renderer as Home) for the Morning Coffee page,
+    built from the report's OWN overnight moves in the sidecar (`moves`) so it matches the run
+    that just happened — not the dashboard's separate snapshot. Returns False when the sidecar
+    carries no move data (older runs), so the caller can fall back to the report PNG."""
+    moves = [m for m in ((side or {}).get("moves") or []) if m.get("pct") is not None]
+    if not moves:
+        return False
+    from src import heatmap_html
+    import streamlit.components.v1 as components
+    sections = []                                   # one band per sector; tiles = products (1-level)
+    for sec in list(dict.fromkeys(m.get("sector", "") for m in moves)):
+        items = [(m.get("market", ""), float(m["pct"]),
+                  (float(m["sigma"]) if m.get("sigma") is not None else None))
+                 for m in moves if m.get("sector", "") == sec]
+        if items:
+            sections.append((sec, [(sec, items)]))
+    if not sections:
+        return False
+    height = int(min(700, max(320, 120 + 84 * len(sections))))
+    components.html(heatmap_html.render_html(sections, height, sub_headers=False),
+                    height=height + 6, scrolling=False)
+    st.caption("**Tile size = how many σ the contract moved overnight** (vs its own ~1-month daily "
+               "vol) — colour is direction (green up / red down). Grouped by sector; hover a tile "
+               "for the name, % and σ.")
+    return True
 
 
 def _filter_signals(df):
@@ -1369,11 +1486,12 @@ def render_home() -> None:
     _world_clocks()
     render_sector_filter()
     st.subheader("Data")
-    c1, c2, c3 = st.columns(3)
-    if c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
-                 help="Pulls every input the reports need into data/snapshot/ and recomputes "
-                      "all signals. Needs the Terminal logged in (~1–3 min)."):
-        with st.spinner("Pulling all inputs from Bloomberg… (~1–3 min)"):
+    c1, c2, c3, c4 = st.columns(4)
+    c4.button("☕  Morning Coffee", use_container_width=True, key="home_mc",
+              on_click=_go, args=("Morning Coffee",),
+              help="The morning report — overnight moves, levels and the day ahead.")
+    def _run_ficc_pull():
+        with st.spinner("Pulling all FICC inputs from Bloomberg… (~1–3 min)"):
             res = subprocess.run([sys.executable, str(SNAPSHOT_CLI)], cwd=str(ROOT),
                                  capture_output=True, text=True,
                                  env={**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"})
@@ -1382,7 +1500,29 @@ def render_home() -> None:
         else:
             run_daily.run(); load_signals.clear()
             _regen_mc_heatmap()          # refresh the Morning Coffee heatmap on Home
+            st.session_state.pop("ficc_pull_confirm", None)
             st.success("Snapshot pulled + signals refreshed."); st.rerun()
+
+    if c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
+                 help="Pulls every FICC input the reports need into data/snapshot/ and recomputes "
+                      "all signals. Needs the Terminal logged in (~1–3 min). Equities have "
+                      "their own pull on the Equities home page."):
+        # Same-day guard: a re-pull re-spends thousands of Bloomberg hits (the daily-capacity
+        # budget) for near-identical data, so it asks first.
+        _today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        if str((snap or {}).get("created", ""))[:10] == _today:
+            st.session_state["ficc_pull_confirm"] = True
+        else:
+            _run_ficc_pull()
+    if st.session_state.get("ficc_pull_confirm"):
+        st.warning(f"⚡ Snapshot **already pulled today** ({_to_et((snap or {}).get('created', ''))}). "
+                   "Pulling again re-spends the day's Bloomberg data allowance on near-identical "
+                   "data — worth it only if the first pull was bad or markets have moved a lot.")
+        _g1, _g2, _ = st.columns([1.4, 1, 3.6])
+        if _g1.button("Pull again anyway", key="ficc_pull_anyway"):
+            _run_ficc_pull()
+        if _g2.button("Cancel", key="ficc_pull_cancel"):
+            st.session_state.pop("ficc_pull_confirm", None); st.rerun()
     if c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
                  help="Recompute all strategies from the current data — instant in snapshot mode."):
         run_daily.run(); load_signals.clear(); st.rerun()
@@ -1517,29 +1657,56 @@ def render_equities_home() -> None:
     snap = _load_snap()
     _world_clocks()
     _keys = list(equities.INDICES.keys())
-    sel = st.multiselect("Indices to show", _keys, default=_keys, key="eq_idx_filter",
-                         help="Scope the movers table and heatmap to these indices.")
+    sel = st.multiselect("Indices to show", _keys, default=list(equities.DEFAULT_INDICES),
+                         key="eq_idx_filter",
+                         help="Scope the movers table and heatmap to these indices. "
+                              "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
     sel = sel or _keys
     st.subheader("Data")
     c1, c2, c3 = st.columns(3)
     if c1.button("📥 Pull equities data", use_container_width=True, key="eq_pull",
-                 help="Refresh index membership + overnight quotes from Bloomberg (needs the Terminal)."):
+                 help="The Equities side's own Bloomberg pull — index membership, overnight "
+                      "quotes/history and the (weekly-guarded) fundamentals refresh. Separate "
+                      "from the FICC snapshot pull. Needs the Terminal."):
         if MODE == "bloomberg":
-            with st.spinner("Pulling equities from Bloomberg…"):
-                try:
-                    equities.refresh_constituents()
-                    _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
-                    st.success("Equities data refreshed."); st.rerun()
-                except Exception as e:
-                    st.error(f"Pull failed: {e}")
+            # Same-day guard: an equities re-pull re-spends thousands of Bloomberg hits
+            # (the daily-capacity budget) on near-identical data, so it asks first.
+            _today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+            if str((snap or {}).get("equities_pulled", ""))[:10] == _today:
+                st.session_state["eq_pull_confirm"] = True
+            else:
+                st.session_state["eq_pull_go"] = True
         else:
             st.info("Demo mode (no Terminal) — showing the built-in synthetic equities universe.")
+    if st.session_state.get("eq_pull_confirm"):
+        st.warning(f"⚡ Equities **already pulled today** "
+                   f"({_to_et((snap or {}).get('equities_pulled', ''))}). Pulling again re-spends "
+                   "the day's Bloomberg data allowance on near-identical data.")
+        _g1, _g2, _ = st.columns([1.4, 1, 3.6])
+        if _g1.button("Pull again anyway", key="eq_pull_anyway"):
+            st.session_state.pop("eq_pull_confirm", None)
+            st.session_state["eq_pull_go"] = True
+        if _g2.button("Cancel", key="eq_pull_cancel"):
+            st.session_state.pop("eq_pull_confirm", None); st.rerun()
+    if st.session_state.pop("eq_pull_go", False):
+        with st.spinner("Pulling equities from Bloomberg… (membership + quotes + fundamentals)"):
+            res = subprocess.run([sys.executable, str(SNAPSHOT_CLI), "--equities"],
+                                 cwd=str(ROOT), capture_output=True, text=True,
+                                 env={**os.environ, "DATAFEED_MODE": "bloomberg",
+                                      "PYTHONUTF8": "1"})
+        if res.returncode != 0:
+            st.error("Equities pull failed:\n\n" + (res.stderr or res.stdout or "no output"))
+        else:
+            _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
+            _eqf_frame.clear()
+            st.success("Equities data refreshed."); st.rerun()
     if c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
                  help="Re-pull the latest overnight quotes."):
         _eq_movers.clear(); _eq_heatmap_sections.clear(); st.rerun()
     _n = sum(len(v) for v in _eq_universe().values())
     c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
-               + equities.data_status() + ".")
+               + equities.data_status() + ". Equities data refreshes **only** via this pull "
+               "(separate from the FICC snapshot, to respect Bloomberg's daily data capacity).")
     st.divider()
     _equities_overnight_moves(sel, snap)
     _econ_figures()
@@ -1573,6 +1740,23 @@ def _eqf_frame(index_keys: tuple):
     df, asof, src = eqfunda.company_frame(universe=equities.cached_universe(),
                                           index_keys=list(index_keys))
     return (eqfunda.add_sector_percentiles(df) if not df.empty else df), asof, src
+
+
+def _eqf_pull_note() -> None:
+    """Data-budget note for the fundamentals-driven pages: pulls are minimised to respect
+    Bloomberg's daily capacity, so each tier's data can lag by up to its cycle length."""
+    s = eqfunda.staleness()
+    core = (f"core indices last pulled **{s['last_pull']}** ({s['core_age']}d ago)"
+            if s["last_pull"] else "core indices **never pulled**")
+    heavy = ""
+    if getattr(equities, "HEAVY_INDICES", None):
+        heavy = ("; Russell 2000 last pulled **" + s["last_heavy_pull"] + "** "
+                 f"({s['heavy_age']}d ago)" if s["last_heavy_pull"]
+                 else "; Russell 2000 **never pulled**")
+    st.caption(f"ℹ️ **Data-budget note** — to respect Bloomberg's daily data capacity, "
+               f"fundamentals refresh on a cycle: core indices **weekly**, Russell 2000 "
+               f"**monthly**. {core}{heavy}. Figures and expected report dates can lag by up "
+               f"to their cycle; **Pull equities data** (Equities home) forces a refresh.")
 
 
 def _eqf_styles(sub: pd.DataFrame, field: str) -> list:
@@ -1762,30 +1946,43 @@ def render_eq_fundamentals() -> None:
                "— for every index constituent, always ranked **within GICS sector** so a bank's "
                "P/B is judged against banks, not software. Every pull **appends** to the "
                "fundamentals database, so trends accumulate over time.")
+    _eqf_pull_note()
     c1, c2 = st.columns([1, 2])
     if c1.button("📥 Pull fundamentals", use_container_width=True, key="eqf_pull",
-                 help="Pull ~30 fundamentals per constituent from Bloomberg (needs the Terminal) "
-                      "and append them to the database. Fundamentals move slowly — the morning "
-                      "snapshot also re-pulls them weekly."):
-        with st.spinner("Pulling fundamentals…"):
-            try:
-                res = eqfunda.refresh()
-                if res.get("ok"):
-                    _eqf_frame.clear()
-                    st.success(f"Fundamentals pulled — {res.get('n_tickers', 0)} names appended "
-                               f"({res.get('last_pull', '')}).")
-                    st.rerun()
-                else:
-                    st.error(f"Pull failed: {res.get('reason', 'unknown')}")
-            except Exception as e:
-                st.error(f"Pull failed: {e}")
+                 help="Force a FULL manual pull (~30 fields per constituent, needs the Terminal) "
+                      "and append to the database. Rarely needed — the Equities pull refreshes "
+                      "fundamentals on a cycle (core weekly · Russell 2000 monthly)."):
+        st.session_state["eqf_pull_confirm"] = True
+    if st.session_state.get("eqf_pull_confirm"):
+        _n = len({c["ticker"] for rows in equities.cached_universe().values() for c in rows})
+        st.warning(f"⚡ A full manual pull is ~{_n:,} names × ~30 fields ≈ **{_n * 30:,} Bloomberg "
+                   "hits** against the daily capacity. The scheduled cycle (core weekly · "
+                   "Russell 2000 monthly) usually makes this unnecessary.")
+        _g1, _g2, _ = st.columns([1.4, 1, 3.6])
+        if _g1.button("Pull anyway", key="eqf_pull_anyway"):
+            st.session_state.pop("eqf_pull_confirm", None)
+            with st.spinner("Pulling fundamentals…"):
+                try:
+                    res = eqfunda.refresh()
+                    if res.get("ok"):
+                        _eqf_frame.clear()
+                        st.success(f"Fundamentals pulled — {res.get('n_tickers', 0)} names appended "
+                                   f"({res.get('last_pull', '')}).")
+                        st.rerun()
+                    else:
+                        st.error(f"Pull failed: {res.get('reason', 'unknown')}")
+                except Exception as e:
+                    st.error(f"Pull failed: {e}")
+        if _g2.button("Cancel", key="eqf_pull_cancel"):
+            st.session_state.pop("eqf_pull_confirm", None); st.rerun()
     c2.caption(f"**Database:** {eqfunda.data_status()}."
                + ("" if MODE == "bloomberg"
                   else "  ·  _Off-Terminal a pull writes synthetic demo rows — live values need "
                        "Bloomberg mode on the work PC._"))
     _keys = list(equities.INDICES.keys())
-    sel = st.multiselect("Indices", _keys, default=_keys, key="eqf_idx",
-                         help="Scope the screener / tearsheet / peers to these indices.")
+    sel = st.multiselect("Indices", _keys, default=list(equities.DEFAULT_INDICES), key="eqf_idx",
+                         help="Scope the screener / tearsheet / peers to these indices. "
+                              "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
     with st.spinner("Loading the fundamentals database…"):
         df, asof, src = _eqf_frame(tuple(sel or _keys))
     if df.empty:
@@ -1839,8 +2036,9 @@ def render_eq_earnings() -> None:
     st.caption(f"**{n_dated}** of {len(dff)} companies in the selection have a Bloomberg expected "
                f"report date (from the {asof} {src} pull). Each date is the company's **next** "
                "expected report, so the grid fills roughly one quarter ahead and rolls forward "
-               "with the weekly fundamentals pull. Busy days show the biggest names by market "
+               "with the fundamentals pull cycle. Busy days show the biggest names by market "
                "cap plus a **⋯ more** chip — hover any chip for the details.")
+    _eqf_pull_note()
 
     # ----- month navigation: Today / ‹ / › / Month Year (same pattern as the FICC calendar) -----
     st.session_state.setdefault("ecal_ym", (today.year, today.month))
@@ -1897,9 +2095,10 @@ def render_eq_correlations() -> None:
         "may be worth a closer look.")
 
     _keys = list(equities.INDICES.keys())
-    sel = st.multiselect("Indices", _keys, default=_keys, key="eqc_idx",
+    sel = st.multiselect("Indices", _keys, default=list(equities.DEFAULT_INDICES), key="eqc_idx",
                          help="Stocks from these indices form the pair universe "
-                              "(a stock in several indices counts once).")
+                              "(a stock in several indices counts once). Russell 2000 is "
+                              "opt-in — ~2000 names make the all-pairs scan much slower.")
     c1, c2, c3 = st.columns([1, 1, 1.6])
     p1 = c1.selectbox("Time period 1 (screen)", eqcorr.PERIOD_ORDER,
                       index=eqcorr.PERIOD_ORDER.index(eqcorr.DEFAULT_P1), key="eqc_p1",
@@ -2017,6 +2216,270 @@ def render_eq_correlations() -> None:
                  "window may be worth a closer look.")
 
 
+# ── Index Dispersion (Equities) ───────────────────────────────────────────────
+@st.cache_data(ttl=1800, show_spinner=False)
+def _eqd_set(index_key: str, hist: str, top_n: int, mode: str):
+    """One index's dispersion set (cached — a live run is a weights bds + an IV
+    bdh + a price bdh per index; `mode` keys the cache to the data source). Uses
+    the CACHED membership for the same dead-screen reason the correlations and
+    fundamentals pages do."""
+    return eqdisp.compute(equities.cached_universe(), index_key, hist, top_n)
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _eqd_bt(index_key: str, hist: str, top_n: int, weighting: str, mode: str):
+    """The rolled dispersion-carry backtest (cached — the 2-year window is its own
+    longer IV + price pull in live mode)."""
+    return eqdisp.backtest(equities.cached_universe(), index_key, hist, top_n, weighting)
+
+
+def render_eq_dispersion() -> None:
+    import altair as alt
+
+    st.subheader("🎯  Index Dispersion")
+    st.caption(
+        "The correlation the index options market is **pricing** against the correlation the "
+        "constituents are **delivering**. Implied correlation is backed out of the index 1M ATM "
+        "vol vs its top members' vols (weights renormalised); realized runs the same ratio on "
+        "trailing 21-day vols. A **spread at a high percentile** of its own history is the classic "
+        "backdrop for short-index-vol / long-single-name-vol dispersion structures, a low "
+        "percentile for the reverse — either extreme may be worth a closer look.")
+
+    _keys = list(equities.INDICES.keys())
+    sel = st.multiselect("Indices", _keys, default=list(equities.DEFAULT_INDICES), key="eqd_idx",
+                         help="Each index is monitored against its own constituent basket. "
+                              "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
+    c1, c2 = st.columns([1, 1.6])
+    hist = c1.selectbox("History window", eqdisp.HISTORY_ORDER,
+                        index=eqdisp.HISTORY_ORDER.index(eqdisp.DEFAULT_HISTORY), key="eqd_hist",
+                        help="The correlation history the spread percentile is ranked within.")
+    top_n = c2.slider("Basket — top N members by index weight", 10, 60,
+                      eqdisp.DEFAULT_TOP_N, 5, key="eqd_topn",
+                      help="Indices with fewer members than N use full membership. The S&P's "
+                           "tail adds noise, not signal — the top names carry the vol market.")
+
+    with st.spinner("Backing the correlations out…"):
+        sets = {k: _eqd_set(k, hist, int(top_n), MODE) for k in (sel or _keys)}
+    sets = {k: v for k, v in sets.items() if v is not None}
+    if not sets:
+        st.info("Not enough price/vol history in that selection — pull equities data first "
+                "(Equities Home).")
+        return
+
+    rows = [{
+        "Index": k,
+        "Implied corr": float(ds.imp.iloc[-1]),
+        "Realized corr": float(ds.real.iloc[-1]),
+        "Spread": float(ds.spread.iloc[-1]),
+        "Pctl": ds.pctl,
+        "Index IV": float(ds.idx_iv.iloc[-1]) if len(ds.idx_iv) else float("nan"),
+        "Index RV": float(ds.idx_rv.iloc[-1]) if len(ds.idx_rv) else float("nan"),
+        "Basket": f"{len(ds.basket)} of {ds.n_full} · {ds.coverage * 100:.0f}% wgt",
+        "Signal": eqdisp.flag(ds.pctl),
+    } for k, ds in sets.items()]
+    ov = pd.DataFrame(rows).sort_values("Pctl", ascending=False).reset_index(drop=True)
+    brand.themed_dataframe(
+        ov, {"Implied corr": "{:.2f}", "Realized corr": "{:.2f}", "Spread": "{:+.2f}",
+             "Pctl": "{:.0f}", "Index IV": "{:.1f}", "Index RV": "{:.1f}"},
+        na_rep="—", height=int(38 + 35 * len(ov)))
+    any_ds = next(iter(sets.values()))
+    st.caption(f"1M ATM implied vs trailing-21-day realized · spread percentile within the "
+               f"trailing {hist.lower()} · as of {any_ds.asof:%Y-%m-%d} · {any_ds.source} · "
+               f"{any_ds.weight_source}. Weights are today's basket applied through history.")
+    if any("proxy" in s.weight_source for s in sets.values()):
+        st.caption("⚠️ **Index weights licence** — real Bloomberg member weights (`INDX_MWEIGHT`) "
+                   "are only entitled here for the FTSE 100 and Dow Jones; the other indices run "
+                   "on a market-cap proxy (dual share classes split, free float ignored). Full "
+                   "weightings need the index provider's equity data licence (S&P DJI / NASDAQ / "
+                   "STOXX / Euronext via the Bloomberg rep) — once entitled, this page picks up "
+                   "the real weights automatically.")
+
+    # ranked percentile bars — where each index sits in its own spread history
+    cc = brand.chart_colors()
+    bar_df = ov[["Index", "Pctl", "Spread", "Signal"]].copy()
+    bar_df["flag"] = ["Rich" if p >= eqdisp.RICH_PCTL else "Cheap" if p <= eqdisp.CHEAP_PCTL
+                      else "Neutral" for p in bar_df["Pctl"]]
+    color = alt.Color("flag:N", scale=alt.Scale(domain=["Rich", "Cheap", "Neutral"],
+                      range=[cc["short"], cc["long"], cc["muted"]]), legend=None)
+    bars = alt.Chart(bar_df).mark_bar().encode(
+        x=alt.X("Pctl:Q", title=f"implied − realized correlation · percentile vs {hist}",
+                scale=alt.Scale(domain=[0, 100])),
+        y=alt.Y("Index:N", title=None, sort=bar_df["Index"].tolist()), color=color,
+        tooltip=[alt.Tooltip("Index:N"), alt.Tooltip("Spread:Q", format="+.2f"),
+                 alt.Tooltip("Pctl:Q", format=".0f"), alt.Tooltip("Signal:N")])
+    rules = alt.Chart(pd.DataFrame({"v": [eqdisp.CHEAP_PCTL, eqdisp.RICH_PCTL]})).mark_rule(
+        color=cc["muted"], strokeDash=[3, 3]).encode(x="v:Q")
+    brand.show_chart((bars + rules).properties(height=max(120, 34 * len(bar_df))))
+
+    # ---- one index in detail --------------------------------------------------
+    st.divider()
+    pick = st.selectbox("Index detail", list(sets.keys()), key="eqd_pick")
+    ds = sets[pick]
+
+    long = pd.concat([
+        pd.DataFrame({"date": ds.imp.index, "corr": ds.imp.values, "kind": "Implied (1M ATM)"}),
+        pd.DataFrame({"date": ds.real.index, "corr": ds.real.values, "kind": "Realized (21d)"}),
+    ])
+    lines = alt.Chart(long).mark_line(strokeWidth=2.1).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("corr:Q", title="correlation", scale=alt.Scale(zero=False)),
+        color=alt.Color("kind:N", scale=alt.Scale(domain=["Implied (1M ATM)", "Realized (21d)"],
+                        range=[cc["series"], cc["ink"]]), legend=alt.Legend(title=None, orient="top")),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("kind:N", title=""),
+                 alt.Tooltip("corr:Q", format=".2f")])
+    brand.show_chart(lines.properties(height=300, title=f"{pick} — implied vs realized correlation"))
+
+    sp = pd.DataFrame({"date": ds.spread.index, "spread": ds.spread.values})
+    scol = cc["short"] if ds.pctl >= eqdisp.RICH_PCTL else \
+        cc["long"] if ds.pctl <= eqdisp.CHEAP_PCTL else cc["series"]
+    sp_area = alt.Chart(sp).mark_area(opacity=0.22, color=scol).encode(
+        x=alt.X("date:T", title=None), y=alt.Y("spread:Q", title="implied − realized"))
+    sp_line = alt.Chart(sp).mark_line(color=scol, strokeWidth=2.1).encode(
+        x="date:T", y="spread:Q",
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("spread:Q", format="+.2f")])
+    brand.show_chart((sp_area + sp_line).properties(
+        height=220, title=f"{pick} — the dispersion spread · now {ds.pctl:.0f}th pctl"))
+
+    st.markdown(f"**The basket — top {len(ds.basket)} of {ds.n_full} members, "
+                f"{ds.coverage * 100:.0f}% of index weight**")
+    bt = ds.basket
+    disp = pd.DataFrame({
+        "Name": bt["name"], "Sector": bt["sector"],
+        "Weight": bt["weight"] * 100.0, "IV (1M)": bt["iv"], "RV (21d)": bt["rv"],
+        "IV − RV": bt["prem"],
+    })
+    brand.themed_dataframe(
+        disp, {"Weight": "{:.1f}%", "IV (1M)": "{:.1f}", "RV (21d)": "{:.1f}", "IV − RV": "{:+.1f}"},
+        na_rep="—", height=min(560, int(38 + 35 * len(disp))))
+    st.caption("Weights renormalised over the kept basket. The single names whose IV sits "
+               "furthest below their own realized are the natural long-vol legs of a dispersion "
+               "basket; names at an extreme may be worth a closer look."
+               + (f"  ·  **{len(ds.dropped)}** members excluded (no prices / no listed vol)."
+                  if ds.dropped else ""))
+
+    # ---- Phase 2: basket builder ---------------------------------------------
+    st.divider()
+    st.markdown(f"**🧺 Basket builder — {pick}**")
+    default_dir = "reverse" if ds.pctl <= eqdisp.CHEAP_PCTL else "classic"
+    b1, b2, b3 = st.columns([1.9, 1, 1.2])
+    dir_lbl = b1.selectbox("Structure", list(eqdisp.DIRECTIONS.values()),
+                           index=list(eqdisp.DIRECTIONS).index(default_dir), key="eqd_dir",
+                           help="Defaults to the side the flag points at: a rich spread pairs "
+                                "with the classic short-index / long-single-name structure, a "
+                                "cheap one with the reverse.")
+    direction = next(k for k, v in eqdisp.DIRECTIONS.items() if v == dir_lbl)
+    vega = b2.number_input("Vega per leg", 100.0, 100000.0, 1000.0, 100.0, key="eqd_vega",
+                           help="Local currency per vol point on each side. The single-name "
+                                "vega is split across the basket and matched 1:1 by index vega.")
+    sch_lbl = b3.selectbox("Vega split", list(eqdisp.VEGA_SCHEMES.values()), key="eqd_scheme",
+                           help="Cap-weighted mirrors the index; equal-vega maximises the "
+                                "idiosyncratic (dispersion) exposure per name.")
+    scheme = next(k for k, v in eqdisp.VEGA_SCHEMES.items() if v == sch_lbl)
+
+    bk = eqdisp.build_basket(ds, float(vega), scheme, direction)
+    if bk is None:
+        st.info("No usable vol/spot marks to size a basket from.")
+    else:
+        il = bk.index_leg
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Net vega", f"{bk.legs['vega'].sum() + il['vega']:+,.0f}",
+                  help="Zero by construction — the structure is a pure correlation position "
+                       "at entry.")
+        m2.metric("Net theta / day", f"{bk.net_theta:+,.0f}")
+        m3.metric("Net premium", f"{bk.net_premium:+,.0f}")
+        m4.metric("Earnings inside tenor", f"{bk.n_earnings} names")
+        legs = bk.legs
+        bdisp = pd.DataFrame({
+            "Leg": [f"📌 {pick} (index)"] + list(legs["name"]),
+            "Sector": ["—"] + list(legs["sector"]),
+            "IV (1M)": [il["iv"]] + list(legs["iv"]),
+            "Spot": [il["spot"]] + list(legs["spot"]),
+            "Vega": [il["vega"]] + list(legs["vega"]),
+            "Straddles": [il["contracts"]] + list(legs["contracts"]),
+            "Premium": [il["premium"]] + list(legs["premium"]),
+            "Theta/day": [il["theta"]] + list(legs["theta"]),
+            "Earnings ≤30d": [""] + list(legs["earnings"]),
+        })
+        brand.themed_dataframe(
+            bdisp, {"IV (1M)": "{:.1f}", "Spot": "{:,.2f}", "Vega": "{:+,.0f}",
+                    "Straddles": "{:+,.1f}", "Premium": "{:+,.0f}", "Theta/day": "{:+,.0f}"},
+            na_rep="—", height=min(560, int(38 + 35 * len(bdisp))))
+        st.caption(
+            "ATM straddles at the 1M tenor (Black-Scholes, r=0), vega-neutral at entry — "
+            "positive = long. Contracts use listed multipliers (single names ×100, "
+            f"{pick} index options ×{il['mult']:g}); premium and theta in local currency. "
+            "Names reporting inside the tenor carry their event premium in the long-vol legs — "
+            "worth weighing in the selection. Indicative sizing off the monitor's marks, "
+            "not an order ticket.")
+
+    # ---- Phase 3: rolled carry backtest ----------------------------------------
+    st.divider()
+    st.markdown(f"**🧪 Dispersion carry backtest — {pick}**")
+    t1, t2 = st.columns([1, 1.2])
+    bt_hist = t1.selectbox("Backtest window", ["1 year", "2 years"], index=1, key="eqd_bt_hist")
+    bt_lbl = t2.selectbox("Vega split", list(eqdisp.VEGA_SCHEMES.values()), key="eqd_bt_scheme")
+    bt_scheme = next(k for k, v in eqdisp.VEGA_SCHEMES.items() if v == bt_lbl)
+    with st.spinner("Rolling the structure through history…"):
+        bt = _eqd_bt(pick, bt_hist, int(top_n), bt_scheme, MODE)
+    if bt is None:
+        st.info("Not enough vol history to backtest this index yet.")
+        return
+    sx = bt.stats
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("Trades", f"{sx['n']}")
+    k2.metric("Total P&L", f"{sx['total'] * 1000:+,.0f}", help="Per 1,000 vega per leg.")
+    k3.metric("Hit rate", f"{sx['hit']:.0f}%")
+    k4.metric("Worst trade", f"{sx['worst'] * 1000:+,.0f}")
+    k5.metric("Pctl → P&L corr", "—" if sx["pctl_ic"] != sx["pctl_ic"] else f"{sx['pctl_ic']:+.2f}",
+              help="Correlation between the entry spread percentile and the trade's P&L: "
+                   "negative says richer entries paid the CLASSIC structure less (i.e. the "
+                   "flag ordering carried information for the reverse side too).")
+
+    cv = pd.DataFrame({"date": bt.curve.index, "pnl": bt.curve.values * 1000})
+    ccol = cc["long"] if cv["pnl"].iloc[-1] >= 0 else cc["short"]
+    cv_area = alt.Chart(cv).mark_area(opacity=0.2, color=ccol).encode(
+        x=alt.X("date:T", title=None), y=alt.Y("pnl:Q", title="cumulative P&L · per 1k vega/leg"))
+    cv_line = alt.Chart(cv).mark_line(color=ccol, strokeWidth=2.1, interpolate="step-after").encode(
+        x="date:T", y="pnl:Q",
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("pnl:Q", format="+,.0f")])
+    brand.show_chart((cv_area + cv_line).properties(
+        height=240, title=f"{pick} — classic structure (long single-name vol / short index vol), "
+                          f"rolled every {bt.roll} sessions"))
+
+    sc = bt.trades.dropna(subset=["pctl"]).copy()
+    if len(sc) >= 8:
+        sc["pnl_k"] = sc["pnl"] * 1000
+        pts = alt.Chart(sc).mark_circle(size=90, stroke="white", strokeWidth=0.5).encode(
+            x=alt.X("pctl:Q", title="entry spread percentile", scale=alt.Scale(domain=[0, 100])),
+            y=alt.Y("pnl_k:Q", title="trade P&L · per 1k vega"),
+            color=alt.condition("datum.pnl_k > 0", alt.value(cc["long"]), alt.value(cc["short"])),
+            tooltip=[alt.Tooltip("entry:T"), alt.Tooltip("pctl:Q", format=".0f"),
+                     alt.Tooltip("pnl_k:Q", title="P&L", format="+,.0f")])
+        zero = alt.Chart(pd.DataFrame({"v": [0.0]})).mark_rule(
+            color=cc["muted"], strokeDash=[3, 3]).encode(y="v:Q")
+        brand.show_chart((pts + zero).properties(
+            height=240, title="Did the flag carry information? Entry percentile vs outcome"))
+
+    tt = bt.trades
+    tdisp = pd.DataFrame({
+        "Entry": tt["entry"].dt.strftime("%Y-%m-%d"), "Exit": tt["exit"].dt.strftime("%Y-%m-%d"),
+        "Names": tt["n_names"], "Imp corr": tt["imp_corr"], "Fwd real corr": tt["fwd_real_corr"],
+        "Entry pctl": tt["pctl"], "Names leg": tt["pnl_names"] * 1000,
+        "Index leg": tt["pnl_index"] * 1000, "P&L": tt["pnl"] * 1000,
+    })
+    brand.themed_dataframe(
+        tdisp, {"Imp corr": "{:.2f}", "Fwd real corr": "{:.2f}", "Entry pctl": "{:.0f}",
+                "Names leg": "{:+,.0f}", "Index leg": "{:+,.0f}", "P&L": "{:+,.0f}"},
+        na_rep="—", height=min(490, int(38 + 35 * len(tdisp))))
+    st.caption(
+        "Vega-carry approximation: each leg is booked as vega × (realized vol over the hold − "
+        "implied at entry) — the delta-hedged straddle P&L to first order, with no gamma "
+        "path-dependency or transaction costs. P&L per 1,000 vega per leg, local currency; the "
+        "reverse structure is the exact mirror. A period where the classic side persistently "
+        "lost is a correlation regime worth understanding, not in itself an argument for "
+        "either side.")
+
+
 def render_morning_coffee() -> None:
     st.subheader("☕ Morning Coffee")
     st.caption("The daily global-macro briefing — pulls Bloomberg + the news, writes the "
@@ -2040,9 +2503,10 @@ def render_morning_coffee() -> None:
 
     st.success("Generated and emailed to the desk. ☕")
     side = _mc_sidecar()
-    heat = _mc_heatmap_path()
-    if heat.exists():
-        st.image(str(heat), use_container_width=True)
+    if not _mc_native_heatmap(side):          # app-native treemap from the report's own moves…
+        heat = _mc_heatmap_path()             # …falling back to the report PNG for older runs
+        if heat.exists():
+            st.image(str(heat), use_container_width=True)
     commentary = ((side or {}).get("commentary_en")
                   or _mc_commentary(st.session_state.get("mc_log", "")))
     if commentary:
@@ -2144,6 +2608,11 @@ def render_confluence() -> None:
                                      use_container_width=True, on_click=_go, args=(s,))
 
 
+def _ax(tk) -> str:
+    """Y-axis title for a technical chart — fixed income is charted as YIELDS, not price."""
+    return "Yield (%)" if universe.is_fixed_income(str(tk)) else "Price"
+
+
 def _ta_quicknav(current: str | None = None) -> None:
     """Quick-switch buttons for the technical strategies — the same 2×5 set as the Technical
     Analysis hub. Shown on the hub and at the top of each technical-strategy page so the user
@@ -2154,6 +2623,140 @@ def _ta_quicknav(current: str | None = None) -> None:
             _STRAT_SHORT.get(s, s), key=f"tanav_{current or 'hub'}_{s}",
             use_container_width=True, type="primary" if s == current else "secondary",
             on_click=_go, args=(s,))
+
+
+_fragment = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None) or (lambda f: f)
+
+
+@_fragment
+def _ta_reports(meta) -> None:
+    """The two report-generation buttons, ISOLATED in a Streamlit fragment: clicking a Generate
+    button (a ~15–25s PDF subprocess) reruns ONLY this block, so the heavy leaderboard/gallery
+    below don't re-execute and the page no longer ghosts / half-redraws while the report builds."""
+    # --- one-click branded PDF ---
+    rc1, rc2 = st.columns([1, 3])
+    if rc1.button("📈 Generate TA Report (PDF)", type="primary", disabled=not SIGNALS_FILE.exists()):
+        with st.spinner("Rendering the Technical Analysis report…"):
+            with tempfile.TemporaryDirectory() as tmp:
+                out_pdf = Path(tmp) / "ta.pdf"
+                res = subprocess.run([sys.executable, str(TAREPORT_CLI), str(SIGNALS_FILE), str(out_pdf),
+                                      "--asof", str(meta.get("as_of", ""))], capture_output=True, text=True)
+                ok = res.returncode == 0 and out_pdf.exists()
+                st.session_state["ta_pdf"] = out_pdf.read_bytes() if ok else None
+        if not st.session_state.get("ta_pdf"):
+            st.error("TA report failed:\n\n" + (res.stderr or res.stdout or "no output"))
+        else:
+            st.success("TA report ready.")
+    if st.session_state.get("ta_pdf"):
+        st.download_button("⬇️ Download Technical_Analysis_Report.pdf", data=st.session_state["ta_pdf"],
+                           file_name="Technical_Analysis_Report.pdf", mime="application/pdf", key="ta_pdf_dl")
+        email_report_ui("ta_pdf", "ta_pdf", st.session_state.get("ta_pdf"),
+                        subject="Technical Analysis Report", attachment_name="Technical_Analysis_Report.pdf")
+    rc2.caption("A branded one-click PDF — the conviction leaderboard, the stacked-signals table and the "
+                "full flagged list, on the XP brand.")
+
+    # --- Technical Conviction Screen (the curated "best ideas" report) ---
+    cc1, cc2 = st.columns([1, 3])
+    _conv_mode_lbl = cc1.radio("Selection", ["Balanced — N per side", "Strongest overall — top N"],
+                               key="conv_mode",
+                               help="Balanced: the top N constructive AND the top N cautious. "
+                                    "Strongest overall: the top N by conviction regardless of side — "
+                                    "could be all cautious (or all constructive).")
+    _conv_mode = "overall" if "overall" in _conv_mode_lbl else "per_side"
+    _conv_top = cc1.number_input("How many", 3, 12, 5, key="conv_top",
+                                 help="Balanced mode: this many on EACH side. "
+                                      "Strongest-overall mode: this many in TOTAL.")
+    _conv_ai = cc1.checkbox("✨ AI-polish the write-ups", key="conv_ai",
+                            help="Rephrase each read more naturally via Claude (numbers & levels kept "
+                                 "exact, neutral tone); falls back to the template if the model isn't "
+                                 "reachable. Adds ~20–40s.")
+    if cc1.button("🎯 Generate Conviction Screen (PDF)", type="primary", disabled=not SIGNALS_FILE.exists()):
+        with st.spinner("Selecting the strongest setups and drawing each chart…"):
+            with tempfile.TemporaryDirectory() as tmp:
+                out_pdf = Path(tmp) / "conv.pdf"
+                cmd = [sys.executable, str(CONVREPORT_CLI), str(SIGNALS_FILE), str(out_pdf),
+                       "--asof", str(meta.get("as_of", "")), "--top", str(int(_conv_top)),
+                       "--mode", _conv_mode]
+                if _conv_ai:
+                    cmd.append("--ai-polish")
+                res = subprocess.run(cmd, capture_output=True, text=True)
+                ok = res.returncode == 0 and out_pdf.exists()
+                st.session_state["conv_pdf"] = out_pdf.read_bytes() if ok else None
+        if not st.session_state.get("conv_pdf"):
+            st.error("Conviction screen failed:\n\n" + (res.stderr or res.stdout or "no output"))
+        else:
+            st.success("Conviction screen ready.")
+    if st.session_state.get("conv_pdf"):
+        st.download_button("⬇️ Download Technical_Conviction_Screen.pdf", data=st.session_state["conv_pdf"],
+                           file_name="Technical_Conviction_Screen.pdf", mime="application/pdf", key="conv_pdf_dl")
+        email_report_ui("conv_pdf", "conv_pdf", st.session_state.get("conv_pdf"),
+                        subject="Technical Conviction Screen", attachment_name="Technical_Conviction_Screen.pdf")
+    cc2.caption("The **curated best-ideas** report — the strongest constructive & cautious setups by "
+                "cross-strategy conviction, each with a multi-indicator chart, a plain-English read and "
+                "objective / invalidation levels. Neutral, client-safe language; fixed income read on yields.")
+
+
+@st.cache_data(show_spinner=False)
+def _ta_scored(as_of, filter_key):
+    """Cached cross-strategy scoring for the TA overview — recomputed only when the signals
+    (`as_of`) or the sector filter change, not on every rerun / button click."""
+    df, _ = load_signals()
+    flagged = tascore.ta_flagged(_filter_signals(df))
+    if flagged is None or flagged.empty:
+        return None, None
+    flagged = flagged.copy()
+    flagged["name"] = flagged["market"].map(_norm_mkt)
+    flagged["dir"] = pd.to_numeric(flagged["direction"], errors="coerce").fillna(0).astype(int)
+    flagged["strength"] = [tascore.strength(s, m) for s, m in zip(flagged["strategy"], flagged["metric"])]
+    return flagged, tascore.score_products(flagged)
+
+
+@st.cache_data(show_spinner=False)
+def _ta_gallery_data(tk, strset_key, as_of):
+    """Cached per-product data for the TA-overview gallery chart (the price/yield series + the
+    flagging strategies' levels) so it isn't recomputed on every rerun — only when the product
+    or the signals change. The heavy `*_chart_data` calls live here, behind the cache."""
+    from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
+                                breakout_retest as _br, momentum as _mom, fibonacci as _fbn)
+    strset = set(strset_key)
+    out = {"pf": None, "flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None, "mom": None}
+    try:
+        out["pf"] = get_history_ta([tk])[tk].dropna()
+    except Exception:
+        return out
+    if "Flag Breakout" in strset:
+        try:
+            _fcd, _fi = _fb.flag_chart_data(tk)
+            if _fcd is not None and not _fcd.empty and _fi:
+                out["flag"] = (_fcd[["date", "upper", "lower", "breakout"]].dropna(), _fi)
+        except Exception:
+            pass
+    if "Support & Resistance" in strset:
+        try:
+            _, _isr = _sr.sr_chart_data(tk)
+            out["sr_levels"] = (_isr or {}).get("levels", []) or []
+        except Exception:
+            pass
+    if "Fibonacci Retracement" in strset:
+        try:
+            _, _ifb = _fbn.fib_chart_data(tk)
+            out["fib_levels"] = [L for L in ((_ifb or {}).get("levels", []) or []) if L.get("key")]
+        except Exception:
+            pass
+    if "Breakout & Retest" in strset:
+        try:
+            _, _ibr = _br.retest_chart_data(tk)
+            out["retest_level"] = (_ibr or {}).get("level")
+        except Exception:
+            pass
+    if "Momentum (RSI/MACD)" in strset:
+        try:
+            _mcd, _mi = _mom.momentum_chart_data(tk)
+            if _mcd is not None and not _mcd.empty:
+                out["mom"] = _mcd[["date", "rsi"]].dropna()
+        except Exception:
+            pass
+    return out
 
 
 def render_ta_overview() -> None:
@@ -2202,16 +2805,12 @@ def render_ta_overview() -> None:
     _ta_quicknav()
 
     df, meta = load_signals()
-    flagged = tascore.ta_flagged(_filter_signals(df))
+    _fkey = tuple(sorted(universe.enabled_tickers())) if universe.filter_active() else ()
+    flagged, prod = _ta_scored(meta.get("as_of", ""), _fkey)
     if flagged is None or flagged.empty:
         st.info("Nothing flagged across the technical strategies right now. Open a strategy to lower its "
                 "trigger, or pull a fresh snapshot on the 🏠 Home page.")
         return
-    flagged = flagged.copy()
-    flagged["name"] = flagged["market"].map(_norm_mkt)
-    flagged["dir"] = pd.to_numeric(flagged["direction"], errors="coerce").fillna(0).astype(int)
-    flagged["strength"] = [tascore.strength(s, m) for s, m in zip(flagged["strategy"], flagged["metric"])]
-    prod = tascore.score_products(flagged)
     score_map = dict(zip(prod["instruments"], prod["score"]))
 
     n_long, n_short = int((flagged["dir"] > 0).sum()), int((flagged["dir"] < 0).sum())
@@ -2222,27 +2821,9 @@ def render_ta_overview() -> None:
     m[2].metric("Products", int(prod.shape[0]))
     m[3].metric("Flagged by 2+", n_multi, help="Products flagged by more than one technical strategy.")
 
-    # --- one-click branded PDF ---
-    rc1, rc2 = st.columns([1, 3])
-    if rc1.button("📈 Generate TA Report (PDF)", type="primary", disabled=not SIGNALS_FILE.exists()):
-        with st.spinner("Rendering the Technical Analysis report…"):
-            with tempfile.TemporaryDirectory() as tmp:
-                out_pdf = Path(tmp) / "ta.pdf"
-                res = subprocess.run([sys.executable, str(TAREPORT_CLI), str(SIGNALS_FILE), str(out_pdf),
-                                      "--asof", str(meta.get("as_of", ""))], capture_output=True, text=True)
-                ok = res.returncode == 0 and out_pdf.exists()
-                st.session_state["ta_pdf"] = out_pdf.read_bytes() if ok else None
-        if not st.session_state.get("ta_pdf"):
-            st.error("TA report failed:\n\n" + (res.stderr or res.stdout or "no output"))
-        else:
-            st.success("TA report ready.")
-    if st.session_state.get("ta_pdf"):
-        st.download_button("⬇️ Download Technical_Analysis_Report.pdf", data=st.session_state["ta_pdf"],
-                           file_name="Technical_Analysis_Report.pdf", mime="application/pdf", key="ta_pdf_dl")
-        email_report_ui("ta_pdf", "ta_pdf", st.session_state.get("ta_pdf"),
-                        subject="Technical Analysis Report", attachment_name="Technical_Analysis_Report.pdf")
-    rc2.caption("A branded one-click PDF — the conviction leaderboard, the stacked-signals table and the "
-                "full flagged list, on the XP brand.")
+    # Report generation, isolated in a fragment: a Generate click reruns ONLY that block, so the
+    # heavy leaderboard/gallery below don't re-render — no more mid-page ghosting while the PDF builds.
+    _ta_reports(meta)
 
     def _arrow(d):
         return " ▲" if d > 0 else " ▼" if d < 0 else ""
@@ -2303,16 +2884,15 @@ def render_ta_overview() -> None:
         _cc = brand.chart_colors()
         for r in gallery.itertuples(index=False):
             tk = r.instruments
+            _yax = "Yield (%)" if universe.is_fixed_income(tk) else "Price"
             strset = {s for s, _, _ in r.tags}
             tags_txt = ", ".join(_STRAT_SHORT.get(s, s) + _arrow(d) for s, d, _st in r.tags)
             net = "long ▲" if r.net_dir > 0 else "short ▼" if r.net_dir < 0 else "mixed"
             st.markdown(f"**{r.market}** · {int(r.n)} strategies ({tags_txt}) · net **{net}** · score **{abs(r.score):.0f}**")
-            try:
-                pf = get_history([tk])[tk].dropna()
-            except Exception:
-                pf = None
+            _g = _ta_gallery_data(tk, frozenset(strset), meta.get("as_of", ""))   # cached (no recompute per rerun)
+            pf = _g["pf"]
             if pf is None or pf.empty:
-                st.caption("No price history to chart.")
+                st.caption("No history to chart.")
                 continue
             win = pf.tail(180)
             pxdf = pd.DataFrame({"date": win.index, "price": win.to_numpy(dtype=float)})
@@ -2331,37 +2911,25 @@ def render_ta_overview() -> None:
             # The flag pattern drawn in full (channel fill + edges + dashed breakout + pole, in
             # its direction colour) and the horizontal levels from the other visual strategies.
             flag_layers, rules = [], []
-            try:
-                if "Flag Breakout" in strset:
-                    _fcd, _fi = _fb.flag_chart_data(tk)
-                    if _fcd is not None and not _fcd.empty and _fi:
-                        _fcol = _cc["long"] if _fi["sign"] > 0 else _cc["short"]
-                        _fch = _fcd[["date", "upper", "lower", "breakout"]].dropna()
-                        _fbase = alt.Chart(_fch).encode(x="date:T")
-                        flag_layers += [
-                            _fbase.mark_area(opacity=0.22, color=_fcol).encode(y="lower:Q", y2="upper:Q"),
-                            _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="upper:Q"),
-                            _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="lower:Q"),
-                            _fbase.mark_line(color=_fcol, strokeDash=[6, 3], strokeWidth=2.4).encode(y="breakout:Q"),
-                            alt.Chart(pd.DataFrame({"date": [_fi["pole_base"][0], _fi["pole_tip"][0]],
-                                                    "price": [_fi["pole_base"][1], _fi["pole_tip"][1]]})).mark_line(
-                                color="#B0B0B0", strokeWidth=2.8).encode(x="date:T", y="price:Q"),
-                        ]
-                if "Support & Resistance" in strset:
-                    _, _isr = _sr.sr_chart_data(tk)
-                    for lv in (_isr or {}).get("levels", []):
-                        rules.append((lv["price"], _cc["long"] if lv["kind"] == "support" else _cc["short"]))
-                if "Fibonacci Retracement" in strset:
-                    _, _ifb = _fbn.fib_chart_data(tk)
-                    for _L in (_ifb or {}).get("levels", []):
-                        if _L["key"]:
-                            rules.append((_L["price"], _cc["accent"]))
-                if "Breakout & Retest" in strset:
-                    _, _ibr = _br.retest_chart_data(tk)
-                    if _ibr:
-                        rules.append((_ibr["level"], _cc["accent"]))
-            except Exception:
-                pass
+            if _g["flag"]:
+                _fch, _fi = _g["flag"]
+                _fcol = _cc["long"] if _fi["sign"] > 0 else _cc["short"]
+                _fbase = alt.Chart(_fch).encode(x="date:T")
+                flag_layers += [
+                    _fbase.mark_area(opacity=0.22, color=_fcol).encode(y="lower:Q", y2="upper:Q"),
+                    _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="upper:Q"),
+                    _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="lower:Q"),
+                    _fbase.mark_line(color=_fcol, strokeDash=[6, 3], strokeWidth=2.4).encode(y="breakout:Q"),
+                    alt.Chart(pd.DataFrame({"date": [_fi["pole_base"][0], _fi["pole_tip"][0]],
+                                            "price": [_fi["pole_base"][1], _fi["pole_tip"][1]]})).mark_line(
+                        color="#B0B0B0", strokeWidth=2.8).encode(x="date:T", y="price:Q"),
+                ]
+            for lv in _g["sr_levels"]:
+                rules.append((lv["price"], _cc["long"] if lv["kind"] == "support" else _cc["short"]))
+            for _L in _g["fib_levels"]:
+                rules.append((_L["price"], _cc["accent"]))
+            if _g["retest_level"] is not None:
+                rules.append((_g["retest_level"], _cc["accent"]))
 
             base = alt.Chart(pxdf).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)))
             layers = list(flag_layers)
@@ -2375,8 +2943,8 @@ def render_ta_overview() -> None:
                     color=alt.Color("Indicator:N", legend=alt.Legend(orient="top", title=None, labelFontSize=11)),
                     tooltip=[alt.Tooltip("Indicator:N"), alt.Tooltip("val:Q", format=",.2f")]))
             layers.append(base.mark_line(color=_cc["ink"], strokeWidth=2.3).encode(
-                y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False), axis=alt.Axis(labelFontSize=11)),
-                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")]))
+                y=alt.Y("price:Q", title=_yax, scale=alt.Scale(zero=False), axis=alt.Axis(labelFontSize=11)),
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title=_yax, format=",.2f")]))
             for pv, cv in rules:
                 if np.isfinite(pv):
                     layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
@@ -2384,19 +2952,14 @@ def render_ta_overview() -> None:
             brand.show_chart(alt.layer(*layers).resolve_scale(y="shared").properties(height=300))
 
             # RSI subpanel when momentum is one of the flaggers (oscillator → its own panel).
-            if "Momentum (RSI/MACD)" in strset:
-                try:
-                    _mcd, _mi = _mom.momentum_chart_data(tk)
-                except Exception:
-                    _mcd = None
-                if _mcd is not None and not _mcd.empty:
-                    _rb = alt.Chart(_mcd.tail(180)).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)))
-                    _rsi = _rb.mark_line(color="#7E57C2", strokeWidth=2).encode(
-                        y=alt.Y("rsi:Q", title="RSI", scale=alt.Scale(domain=[0, 100]),
-                                axis=alt.Axis(values=[0, 30, 50, 70, 100], labelFontSize=11)))
-                    _ob = alt.Chart(pd.DataFrame({"y": [70]})).mark_rule(color=_cc["short"], strokeDash=[4, 3]).encode(y="y:Q")
-                    _os = alt.Chart(pd.DataFrame({"y": [30]})).mark_rule(color=_cc["long"], strokeDash=[4, 3]).encode(y="y:Q")
-                    brand.show_chart((_rsi + _ob + _os).properties(height=130, title="RSI (14) — 70 / 30 guides"))
+            if _g["mom"] is not None:
+                _rb = alt.Chart(_g["mom"].tail(180)).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)))
+                _rsi = _rb.mark_line(color="#7E57C2", strokeWidth=2).encode(
+                    y=alt.Y("rsi:Q", title="RSI", scale=alt.Scale(domain=[0, 100]),
+                            axis=alt.Axis(values=[0, 30, 50, 70, 100], labelFontSize=11)))
+                _ob = alt.Chart(pd.DataFrame({"y": [70]})).mark_rule(color=_cc["short"], strokeDash=[4, 3]).encode(y="y:Q")
+                _os = alt.Chart(pd.DataFrame({"y": [30]})).mark_rule(color=_cc["long"], strokeDash=[4, 3]).encode(y="y:Q")
+                brand.show_chart((_rsi + _ob + _os).properties(height=130, title="RSI (14) — 70 / 30 guides"))
 
     # --- full flagged leaderboard, ranked by product conviction score ---
     st.markdown("##### All flagged signals")
@@ -2698,6 +3261,266 @@ def render_block_sizes() -> None:
         st.toast("Block sizes saved.", icon="✅")
     bc2.caption("Edits persist across restarts and survive universe changes; a product added "
                 "on the Universe page appears here with blank cells until you fill it in.")
+
+
+def render_fut_yield() -> None:
+    """Futures price ⇄ yield converter — STIRs via the IMM convention (100 − price),
+    bond futures read through the CTD (price × conversion factor → solve the yield).
+    Two sub-views (STIRs / Bonds) behind their own switcher row under the group tabs.
+    Engine: src/futyield.py; CTD assumptions editable, persisted to data/futyield.json."""
+    # ---- sub-page switcher (sits right under the Market Information tab row) ----
+    view = st.session_state.setdefault("fy_view", "STIRs")
+    vc1, vc2, vc3 = st.columns(3)
+    if vc1.button("💵 STIRs", use_container_width=True, key="fy_tab_stirs",
+                  type="primary" if view == "STIRs" else "secondary"):
+        st.session_state["fy_view"] = view = "STIRs"; st.rerun()
+    if vc2.button("🏦 Bonds", use_container_width=True, key="fy_tab_bonds",
+                  type="primary" if view == "Bonds" else "secondary"):
+        st.session_state["fy_view"] = view = "Bonds"; st.rerun()
+    if vc3.button("⚖️ DV01", use_container_width=True, key="fy_tab_dv01",
+                  type="primary" if view == "DV01" else "secondary"):
+        st.session_state["fy_view"] = view = "DV01"; st.rerun()
+
+    st.subheader("🧮 Fut / Yield — futures price ⇄ yield")
+    st.caption(
+        "Turn a futures price into the yield it implies (and back). **STIRs** are exact by "
+        "construction: the IMM quote is 100 − rate, so the result is the money-market forward "
+        "rate for the contract's window. **Bond futures** have no yield of their own — the "
+        "market reads them through the cheapest-to-deliver: forward CTD price ≈ futures × "
+        "conversion factor, and the futures' \"yield\" is the CTD's yield at that price. "
+        "The two are **different conventions** (add-on ACT/360-365 vs semi/annual bond "
+        "compounding) — compare each to its own curve, not to each other.")
+
+    _fy_tks = list(futyield.STIRS) + list(futyield.load_ctd())
+    try:
+        _live = get_live_quote(_fy_tks)
+    except Exception:
+        _live = pd.DataFrame()
+
+    def _fy_px(tk: str) -> float:
+        try:
+            return float(_live.loc[tk, "last"])
+        except Exception:
+            return float(INSTRUMENTS[tk][1])
+
+    def _fy_chg(tk: str):
+        try:
+            return float(_live.loc[tk, "net"])
+        except Exception:
+            return float("nan")
+
+    _src = {"bloomberg": "live Bloomberg", "snapshot": "snapshot"}.get(MODE, "demo")
+
+    # ================= STIRs sub-page =========================================
+    if view == "STIRs":
+        st.markdown("#### 💵 Short-term interest rates — rate = 100 − price")
+        stir_rows = []
+        for tk, (idx, tenor, ccy, dc) in futyield.STIRS.items():
+            px, net = _fy_px(tk), _fy_chg(tk)
+            stir_rows.append({
+                "Contract": INSTRUMENTS[tk][0], "Index": idx, "Tenor": tenor,
+                "Quote": ccy + " · " + dc, "Price": px,
+                "Implied rate %": futyield.stir_rate(px),
+                "Δ day (bp)": -net * 100.0 if net == net else None,
+                f"{ccy}/bp per lot": volbt.point_value(tk) / 100.0,
+            })
+        st.dataframe(pd.DataFrame(stir_rows), hide_index=True, use_container_width=True,
+                     column_config={
+                         "Price": st.column_config.NumberColumn(format="%.4f"),
+                         "Implied rate %": st.column_config.NumberColumn(format="%.4f"),
+                         "Δ day (bp)": st.column_config.NumberColumn(
+                             format="%.1f", help="Change in the implied rate since the prior "
+                             "settle — the price move with the sign flipped."),
+                     })
+        st.caption(f"Prices: {_src}. The implied rate is the **forward** rate for each contract's "
+                   "reference window (compounded-in-arrears for SOFR/SONIA/ESTR), not today's spot fixing.")
+
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            st.markdown("**Price → rate**")
+            _p = st.number_input("Futures price", value=96.0000, step=0.0025, format="%.4f",
+                                 key="fy_stir_p2r")
+            st.metric("Implied rate", f"{futyield.stir_rate(_p):.4f} %")
+        with s2:
+            st.markdown("**Rate → price**")
+            _r = st.number_input("Rate (%)", value=4.0000, step=0.0025, format="%.4f",
+                                 key="fy_stir_r2p")
+            st.metric("Futures price", f"{futyield.stir_price(_r):.4f}")
+        with s3:
+            st.markdown("**Move → P&L**")
+            _ctk = st.selectbox("Contract", list(futyield.STIRS),
+                                format_func=lambda t: INSTRUMENTS[t][0], key="fy_stir_pnl_tk")
+            _bp = st.number_input("Move (bp)", value=1.0, step=0.25, format="%.2f", key="fy_stir_bp")
+            _lots = st.number_input("Lots", value=100, step=10, min_value=1, key="fy_stir_lots")
+            _ccy = futyield.STIRS[_ctk][2]
+            st.metric("P&L", f"{_bp * _lots * volbt.point_value(_ctk) / 100.0:,.0f} {_ccy}",
+                      help="1bp in rate = 0.01 price points; P&L per lot per bp = point value ÷ 100.")
+        return
+
+    # ================= DV01 sub-page ==========================================
+    if view == "DV01":
+        st.markdown("#### ⚖️ DV01 — value of a 1bp yield move, per lot")
+        _ctd = futyield.load_ctd()
+        dv01_of, ccy_of, dv_rows = {}, {}, []
+        for tk, (idx, tenor, ccy, dc) in futyield.STIRS.items():
+            d = volbt.point_value(tk) / 100.0
+            dv01_of[tk], ccy_of[tk] = d, ccy
+            dv_rows.append({"Contract": INSTRUMENTS[tk][0], "Type": "STIR",
+                            "Price": _fy_px(tk), "DV01/lot": d, "Ccy": ccy,
+                            "Basis": "Fixed by design — 1bp = 0.01 price points"})
+        for tk, e in _ctd.items():
+            px = _fy_px(tk)
+            d = futyield.fut_dv01(px, e["cf"], e["coupon"], e["years"], int(e["freq"]),
+                                  volbt.point_value(tk))
+            dv01_of[tk], ccy_of[tk] = d, volbt.currency(tk)
+            dv_rows.append({"Contract": INSTRUMENTS[tk][0], "Type": "Bond",
+                            "Price": px, "DV01/lot": d, "Ccy": ccy_of[tk],
+                            "Basis": "CTD DV01 ÷ CF at the current price"})
+        st.dataframe(pd.DataFrame(dv_rows), hide_index=True, use_container_width=True,
+                     height=42 + 35 * len(dv_rows),
+                     column_config={
+                         "Price": st.column_config.NumberColumn(format="%.4f"),
+                         "DV01/lot": st.column_config.NumberColumn(
+                             format="%.2f", help="Contract-currency P&L of a 1bp move in the "
+                             "contract's yield, per lot."),
+                     })
+        st.caption(f"Prices: {_src}. STIR DV01s are constant; bond DV01s move with the market "
+                   "and lean on the **CTD assumptions** on the Bonds tab — keep those current. "
+                   "Each figure is in the contract's own currency.")
+
+        _all = list(futyield.STIRS) + list(_ctd)
+        _lbl = lambda t: INSTRUMENTS[t][0]
+        d1, d2, d3 = st.columns(3)
+        with d1:
+            st.markdown("**Position → DV01**")
+            _ptk = st.selectbox("Contract", _all, format_func=_lbl, key="fy_dv_pos_tk")
+            _plots = st.number_input("Lots", value=100, step=10, min_value=1, key="fy_dv_pos_lots")
+            st.metric("Position DV01", f"{_plots * dv01_of[_ptk]:,.0f} {ccy_of[_ptk]}/bp")
+        with d2:
+            st.markdown("**Target DV01 → lots**")
+            _ttk = st.selectbox("Contract", _all, format_func=_lbl, key="fy_dv_tgt_tk")
+            _tgt = st.number_input(f"Target DV01 ({ccy_of[_ttk]}/bp)", value=10000.0,
+                                   step=500.0, min_value=0.0, format="%.0f", key="fy_dv_tgt")
+            _n = _tgt / dv01_of[_ttk] if dv01_of[_ttk] else 0.0
+            st.metric("Lots", f"{_n:,.1f}", help="Round to taste — the figure is exact, "
+                                                 "the market trades whole lots.")
+        with d3:
+            st.markdown("**DV01-neutral hedge ratio**")
+            _atk = st.selectbox("Leg A", _all, format_func=_lbl, key="fy_dv_ha",
+                                index=_all.index("TUA Comdty") if "TUA Comdty" in _all else 0)
+            _btk = st.selectbox("Leg B", _all, format_func=_lbl, key="fy_dv_hb",
+                                index=_all.index("TYA Comdty") if "TYA Comdty" in _all else 0)
+            _alots = st.number_input("Lots of A", value=100, step=10, min_value=1, key="fy_dv_hlots")
+            _blots = _alots * dv01_of[_atk] / dv01_of[_btk] if dv01_of[_btk] else 0.0
+            st.metric("Lots of B", f"{_blots:,.1f}",
+                      help="Lots of B carrying the same DV01 as the A position — the ratio for "
+                           "a curve trade with no outright duration.")
+            if ccy_of[_atk] != ccy_of[_btk]:
+                st.warning(f"Legs are in different currencies ({ccy_of[_atk]} vs {ccy_of[_btk]}) "
+                           "— the ratio ignores FX; convert one leg's DV01 before sizing.",
+                           icon="⚠️")
+        return
+
+    # ================= Bonds sub-page =========================================
+    st.markdown("#### 🏦 Bond futures — yield read through the CTD")
+    ctd = futyield.load_ctd()
+
+    with st.expander("CTD assumptions (edit from the delivery-basket / DLV screens)"):
+        st.caption(
+            "Seeded with **indicative placeholders** — keep the coupon, maturity and conversion "
+            "factor of the actual CTD current from the exchange delivery basket before quoting "
+            "anything off this page. Set **CF = 0** to have it recomputed from the coupon / "
+            "maturity / notional. Edits persist to `data/futyield.json`.")
+        _ctd_df = pd.DataFrame([{"ticker": tk, "product": INSTRUMENTS[tk][0],
+                                 "coupon": e["coupon"], "years": e["years"],
+                                 "freq": int(e["freq"]), "notional": e["notional"],
+                                 "cf": e["cf"]}
+                                for tk, e in ctd.items()])
+        _ed = st.data_editor(
+            _ctd_df, hide_index=True, use_container_width=True, key="fy_ctd_editor",
+            disabled=["ticker", "product"],
+            column_config={
+                "product": st.column_config.TextColumn("Product"),
+                "coupon": st.column_config.NumberColumn("CTD coupon %", format="%.3f", step=0.125),
+                "years": st.column_config.NumberColumn("CTD maturity (yrs)", format="%.1f", step=0.1),
+                "freq": st.column_config.NumberColumn("Cpns/yr", min_value=1, max_value=2, step=1),
+                "notional": st.column_config.NumberColumn("Notional cpn %", format="%.1f",
+                                                          help="6% CME & Eurex, 4% Long Gilt."),
+                "cf": st.column_config.NumberColumn("Conversion factor", format="%.4f",
+                                                    help="0 = recompute from the CTD terms."),
+            })
+        if st.button("💾 Save CTD assumptions", key="fy_ctd_save"):
+            out = {}
+            for r in _ed.to_dict("records"):
+                e = {"coupon": float(r["coupon"]), "years": float(r["years"]),
+                     "freq": int(r["freq"]), "notional": float(r["notional"])}
+                _auto = round(futyield.conversion_factor(e["coupon"], e["years"],
+                                                         e["freq"], e["notional"]), 4)
+                _cf = float(r["cf"] or 0.0)
+                if _cf > 0 and abs(_cf - _auto) > 5e-5:   # only store a genuine override
+                    e["cf"] = _cf
+                out[r["ticker"]] = e
+            futyield.save_ctd(out)
+            st.toast("CTD assumptions saved.", icon="✅")
+            st.rerun()
+
+    bond_rows = []
+    for tk, e in ctd.items():
+        px = _fy_px(tk)
+        _pv = volbt.point_value(tk)
+        bond_rows.append({
+            "Contract": INSTRUMENTS[tk][0], "Price": px, "CF": e["cf"],
+            "Fwd CTD px": px * e["cf"],
+            "Implied CTD yield %": futyield.ctd_yield(px, e["cf"], e["coupon"],
+                                                      e["years"], int(e["freq"])),
+            f"DV01/lot": futyield.fut_dv01(px, e["cf"], e["coupon"], e["years"],
+                                           int(e["freq"]), _pv),
+            "Ccy": volbt.currency(tk),
+        })
+    st.dataframe(pd.DataFrame(bond_rows), hide_index=True, use_container_width=True,
+                 column_config={
+                     "Price": st.column_config.NumberColumn(format="%.4f",
+                                                            help="Decimal, not 32nds."),
+                     "CF": st.column_config.NumberColumn(format="%.4f"),
+                     "Fwd CTD px": st.column_config.NumberColumn(format="%.4f"),
+                     "Implied CTD yield %": st.column_config.NumberColumn(format="%.3f"),
+                     "DV01/lot": st.column_config.NumberColumn(
+                         format="%.2f", help="Contract-currency value of a 1bp move in the "
+                         "CTD yield, per lot: CTD DV01 ÷ CF × point value."),
+                 })
+    st.caption(f"Prices: {_src}. Standard fixed-coupon price/yield relation on the CTD — good "
+               "to well under a bp for conversion, but it is **not** a delivery-option model; "
+               "the CTD can switch when the curve moves.")
+
+    b1, b2, b3 = st.columns(3)
+    _btk = b1.selectbox("Contract", list(ctd), format_func=lambda t: INSTRUMENTS[t][0],
+                        key="fy_bond_tk")
+    _e = ctd[_btk]
+    with b1:
+        st.markdown("**Price → yield**")
+        _bp_in = st.number_input("Futures price", value=float(round(_fy_px(_btk), 4)),
+                                 step=0.01, format="%.4f", key=f"fy_bond_p2y_{_btk}")
+        st.metric("Implied CTD yield",
+                  f"{futyield.ctd_yield(_bp_in, _e['cf'], _e['coupon'], _e['years'], int(_e['freq'])):.3f} %")
+    with b2:
+        st.markdown("**Yield → price**")
+        _y_in = st.number_input(
+            "Target CTD yield (%)",
+            value=float(round(futyield.ctd_yield(_fy_px(_btk), _e["cf"], _e["coupon"],
+                                                 _e["years"], int(_e["freq"])), 3)),
+            step=0.01, format="%.3f", key=f"fy_bond_y2p_{_btk}")
+        st.metric("Futures price",
+                  f"{futyield.fut_price_from_yield(_y_in, _e['cf'], _e['coupon'], _e['years'], int(_e['freq'])):.4f}")
+    with b3:
+        st.markdown("**Move → P&L**")
+        _mbp = st.number_input("Yield move (bp)", value=1.0, step=0.25, format="%.2f",
+                               key="fy_bond_bp")
+        _mlots = st.number_input("Lots", value=100, step=10, min_value=1, key="fy_bond_lots")
+        _dv = futyield.fut_dv01(_fy_px(_btk), _e["cf"], _e["coupon"], _e["years"],
+                                int(_e["freq"]), volbt.point_value(_btk))
+        st.metric("P&L", f"{_mbp * _mlots * _dv:,.0f} {volbt.currency(_btk)}",
+                  help="Yield move × futures DV01 × lots. A yield FALL is a price RISE.")
+        st.caption(f"≈ {_mbp * _dv / volbt.point_value(_btk):.4f} price points per lot.")
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -3427,7 +4250,7 @@ def render_vol_backtester() -> None:
         elif pc is None:
             st.info("Not enough shared history to correlate this pair.")
         else:
-            k1, k2, k3, k4 = st.columns(4)
+            k1, k2, k3, k4, k5, k6 = st.columns(6)
             k1.metric("Returns — 1Y", f"{pc.px_1y:+.2f}",
                       help="Correlation of daily log returns over the last 252 sessions before entry.")
             k2.metric("Returns — 1M", f"{pc.px_1m:+.2f}",
@@ -3438,6 +4261,11 @@ def render_vol_backtester() -> None:
             k4.metric("IV changes — 1M", "n/a" if pd.isna(pc.iv_1m) else f"{pc.iv_1m:+.2f}",
                       delta="" if pd.isna(pc.iv_1m) or pd.isna(pc.iv_1y)
                       else f"{pc.iv_1m - pc.iv_1y:+.2f} vs 1Y", delta_color="off")
+            k5.metric("Realized vol — 1Y", "n/a" if pd.isna(pc.rv_1y) else f"{pc.rv_1y:+.2f}",
+                      help="Correlation of daily 1M realized-vol changes — whether the two actually turn volatile in sync.")
+            k6.metric("Realized vol — 1M", "n/a" if pd.isna(pc.rv_1m) else f"{pc.rv_1m:+.2f}",
+                      delta="" if pd.isna(pc.rv_1m) or pd.isna(pc.rv_1y)
+                      else f"{pc.rv_1m - pc.rv_1y:+.2f} vs 1Y", delta_color="off")
             if pd.notna(pc.pctl):
                 if pc.pctl <= 10:
                     st.warning(f"The 1M return correlation ({pc.px_1m:+.2f}) sits in the "
@@ -3459,8 +4287,10 @@ def render_vol_backtester() -> None:
             rp.columns = ["date", "corr"]; rp["Series"] = "Returns (21d rolling)"
             ri = pc.rolling_iv.rename("corr").reset_index()
             ri.columns = ["date", "corr"]; ri["Series"] = "IV changes (21d rolling)"
-            cdf = pd.concat([rp, ri.dropna(subset=["corr"])])
-            cdom = ["Returns (21d rolling)", "IV changes (21d rolling)"]
+            rv = pc.rolling_rv.rename("corr").reset_index()
+            rv.columns = ["date", "corr"]; rv["Series"] = "Realized vol (21d rolling)"
+            cdf = pd.concat([rp, ri.dropna(subset=["corr"]), rv.dropna(subset=["corr"])])
+            cdom = ["Returns (21d rolling)", "IV changes (21d rolling)", "Realized vol (21d rolling)"]
             # fit the axis to the data (a tight pair reads as a flat line on a
             # fixed -1..1 axis); pad a touch, keep the dashed 1Y level in frame,
             # clamp to the +/-1 bounds. NaN-proof: a NaN in a Vega domain
@@ -3476,7 +4306,7 @@ def render_vol_backtester() -> None:
                                                 min(1.0, _chi + _cpad)]),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 color=alt.Color("Series:N", scale=alt.Scale(domain=cdom,
-                                range=[cc0["series"], cc0["accent"]]),
+                                range=[cc0["series"], cc0["accent"], cc0["long"]]),
                                 legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
                 tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("Series:N"),
                          alt.Tooltip("corr:Q", title="Corr", format="+.2f")])
@@ -4038,6 +4868,447 @@ cumulative P&L line above, not an estimate.
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
+def _osb_atm_curve(ticker: str, mode: str) -> dict:
+    """Latest ATM implied-vol term points for `ticker` — {calendar days: vol %}
+    across the live 1M/3M/6M/12M surface tenors, from the SAME pull the vol /
+    term reports use. A tenor that is frozen or has stopped publishing
+    (stale_iv_reasons) is dropped rather than served as a live mark; an empty
+    dict means the product has no usable surface and vols stay manual."""
+    days_of = {"1M": 30, "3M": 91, "6M": 182, "12M": 365}
+    try:
+        ts = get_term_structure([ticker])
+    except Exception:
+        return {}
+    out = {}
+    for lab, frame in ts.items():
+        if frame is None or ticker not in frame.columns or not frame[ticker].notna().any():
+            continue
+        if ticker in stale_iv_reasons(frame[[ticker]]):
+            continue
+        out[days_of[lab]] = float(frame[ticker].dropna().iloc[-1])
+    return out
+
+
+def render_strategy_builder() -> None:
+    """Multi-leg option strategy builder (the optioncreator.com workflow): build a
+    position from Buy/Sell x Call/Put/Future legs, read net debit/credit, max
+    profit / max loss / breakevens / greeks, and see the P&L curve at expiry plus
+    a re-priced 'T + d days' scenario line. Engine: src/optbuilder.py (Black-76,
+    same convention as the Vol Backtester)."""
+    import altair as alt
+    st.subheader("🧰  Option Strategy Builder — multi-leg payoff modeller")
+    st.markdown("""
+        <style>
+          div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] > div {
+              font-size: 1.05rem !important; line-height: 1.3 !important;
+              white-space: normal !important; overflow-wrap: anywhere; }
+        </style>""", unsafe_allow_html=True)
+    st.caption(
+        "Pick a product, then enter each leg like a ticket — **month, strike, call / put / "
+        "future, price paid** (leave *Price paid* blank to mark at the Black-76 model value). "
+        "Or load a preset and reshape it. The chart shows P&L **at the front expiry** (solid) "
+        "and a **re-priced scenario** part-way through the trade (dashed) — slide days forward "
+        "and shift vol to see the position decay and re-mark.")
+
+    # ---- listed months: the next 13 monthly expiries (3rd Friday, house convention) ----
+    _today = date.today()
+    _MONTHS, _MDAYS = [], {}
+    _yy, _mm = _today.year, _today.month
+    for _ in range(14):
+        _exp = volbt.third_friday(_yy, _mm)
+        if _exp > _today:
+            _lbl = f"{_exp:%b %Y}"
+            _MONTHS.append(_lbl)
+            _MDAYS[_lbl] = (_exp - _today).days
+        _mm += 1
+        if _mm == 13:
+            _mm, _yy = 1, _yy + 1
+    _NO_MONTH = "—"
+
+    def _closest_month(days: float) -> str:
+        return min(_MONTHS, key=lambda L: abs(_MDAYS[L] - days))
+
+    _NONE = "— manual —"
+    _opts = [_NONE] + list(INSTRUMENTS)
+    c1, c2, c3, c4 = st.columns([1.9, 1, 1, 1])
+    prod = c1.selectbox("Product", _opts,
+                        format_func=lambda t: t if t == _NONE else f"{INSTRUMENTS[t][0]}  ·  {t}",
+                        key="osb_prod",
+                        help="Picking a product seeds the price, point value and vol marks — "
+                             "and restrikes the loaded legs at its price. '— manual —' prices "
+                             "a generic underlying you set yourself.")
+    # re-seed price + point value when the product changes (widget state otherwise wins),
+    # and restrike the loaded legs at the new price — strikes built around the old spot
+    # are meaningless on a different underlying
+    if st.session_state.get("osb_prod_prev") != prod:
+        _first = "osb_prod_prev" not in st.session_state
+        st.session_state["osb_prod_prev"] = prod
+        if prod != _NONE:
+            try:
+                _seed = float(get_live_quote([prod]).loc[prod, "last"])
+            except Exception:
+                _seed = float(INSTRUMENTS[prod][1])
+            st.session_state["osb_spot"] = _seed
+            st.session_state["osb_pv"] = float(volbt.point_value(prod)) or 1.0
+            _cv = _osb_atm_curve(prod, MODE)
+            if _cv:                               # default vol follows the surface
+                _dd = _MDAYS.get(st.session_state.get("osb_dmonth", ""), 30.0)
+                st.session_state["osb_dvol"] = round(optbuilder.vol_at(_cv, _dd), 1)
+            if not _first:
+                st.session_state.pop("osb_rows", None)
+                st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
+                st.rerun()
+    F0 = c2.number_input("Underlying price", min_value=0.0001, value=100.0,
+                         format="%.4f", key="osb_spot")
+    pv = c3.number_input("Point value", min_value=0.0, value=1.0,
+                         format="%.2f", key="osb_pv",
+                         help="Contract currency per 1.00 of price, per lot — scales the "
+                              "price-point P&L into money. Leave 1 to stay in price points.")
+    rate = c4.number_input("Rate %", min_value=0.0, value=0.0, step=0.25,
+                           format="%.2f", key="osb_rate",
+                           help="Discount rate. Futures-style margining makes discounting "
+                                "near-noise — 0 matches the Vol Backtester convention.")
+    r = rate / 100.0
+    ccy = volbt.currency(prod) if prod != _NONE else "ccy"
+    in_ccy = pv != 1.0
+
+    # ---- vol marks: the product's live ATM term curve, if it publishes one -----
+    curve = _osb_atm_curve(prod, MODE) if prod != _NONE else {}
+    _TENOR_LBL = {30: "1M", 91: "3M", 182: "6M", 365: "12M"}
+
+    def _leg_vol(days: float, fallback: float) -> float:
+        """Surface ATM vol interpolated to a leg's expiry — manual fallback when
+        the product has no live surface."""
+        return round(optbuilder.vol_at(curve, days), 1) if curve else fallback
+
+    if prod != _NONE and curve:
+        st.caption("Vol marks from the **option surface** — ATM "
+                   + "  ·  ".join(f"{_TENOR_LBL[d]} {v:.1f}"
+                                  for d, v in sorted(curve.items()))
+                   + " — presets and blank *Vol %* cells seed from this curve, "
+                     "interpolated to each leg's expiry. Type a vol to override.")
+    elif prod != _NONE:
+        st.caption("This product publishes **no live option surface** (or it's stale) — "
+                   "vol marks stay manual.")
+
+    # ---- presets + the defaults new/preset legs inherit -----------------------
+    p1, p2, p3, p4 = st.columns([1.9, 1, 1, 1], vertical_alignment="bottom")
+    preset = p1.selectbox("Preset strategy", list(optbuilder.PRESETS), key="osb_preset")
+    dflt_vol = p2.number_input("Vol %", min_value=0.5, value=20.0,
+                               step=0.5, format="%.1f", key="osb_dvol",
+                               help="The vol presets and blank Vol % cells fall back to — "
+                                    "overridden by the option surface when a product is picked.")
+    dflt_month = p3.selectbox("Month", _MONTHS, key="osb_dmonth",
+                              help="The expiry month presets and new legs are built with — "
+                                   "legs expire on the month's 3rd Friday (the house listed-"
+                                   "expiry convention). Each leg's month is editable in the "
+                                   "table for calendars.")
+    dflt_days = float(_MDAYS[dflt_month])
+
+    def _leg_row(l: dict) -> dict:
+        fut = l["kind"] == "Future"
+        return {"Side": l["side"], "Qty": float(l["qty"]), "Type": l["kind"],
+                "Strike": float(l["strike"]),
+                "Month": _NO_MONTH if fut else _closest_month(l["days"]),
+                "Vol %": np.nan if fut else _leg_vol(l["days"], l["vol"]),
+                "Price paid": np.nan}
+
+    def _preset_rows() -> pd.DataFrame:
+        return pd.DataFrame([_leg_row(l)
+                             for l in optbuilder.PRESETS[preset](F0, dflt_vol, dflt_days)])
+
+    if p4.button("⤵️ Load preset", use_container_width=True, key="osb_load"):
+        st.session_state["osb_rows"] = _preset_rows()
+        st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
+        st.rerun()
+
+    if "osb_rows" not in st.session_state:
+        st.session_state["osb_rows"] = _preset_rows()
+
+    def _clean_rows(df: pd.DataFrame) -> pd.DataFrame:
+        """Numeric columns back to float after editor round-trips — an object
+        column renders empty cells as a grey 'None' instead of blank."""
+        df = df.copy()
+        for c in ("Qty", "Strike", "Vol %", "Price paid"):
+            if c in df.columns:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+        return df
+
+    edited = st.data_editor(
+        _clean_rows(st.session_state["osb_rows"]), num_rows="dynamic", use_container_width=True,
+        key=f"osb_editor_{st.session_state.get('osb_nonce', 0)}",
+        column_config={
+            "Side": st.column_config.SelectboxColumn("Side", options=["Buy", "Sell"],
+                                                     required=True, width="small"),
+            "Qty": st.column_config.NumberColumn("Qty", min_value=1, step=1, format="%d",
+                                                 width="small"),
+            "Type": st.column_config.SelectboxColumn("Type", options=["Call", "Put", "Future"],
+                                                     required=True, width="small"),
+            "Strike": st.column_config.NumberColumn(
+                "Strike / entry", format="%.4f",
+                help="Option strike — or the entry price for a Future leg."),
+            "Month": st.column_config.SelectboxColumn(
+                "Month", options=[_NO_MONTH] + _MONTHS, width="small",
+                help="Option expiry month (3rd Friday). Mix months for calendars — the "
+                     "payoff line draws at the FRONT month with later legs re-priced, not "
+                     "expired. '—' is for Future legs."),
+            "Vol %": st.column_config.NumberColumn(
+                "Vol %", min_value=0.5, format="%.1f",
+                help="Blank = the product's ATM surface vol at that month (or the fallback "
+                     "Vol % above)."),
+            "Price paid": st.column_config.NumberColumn(
+                "Price paid (blank = model)", format="%.4f",
+                help="The premium paid/received per unit in price points. Blank marks the "
+                     "leg at the Black-76 model value — type your fill to anchor to it."),
+        })
+    st.session_state["osb_rows"] = edited
+
+    legs = []
+    for _r in edited.to_dict("records"):
+        if not _r.get("Type") or not _r.get("Side") or pd.isna(_r.get("Strike")):
+            continue
+        _mlbl = _r.get("Month")
+        _days = float(_MDAYS.get(_mlbl, dflt_days))
+        legs.append({"side": _r["Side"], "qty": int(_r["Qty"]) if pd.notna(_r["Qty"]) else 1,
+                     "kind": _r["Type"], "strike": float(_r["Strike"]), "days": _days,
+                     "month": _mlbl if _mlbl in _MDAYS else
+                     (_NO_MONTH if _r["Type"] == "Future" else dflt_month),
+                     "vol": float(_r["Vol %"]) if pd.notna(_r["Vol %"])
+                     else _leg_vol(_days, dflt_vol),
+                     "premium": None if pd.isna(_r.get("Price paid")) else float(_r["Price paid"]),
+                     "prem_src": "model" if pd.isna(_r.get("Price paid")) else "screen"})
+
+    # ---- add-leg buttons: build spreads / hedge without hunting the table's "+" row ----
+    def _append_leg(row: dict) -> None:
+        """Append to what's ON SCREEN (edited), so in-progress tweaks survive."""
+        st.session_state["osb_rows"] = pd.concat(
+            [edited, pd.DataFrame([row])], ignore_index=True)
+        st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
+
+    _atm = optbuilder.atm_strike(F0)
+    _blank_opt = lambda kind: {"Side": "Buy", "Qty": 1.0, "Type": kind, "Strike": _atm,
+                               "Month": dflt_month,
+                               "Vol %": _leg_vol(dflt_days, dflt_vol), "Price paid": np.nan}
+    a1, a2, a3, a4 = st.columns(4)
+    if a1.button("➕ Add call leg", use_container_width=True, key="osb_add_c"):
+        _append_leg(_blank_opt("Call"))
+        st.rerun()
+    if a2.button("➕ Add put leg", use_container_width=True, key="osb_add_p"):
+        _append_leg(_blank_opt("Put"))
+        st.rerun()
+    if a3.button("➕ Add future @ spot", use_container_width=True, key="osb_add_f",
+                 help="An outright futures leg entered at the current underlying price — "
+                      "flip Side / edit the entry in the table."):
+        _append_leg({"Side": "Buy", "Qty": 1.0, "Type": "Future", "Strike": round(F0, 4),
+                     "Month": _NO_MONTH, "Vol %": np.nan, "Price paid": np.nan})
+        st.rerun()
+    _net_delta = optbuilder.totals_greeks(legs, F0, 0.0, r)["delta"] if legs else 0.0
+    _hlots = int(round(abs(_net_delta)))
+    if a4.button(f"⚖️ Delta-hedge  (Δ {_net_delta:+.2f})", use_container_width=True,
+                 key="osb_hedge", disabled=_hlots == 0,
+                 help="Adds ONE futures leg at the current spot, sized to the nearest whole "
+                      "lot against the position's delta today. Greyed out when the net delta "
+                      "rounds to zero lots."):
+        _hside = "Sell" if _net_delta > 0 else "Buy"
+        _append_leg({"Side": _hside, "Qty": float(_hlots), "Type": "Future",
+                     "Strike": round(F0, 4), "Month": _NO_MONTH,
+                     "Vol %": np.nan, "Price paid": np.nan})
+        st.toast(f"Hedge added: {_hside} {_hlots} future(s) @ {F0:,.4g} — "
+                 f"residual Δ {_net_delta - _hlots * (1 if _net_delta > 0 else -1):+.2f}",
+                 icon="⚖️")
+        st.rerun()
+    st.caption("Rows can also be added, edited or deleted directly in the table (the blank "
+               "row at the bottom adds; tick a row's left edge and press Delete to remove). "
+               "The hedge sizes off **today's** delta — re-hedge after big edits.")
+
+    if not legs:
+        st.info("Add at least one leg (or load a preset) to see the payoff.")
+        return
+
+    # freeze entry premiums at BASE vols so the scenario sliders re-mark the
+    # position without silently moving its entry price
+    legs = [dict(l, premium=optbuilder.entry_premium(l, F0, r)) for l in legs]
+    front = optbuilder.front_days(legs)
+
+    # ---- scenario ------------------------------------------------------------
+    s1, s2 = st.columns([2.2, 1])
+    d_now = s1.slider("Scenario — days from today", 0, max(int(front), 1),
+                      0, key="osb_dnow",
+                      help="The dashed line: the position re-priced this many days in, "
+                           "legs' remaining life reduced accordingly.")
+    vshift = s2.slider("Vol shift (pts)", -15.0, 15.0, 0.0, 0.5, key="osb_vshift",
+                       help="Added to every option leg's vol for the dashed scenario line.")
+    scn_legs = [dict(l, vol=l["vol"] + vshift) for l in legs]
+
+    # ---- headline numbers ------------------------------------------------------
+    def _fmt(x: float) -> str:
+        pts = f"{x:,.4f}".rstrip("0").rstrip(".")
+        return f"{x * pv:,.0f} {ccy}  ({pts} pts)" if in_ccy else f"{pts} pts"
+
+    net = optbuilder.net_premium(legs, F0, r)
+    (mp, mp_unb), (ml, ml_unb) = optbuilder.max_profit_loss(legs, F0, r)
+    bes = optbuilder.breakevens(legs, F0, r)
+    _vols = [(l["vol"], l["qty"]) for l in legs if l["kind"] != "Future"]
+    ref_vol = (sum(v * q for v, q in _vols) / sum(q for _, q in _vols)) if _vols else None
+    prob = optbuilder.pop(legs, F0, ref_vol, front, r) if ref_vol and front > 0 else None
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Net " + ("debit" if net >= 0 else "credit"), _fmt(abs(net)),
+              help="What the package costs (debit) or collects (credit) to put on, "
+                   "model-priced where premiums were left blank.")
+    m2.metric("Max profit", "Unlimited ⬆" if mp_unb else _fmt(mp),
+              help="Best P&L at the front expiry across underlying prices (0 included).")
+    m3.metric("Max loss", "Unlimited ⬇" if ml_unb else _fmt(ml),
+              help="Worst P&L at the front expiry across underlying prices (0 included).")
+    m4.metric("Breakeven" + ("s" if len(bes) != 1 else ""),
+              "  ·  ".join(f"{b:,.2f}" for b in bes) if bes else "none",
+              help="Underlying prices where the front-expiry P&L crosses zero.")
+    m5.metric("P(profit)", f"{prob * 100:.0f} %" if prob is not None else "n/a",
+              help="Model estimate: probability the front-expiry P&L ends positive under "
+                   "a drift-free lognormal at the legs' average vol — not a market-implied "
+                   "probability.")
+
+    # ---- payoff chart ----------------------------------------------------------
+    cc = brand.chart_colors()
+    lo, hi = optbuilder.grid_range(legs, F0)
+    xs = np.linspace(lo, hi, 241)
+    exp_lbl = f"At front expiry (T+{front:.0f}d)"
+    scn_lbl = f"T+{d_now}d, vol {vshift:+.1f}"
+    dfc = pd.DataFrame({
+        "F": xs,
+        exp_lbl: [optbuilder.strategy_pnl(legs, float(x), F0, None, r) * pv for x in xs],
+        scn_lbl: [optbuilder.strategy_pnl(scn_legs, float(x), F0, float(d_now), r) * pv
+                  for x in xs],
+    })
+    y_t = f"P&L ({ccy})" if in_ccy else "P&L (price points)"
+    dfc["pos"] = dfc[exp_lbl].clip(lower=0.0)
+    dfc["neg"] = dfc[exp_lbl].clip(upper=0.0)
+    base = alt.Chart(dfc)
+    shade = base.mark_area(opacity=0.10, color=cc["long"]).encode(
+        x=alt.X("F:Q", title="underlying price at expiry", scale=alt.Scale(zero=False)),
+        y=alt.Y("pos:Q", title=y_t)) + \
+        base.mark_area(opacity=0.10, color=cc["short"]).encode(x="F:Q", y="neg:Q")
+    long_df = dfc.melt("F", value_vars=[exp_lbl, scn_lbl], var_name="Series", value_name="pnl")
+    lines = alt.Chart(long_df).mark_line(strokeWidth=2.4).encode(
+        x=alt.X("F:Q", title="underlying price at expiry", scale=alt.Scale(zero=False)),
+        y=alt.Y("pnl:Q", title=y_t),
+        color=alt.Color("Series:N", legend=alt.Legend(orient="top", title=None),
+                        scale=alt.Scale(domain=[exp_lbl, scn_lbl],
+                                        range=[cc["ink"], cc["accent"]])),
+        strokeDash=alt.StrokeDash("Series:N", legend=None,
+                                  scale=alt.Scale(domain=[exp_lbl, scn_lbl],
+                                                  range=[[1, 0], [6, 4]])),
+        tooltip=[alt.Tooltip("F:Q", format=",.2f", title="underlying"),
+                 "Series:N", alt.Tooltip("pnl:Q", format=",.2f", title="P&L")])
+    zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+        color=cc["muted"], strokeWidth=1).encode(y="y:Q")
+    spot = alt.Chart(pd.DataFrame({"x": [F0]})).mark_rule(
+        color=cc["muted"], strokeDash=[3, 3]).encode(
+        x="x:Q", tooltip=[alt.Tooltip("x:Q", format=",.2f", title="spot")])
+    chart = shade + zero + spot
+    if bes:
+        chart += alt.Chart(pd.DataFrame({"x": bes})).mark_rule(
+            color=cc["series"], strokeDash=[2, 4]).encode(
+            x="x:Q", tooltip=[alt.Tooltip("x:Q", format=",.2f", title="breakeven")])
+    chart += lines
+    brand.show_chart(chart.properties(height=420).interactive(bind_y=False))
+    st.caption("Dotted vertical = current underlying; dashed blue verticals = breakevens. "
+               "Scroll / drag to zoom the price axis.")
+
+    # ---- greeks ----------------------------------------------------------------
+    g = optbuilder.totals_greeks(scn_legs, F0, float(d_now), r)
+    _gf = (lambda v: f"{v * pv:+,.0f} {ccy}") if in_ccy else (lambda v: f"{v:+,.4f}")
+    g1, g2, g3, g4 = st.columns(4)
+    g1.metric("Delta", f"{g['delta']:+,.3f}",
+              help="Underlying-equivalent position, in units of the underlying (lots when "
+                   "each leg's Qty is lots).")
+    g2.metric("Gamma", f"{g['gamma']:+,.5f}", help="Delta change per 1.00 move in the underlying.")
+    g3.metric("Vega", _gf(g["vega"]), help="P&L per +1 vol point, all legs shifted together.")
+    g4.metric("Theta / day", _gf(g["theta"]), help="P&L per calendar day, other things equal.")
+    st.caption(f"Greeks at the scenario mark — spot {F0:,.4g}, T+{d_now}d, vol {vshift:+.1f}. "
+               + ("Vega / theta scaled by the point value; delta and gamma stay in "
+                  "underlying units." if in_ccy else
+                  "Price-point units — set a point value (or pick a product) for money terms."))
+
+    # ---- leg blotter -------------------------------------------------------------
+    rows = []
+    for l in legs:
+        m = optbuilder.leg_model(l, F0, 0.0, r)
+        rows.append({
+            "Leg": f"{l['side']} {l['qty']} {l['kind']} "
+                   + (f"{l['strike']:,.4g}" if l["kind"] != "Future" else f"@ {l['strike']:,.4g}")
+                   + (f" · {l.get('month', '')} ({l['days']:.0f}d)"
+                      if l["kind"] != "Future" else ""),
+            "Vol %": l["vol"] if l["kind"] != "Future" else None,
+            "Premium": l["premium"], "Model now": m["price"],
+            "Delta": (1 if l["side"] == "Buy" else -1) * l["qty"] * m["delta"],
+            "Vega": (1 if l["side"] == "Buy" else -1) * l["qty"] * m["vega"],
+            "Theta/d": (1 if l["side"] == "Buy" else -1) * l["qty"] * m["theta"],
+        })
+    st.markdown("**Legs at entry** — the premium each leg trades at (typed or model) and "
+                "its signed greeks today.")
+    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True,
+                 column_config={
+                     "Vol %": st.column_config.NumberColumn(format="%.1f"),
+                     "Premium": st.column_config.NumberColumn(format="%.4f"),
+                     "Model now": st.column_config.NumberColumn(format="%.4f"),
+                     "Delta": st.column_config.NumberColumn(format="%+.3f"),
+                     "Vega": st.column_config.NumberColumn(format="%+.4f"),
+                     "Theta/d": st.column_config.NumberColumn(format="%+.4f"),
+                 })
+    st.caption("Premiums / greeks per unit in price points × leg Qty; multiply by the point "
+               "value for money. European exercise, flat per-leg vols — a payoff modeller, "
+               "not an execution price.")
+
+    # ---- PDF ticket ------------------------------------------------------------
+    st.divider()
+    t1, t2 = st.columns([2.2, 1], vertical_alignment="bottom")
+    ticket_title = t1.text_input("Ticket title", value=preset, key="osb_title",
+                                 help="The strategy name on the PDF — defaults to the preset; "
+                                      "rename it for a reshaped / custom position.")
+    if t2.button("🧾 Build PDF ticket", use_container_width=True, key="osb_pdf_btn"):
+        with st.spinner("Building the ticket…"):
+            try:
+                payload = {
+                    "asof": date.today().isoformat(),
+                    "title": ticket_title.strip() or preset,
+                    "underlying": INSTRUMENTS[prod][0] if prod != _NONE else "Manual underlying",
+                    "ticker": prod if prod != _NONE else "",
+                    "spot": F0, "pv": pv, "ccy": ccy, "in_ccy": in_ccy, "rate": rate,
+                    "vol_source": ("live ATM option surface (1M–12M, interpolated to each "
+                                   "leg's expiry)") if curve else "manual per-leg vols",
+                    "legs": legs, "net": net,
+                    "mp": mp, "mp_unb": mp_unb, "ml": ml, "ml_unb": ml_unb,
+                    "bes": bes, "pop": prob, "front": front,
+                    "greeks": optbuilder.totals_greeks(legs, F0, 0.0, r),
+                    "grid": [float(x) for x in xs],
+                    "exp_pnl": dfc[exp_lbl].tolist(), "scn_pnl": dfc[scn_lbl].tolist(),
+                    "exp_lbl": exp_lbl, "scn_lbl": scn_lbl,
+                }
+                with tempfile.TemporaryDirectory() as _t:
+                    _in = Path(_t) / "optbuilder.json"
+                    _out = Path(_t) / "Option_Strategy_Ticket.pdf"
+                    _in.write_text(json.dumps(payload))
+                    rres = subprocess.run(
+                        [sys.executable, str(ROOT / "src" / "optbuilderreport.py"),
+                         str(_in), str(_out)],
+                        capture_output=True, text=True, timeout=180)
+                    if rres.returncode == 0 and _out.exists():
+                        st.session_state["osb_pdf"] = _out.read_bytes()
+                    else:
+                        st.error("Ticket failed:\n\n"
+                                 + (rres.stderr or rres.stdout or "unknown error")[-2000:])
+            except Exception as e:
+                st.error(f"Ticket failed:\n\n{e}")
+    if st.session_state.get("osb_pdf"):
+        st.download_button("⬇️  Download Strategy Ticket", data=st.session_state["osb_pdf"],
+                           file_name="Option_Strategy_Ticket.pdf", mime="application/pdf")
+        email_report_ui("osb_email", "optbuilder", st.session_state["osb_pdf"],
+                        subject="BASIS — Option Strategy Ticket",
+                        attachment_name="Option_Strategy_Ticket.pdf")
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
 def _sc_instruments(metric: str, asof_iso: str, sectors: tuple, mode: str):
     """Product-level matrices, cached so widget reruns don't re-pull history
     (`mode` keys the cache to the data source)."""
@@ -4057,7 +5328,7 @@ def _sc_divindex(metric: str, asof_iso: str, mode: str):
 @st.cache_data(show_spinner=False, ttl=1800)
 def _sc_extremes(asof_iso: str, mode: str):
     """Today's correlation-break alerts (returns metric) for the Home banner."""
-    return sectorcorr.percentile_extremes("returns", date.fromisoformat(asof_iso))
+    return sectorcorr.percentile_extremes("realized", date.fromisoformat(asof_iso))
 
 
 def render_sector_correlations() -> None:
@@ -4079,10 +5350,11 @@ def render_sector_correlations() -> None:
                            key="sc_sectors",
                            help="One sector shows its internal structure; add more for the "
                                 "cross-sector detail (e.g. Bonds + STIRs).")
-    metric = c1.radio("Correlate", ["Returns", "IV changes"], horizontal=True, key="sc_metric",
-                      help="Returns = settlement-price log returns. IV changes = daily moves in "
-                           "the 1M ATM implied vol — how tightly the vol markets re-mark together.")
-    metric_key = "iv" if metric == "IV changes" else "returns"
+    metric = c1.radio("Correlate", ["Returns", "IV changes", "Realized vol"], index=2, horizontal=True, key="sc_metric",
+                      help="Returns = settlement-price log returns (price direction). IV changes = daily moves in "
+                           "the 1M ATM implied vol (how the vol markets re-mark together). Realized vol = daily "
+                           "moves in 1M realized vol (whether they actually turn volatile in sync).")
+    metric_key = {"IV changes": "iv", "Realized vol": "realized"}.get(metric, "returns")
     asof = c2.date_input("As of", value=date.today(), max_value=date.today(), key="sc_asof",
                          help="Correlations use data up to this date — wind it back to see the "
                               "map as it stood before an event.")
@@ -4241,8 +5513,9 @@ def render_sector_correlations() -> None:
                     return [[None if pd.isna(v) else float(v) for v in row] for row in m.values]
                 payload = {
                     "asof": asof.isoformat(), "sectors": picks, "mode": MODE,
-                    "metric_label": ("1M ATM implied-vol changes" if metric_key == "iv"
-                                     else "settlement-price log returns"),
+                    "metric_label": {"iv": "1M ATM implied-vol changes",
+                                     "realized": "1M realized-vol changes"}.get(
+                                         metric_key, "settlement-price log returns"),
                     "labels": order, "m1y": _mat(L), "m1m": _mat(S), "diff": _mat(D),
                     "diff_span": span,
                 }
@@ -4339,11 +5612,14 @@ with st.sidebar:
     st.divider()
     if _side == "FICC":
         st.caption("**MODULES**")
-        # Market Information (Reports Calendar / Market Hours / Block Sizes / Correlations) collapses to one
-        # entry; Trade Testing (Fed Path + Vol Backtester) sits below the groups. Both carry
-        # the tab-row switcher (_render_group_tabs).
+        # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield) collapses
+        # to one entry; Trade Testing (Fed Path + Vol Backtester) sits below the groups. Both
+        # carry the tab-row switcher (_render_group_tabs). Correlations and Strategy Builder are
+        # their own single-page modules (no tab row); Morning Coffee is reached from the Home
+        # page's Data row.
         _nav_button("🗂️  Market Information", "Release Calendar")
-        _nav_button("☕  Morning Coffee", "Morning Coffee")
+        _nav_button("🧰  Strategy Builder", "Strategy Builder")
+        _nav_button("🔗  Correlations", "Product Correlations")
         _nav_button("🎯  Confluence", "Confluence")
         for _group, _strats in NAV_GROUPS.items():
             # Each strategy group collapses to ONE sidebar entry; its members are reached from within
@@ -4372,6 +5648,7 @@ with st.sidebar:
         _nav_button("🏢  Company Fundamentals", "eq:Fundamentals")
         _nav_button("📅  Earnings Calendar", "eq:Earnings")
         _nav_button("🔗  Single Stock Correlations", "eq:Correlations")
+        _nav_button("🎯  Index Dispersion", "eq:Dispersion")
 
 # ----- BASIS masthead (the full lockup, same size on every page) -----------
 brand.masthead()
@@ -4506,6 +5783,8 @@ if side == "Equities":
         render_eq_earnings()
     elif active == "eq:Correlations":
         render_eq_correlations()
+    elif active == "eq:Dispersion":
+        render_eq_dispersion()
     else:
         render_equities_home()
     st.stop()
@@ -4530,10 +5809,14 @@ if active == "Market Hours":
     render_market_hours(); st.stop()
 if active == "Block Sizes":
     render_block_sizes(); st.stop()
+if active == "Fut Yield":
+    render_fut_yield(); st.stop()
 if active == "Fed Path":
     render_fed_path(); st.stop()
 if active == "Vol Backtester":
     render_vol_backtester(); st.stop()
+if active == "Strategy Builder":
+    render_strategy_builder(); st.stop()
 if active == "Product Correlations":
     render_sector_correlations(); st.stop()
 if active == "Data health":
@@ -4555,6 +5838,8 @@ st.caption(STRATEGY_BLURB.get(active, ""))
 # can flip between strategy pages without the sidebar — on the technical-strategy pages only.
 if active in tascore.TA_STRATEGIES:
     _ta_quicknav(active)
+    st.caption("💡 Fixed income runs on **yields**, not futures prices (shown as *(yield)* / *(rate)*). "
+               "A **Long / up** signal there means **rising yields = short the bond** — and the mirror.")
 
 # Shrink + wrap the metric-card VALUE font so long values ("Long (buy the dip)", "50.0% @
 # 616.5", "Squeeze — upside watch") fit the narrow cards instead of truncating. Applies to
@@ -4694,7 +5979,7 @@ if active == "Trend":
                       .replace({"Series": _cols}))
             lines = alt.Chart(series).mark_line().encode(
                 x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)),
-                y=alt.Y("val:Q", title="Price", scale=alt.Scale(zero=False),
+                y=alt.Y("val:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 color=alt.Color("Series:N", scale=alt.Scale(
                     domain=_dom, range=[_cc["ink"], _cc["series"], _cc["accent"]]),
@@ -4781,7 +6066,7 @@ if active in ("MA Crossover", "MA Swing"):
                       .replace({"Series": _cols}))
             lines = alt.Chart(series).mark_line().encode(
                 x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)),
-                y=alt.Y("val:Q", title="Price", scale=alt.Scale(zero=False),
+                y=alt.Y("val:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
                 color=alt.Color("Series:N", scale=alt.Scale(
                     domain=_dom, range=[_cc["muted"], "#7E57C2", "#E08A00", _cc["ink"]]),
@@ -4859,9 +6144,10 @@ if active == "Flag Breakout":
         target (green) / stop (red) + today ● — one layered Altair chart, shared by the
         gallery and the inspector."""
         _edge = _cc["long"] if info["sign"] > 0 else _cc["short"]
+        _yax = "Yield (%)" if str(title_market).endswith(("(yield)", "(rate)")) else "Price"
         base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
         band = base.mark_area(opacity=0.15, color=_edge).encode(
-            y=alt.Y("lower:Q", title="Price", scale=alt.Scale(zero=False),
+            y=alt.Y("lower:Q", title=_yax, scale=alt.Scale(zero=False),
                     axis=alt.Axis(labelFontSize=12, titleFontSize=13)), y2="upper:Q")
         brk_ln = base.mark_line(color=_edge, strokeDash=[6, 3], strokeWidth=2.6).encode(y="breakout:Q")
         price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.4).encode(
@@ -5009,9 +6295,9 @@ if active == "Support & Resistance":
             _cc = brand.chart_colors()
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
             price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
-                y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
+                y=alt.Y("price:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
-                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
             layers = [price_ln]
             if info["levels"]:
                 lv = pd.DataFrame(info["levels"])
@@ -5062,9 +6348,9 @@ if active == "Fibonacci Retracement":
                       help="Target = the prior swing extreme; stop beyond the 78.6% level.")
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
             price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
-                y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
+                y=alt.Y("price:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
-                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
             lv = pd.DataFrame(info["levels"])
             lv["label"] = (lv["ratio"] * 100).map(lambda r: f"{r:.1f}%")
             rules = alt.Chart(lv).mark_rule(opacity=0.8, strokeWidth=1.8).encode(
@@ -5120,9 +6406,9 @@ if active == "Breakout & Retest":
                       help="Did the breakout bar trade ≥1.3× its trailing average?")
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
             price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
-                y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
+                y=alt.Y("price:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
-                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
             level_ln = alt.Chart(pd.DataFrame({"y": [info["level"]]})).mark_rule(
                 color=_edge, strokeDash=[6, 3], strokeWidth=2.4).encode(y="y:Q")
             broke_ln = alt.Chart(pd.DataFrame({"x": [info["broke_date"]]})).mark_rule(
@@ -5162,10 +6448,10 @@ if active == "Momentum (RSI/MACD)":
             c4.metric("Divergence", info["divergence"].title())
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
             price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
-                y=alt.Y("price:Q", title="Price", scale=alt.Scale(zero=False),
+                y=alt.Y("price:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
-                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title="Price", format=",.2f")])
-            brand.show_chart(price_ln.properties(height=240, title=f"{sel} — price"))
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
+            brand.show_chart(price_ln.properties(height=240, title=sel))
 
             rsi_ln = base.mark_line(color="#7E57C2", strokeWidth=2.2).encode(
                 y=alt.Y("rsi:Q", title="RSI", scale=alt.Scale(domain=[0, 100]),
@@ -5213,7 +6499,7 @@ if active == "Bollinger Squeeze":
             c4.metric("Breakout", info["breakout"].title())
             base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
             band = base.mark_area(opacity=0.12, color=_cc["series"]).encode(
-                y=alt.Y("lower:Q", title="Price", scale=alt.Scale(zero=False),
+                y=alt.Y("lower:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)), y2="upper:Q")
             up_ln = base.mark_line(color=_cc["muted"], strokeWidth=1.6).encode(y="upper:Q")
             lo_ln = base.mark_line(color=_cc["muted"], strokeWidth=1.6).encode(y="lower:Q")
@@ -6229,12 +7515,23 @@ if active == "Open Interest":
 
 view = _filter_signals(df[df["strategy"] == active]).copy()
 if spec.get("hi") and threshold is not None and not view.empty:
-    view = reflag_rows(view, threshold, spec["hi"], spec["lo"])
+    view = reflag_rows(view, threshold, spec["hi"], spec["lo"],
+                       fi_yield=active in tascore.TA_STRATEGIES)
 
 if view.empty:
     st.info("No opportunities flagged for this strategy yet.")
 else:
     view.insert(0, "Include", view["signal"].ne("—"))
+    # Sector column, derived from the instrument (a " / " pair reads as "pair"). The market
+    # string already carries "· sector" for some strategies, so strip that suffix for a clean
+    # display and restore the untouched market for the report input below (by index).
+    view.insert(view.columns.get_loc("market") + 1, "sector",
+                ["pair" if " / " in str(k)
+                 else (universe.INSTRUMENTS.get(k, ("", 0.0, "", ""))[2] or "—")
+                 for k in view["instruments"]])
+    _orig_market = view["market"].copy()
+    view["market"] = [m[:-(len(s) + 3)] if s and s != "—" and str(m).endswith(f" · {s}") else m
+                      for m, s in zip(view["market"], view["sector"])]
     edited = st.data_editor(
         view,
         use_container_width=True,
@@ -6242,6 +7539,7 @@ else:
         column_config={
             "Include": st.column_config.CheckboxColumn("Include", help="Tick to add to the PDF report"),
             "market": "Market",
+            "sector": st.column_config.TextColumn("Sector", width="small"),
             "instruments": "Instruments",
             "signal": "Signal",
             "metric": "Metric",
@@ -6254,7 +7552,8 @@ else:
         disabled=[c for c in view.columns if c != "Include"],
     )
 
-    chosen = edited[edited["Include"]].drop(columns=["Include"])
+    chosen = edited[edited["Include"]].drop(columns=["Include", "sector"])
+    chosen["market"] = _orig_market.loc[chosen.index]   # restore the exact original market for the report
     st.caption(f"**{len(chosen)}** row(s) selected for the report.")
 
     if st.button("Generate PDF report", type="primary", disabled=chosen.empty):
