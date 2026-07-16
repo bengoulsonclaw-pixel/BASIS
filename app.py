@@ -1700,9 +1700,17 @@ def render_equities_home() -> None:
             _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
             _eqf_frame.clear()
             st.success("Equities data refreshed."); st.rerun()
-    if c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
-                 help="Re-pull the latest overnight quotes."):
-        _eq_movers.clear(); _eq_heatmap_sections.clear(); st.rerun()
+    if c2.button("🔄 Recompute view", use_container_width=True, key="eq_refresh",
+                 help="Rebuild the movers table and heatmap from the CACHED quotes (instant, no "
+                      "Bloomberg). Quotes themselves only change when 📥 Pull equities data runs."):
+        _eq_movers.clear(); _eq_heatmap_sections.clear()
+        st.session_state["eq_refresh_note"] = True
+        st.rerun()
+    if st.session_state.pop("eq_refresh_note", False):
+        # Say what actually happened — in snapshot mode this recomputes the SAME cached
+        # quotes, which used to look like the button "did nothing".
+        st.info("View recomputed from the **cached** quotes. For fresh prices run "
+                "**📥 Pull equities data** (uses the Bloomberg data budget).")
     _n = sum(len(v) for v in _eq_universe().values())
     c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
                + equities.data_status() + ". Equities data refreshes **only** via this pull "
