@@ -745,7 +745,8 @@ _GROUP_TABS = {
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
-                           ("🛢️ OPEC Report", "OPEC Report")],
+                           ("🛢️ OPEC Report", "OPEC Report"),
+                           ("🥇 Precious Metals", "Precious Metals")],
 }
 _TAB_MEMBERS_OF = {dest: members for members in _GROUP_TABS.values() for _lbl, dest in members}
 
@@ -1503,6 +1504,9 @@ def render_home() -> None:
             st.session_state.pop("ficc_pull_confirm", None)
             st.success("Snapshot pulled + signals refreshed."); st.rerun()
 
+    # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
+    # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
+    # with the old row faded beneath it for the whole computation.
     if c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
                  help="Pulls every FICC input the reports need into data/snapshot/ and recomputes "
                       "all signals. Needs the Terminal logged in (~1–3 min). Equities have "
@@ -1513,19 +1517,26 @@ def render_home() -> None:
         if str((snap or {}).get("created", ""))[:10] == _today:
             st.session_state["ficc_pull_confirm"] = True
         else:
-            _run_ficc_pull()
+            st.session_state["ficc_pull_go"] = True
+    if c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
+                 help="Recompute all strategies from the current data — instant in snapshot mode."):
+        st.session_state["rerun_signals_go"] = True
     if st.session_state.get("ficc_pull_confirm"):
         st.warning(f"⚡ Snapshot **already pulled today** ({_to_et((snap or {}).get('created', ''))}). "
                    "Pulling again re-spends the day's Bloomberg data allowance on near-identical "
                    "data — worth it only if the first pull was bad or markets have moved a lot.")
         _g1, _g2, _ = st.columns([1.4, 1, 3.6])
         if _g1.button("Pull again anyway", key="ficc_pull_anyway"):
-            _run_ficc_pull()
+            st.session_state.pop("ficc_pull_confirm", None)
+            st.session_state["ficc_pull_go"] = True
         if _g2.button("Cancel", key="ficc_pull_cancel"):
             st.session_state.pop("ficc_pull_confirm", None); st.rerun()
-    if c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
-                 help="Recompute all strategies from the current data — instant in snapshot mode."):
-        run_daily.run(); load_signals.clear(); st.rerun()
+    if st.session_state.pop("ficc_pull_go", False):
+        _run_ficc_pull()
+    if st.session_state.pop("rerun_signals_go", False):
+        with st.spinner("Recomputing all signals…"):
+            run_daily.run()
+        load_signals.clear(); st.rerun()
     if c3.button("⬇️  Export snapshot to Excel", use_container_width=True, key="home_excel",
                  disabled=not (SNAPSHOT_DIR / "prices.parquet").exists()):
         with st.spinner("Building workbook…"):
@@ -3754,6 +3765,147 @@ def render_opec() -> None:
             st.code(st.session_state["opec_log"][-4000:])
 
 
+PM_CLI = ROOT / "precious_metals_scheduled_email.py"
+PM_REL_CLI = ROOT / "pm_release_scheduled_email.py"
+PM_PDF = ROOT / "data" / "Precious_Metals_Report.pdf"
+PM_JSON = ROOT / "data" / "pm_monitor.json"
+PM_MARKER = ROOT / "data" / "signals" / "pm_emailed.txt"
+PM_PAGES = ROOT / "data" / "pm_pages"
+PM_REL_DIR = ROOT / "data" / "pm_releases"
+
+
+def _run_pm_rel(args: list[str], label: str, timeout: int = 420):
+    """Run the release-synopsis check/build as a subprocess."""
+    with st.spinner(label):
+        try:
+            r = subprocess.run([sys.executable, str(PM_REL_CLI), *args], cwd=str(ROOT),
+                               capture_output=True, text=True, timeout=timeout)
+            st.session_state["pm_rel_log"] = (r.stdout or "") + ("\n" + r.stderr if r.stderr else "")
+            st.toast("Synopsis job finished." if r.returncode == 0 else
+                     "Synopsis job hit an error — see the log.",
+                     icon="✅" if r.returncode == 0 else "⚠️")
+        except subprocess.TimeoutExpired:
+            st.session_state["pm_rel_log"] = f"Timed out after {timeout}s."
+            st.toast("Synopsis job timed out.", icon="⚠️")
+    st.rerun()
+
+
+def _run_pm(args: list[str], label: str, timeout: int = 300):
+    """Run the Precious Metals build/send as a subprocess (keeps matplotlib/Playwright
+    off Streamlit's event loop). Shows the output and refreshes the page."""
+    with st.spinner(label):
+        try:
+            r = subprocess.run([sys.executable, str(PM_CLI), *args], cwd=str(ROOT),
+                               capture_output=True, text=True, timeout=timeout)
+            ok = r.returncode == 0
+            st.session_state["pm_log"] = (r.stdout or "") + ("\n" + r.stderr if r.stderr else "")
+            st.toast("Precious Metals job finished." if ok else
+                     "Precious Metals job hit an error — see the log.",
+                     icon="✅" if ok else "⚠️")
+        except subprocess.TimeoutExpired:
+            st.session_state["pm_log"] = f"Timed out after {timeout}s."
+            st.toast("Precious Metals job timed out.", icon="⚠️")
+    st.rerun()
+
+
+def _pm_page_images() -> list[Path]:
+    """Rasterize the report PDF so it reads inline on the page; cached beside it
+    and refreshed whenever the PDF is newer than the cached images."""
+    if not PM_PDF.exists():
+        return []
+    PM_PAGES.mkdir(parents=True, exist_ok=True)
+    pngs = sorted(PM_PAGES.glob("page_*.png"))
+    if pngs and pngs[0].stat().st_mtime >= PM_PDF.stat().st_mtime:
+        return pngs
+    try:
+        import pypdfium2 as pdfium
+        for old in pngs:
+            old.unlink()
+        pdf = pdfium.PdfDocument(str(PM_PDF))
+        out = []
+        for i, page in enumerate(pdf):
+            p = PM_PAGES / f"page_{i + 1:02d}.png"
+            page.render(scale=2.0).to_pil().save(p)
+            out.append(p)
+        return out
+    except Exception:
+        return []
+
+
+def render_precious_metals() -> None:
+    st.subheader("🥇 Precious Metals Fundamentals")
+    st.caption("Monthly client monitor: macro & positioning across gold, silver, platinum and "
+               "palladium, then physical flows, official-sector activity and published market "
+               "balances per metal. The scheduled job emails it for proofreading before you "
+               "forward it; manage recipients and the auto-send toggle on the Recipients page.")
+
+    last = PM_MARKER.read_text(encoding="utf-8").strip() if PM_MARKER.exists() else "—"
+    m1, m2 = st.columns(2)
+    m1.metric("Last edition emailed", last)
+    m2.metric("Built", datetime.fromtimestamp(PM_PDF.stat().st_mtime).strftime("%d %b %Y %H:%M")
+              if PM_PDF.exists() else "—")
+
+    if PM_JSON.exists():
+        try:
+            mock = json.loads(PM_JSON.read_text(encoding="utf-8")).get("mock_blocks", [])
+        except Exception:
+            mock = []
+        if mock:
+            st.warning(f"Draft — placeholder data in: {', '.join(mock)}. "
+                       "The PDF carries the same banner until these sources are wired live.")
+
+    st.markdown("#### Run now")
+    a1, a2, a3 = st.columns(3)
+    if a1.button("👁️ Rebuild preview (no send)", use_container_width=True,
+                 help="Refresh the data pulls and rebuild the PDF without emailing."):
+        _run_pm(["--dry-run"], "Rebuilding the Precious Metals monitor…")
+    desk1 = (recipients.get("precious_metals") or ["benjamin.goulson@xpi.com.br"])[0]
+    if a2.button("✉️ Email to me", use_container_width=True,
+                 help=f"Rebuild, then email only {desk1} for proofreading."):
+        _run_pm(["--force-send", "--to", desk1], f"Building and sending to {desk1}…")
+    if a3.button("📤 Build & send to list", type="primary", use_container_width=True,
+                 help="Rebuild and email the full recipient list now."):
+        _run_pm(["--force-send"], "Building and sending to the recipient list…")
+
+    if PM_PDF.exists():
+        st.download_button("⬇️  Download the latest monitor PDF", data=PM_PDF.read_bytes(),
+                           file_name=PM_PDF.name, mime="application/pdf")
+    if st.session_state.get("pm_log"):
+        with st.expander("Last run log", expanded=False):
+            st.code(st.session_state["pm_log"][-4000:])
+
+    # --- release synopses (WGC GDT / WPIC PQ) -----------------------------------------
+    st.divider()
+    st.markdown("#### Release synopses — WGC Gold Demand Trends · WPIC Platinum Quarterly")
+    st.caption("A daily job watches for new editions and emails a one-page synopsis on "
+               "release day (toggle on the Recipients page). Latest built synopses:")
+    r1, r2 = st.columns(2)
+    if r1.button("🔎 Check releases & rebuild (no send)", use_container_width=True,
+                 help="Detect the latest editions, fetch, parse and rebuild the synopses."):
+        _run_pm_rel(["--dry-run"], "Checking WGC / WPIC and rebuilding synopses…")
+    if r2.button("✉️ Email latest synopses to me", use_container_width=True,
+                 help=f"Rebuild and email the current editions to {desk1}."):
+        _run_pm_rel(["--force-send", "--to", desk1], f"Building and sending to {desk1}…")
+    rel_pdfs = sorted(PM_REL_DIR.glob("*_Synopsis.pdf"), key=lambda p: p.stat().st_mtime,
+                      reverse=True)[:4]
+    if rel_pdfs:
+        cols = st.columns(len(rel_pdfs))
+        for col, p in zip(cols, rel_pdfs):
+            col.download_button(f"⬇️ {p.stem.replace('_', ' ')}", data=p.read_bytes(),
+                                file_name=p.name, mime="application/pdf", key=f"pmrel_{p.name}")
+    if st.session_state.get("pm_rel_log"):
+        with st.expander("Last synopsis run log", expanded=False):
+            st.code(st.session_state["pm_rel_log"][-4000:])
+
+    pages = _pm_page_images()
+    if pages:
+        st.divider()
+        for p in pages:
+            st.image(str(p), use_container_width=True)
+    else:
+        st.info("No report built yet — use “Rebuild preview” above.")
+
+
 def _cal_shift(delta):
     y, m = st.session_state.get("rcal_ym", (0, 0))
     m += delta
@@ -5666,12 +5818,16 @@ brand.masthead()
 # a one-shot flag: pages that st.rerun() on entry (e.g. Technical Analysis) abort the first
 # run — a popped flag died with it and the page kept the old scroll. Any run starting within
 # the window emits the reset, so chained reruns still land at the top.
+import streamlit.components.v1 as components
 _nav_ts = st.session_state.get("_scroll_top_ts", 0)
-if time.time() - _nav_ts < 1.5:
-    import streamlit.components.v1 as components
-    # keyed container so the theme CSS can hide this block entirely — the 0-height iframe
-    # would otherwise still eat a 16px flex gap between masthead and content
-    with st.container(key="basis_scroll_top"):
+# This slot renders on EVERY run — a no-op outside the nav window. When it rendered only
+# after a nav, the next run (any button click) had one fewer element above the page body,
+# so Streamlit's positional diffing mismatched everything below and showed the previous
+# run's widgets as faded DUPLICATES under the fresh ones during long reruns.
+# keyed container so the theme CSS can hide this block entirely — the 0-height iframe
+# would otherwise still eat a 16px flex gap between masthead and content
+with st.container(key="basis_scroll_top"):
+    if time.time() - _nav_ts < 1.5:
         components.html(
             # Re-assert top for ~2.5s (heavy pages keep drawing in and can carry the old
             # scroll offset back), but stop instantly if the user scrolls on purpose.
@@ -5693,6 +5849,8 @@ if time.time() - _nav_ts < 1.5:
             "};"
             "up(); [150, 400, 900, 1600, 2500].forEach(t => setTimeout(up, t));"
             "</script>", height=0)
+    else:
+        components.html("<script>/* idle */</script>", height=0)
 
 # ----- default landing view -----------------------------------------------
 if "active" not in st.session_state:
@@ -5831,6 +5989,8 @@ if active == "Data health":
     render_data_health(); st.stop()
 if active == "OPEC Report":
     render_opec(); st.stop()
+if active == "Precious Metals":
+    render_precious_metals(); st.stop()
 if active == "Release Calendar":
     render_releases(); st.stop()
 if active == "Recipients":
