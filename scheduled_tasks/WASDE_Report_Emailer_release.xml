@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="UTF-16"?>
+
+<Task version="1.3" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+
+  <RegistrationInfo>
+
+    <Description>Auto-builds and emails the dedicated USDA WASDE report the MOMENT FAS PS&amp;D reflects the new release (a data-freshness gate in the script), polling every 10 min from 10:30 local through the afternoon. Skips until the data posts (never emails last month's stocks), sends once, then dedups via a marker. Honours the dashboard automation on/off flag.</Description>
+
+    <URI>\WASDE Report Emailer (release)</URI>
+
+  </RegistrationInfo>
+
+  <Principals>
+
+    <Principal id="Author">
+
+      <UserId>S-1-5-21-2336263511-2746669706-1963067531-1001</UserId>
+
+      <LogonType>InteractiveToken</LogonType>
+
+    </Principal>
+
+  </Principals>
+
+  <Settings>
+
+    <DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>
+
+    <StopIfGoingOnBatteries>true</StopIfGoingOnBatteries>
+
+    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+
+    <StartWhenAvailable>true</StartWhenAvailable>
+
+    <IdleSettings>
+
+      <Duration>PT10M</Duration>
+
+      <WaitTimeout>PT1H</WaitTimeout>
+
+      <StopOnIdleEnd>true</StopOnIdleEnd>
+
+      <RestartOnIdle>false</RestartOnIdle>
+
+    </IdleSettings>
+
+    <UseUnifiedSchedulingEngine>true</UseUnifiedSchedulingEngine>
+
+  </Settings>
+
+  <Triggers>
+
+    <CalendarTrigger>
+
+      <StartBoundary>2026-07-01T10:30:00-05:00</StartBoundary>
+
+      <Repetition>
+
+        <Interval>PT10M</Interval>
+
+        <Duration>PT7H</Duration>
+
+        <StopAtDurationEnd>true</StopAtDurationEnd>
+
+      </Repetition>
+
+      <ScheduleByDay>
+
+        <DaysInterval>1</DaysInterval>
+
+      </ScheduleByDay>
+
+    </CalendarTrigger>
+
+  </Triggers>
+
+  <Actions Context="Author">
+
+    <Exec>
+
+      <Command>C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Scripts\python.exe</Command>
+
+      <Arguments>"C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\wasde_scheduled_email.py"</Arguments>
+
+      <WorkingDirectory>C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard</WorkingDirectory>
+
+    </Exec>
+
+  </Actions>
+
+</Task>

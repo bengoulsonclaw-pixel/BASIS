@@ -19,8 +19,9 @@ tzdata               # zoneinfo timezone DB (needed on Windows for the Market Ho
 
 # --- Bloomberg live data ---------------------------------------------------------------
 # Included in the offline wheels\ bundle, so the install line above picks them up too.
-# If you ever install them online, blpapi lives on Bloomberg's own package index:
-#     pip install --index-url https://blpapi.bloomberg.com/repository/releases/python/simple/ blpapi==3.26.4.2
-#     pip install xbbg==1.2.6
+# blpapi is NOT on PyPI — it lives on Bloomberg's own package index. The directive below
+# lets a plain online `pip install -r requirements.txt` find it (the offline
+# `--no-index --find-links wheels` install ignores index URLs, so it is unaffected).
+--extra-index-url https://blpapi.bloomberg.com/repository/releases/python/simple/
 xbbg==1.2.6
 blpapi==3.26.4.2
