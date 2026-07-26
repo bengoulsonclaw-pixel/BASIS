@@ -4,12 +4,22 @@
 <meta charset="utf-8">
 {% include "_report_style.html" %}
 <style>
-  table { font-size: 8pt; }
-  thead th, tbody td { padding: 1.6mm 1.8mm; }
-  .lead { font-size: 8.5pt; color: #333; margin: 2mm 0; }
+  /* Roomy but one page: fills an A4 page top-to-bottom without spilling (verified). */
+  table { font-size: 8.6pt; margin-top: 2.2mm; }
+  thead th { padding: 3.6pt 5pt; }
+  tbody td { padding: 3.4pt 5pt; }
+  .banner { margin-top: 4mm; font-size: 10.5pt; padding: 3.6pt 6pt; }
+  .titleband { padding: 4pt 8pt; }
+  .titleband h1 { font-size: 21pt; }
+  .titleband .sub { font-size: 11.5pt; }
+  .summary { font-size: 8.6pt; margin: 2.8mm 0 0; }
+  .lead { font-size: 8.2pt; color: #333; margin: 2mm 0; }
+  .chart { margin-top: 2mm; }
+  hr.rule { margin: 3.5mm 0 2.5mm; }
+  .disclaimer { font-size: 7.6pt; margin-top: 3mm; }
+  .fine { font-size: 7pt; margin-top: 2mm; line-height: 1.4; }
   .demo { background: #FFF8E1; border-left: 3pt solid var(--yellow); padding: 2mm 3mm;
           font-size: 8pt; color: #333; margin: 2.5mm 0; }
-  .sub2 { font-size: 9pt; font-weight: 700; color: #000; margin: 3mm 0 0.5mm; }
 </style>
 </head>
 <body>
@@ -37,10 +47,9 @@
     {% endif %}
 
     <p class="summary">
-      The USDA <b>World Agricultural Supply &amp; Demand Estimates</b> ({{ my_label }} marketing year): the US
-      balance sheet — production, use, exports and <b>ending stocks</b> — plus <b>world</b> ending stocks and the
-      <b>stocks-to-use</b> ratio, each vs a year ago. Lower / falling stocks-to-use = tighter balance = bullish;
-      higher = ample = bearish.
+      The USDA <b>World Agricultural Supply &amp; Demand Estimates</b> ({{ my_label }}): the US balance sheet —
+      production, use, exports, <b>ending stocks</b> — plus <b>world</b> ending stocks and <b>stocks-to-use</b>,
+      each vs a year ago. Lower / falling stocks-to-use = tighter = bullish; higher = ample = bearish.
     </p>
 
     <div class="banner">US Balance Sheet &mdash; {{ my_label }} (million bushels)</div>
@@ -122,22 +131,23 @@
 
     <div class="banner">How to read it</div>
     <p class="lead">
-      <b>Ending stocks</b> is the carry-out at the end of the marketing year; the <b>stocks-to-use</b> ratio
-      (ending stocks ÷ total use) normalises it — a low, falling ratio marks a price-inelastic, weather-sensitive
-      market where small shocks move price hard. <b>Stocks below year-ago</b> = tightening = supportive; above =
-      ample = a headwind. The US table drives CBOT corn / soybeans / Chicago &amp; KC wheat; the world table is
-      the global backdrop (the China carry-out especially). Pair with export demand and positioning in the AG
-      Fundamentals and COT reports.
+      <b>Ending stocks</b> is the marketing-year carry-out; <b>stocks-to-use</b> (÷ total use) normalises it — a
+      low, falling ratio marks a tight, weather-sensitive market where small shocks move price hard. <b>Below
+      year-ago</b> = tightening = supportive; above = ample = a headwind. The US table drives CBOT corn / soybeans
+      / KC &amp; Chicago wheat; the world table is the global backdrop (China especially).
     </p>
 
+    <div class="report-footer">
+    <div class="foot-disclaimer">
     <hr class="rule">
     <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
-      Source: USDA Foreign Agricultural Service PS&amp;D (Production, Supply &amp; Distribution), which carries the
-      WASDE balance sheets and is refreshed with each monthly release. US figures converted to million bushels
-      (corn 39.37, soybeans / wheat 36.74 bu per metric ton); world in million metric tons. Stocks-to-use =
-      ending stocks ÷ total use (US = domestic use + exports; world = domestic consumption). Free U.S.-government
-      data. Information only &mdash; not investment advice or a solicitation.
+      Source: USDA FAS PS&amp;D (carries the WASDE balance sheets, refreshed each monthly release). US in million
+      bushels (corn 39.37, soybeans / wheat 36.74 bu per metric ton); world in MMT. Stocks-to-use = ending stocks
+      ÷ total use (US = domestic use + exports; world = domestic consumption). Free U.S.-government data.
+      Information only &mdash; not investment advice or a solicitation.
+    </div>
+  </div>
     </div>
   </div>
 </body>

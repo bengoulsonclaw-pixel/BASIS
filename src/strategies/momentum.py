@@ -35,7 +35,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ..datafeed import get_history
+from ..datafeed import get_history_ta as get_history   # fixed income → yields (see universe)
 from ..universe import TREND_UNIVERSE, name, asset
 from .base import frame
 
@@ -48,6 +48,10 @@ MACD_FAST, MACD_SLOW, MACD_SIG = 12, 26, 9    # MACD EMAs: fast, slow, signal
 FRESH_BARS = 3        # a MACD cross this-many bars old (or newer) still counts as "fresh"
 DIV_WIN = 40          # window for the RSI-divergence swing-high/low comparison
 SWING_K = 3           # a swing point is the extreme of a ±SWING_K-bar fractal
+DIV_MAX_AGE = 10      # the confirming swing must be this recent — an older divergence has
+                      # already played out and describes the move that HAS happened, not a setup
+DIV_MIN_RSI_GAP = 3.0  # …and the RSI gap must clear this, so a 1-2 point gap (an artefact of
+                      # which bars happen to be picked as swings) doesn't count as a divergence
 DIV_BONUS = 25.0      # momentum-score bonus when a divergence is present
 CROSS_BONUS = 15.0    # …and when a fresh MACD cross is present
 MIN_HISTORY = MACD_SLOW + MACD_SIG + DIV_WIN   # enough bars for a settled MACD + a divergence window
@@ -119,30 +123,40 @@ def _divergence(px: np.ndarray, rsi: np.ndarray) -> int:
     swings: a **bearish** divergence is price higher-high + RSI lower-high; a
     **bullish** one is price lower-low + RSI higher-low. Falls back to comparing the
     window's two halves (front vs back extreme) when fewer than two clean swings are
-    present, so a divergence still surfaces on a smooth run."""
+    present, so a divergence still surfaces on a smooth run.
+
+    Two gates keep it ACTIONABLE rather than merely historical: the confirming swing must be
+    within DIV_MAX_AGE bars, and the RSI gap must clear DIV_MIN_RSI_GAP. Without them a
+    divergence formed weeks ago — and long since resolved in the rally it predicted — kept
+    being reported as a live setup, and a 1-2 point RSI gap that flips with the choice of
+    swing bars counted the same as a decisive one."""
     n = min(DIV_WIN, len(px))
     if n < 2 * SWING_K + 3:
         return 0
     p, r = px[-n:], rsi[-n:]
     highs, lows = _swing_points(p)
 
+    def _actionable(j: int, gap: float) -> bool:
+        return (n - 1 - j) <= DIV_MAX_AGE and abs(gap) >= DIV_MIN_RSI_GAP
+
     # Bearish: the two most recent swing highs — price up, RSI down.
     if len(highs) >= 2:
         i, j = highs[-2], highs[-1]
-        if p[j] > p[i] and r[j] < r[i]:
+        if p[j] > p[i] and r[j] < r[i] and _actionable(j, r[j] - r[i]):
             return -1
     # Bullish: the two most recent swing lows — price down, RSI up.
     if len(lows) >= 2:
         i, j = lows[-2], lows[-1]
-        if p[j] < p[i] and r[j] > r[i]:
+        if p[j] < p[i] and r[j] > r[i] and _actionable(j, r[j] - r[i]):
             return 1
 
     # Fallback: split the window in half and compare each half's extreme.
     half = n // 2
-    f, b = slice(0, half), slice(half, n)
-    if p[b].max() > p[f].max() and r[b][p[b].argmax()] < r[f][p[f].argmax()]:
+    fi, bi = int(np.argmax(p[:half])), half + int(np.argmax(p[half:]))
+    if p[bi] > p[fi] and r[bi] < r[fi] and _actionable(bi, r[bi] - r[fi]):
         return -1
-    if p[b].min() < p[f].min() and r[b][p[b].argmin()] > r[f][p[f].argmin()]:
+    fi, bi = int(np.argmin(p[:half])), half + int(np.argmin(p[half:]))
+    if p[bi] < p[fi] and r[bi] > r[fi] and _actionable(bi, r[bi] - r[fi]):
         return 1
     return 0
 
@@ -176,22 +190,31 @@ def _assess(px: pd.Series) -> dict | None:
     fresh_bear = fresh and cross_dir < 0
     div = _divergence(s.to_numpy(dtype=float), rsi_s.to_numpy(dtype=float))
 
-    # Setup direction: bullish if a bullish divergence OR oversold RSI OR a fresh
-    # bullish MACD cross; bearish the mirror; else flat. (Divergence leads, but any
-    # one trigger sets the side; a clash resolves to 0 below.)
-    bull = (div > 0) or (rsi < RSI_OS) or fresh_bull
-    bear = (div < 0) or (rsi > RSI_OB) or fresh_bear
+    # Setup direction. Only an EVENT sets a side — an RSI divergence or a fresh MACD cross.
+    # An RSI extreme on its own does NOT: "RSI is over 70 so it's a sell" is the classic false
+    # signal in a trend, and it was firing Bearish momentum on markets printing 55-day highs,
+    # flatly contradicting the trend and OBV reads on the same chart. Extension instead acts as
+    # a VETO — it blocks a signal pointing further into the move already made, which is also
+    # what now resolves a bullish-divergence-into-overbought clash to flat.
+    bull = ((div > 0) or fresh_bull) and not (rsi > RSI_OB)
+    bear = ((div < 0) or fresh_bear) and not (rsi < RSI_OS)
     direction = 1 if (bull and not bear) else -1 if (bear and not bull) else 0
 
-    # Signed momentum score, magnitude ~0..100: distance of RSI from its 50 midline,
-    # plus a divergence bonus and a fresh-cross bonus, signed by the setup direction.
-    magnitude = 2.0 * abs(rsi - 50.0)
-    if div != 0:
+    # Signed momentum score, magnitude ~0..100. The RSI term is how FAVOURABLY RSI sits for
+    # THIS direction — room below the midline for a long, above it for a short — so a market
+    # already extended the way it is being read scores nothing for it. (It used to be
+    # 2*|RSI-50|, which is direction-blind: an RSI of 75 added 50 points to a BULLISH score,
+    # i.e. the more overbought a market got the stronger a buy it looked.) The bonuses count
+    # only when they agree with the direction.
+    magnitude = 2.0 * max(0.0, direction * (50.0 - rsi))
+    if div * direction > 0:
         magnitude += DIV_BONUS
-    if fresh:
+    if (fresh_bull and direction > 0) or (fresh_bear and direction < 0):
         magnitude += CROSS_BONUS
-    sign = direction if direction != 0 else (1 if rsi >= 50.0 else -1)   # flat → sign by RSI side
-    metric = float(np.clip(sign * magnitude, -100.0, 100.0))
+    # No event, or an event vetoed by extension, means direction == 0 — which zeroes the
+    # magnitude above, so it publishes flat. The old sign fallback (`1 if rsi >= 50`) re-signed
+    # precisely those cases into confident calls, so a "flat" verdict never survived to the table.
+    metric = float(np.clip(direction * magnitude, -100.0, 100.0))
 
     return {
         "rsi": rsi,

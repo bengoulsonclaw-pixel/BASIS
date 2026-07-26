@@ -10,7 +10,17 @@ classic "buy near support / sell near resistance" trade:
 
 Levels are built from **swing pivots** on the close series (a pivot high/low is a
 bar that is the max/min within ±W bars), then pivots at a similar price are
-**clustered** into a level whose strength = the number of touches. The headline
+**clustered** into a level whose strength = the number of touches.
+
+**Role reversal.** A level's role is read from where it sits relative to the LATEST
+close — *below price = support, above price = resistance* — NOT from the pivots that
+formed it. Once price breaks through a ceiling, that old resistance becomes support
+(and vice-versa), which is the classic broken-and-retested zone. Each level keeps its
+pivot-derived role as `origin` and is marked `flipped` when the two disagree. (Without
+this a months-old, long-broken ceiling would still be drawn as resistance below the
+market, and — worse — would be skipped entirely by the actionable-level search.)
+
+The headline
 number is a 0–100 **level proximity** (100 = price exactly on the level, fading to
 0 once it sits more than NEAR% away). It is signed by side — **+ for support
 (long), − for resistance (short)** — so it drops straight into the dashboard's
@@ -27,7 +37,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ..datafeed import get_history
+from ..datafeed import get_history_ta as get_history   # fixed income → yields (see universe)
 from ..universe import TREND_UNIVERSE, name, asset
 from .base import frame
 
@@ -82,8 +92,9 @@ def _cluster(pivots: list[tuple[float, int]], tol: float) -> list[dict]:
     `pivots` is a list of (price, kind) where kind is +1 for a pivot high, −1 for a
     pivot low. Walking the price-sorted pivots, a new member joins the running
     cluster while it stays within `tol` of the cluster's mean; otherwise the cluster
-    is closed and a fresh one starts. Each level carries its mean price, touch count
-    and a kind — 'resistance' if built mostly from highs, else 'support'."""
+    is closed and a fresh one starts. Each level carries its mean price, touch count and
+    its `origin` — the pivot-derived role ('resistance' if built mostly from highs, else
+    'support'). The EFFECTIVE role is set later, against the latest close (see _levels)."""
     if not pivots:
         return []
     pivots = sorted(pivots, key=lambda p: p[0])
@@ -101,17 +112,23 @@ def _cluster(pivots: list[tuple[float, int]], tol: float) -> list[dict]:
 
 
 def _level_from_group(grp: list[tuple[float, int]]) -> dict:
-    """Collapse a cluster of pivots into one level dict (price = member mean, touches
-    = member count, kind = the majority pivot type; ties → resistance)."""
+    """Collapse a cluster of pivots into one level dict (price = member mean, touches =
+    member count, origin = the majority pivot type; ties → resistance). `origin` is the
+    HISTORICAL role — the live role is assigned against the latest close in _levels."""
     prices = [p[0] for p in grp]
     highs = sum(1 for _, k in grp if k > 0)
-    kind = "resistance" if highs >= len(grp) - highs else "support"
-    return {"price": float(np.mean(prices)), "touches": len(grp), "kind": kind}
+    origin = "resistance" if highs >= len(grp) - highs else "support"
+    return {"price": float(np.mean(prices)), "touches": len(grp), "origin": origin}
 
 
 def _levels(c: np.ndarray) -> list[dict]:
     """Strong horizontal levels (touches ≥ MIN_TOUCHES) on close array `c`, sorted by
-    price. Clustering tolerance is max(TOL_ATR·ATRproxy, TOL_PCT·price)."""
+    price. Clustering tolerance is max(TOL_ATR·ATRproxy, TOL_PCT·price).
+
+    ROLE REVERSAL is applied here: `kind` comes from the level's position against the
+    LATEST close (below → support, above → resistance), `origin` keeps the pivot-derived
+    role, and `flipped` marks a level whose role has reversed (a broken-and-retested
+    zone — usually the better one to trade)."""
     highs, lows = _pivots(c)
     pivots = [(c[i], 1) for i in highs] + [(c[i], -1) for i in lows]
     if not pivots:
@@ -119,6 +136,9 @@ def _levels(c: np.ndarray) -> list[dict]:
     price = float(c[-1])
     tol = max(TOL_ATR * _atr_proxy(c), TOL_PCT * price)
     levels = [lv for lv in _cluster(pivots, tol) if lv["touches"] >= MIN_TOUCHES]
+    for lv in levels:
+        lv["kind"] = "support" if lv["price"] <= price else "resistance"
+        lv["flipped"] = lv["kind"] != lv["origin"]
     return sorted(levels, key=lambda lv: lv["price"])
 
 
@@ -186,6 +206,7 @@ def _analyse(px: pd.Series) -> dict | None:
     signal, direction = _signal(metric, DEFAULT_TRIGGER)
     return {"series": s, "levels": levels, "price": price, "nearest": nearest,
             "kind": (lv["kind"] if lv else None), "touches": (lv["touches"] if lv else 0),
+            "flipped": bool(lv.get("flipped")) if lv else False,
             "dist_pct": float(dist_pct), "proximity": float(proximity),
             "metric": float(metric), "signal": signal, "direction": direction}
 
@@ -197,7 +218,10 @@ def _context(d: dict) -> str:
         return f"no level within {NEAR_PCT * 100:.0f}% ({n} level{'s' if n != 1 else ''} mapped)"
     where = "below" if d["dist_pct"] >= 0 else "above"
     zone = "buy-dip zone" if d["kind"] == "support" else "sell-rally zone"
-    return (f"{d['kind'].capitalize()} {d['nearest']:g} ({d['touches']} touches) "
+    # a role-reversed level (broken then retested from the other side) is the stronger read
+    rev = (f", role-reversed from {'resistance' if d['kind'] == 'support' else 'support'}"
+           if d.get("flipped") else "")
+    return (f"{d['kind'].capitalize()} {d['nearest']:g} ({d['touches']} touches{rev}) "
             f"{abs(d['dist_pct']):.1f}% {where} — {zone}")
 
 
@@ -247,11 +271,13 @@ def sr_chart_data(ticker: str, history: pd.DataFrame | None = None):
     s = d["series"]
     price_df = pd.DataFrame({"date": s.index, "price": s.to_numpy(dtype=float)})
     info = {
-        "levels": [{"price": lv["price"], "kind": lv["kind"], "touches": lv["touches"]}
+        "levels": [{"price": lv["price"], "kind": lv["kind"], "touches": lv["touches"],
+                    "origin": lv.get("origin"), "flipped": bool(lv.get("flipped"))}
                    for lv in d["levels"]],
         "signal": d["signal"],
         "direction": d["direction"],
         "nearest": d["nearest"],
+        "flipped": d["flipped"],
         "dist_pct": d["dist_pct"],          # signed % from price to the nearest level
         "proximity": d["proximity"],        # unsigned 0..100
         "price": d["price"],

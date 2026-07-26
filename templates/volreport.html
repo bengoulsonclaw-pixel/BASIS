@@ -12,21 +12,72 @@
      Scoped to this report only — other reports are unaffected. */
   .synopsis { font-size: 9pt; color: #222; line-height: 1.5; margin: 3mm 0 1mm; }
   .synopsis b { color: #111; }
-  .synopsis .cheap { color: var(--pos-tx); font-weight: 700; }
-  .synopsis .rich { color: var(--neg-tx); font-weight: 700; }
+  .synopsis .cheap, .trigger .cheap { color: var(--pos-tx); font-weight: 700; }
+  .synopsis .rich, .trigger .rich { color: var(--neg-tx); font-weight: 700; }
+  /* the shared yellow rules box, compacted for this report's full page 1 */
+  .trigger { font-size: 8.5pt; line-height: 1.45; margin-top: 2mm; }
+  /* per-market history panels: one what-is-what legend up top, a caption under each chart */
+  .histlegend { font-size: 6.5pt; color: #888; margin: 1mm 0 0; }
+  .histcap { font-size: 8pt; color: #333; line-height: 1.4; margin: 0.5mm 0 2mm; }
+  .histcap b { color: #111; }
   .tablepage { break-before: page; margin-top: 0; }
   table { font-size: 7pt; }
+  /* All-Markets: one extra column (5d) — tighter cells so the WHOLE book + legends
+     still fit one page inside the margins */
+  table.allmkts { font-size: 6.5pt; line-height: 1.1; }
+  .allmkts thead th { padding: 1.3pt 2.8pt; }
+  .allmkts tbody td { padding: 1pt 2.8pt; }
+  .allmkts ~ .histlegend { font-size: 6.1pt; line-height: 1.3; margin: 0.8mm 0 0; }
+  .allmkts td.rvflag { background: var(--warn-bg); color: var(--neg-tx); font-weight: 700;
+                       white-space: nowrap; }   /* red warning text on the warm tint */
   thead th { padding: 2pt 4.5pt; }
   tbody td { padding: 1pt 4.5pt; line-height: 1.03; white-space: nowrap; }
   /* the 1-day 1σ price move shown in brackets after each implied/realized vol */
   td .sd { font-size: 6pt; color: #777; font-weight: 400; }
   th .hsd { font-size: 5.5pt; font-weight: 400; opacity: 0.65; }
-  /* Closing page: history charts + the methodology note flow at the top (the note
-     stays directly under the charts); the SALES-COMMENTARY line and its yellow rule
-     are pushed to the very foot of the page via margin-top:auto. */
-  .closing { break-before: page; display: flex; flex-direction: column; min-height: 10.9in; }
+  /* Relative-value peers sit under the scatter on page 1; Most Stretched gets its own page 2 */
+  .rvhead { margin-top: 4mm; }
+  .stretchpage { break-before: page; }
+  .rvnote { font-size: 8pt; color: #333; line-height: 1.45; margin: 3mm 0 2.5mm; }
+  .rvnote .rr { color: var(--neg-tx); font-weight: 700; }
+  .rvnote .cc { color: var(--pos-tx); font-weight: 700; }
+  .rvnote .opp, .trigger .opp, .rvtable .swapline.opp { background: #FCE9B0; }
+  .rvtable td { vertical-align: top; }
+  .rvtable .mut { color: #999; font-weight: 400; font-size: 6.5pt; }
+  /* z-score colouring — rich = red, cheap = green, neutral = grey (the swap rule, made visual) */
+  .rvtable .rich { color: var(--neg-tx); }
+  .rvtable .cheap { color: var(--pos-tx); }
+  .rvtable .neu { color: #999; }
+  .rvtable .zb { font-weight: 700; font-size: 6.5pt; white-space: nowrap; }
+  /* one candidate second leg per line: name · 1y corr · 1m corr · its vol z */
+  .rvtable .swaps .swapline { font-size: 7pt; white-space: nowrap; padding: 0.6px 2px; line-height: 1.35; }
+  .rvtable .swaps .pn { display: inline-block; width: 38mm; }
+  .rvtable .swaps .pc { display: inline-block; width: 10mm; color: #666; }
+  .rvtable .swaps .pc.loose { color: #C8901A; font-weight: 700; }   /* link has drifted lately */
+  .rvtable .swaps .pz { display: inline-block; font-weight: 600; }
+  /* History starts on a fresh page and flows; the designed back page follows it. */
+  .closing { break-before: page; }
   .closing > :first-child { margin-top: 0; }
-  .pagefoot { margin-top: auto; }
+  /* Back page: definitions grid + caveats, disclaimer pinned to the very foot — a
+     deliberate closing page whatever the history flow above does. (100vh in Chromium
+     paged media = the page's CONTENT box, already less the @page margins.) */
+  .backpage { break-before: page; display: flex; flex-direction: column;
+              min-height: calc(100vh - 0.04in); }
+  .backpage .pagefoot { margin-top: auto; }
+  .gloss { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6mm 6mm; margin-top: 2.4mm;
+           font-size: 7.7pt; color: #222; line-height: 1.42; }
+  .gloss b { color: #111; }
+  /* Short-term rates as two-line cards — the 9-column table was wider than the page. */
+  .stircard { padding: 1.2mm 2.2mm; margin-top: 1mm; border-bottom: 0.5pt solid #EEE; }
+  .stircard.long { background: var(--pos-bg); }
+  .stircard.short { background: var(--neg-bg); }
+  .stircard .l1 { font-size: 8.5pt; font-weight: 700; color: #111; }
+  .stircard .l1 .tick { color: #888; font-weight: 400; padding-left: 2.5mm; }
+  .stircard .l1 .sig { float: right; }
+  .stircard.long .l1 .sig { color: var(--pos-tx); }
+  .stircard.short .l1 .sig { color: var(--neg-tx); }
+  .stircard .l2 { font-size: 8pt; color: #222; margin-top: 0.5mm; }
+  .stircard .l2 .lbl { color: #999; font-size: 6.3pt; text-transform: uppercase; letter-spacing: .3px; }
 </style>
 </head>
 <body>
@@ -50,6 +101,16 @@
 
     <p class="synopsis">{{ synopsis|safe }}</p>
 
+    <div class="trigger">
+      <b>How to read this.</b> Flagged = the implied&minus;realized spread is more than <b>{{ zflag }}&sigma;</b>
+      from its own one-year norm &mdash; high = <span class="rich">rich</span>, low = <span class="cheap">cheap</span>.
+      <span style="color:var(--warn-tx);background:var(--warn-bg);font-weight:700;padding:0 2px">Amber rows</span> =
+      at the trigger but implied hasn&rsquo;t crossed realized (a premium compressing or a discount narrowing)
+      &mdash; a watchlist state, not a signal. Swaps table: <span class="opp">shaded</span> = a correlated peer stretched the other way;
+      <span style="color:#C8901A;font-weight:700">amber</span> = the 1-month correlation has drifted from the 1-year.
+      Implieds are our own curve, built from listed option settlements &mdash; full methodology on the closing page.
+    </div>
+
     {# Charts lead. Banners are bare (direct children of .content), NOT wrapped with
        their chart inside the .section. A banner nested as the first child of a
        break-inside:avoid section keeps its 5mm top-margin when that section is pushed
@@ -61,37 +122,63 @@
       <div class="chart"><img src="{{ scatter }}" alt="Implied vs realized scatter"></div>
     </div>
 
-    {% if iv_rv %}
-    <div class="banner">Flagged &mdash; implied vs realized</div>
-    <div class="section">
-      <div class="chart"><img src="{{ iv_rv }}" alt="Flagged markets implied vs realized"></div>
-    </div>
+    {# Possible Vol Swaps — fills the lower part of page 1 (where the redundant dumbbell was) #}
+    {% if rv_peers %}
+    <div class="banner rvhead">Possible Vol Swaps &mdash; correlated &ge; {{ corr_pct }}%</div>
+    {% if rv_comment %}<p class="rvnote"><b>Desk comment.</b> {{ rv_comment|safe }}</p>{% endif %}
+    <table class="rvtable">
+      <thead><tr><th>Flagged market &nbsp;<span class="mut">(vol z)</span></th><th class="center">Signal</th>
+        <th>Possible vol swaps &nbsp;<span class="mut">(1y corr &middot; 1m corr &middot; peer&rsquo;s vol z)</span></th></tr></thead>
+      <tbody>
+        {% for row in rv_peers %}
+        <tr class="{% if row.direction > 0 %}long{% elif row.direction < 0 %}short{% endif %}">
+          <td class="market">{{ row.market }} <span class="zb {{ row.zcls }}">z {{ row.z }}</span></td>
+          <td class="center sig">{{ row.signal }}</td>
+          <td class="swaps">{% for p in row.peers %}<div class="swapline{% if p.opp %} opp{% endif %}"><span class="pn">{{ p.name }}</span><span class="pc">{{ p.corr }}</span><span class="pc{% if p.loose %} loose{% endif %}">{{ p.corr1m }}</span><span class="pz {{ p.zcls }}">z {{ p.z }}</span></div>{% else %}&mdash;{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% endif %}
 
-    <div class="banner">Most Stretched &mdash; ranked by spread z-score</div>
+    <div class="banner stretchpage">Most Stretched &mdash; ranked by spread z-score</div>
     <div class="section">
       <div class="chart"><img src="{{ bars }}" alt="Spread z-score bar chart"></div>
     </div>
+    <p class="histlegend"><span class="rich" style="font-weight:700">Red</span> = flagged rich &mdash;
+      the implied&minus;realized spread is more than {{ zflag }}&sigma; above its own one-year norm and
+      implied sits ABOVE realized. &nbsp;&middot;&nbsp; <span class="cheap" style="font-weight:700">Green</span> =
+      flagged cheap &mdash; more than {{ zflag }}&sigma; below its norm and implied sits UNDER realized.
+      &nbsp;&middot;&nbsp; <span style="color:var(--warn-tx);font-weight:700">Amber</span> = the z is at the
+      trigger but implied has NOT crossed realized (a premium compressing or a discount narrowing) &mdash;
+      a watchlist state, not a signal. &nbsp;&middot;&nbsp; Grey = inside the trigger.
+      {% if any_rvmark %}&nbsp;&middot;&nbsp; <span style="color:var(--neg-tx);font-weight:700">&#9662;/&#9652;
+      at a bar tip</span> = the 5-day realized warning (see the All-Markets table): &#9662; = the last five
+      sessions realized under HALF the 1-month &mdash; the move that inflated the month has likely already
+      happened, so read a cheap bar there with care; &#9652; = more than double it &mdash; realizing is
+      accelerating past the month.{% endif %}</p>
 
     {# ── All-Markets table on its own page (page 3) ── #}
     {% if rows %}
     <div class="banner tablepage">All Markets &mdash; flagged highlighted</div>
-    <table>
+    <table class="allmkts">
       <thead>
         <tr>
           <th>Market</th><th>Instrument</th><th class="center">Signal</th>
-          <th class="center">Implied <span class="hsd">(&plusmn;1&sigma;)</span></th><th class="center">Realized <span class="hsd">(&plusmn;1&sigma;)</span></th>
+          <th class="center">Implied 1M <span class="hsd">(&plusmn;1&sigma;)</span></th><th class="center">Realized 1M <span class="hsd">(&plusmn;1&sigma;)</span></th>
+          <th class="center">Realized 5d</th>
           <th class="center">Spread</th><th class="center">z (1y)</th><th class="center">%ile</th>
         </tr>
       </thead>
       <tbody>
         {% for r in rows %}
-        <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
-          <td class="market">{{ r.market }}{% if r.seasonal %} <span title="{{ r.seasonal }}" style="color:#C8901A;font-weight:700">&#9788;</span>{% endif %}</td>
+        <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% elif r.warn %}warnrow{% endif %}">
+          <td class="market">{{ r.market }}{% if r.seasonal %} <span title="{{ r.seasonal }}" style="color:#C8901A;font-weight:700">&#9788;</span>{% endif %}{% if r.div %} <span title="our curve vs vendor surface: {{ r.div }} vols" style="color:#8A94A6;font-weight:700">&dagger;</span>{% endif %}</td>
           <td>{{ r.ticker }}</td>
           <td class="center sig">{{ r.signal }}{% if r.direction > 0 %} &#9650;{% elif r.direction < 0 %} &#9660;{% endif %}</td>
           <td class="center">{{ r.iv }}{% if r.iv_sd %} <span class="sd">(&plusmn;{{ r.iv_sd }})</span>{% endif %}</td>
           <td class="center">{{ r.rv }}{% if r.rv_sd %} <span class="sd">(&plusmn;{{ r.rv_sd }})</span>{% endif %}</td>
+          <td class="center{% if r.rvmark %} rvflag{% endif %}">{{ r.rv5 }}{% if r.rvmark %} {{ r.rvmark }} {{ r.rvpct }}{% endif %}</td>
           <td class="center">{{ r.spread }}</td>
           <td class="center">{{ r.z }}</td>
           <td class="center">{{ r.pctl }}</td>
@@ -99,39 +186,131 @@
         {% endfor %}
       </tbody>
     </table>
+    {% if seasonal_open %}
+    <p class="histlegend">&#9788; seasonal weather windows currently open &mdash;
+      {% for m, s in seasonal_open %}<b>{{ m }}</b>: {{ s }}{% if not loop.last %} &nbsp;&middot;&nbsp; {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if own_div or any_rvmark %}
+    <p class="histlegend">{% if own_div %}&dagger; our curve prints 3+ vols away from the vendor&rsquo;s
+      30-day surface &mdash; {% for m, g in own_div %}<b>{{ m }}</b> {{ g }}{% if not loop.last %} &middot;
+      {% endif %}{% endfor %}; the table shows our number, taken from listed settlements.{% endif %}
+      {% if any_rvmark %}<b>Realized 5d</b> = the same calculation as Realized 1M over only the last five
+      sessions. <span style="color:var(--neg-tx);font-weight:700">&#9662; n%</span> = 5d under half the
+      1-month (shaded share shown): the move that inflated the month has likely <b>already happened</b>,
+      so a cheap reading there partly reflects the past.
+      <span style="color:var(--neg-tx);font-weight:700">&#9652;</span> = 5d more than double the 1-month
+      (realizing accelerating). Both need two consecutive sessions.{% endif %}</p>
+    {% endif %}
     {% endif %}
 
     <div class="closing">
       {% if history %}
       <div class="banner">Flagged &mdash; spread vs underlying (1 year)</div>
-      {% for img in history %}
+      <p class="histlegend">shaded / coloured: implied &minus; realized (vol pts, left axis) &nbsp;&middot;&nbsp;
+        grey: underlying price (right axis)</p>
+      {% for h in history %}
       <div class="section">
-        <div class="chart"><img src="{{ img }}" alt="Flagged markets spread vs underlying over the last year"></div>
+        <div class="chart"><img src="{{ h.img }}" alt="Spread vs underlying over the last year"></div>
+        {% if h.cap %}<p class="histcap">{{ h.cap|safe }}</p>{% endif %}
       </div>
       {% endfor %}
       {% endif %}
 
-      {# Methodology note stays directly under the charts. #}
-      <div class="fine">
-        Implied = constant-maturity 1-month ATM (option surface; FX from OTC pair vol).
-        Realized = annualised 21-day close-to-close from settlement prices.
-        Figures in brackets are the corresponding <b>1-day 1-standard-deviation move</b> in the
-        contract's own price units (vol &divide; &radic;252 &times; price), to the decimals it trades in.
-        <b>Implied is forward-looking (the next 30 days); realized is backward-looking (the trailing 21) &mdash; so a
-        positive spread partly reflects expected vol exceeding the recent past, not only mispricing.</b>
-        Spread = implied &minus; realized (vol points); z-score and percentile are vs the trailing 1 year.
-        {% if any_seasonal %}<b>&#9788;</b> marks an agricultural market in its seasonal weather window: a rich-vol
-        reading there partly prices genuine crop-weather risk, so read it as premium for real risk rather than a free
-        sale. {% endif %}STIR (money-market) futures and
-        non-US equity indices are excluded. Generated by the
-        internal Strategy Monitor for information only &mdash; not investment advice or a solicitation.
-        Source data is subject to your market-data licence terms; verify redistribution rights before external use.
+    </div>
+
+    {# ── Designed back page: the "full methodology" the front box points at. A glossary
+       grid + caveats with the disclaimer pinned to the foot — always a deliberate page,
+       however the history flow above happens to break. ── #}
+    <div class="backpage">
+      {# Short-term rates open the closing page — table, then a 1-year panel per flagged
+         market (spread vs the implied rate), with the definitions grid filling out the
+         rest of the page below. #}
+      {% if stir_rows %}
+      <div class="banner">Short-Term Rates &mdash; Rate Vol</div>
+      <p class="rvnote"><b>The headline figures are the 1-day 1&sigma; move in basis points &mdash; the number the
+        desk actually trades</b> (percentage vols, grey, vary with each rate's level and aren't comparable across
+        currencies). Implied is <b>our own constant 90-day ATM</b>, built identically for all three markets &mdash;
+        listed quarterly option settlements inverted through Black-76 on the <b>implied rate</b> (100 &minus; price),
+        ATM call/put mids interpolated in total variance &mdash; with Bloomberg's published 3-month point shown as
+        <i>vs BBG</i> where it exists (none is published for Euribor). Realized is the matching 63-day delivered
+        vol of the implied rate; implied naturally sits above it &mdash; options price the meetings ahead &mdash;
+        so the flag is each market's <b>z against its own year</b>, and a directional flag also requires the
+        spread's sign to agree: a stretched z on a still-negative spread shows as <i>Discount narrowing</i>,
+        not a sale. 1M SOFR and Fed Funds options are too thin for a reliable mark; &euro;STR has no
+        listed options.</p>
+      {% for r in stir_rows %}
+      <div class="stircard {% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
+        <div class="l1">{{ r.market }} <span class="tick">{{ r.ticker }}</span>
+          <span class="sig">{{ r.signal }}{% if r.direction > 0 %} &#9650;{% elif r.direction < 0 %} &#9660;{% endif %}</span></div>
+        <div class="l2">
+          <span class="lbl">Rate</span> {{ r.rate }}%
+          &nbsp;&middot;&nbsp; <span class="lbl">Implied</span> <b>&plusmn;{{ r.iv_bp }}bp</b> <span class="sd">({{ r.iv }} vol)</span>
+          &nbsp;&middot;&nbsp; <span class="lbl">Realized</span> <b>&plusmn;{{ r.rv_bp }}bp</b> <span class="sd">({{ r.rv }} vol)</span>
+          &nbsp;&middot;&nbsp; <span class="lbl">Spread</span> {{ r.spread }}
+          &nbsp;&middot;&nbsp; <span class="lbl">z (1y)</span> {{ r.z }}
+          &nbsp;&middot;&nbsp; <span class="lbl">%ile</span> {{ r.pctl }}
+          &nbsp;&middot;&nbsp; <span class="lbl">vs BBG</span> {{ r.vs_bbg }}
+        </div>
+      </div>
+      {% endfor %}
+      {% if stir_panels %}
+      <p class="histlegend">flagged &mdash; 1 year: shaded / coloured = implied &minus; realized (rate-vol points,
+        left axis) &nbsp;&middot;&nbsp; grey = implied rate % (right axis)</p>
+      {% for img in stir_panels %}
+      <div class="section">
+        <div class="chart"><img src="{{ img }}" alt="Flagged short-term rate — spread vs implied rate over the last year"></div>
+      </div>
+      {% endfor %}
+      {% endif %}
+      {% endif %}
+
+      {# The whole reference stack — definitions, caveats, disclaimer — is anchored to the
+         BOTTOM of the page (margin-top:auto), so the gap sits between the STIR section and
+         the definitions: report-wide reference, not a tail of the rates section. #}
+      <div class="pagefoot">
+      <div class="banner">Definitions &amp; Methodology</div>
+      <div class="gloss">
+        <div><b>Implied vs realized</b> &mdash; what options price for the next 30 days against what the
+          market delivered (21-day close-to-close, annualised). The implied is <b>our own</b> constant-30-day
+          curve: ATM call and put settlements of every listed expiry, fitted per product (FX: OTC pair vol;
+          equity cash indices: vendor surface). Implied looks forward, realized back &mdash; a positive
+          spread isn't automatically mispricing.</div>
+        <div><b>Spread &middot; z &middot; %ile</b> &mdash; spread = implied &minus; realized (vol pts);
+          the z-score sets it against the market's own trailing year (|z| &ge; {{ zflag }} flags);
+          the percentile ranks it (100 = widest of the year).</div>
+        <div><b>(&plusmn;1&sigma;)</b> &mdash; the 1-day one-standard-deviation move in the contract's
+          own units (vol &divide; &radic;252 &times; price).</div>
+        <div><b>1M &middot; 5d &middot; &#9662; &#9652;</b> &mdash; the 1M pair is what the spread compares
+          (implied 30 days forward, realized 21 sessions back); 5d = the last five sessions only.
+          &#9662; n% = 5d under half the month &mdash; the inflating move likely already happened;
+          &#9652; = more than double it. Two consecutive sessions required.</div>
+        <div><b>Possible vol swaps</b> &mdash; closest peers by 1-year realized-vol correlation
+          (1y &middot; 1m; amber = the 1-month has drifted; shaded = a peer stretched the other way).</div>
+        {% if any_seasonal %}
+        <div><b>&#9788; seasonal window</b> &mdash; an ag market in its crop-weather months; a rich
+          reading there partly prices genuine weather risk.</div>
+        {% endif %}
+        <div><b>Short-term rates</b> &mdash; our own constant-90-day construction from listed option
+          settlements (see the section note): both legs are rate vols, the moves in basis points, each
+          judged against its own year.</div>
       </div>
 
-      {# SALES-COMMENTARY line + rule pinned to the foot of the page. #}
-      <div class="pagefoot">
-        <hr class="rule">
-        <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+      <div class="fine">
+        <b>Sources &amp; timing.</b> Implied vols are <b>our own construction</b>{% if n_own %} for
+        {{ n_own }} of the {{ n_markets }} markets{% endif %}: the ATM call and put settlements of every
+        listed option expiry, inverted through Black-76 and fitted to a constant-30-day curve per product
+        (the short-term-rate section: the same method at 90 days). FX implieds are OTC pair vols and
+        equity cash indices use the vendor's listed-option surface; the surface also backstops any market
+        our build cannot price on the day. &dagger; marks markets where our curve and the vendor's 30-day
+        surface disagree by 3+ vols. Realized vols are our own calculation from settlement
+        prices.{% if src.settle %} Figures are computed from the <b>{{ src.settle }}</b>
+        settlements{% if src.pulled %}, pulled {{ src.pulled }}{% endif %}.{% endif %}
+        Generated by the internal Strategy Monitor for information only &mdash; not investment advice or
+        a solicitation; source data is subject to your market-data licence terms.
+      </div>
+
+      <hr class="rule">
+      <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
       </div>
     </div>
   </div>

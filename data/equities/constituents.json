@@ -1,0 +1,2412 @@
+{
+  "S&P 500": [
+    {
+      "ticker": "AAPL US Equity",
+      "name": "Apple",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MSFT US Equity",
+      "name": "Microsoft",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NVDA US Equity",
+      "name": "Nvidia",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AVGO US Equity",
+      "name": "Broadcom",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ORCL US Equity",
+      "name": "Oracle",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ADBE US Equity",
+      "name": "Adobe",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CRM US Equity",
+      "name": "Salesforce",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AMD US Equity",
+      "name": "AMD",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ACN US Equity",
+      "name": "Accenture",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TXN US Equity",
+      "name": "Texas Instr.",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "QCOM US Equity",
+      "name": "Qualcomm",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "IBM US Equity",
+      "name": "IBM",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CSCO US Equity",
+      "name": "Cisco",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "INTC US Equity",
+      "name": "Intel",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "GOOGL US Equity",
+      "name": "Alphabet",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "META US Equity",
+      "name": "Meta",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NFLX US Equity",
+      "name": "Netflix",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DIS US Equity",
+      "name": "Disney",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CMCSA US Equity",
+      "name": "Comcast",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "VZ US Equity",
+      "name": "Verizon",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "T US Equity",
+      "name": "AT&T",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TMUS US Equity",
+      "name": "T-Mobile",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AMZN US Equity",
+      "name": "Amazon",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TSLA US Equity",
+      "name": "Tesla",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "HD US Equity",
+      "name": "Home Depot",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MCD US Equity",
+      "name": "McDonald's",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NKE US Equity",
+      "name": "Nike",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "LOW US Equity",
+      "name": "Lowe's",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SBUX US Equity",
+      "name": "Starbucks",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BKNG US Equity",
+      "name": "Booking",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PG US Equity",
+      "name": "P&G",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "KO US Equity",
+      "name": "Coca-Cola",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PEP US Equity",
+      "name": "PepsiCo",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "COST US Equity",
+      "name": "Costco",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "WMT US Equity",
+      "name": "Walmart",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PM US Equity",
+      "name": "Philip Morris",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BRK/B US Equity",
+      "name": "Berkshire",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "JPM US Equity",
+      "name": "JPMorgan",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "V US Equity",
+      "name": "Visa",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MA US Equity",
+      "name": "Mastercard",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BAC US Equity",
+      "name": "Bank of America",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "WFC US Equity",
+      "name": "Wells Fargo",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "GS US Equity",
+      "name": "Goldman Sachs",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MS US Equity",
+      "name": "Morgan Stanley",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AXP US Equity",
+      "name": "Amex",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BLK US Equity",
+      "name": "BlackRock",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SPGI US Equity",
+      "name": "S&P Global",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "LLY US Equity",
+      "name": "Eli Lilly",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "UNH US Equity",
+      "name": "UnitedHealth",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "JNJ US Equity",
+      "name": "J&J",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MRK US Equity",
+      "name": "Merck",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ABBV US Equity",
+      "name": "AbbVie",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PFE US Equity",
+      "name": "Pfizer",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TMO US Equity",
+      "name": "Thermo Fisher",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ABT US Equity",
+      "name": "Abbott",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AMGN US Equity",
+      "name": "Amgen",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CAT US Equity",
+      "name": "Caterpillar",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BA US Equity",
+      "name": "Boeing",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "HON US Equity",
+      "name": "Honeywell",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "UPS US Equity",
+      "name": "UPS",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "GE US Equity",
+      "name": "GE Aerospace",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "RTX US Equity",
+      "name": "RTX",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "UNP US Equity",
+      "name": "Union Pacific",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DE US Equity",
+      "name": "Deere",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "XOM US Equity",
+      "name": "Exxon",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CVX US Equity",
+      "name": "Chevron",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "COP US Equity",
+      "name": "ConocoPhillips",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SLB US Equity",
+      "name": "Schlumberger",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NEE US Equity",
+      "name": "NextEra",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DUK US Equity",
+      "name": "Duke Energy",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SO US Equity",
+      "name": "Southern Co",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "LIN US Equity",
+      "name": "Linde",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SHW US Equity",
+      "name": "Sherwin-Williams",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "FCX US Equity",
+      "name": "Freeport",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PLD US Equity",
+      "name": "Prologis",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AMT US Equity",
+      "name": "American Tower",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "EQIX US Equity",
+      "name": "Equinix",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "S&P 500"
+    }
+  ],
+  "Nasdaq 100": [
+    {
+      "ticker": "AAPL US Equity",
+      "name": "Apple",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "MSFT US Equity",
+      "name": "Microsoft",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "NVDA US Equity",
+      "name": "Nvidia",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "AVGO US Equity",
+      "name": "Broadcom",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "ADBE US Equity",
+      "name": "Adobe",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "AMD US Equity",
+      "name": "AMD",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "QCOM US Equity",
+      "name": "Qualcomm",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "TXN US Equity",
+      "name": "Texas Instr.",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "INTC US Equity",
+      "name": "Intel",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "CSCO US Equity",
+      "name": "Cisco",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "AMAT US Equity",
+      "name": "Applied Materials",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "MU US Equity",
+      "name": "Micron",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "LRCX US Equity",
+      "name": "Lam Research",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "ADI US Equity",
+      "name": "Analog Devices",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "KLAC US Equity",
+      "name": "KLA Corp",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "PANW US Equity",
+      "name": "Palo Alto",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "GOOGL US Equity",
+      "name": "Alphabet",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "META US Equity",
+      "name": "Meta",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "NFLX US Equity",
+      "name": "Netflix",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "CMCSA US Equity",
+      "name": "Comcast",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "TMUS US Equity",
+      "name": "T-Mobile",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "WBD US Equity",
+      "name": "Warner Bros",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "EA US Equity",
+      "name": "Electronic Arts",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "AMZN US Equity",
+      "name": "Amazon",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "TSLA US Equity",
+      "name": "Tesla",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "BKNG US Equity",
+      "name": "Booking",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "MELI US Equity",
+      "name": "MercadoLibre",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "LULU US Equity",
+      "name": "Lululemon",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "ORLY US Equity",
+      "name": "O'Reilly",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "MAR US Equity",
+      "name": "Marriott",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "ROST US Equity",
+      "name": "Ross Stores",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "PEP US Equity",
+      "name": "PepsiCo",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "COST US Equity",
+      "name": "Costco",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "MDLZ US Equity",
+      "name": "Mondelez",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "KHC US Equity",
+      "name": "Kraft Heinz",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "MNST US Equity",
+      "name": "Monster",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "KDP US Equity",
+      "name": "Keurig Dr Pepper",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "AMGN US Equity",
+      "name": "Amgen",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "GILD US Equity",
+      "name": "Gilead",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "VRTX US Equity",
+      "name": "Vertex",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "REGN US Equity",
+      "name": "Regeneron",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "ISRG US Equity",
+      "name": "Intuitive Surg.",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "MRNA US Equity",
+      "name": "Moderna",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "HON US Equity",
+      "name": "Honeywell",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "ADP US Equity",
+      "name": "ADP",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "CSX US Equity",
+      "name": "CSX",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "PCAR US Equity",
+      "name": "Paccar",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "AEP US Equity",
+      "name": "American Electric",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "EXC US Equity",
+      "name": "Exelon",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "Nasdaq 100"
+    },
+    {
+      "ticker": "XEL US Equity",
+      "name": "Xcel Energy",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "Nasdaq 100"
+    }
+  ],
+  "Dow Jones 30": [
+    {
+      "ticker": "AAPL US Equity",
+      "name": "Apple",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "MSFT US Equity",
+      "name": "Microsoft",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "NVDA US Equity",
+      "name": "Nvidia",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "CRM US Equity",
+      "name": "Salesforce",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "IBM US Equity",
+      "name": "IBM",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "CSCO US Equity",
+      "name": "Cisco",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "JPM US Equity",
+      "name": "JPMorgan",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "GS US Equity",
+      "name": "Goldman Sachs",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "V US Equity",
+      "name": "Visa",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "AXP US Equity",
+      "name": "Amex",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "TRV US Equity",
+      "name": "Travelers",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "UNH US Equity",
+      "name": "UnitedHealth",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "JNJ US Equity",
+      "name": "J&J",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "MRK US Equity",
+      "name": "Merck",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "AMGN US Equity",
+      "name": "Amgen",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "HD US Equity",
+      "name": "Home Depot",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "MCD US Equity",
+      "name": "McDonald's",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "NKE US Equity",
+      "name": "Nike",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "AMZN US Equity",
+      "name": "Amazon",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "DIS US Equity",
+      "name": "Disney",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "VZ US Equity",
+      "name": "Verizon",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "BA US Equity",
+      "name": "Boeing",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "CAT US Equity",
+      "name": "Caterpillar",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "HON US Equity",
+      "name": "Honeywell",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "MMM US Equity",
+      "name": "3M",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "PG US Equity",
+      "name": "P&G",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "KO US Equity",
+      "name": "Coca-Cola",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "WMT US Equity",
+      "name": "Walmart",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "CVX US Equity",
+      "name": "Chevron",
+      "sector": "Energy",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "SHW US Equity",
+      "name": "Sherwin-Williams",
+      "sector": "Materials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    }
+  ],
+  "Euro Stoxx 50": [
+    {
+      "ticker": "SAP GY Equity",
+      "name": "SAP",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ASML NA Equity",
+      "name": "ASML",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "IFX GY Equity",
+      "name": "Infineon",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "MC FP Equity",
+      "name": "LVMH",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "RMS FP Equity",
+      "name": "Hermes",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "MBG GY Equity",
+      "name": "Mercedes-Benz",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "BMW GY Equity",
+      "name": "BMW",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "VOW3 GY Equity",
+      "name": "Volkswagen",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "STLAM IM Equity",
+      "name": "Stellantis",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ITX SM Equity",
+      "name": "Inditex",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "OR FP Equity",
+      "name": "L'Oreal",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "AD NA Equity",
+      "name": "Ahold Delhaize",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ABI BB Equity",
+      "name": "AB InBev",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "BN FP Equity",
+      "name": "Danone",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "SAN SM Equity",
+      "name": "Santander",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "BBVA SM Equity",
+      "name": "BBVA",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "BNP FP Equity",
+      "name": "BNP Paribas",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "INGA NA Equity",
+      "name": "ING",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ISP IM Equity",
+      "name": "Intesa Sanpaolo",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "UCG IM Equity",
+      "name": "UniCredit",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ALV GY Equity",
+      "name": "Allianz",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "MUV2 GY Equity",
+      "name": "Munich Re",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "CS FP Equity",
+      "name": "AXA",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "DB1 GY Equity",
+      "name": "Deutsche Boerse",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ADYEN NA Equity",
+      "name": "Adyen",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "SAN FP Equity",
+      "name": "Sanofi",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "BAYN GY Equity",
+      "name": "Bayer",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "SIE GY Equity",
+      "name": "Siemens",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "AIR FP Equity",
+      "name": "Airbus",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "SU FP Equity",
+      "name": "Schneider Elec.",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "DHL GY Equity",
+      "name": "DHL Group",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "SAF FP Equity",
+      "name": "Safran",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "DTE GY Equity",
+      "name": "Deutsche Telekom",
+      "sector": "Communication Services",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "TEF SM Equity",
+      "name": "Telefonica",
+      "sector": "Communication Services",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ORA FP Equity",
+      "name": "Orange",
+      "sector": "Communication Services",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "TTE FP Equity",
+      "name": "TotalEnergies",
+      "sector": "Energy",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ENI IM Equity",
+      "name": "Eni",
+      "sector": "Energy",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ENEL IM Equity",
+      "name": "Enel",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "IBE SM Equity",
+      "name": "Iberdrola",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "EOAN GY Equity",
+      "name": "E.ON",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "ENGI FP Equity",
+      "name": "Engie",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "BAS GY Equity",
+      "name": "BASF",
+      "sector": "Materials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "AI FP Equity",
+      "name": "Air Liquide",
+      "sector": "Materials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    }
+  ],
+  "FTSE 100": [
+    {
+      "ticker": "SHEL LN Equity",
+      "name": "Shell",
+      "sector": "Energy",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "BP/ LN Equity",
+      "name": "BP",
+      "sector": "Energy",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "AZN LN Equity",
+      "name": "AstraZeneca",
+      "sector": "Health Care",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "GSK LN Equity",
+      "name": "GSK",
+      "sector": "Health Care",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "ULVR LN Equity",
+      "name": "Unilever",
+      "sector": "Consumer Staples",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "DGE LN Equity",
+      "name": "Diageo",
+      "sector": "Consumer Staples",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "BATS LN Equity",
+      "name": "Brit. Am. Tobacco",
+      "sector": "Consumer Staples",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "RKT LN Equity",
+      "name": "Reckitt",
+      "sector": "Consumer Staples",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "TSCO LN Equity",
+      "name": "Tesco",
+      "sector": "Consumer Staples",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "HSBA LN Equity",
+      "name": "HSBC",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "LLOY LN Equity",
+      "name": "Lloyds",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "BARC LN Equity",
+      "name": "Barclays",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "NWG LN Equity",
+      "name": "NatWest",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "PRU LN Equity",
+      "name": "Prudential",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "LGEN LN Equity",
+      "name": "Legal & General",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "STAN LN Equity",
+      "name": "Standard Chartered",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "RIO LN Equity",
+      "name": "Rio Tinto",
+      "sector": "Materials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "AAL LN Equity",
+      "name": "Anglo American",
+      "sector": "Materials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "GLEN LN Equity",
+      "name": "Glencore",
+      "sector": "Materials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "BA/ LN Equity",
+      "name": "BAE Systems",
+      "sector": "Industrials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "RR/ LN Equity",
+      "name": "Rolls-Royce",
+      "sector": "Industrials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "EXPN LN Equity",
+      "name": "Experian",
+      "sector": "Industrials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "REL LN Equity",
+      "name": "RELX",
+      "sector": "Industrials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "NXT LN Equity",
+      "name": "Next",
+      "sector": "Consumer Discretionary",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "VOD LN Equity",
+      "name": "Vodafone",
+      "sector": "Communication Services",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "NG/ LN Equity",
+      "name": "National Grid",
+      "sector": "Utilities",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "SSE LN Equity",
+      "name": "SSE",
+      "sector": "Utilities",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "LAND LN Equity",
+      "name": "Land Securities",
+      "sector": "Real Estate",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "SGRO LN Equity",
+      "name": "Segro",
+      "sector": "Real Estate",
+      "region": "UK",
+      "index": "FTSE 100"
+    }
+  ],
+  "DAX 40": [
+    {
+      "ticker": "SAP GY Equity",
+      "name": "SAP",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "IFX GY Equity",
+      "name": "Infineon",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "SIE GY Equity",
+      "name": "Siemens",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "DHL GY Equity",
+      "name": "DHL Group",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "AIR GY Equity",
+      "name": "Airbus",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "MTX GY Equity",
+      "name": "MTU Aero",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "RHM GY Equity",
+      "name": "Rheinmetall",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "ENR GY Equity",
+      "name": "Siemens Energy",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "DTG GY Equity",
+      "name": "Daimler Truck",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "ALV GY Equity",
+      "name": "Allianz",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "MUV2 GY Equity",
+      "name": "Munich Re",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "DB1 GY Equity",
+      "name": "Deutsche Boerse",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "DBK GY Equity",
+      "name": "Deutsche Bank",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "CBK GY Equity",
+      "name": "Commerzbank",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "MBG GY Equity",
+      "name": "Mercedes-Benz",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "BMW GY Equity",
+      "name": "BMW",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "VOW3 GY Equity",
+      "name": "Volkswagen",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "ADS GY Equity",
+      "name": "Adidas",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "CON GY Equity",
+      "name": "Continental",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "P911 GY Equity",
+      "name": "Porsche AG",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "ZAL GY Equity",
+      "name": "Zalando",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "DTE GY Equity",
+      "name": "Deutsche Telekom",
+      "sector": "Communication Services",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "BAYN GY Equity",
+      "name": "Bayer",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "MRK GY Equity",
+      "name": "Merck KGaA",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "FRE GY Equity",
+      "name": "Fresenius",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "SHL GY Equity",
+      "name": "Siemens Health.",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "HEN3 GY Equity",
+      "name": "Henkel",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "BEI GY Equity",
+      "name": "Beiersdorf",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "EOAN GY Equity",
+      "name": "E.ON",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "RWE GY Equity",
+      "name": "RWE",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "BAS GY Equity",
+      "name": "BASF",
+      "sector": "Materials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "HEI GY Equity",
+      "name": "Heidelberg Mat.",
+      "sector": "Materials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "SY1 GY Equity",
+      "name": "Symrise",
+      "sector": "Materials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "1COV GY Equity",
+      "name": "Covestro",
+      "sector": "Materials",
+      "region": "EU",
+      "index": "DAX 40"
+    },
+    {
+      "ticker": "VNA GY Equity",
+      "name": "Vonovia",
+      "sector": "Real Estate",
+      "region": "EU",
+      "index": "DAX 40"
+    }
+  ],
+  "CAC 40": [
+    {
+      "ticker": "CAP FP Equity",
+      "name": "Capgemini",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "STM FP Equity",
+      "name": "STMicro",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "DSY FP Equity",
+      "name": "Dassault Syst.",
+      "sector": "Information Technology",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "MC FP Equity",
+      "name": "LVMH",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "RMS FP Equity",
+      "name": "Hermes",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "KER FP Equity",
+      "name": "Kering",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "EL FP Equity",
+      "name": "EssilorLuxottica",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "STLAP FP Equity",
+      "name": "Stellantis",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "ML FP Equity",
+      "name": "Michelin",
+      "sector": "Consumer Discretionary",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "OR FP Equity",
+      "name": "L'Oreal",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "BN FP Equity",
+      "name": "Danone",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "RI FP Equity",
+      "name": "Pernod Ricard",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "CA FP Equity",
+      "name": "Carrefour",
+      "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "BNP FP Equity",
+      "name": "BNP Paribas",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "CS FP Equity",
+      "name": "AXA",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "GLE FP Equity",
+      "name": "Societe Generale",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "ACA FP Equity",
+      "name": "Credit Agricole",
+      "sector": "Financials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "SAN FP Equity",
+      "name": "Sanofi",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "AIR FP Equity",
+      "name": "Airbus",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "SU FP Equity",
+      "name": "Schneider Elec.",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "SAF FP Equity",
+      "name": "Safran",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "DG FP Equity",
+      "name": "Vinci",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "LR FP Equity",
+      "name": "Legrand",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "HO FP Equity",
+      "name": "Thales",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "SGO FP Equity",
+      "name": "Saint-Gobain",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "ORA FP Equity",
+      "name": "Orange",
+      "sector": "Communication Services",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "PUB FP Equity",
+      "name": "Publicis",
+      "sector": "Communication Services",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "TTE FP Equity",
+      "name": "TotalEnergies",
+      "sector": "Energy",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "ENGI FP Equity",
+      "name": "Engie",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "VIE FP Equity",
+      "name": "Veolia",
+      "sector": "Utilities",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "AI FP Equity",
+      "name": "Air Liquide",
+      "sector": "Materials",
+      "region": "EU",
+      "index": "CAC 40"
+    },
+    {
+      "ticker": "URW FP Equity",
+      "name": "Unibail-Rodamco",
+      "sector": "Real Estate",
+      "region": "EU",
+      "index": "CAC 40"
+    }
+  ],
+  "Russell 2000": [
+    {
+      "ticker": "FN US Equity",
+      "name": "Fabrinet",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "CALX US Equity",
+      "name": "Calix",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "PLXS US Equity",
+      "name": "Plexus",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ITRI US Equity",
+      "name": "Itron",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ACLS US Equity",
+      "name": "Axcelis",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "SITM US Equity",
+      "name": "SiTime",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "PI US Equity",
+      "name": "Impinj",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "DIOD US Equity",
+      "name": "Diodes",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "SUPN US Equity",
+      "name": "Supernus",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "CORT US Equity",
+      "name": "Corcept",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "KRYS US Equity",
+      "name": "Krystal Biotech",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ADMA US Equity",
+      "name": "ADMA Biologics",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "PTGX US Equity",
+      "name": "Protagonist",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "GBCI US Equity",
+      "name": "Glacier Bancorp",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ONB US Equity",
+      "name": "Old National",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "UBSI US Equity",
+      "name": "United Bankshares",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "EBC US Equity",
+      "name": "Eastern Bankshares",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "WAFD US Equity",
+      "name": "WaFd",
+      "sector": "Financials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "BOOT US Equity",
+      "name": "Boot Barn",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "PLAY US Equity",
+      "name": "Dave & Buster's",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "WGO US Equity",
+      "name": "Winnebago",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "M US Equity",
+      "name": "Macy's",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "UNFI US Equity",
+      "name": "United Natural Foods",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "CHEF US Equity",
+      "name": "Chefs' Warehouse",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ANDE US Equity",
+      "name": "Andersons",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ALG US Equity",
+      "name": "Alamo Group",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "AGX US Equity",
+      "name": "Argan",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ROAD US Equity",
+      "name": "Construction Partners",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "MYRG US Equity",
+      "name": "MYR Group",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "GVA US Equity",
+      "name": "Granite Construction",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "SM US Equity",
+      "name": "SM Energy",
+      "sector": "Energy",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "CRC US Equity",
+      "name": "California Resources",
+      "sector": "Energy",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "PTEN US Equity",
+      "name": "Patterson-UTI",
+      "sector": "Energy",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "LBRT US Equity",
+      "name": "Liberty Energy",
+      "sector": "Energy",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "NWE US Equity",
+      "name": "NorthWestern",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "AVA US Equity",
+      "name": "Avista",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "OTTR US Equity",
+      "name": "Otter Tail",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "HWKN US Equity",
+      "name": "Hawkins",
+      "sector": "Materials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "IOSP US Equity",
+      "name": "Innospec",
+      "sector": "Materials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "MTX US Equity",
+      "name": "Minerals Technologies",
+      "sector": "Materials",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "APLE US Equity",
+      "name": "Apple Hospitality",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "SKT US Equity",
+      "name": "Tanger",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "IIPR US Equity",
+      "name": "Innovative Industrial",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "TGNA US Equity",
+      "name": "Tegna",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "ZD US Equity",
+      "name": "Ziff Davis",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Russell 2000"
+    },
+    {
+      "ticker": "IAS US Equity",
+      "name": "Integral Ad Science",
+      "sector": "Communication Services",
+      "region": "US",
+      "index": "Russell 2000"
+    }
+  ]
+}

@@ -89,10 +89,18 @@ def main():
         if stale > MAX_STALE_DAYS:
             print(f"Latest WASDE ({asof_str}) is {stale}d old (> {MAX_STALE_DAYS}) - not a fresh release; skipping.")
             return
+        # Fire the moment PS&D reflects the new WASDE, NOT on a fixed clock time: before the noon-ET
+        # release (or while the FAS feed lags) PS&D still shows last month's stocks, so skip and let the
+        # scheduled repeat retry; the first run after the data posts sends. This also sidesteps the
+        # machine's fixed UTC-5 / no-DST clock drifting vs ET across the year. (Bypass with --force-send.)
+        chk = subprocess.run([sys.executable, str(WASDEREPORT_CLI), "--check-fresh"],
+                             capture_output=True, text=True)
+        if "FRESH" not in (chk.stdout or ""):
+            print("USDA PS&D hasn't refreshed with the new WASDE yet (still last month's stocks); "
+                  "skipping — the scheduled repeat will retry the moment it posts.")
+            return
 
-    # The dedicated WASDE report self-fetches the current PS&D balance sheet each run (a fresh HTTP
-    # pull), so it always reflects whatever USDA is serving — no pre-refresh/NASS gate needed. The
-    # afternoon task window lets PS&D update after the noon-ET release before the note goes out.
+    # The dedicated WASDE report self-fetches the current PS&D balance sheet each run (a fresh HTTP pull).
     print(f"Building WASDE report for {asof_str} (from USDA PS&D) ...")
     OUT_PDF.parent.mkdir(parents=True, exist_ok=True)
     r = subprocess.run([sys.executable, str(WASDEREPORT_CLI), str(OUT_PDF),

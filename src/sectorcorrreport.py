@@ -14,7 +14,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from reportkit import data_uri, png, render_pdf, BLACK, NEUTRAL
+from reportkit import pretty_date, data_uri, png, render_pdf, BLACK, NEUTRAL
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
@@ -95,7 +95,7 @@ def render_html(d: dict) -> str:
     } for b in d.get("breaks", [])]
     span = d.get("diff_span", 0.5)
     return env.get_template("sectorcorrreport.html").render(
-        asof=date.fromisoformat(d["asof"]).strftime("%d %b %Y"),
+        asof=pretty_date(d["asof"]),
         sectors=" · ".join(d["sectors"]), metric=d["metric_label"], mode=d["mode"],
         n_products=len(d["labels"]),
         heat_1y=heat_png(d["labels"], d["m1y"]),

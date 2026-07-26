@@ -25,10 +25,9 @@ env/
 # ── Deploy artifact: bundled Playwright browser ───────────────────────────────
 playwright-browsers/
 
-# ── Regenerated Bloomberg data caches (rebuilt by the morning snapshot) ───────
-data/snapshot/
-data/equities/
-data/price_store/
+# ── Data stores: snapshot/equities/price_store are COMMITTED — they hold
+#    non-regenerable history (own30_history, stir_curve_history, append-only
+#    fundamentals). Only pure computation outputs stay ignored. ────────────────
 data/signals/
 data/wasde_snapshots/
 
@@ -51,3 +50,6 @@ data/wasde_consensus.json
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ── Browser automation profile (cookies / session data — never commit) ───────
+data/.pm_chrome_profile/

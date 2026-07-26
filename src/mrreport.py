@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from reportkit import data_uri, png, RICH   # noqa: E402  (sets matplotlib Agg backend)
+from reportkit import pretty_date, data_uri, png, RICH   # noqa: E402  (sets matplotlib Agg backend)
 import matplotlib.pyplot as plt              # noqa: E402
 import pandas as pd                          # noqa: E402
 from jinja2 import Environment, FileSystemLoader  # noqa: E402
@@ -103,7 +103,7 @@ def render_html(pairs, asof, threshold) -> str:
         })
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     return env.get_template("mrreport.html").render(
-        asof=asof, zflag=f"{threshold:g}", sections=sections, n=len(sections),
+        asof=pretty_date(asof), zflag=f"{threshold:g}", sections=sections, n=len(sections),
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )
 

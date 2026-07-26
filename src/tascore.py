@@ -9,12 +9,15 @@ metrics aren't comparable across strategies. This module:
     strategies agree × how strong they are, netting longs against shorts so conflicting
     calls cancel (|score| ranks; its sign is the net side), and
   * carries the shared list of technical strategies + the overview's re-flag helper, so
-    the dashboard hub (app.py) and the PDF report (tareport.py) score identically.
+    the dashboard hub (app.py) and the PDF report (convreport.py) score identically.
 
 It is import-light (pandas/numpy + src.specs only — no Streamlit), so the headless report
 subprocess can use it too.
 """
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -26,8 +29,55 @@ from .specs import SPECS, reflag_rows
 TA_STRATEGIES = [
     "Mean Reversion", "Trend", "MA Crossover", "MA Swing", "Flag Breakout",
     "Support & Resistance", "Fibonacci Retracement", "Breakout & Retest",
-    "Momentum (RSI/MACD)", "Bollinger Squeeze",
+    "Momentum (RSI/MACD)", "Bollinger Squeeze", "Elliott Wave", "Ichimoku Cloud",
+    "On-Balance Volume", "Money Flow Index",
 ]
+
+# The CONFLUENCE SET — the strategies whose agreement feeds the cross-strategy score. Chosen for
+# INDEPENDENCE (one per axis — trend / momentum / volume / location / pattern) so agreement is
+# genuine corroboration, not the same read echoed by several correlated strategies. EVERY other TA
+# strategy keeps its own page and its chart overlays; it's just display/context, out of the score.
+# The desk edits this set in the app; it persists to data/confluence_set.json.
+CONFLUENCE_DEFAULT = [
+    "Trend",                    # direction / regime
+    "Momentum (RSI/MACD)",      # momentum & divergence
+    "On-Balance Volume",        # volume / participation
+    "Support & Resistance",     # location / tested levels
+    "Flag Breakout",            # pattern + measured target
+]
+_CONFLUENCE_FILE = Path(__file__).resolve().parents[1] / "data" / "confluence_set.json"
+
+# Correlated trend strategies. If the confluence set holds more than one, they're de-duplicated in
+# the score (strongest counts full, the next at 1/2, 1/3, …) so a trend restated several ways isn't
+# summed several times — the default set has just one (Trend), so this rarely bites.
+TREND_FAMILY = frozenset({"Trend", "MA Crossover", "MA Swing", "Ichimoku Cloud"})
+
+
+def confluence_set():
+    """The scored strategies, from data/confluence_set.json (falls back to CONFLUENCE_DEFAULT).
+    Ordered by TA_STRATEGIES (display order); unknown / renamed names are dropped."""
+    try:
+        saved = set(json.loads(_CONFLUENCE_FILE.read_text(encoding="utf-8")).get("strategies", []))
+    except Exception:
+        saved = set()
+    chosen = saved or set(CONFLUENCE_DEFAULT)
+    return [s for s in TA_STRATEGIES if s in chosen]
+
+
+def save_confluence_set(strategies) -> None:
+    """Persist the confluence set (the scored strategies) for the app + the report."""
+    keep = [s for s in TA_STRATEGIES if s in set(strategies)]
+    _CONFLUENCE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _CONFLUENCE_FILE.write_text(json.dumps({"strategies": keep}, indent=2), encoding="utf-8")
+
+
+def scoring_strategies(override=None):
+    """The strategies that feed the score: the saved confluence set, or an explicit override."""
+    if override is not None:
+        ov = set(override)
+        return [s for s in TA_STRATEGIES if s in ov]
+    return confluence_set()
+
 
 # Overview re-flag triggers. Most strategies use their page default (from SPECS); Trend's
 # page default is 0 (it ranks the whole book), so the overview holds it to a selective bar so
@@ -48,6 +98,10 @@ STRENGTH_SCALE = {
     "Breakout & Retest": 100.0,     # retest proximity 0–100
     "Momentum (RSI/MACD)": 100.0,   # momentum score 0–100
     "Bollinger Squeeze": 100.0,     # squeeze intensity 0–100
+    "Elliott Wave": 100.0,          # wave fit 0–100
+    "Ichimoku Cloud": 100.0,        # Ichimoku score 0–100
+    "On-Balance Volume": 100.0,     # OBV score 0–100
+    "Money Flow Index": 100.0,      # MFI score 0–100
 }
 DEFAULT_SCALE = 100.0
 
@@ -64,23 +118,23 @@ def strength(strategy: str, metric: float) -> float:
     return float(np.clip(abs(metric) / scale * 100.0, 0.0, 100.0))
 
 
-def ta_flagged(df: pd.DataFrame) -> pd.DataFrame:
-    """The flagged technical signals across TA_STRATEGIES, re-flagged at the overview
-    triggers. `df` is the cached opportunities frame (one row per strategy×product). Returns
-    the subset that is flagged (signal ≠ "—", direction ≠ 0) with the standard columns;
-    strategies without a symmetric ±trigger (MA crossover/swing, Bollinger) keep their own
-    cached labels."""
+def ta_flagged(df: pd.DataFrame, strategies=None) -> pd.DataFrame:
+    """The flagged technical signals across the CONFLUENCE SET (the scored strategies; pass
+    `strategies` to override the saved set), re-flagged at the overview triggers. `df` is the
+    cached opportunities frame (one row per strategy×product). Returns the subset that is flagged
+    (signal ≠ "—", direction ≠ 0) with the standard columns; strategies without a symmetric
+    ±trigger (MA crossover/swing, Bollinger) keep their own cached labels."""
     if df is None or "strategy" not in getattr(df, "columns", []):
         return pd.DataFrame()
     parts = []
-    for s in TA_STRATEGIES:
+    for s in scoring_strategies(strategies):
         sub = df[df["strategy"] == s].copy()
         if sub.empty:
             continue
         spec = SPECS.get(s, {})
         thr = TA_HUB_TRIGGER.get(s, spec.get("default"))
         if spec.get("hi") and thr is not None:
-            sub = reflag_rows(sub, float(thr), spec["hi"], spec["lo"])
+            sub = reflag_rows(sub, float(thr), spec["hi"], spec["lo"], fi_yield=True)
         parts.append(sub)
     if not parts:
         return df.iloc[0:0]
@@ -105,7 +159,12 @@ def score_products(flagged: pd.DataFrame) -> pd.DataFrame:
                for r in sub.itertuples(index=False)]
         longs = sum(1 for _, d, _ in sig if d > 0)
         shorts = sum(1 for _, d, _ in sig if d < 0)
-        signed = float(sum(d * st for _, d, st in sig))
+        # De-duplicate correlated trend confirmations: within the trend family the strongest
+        # counts full, the next at 1/2, 1/3, … (harmonic), so a trend restated by several
+        # strategies isn't summed several times into the score. (n / conviction stay raw.)
+        fam = sorted((x for x in sig if x[0] in TREND_FAMILY), key=lambda x: -x[2])
+        fam_w = {s: 1.0 / (k + 1) for k, (s, _d, _st) in enumerate(fam)}
+        signed = float(sum(d * st * fam_w.get(s, 1.0) for s, d, st in sig))
         mkt = sub["market"].mode()
         rows.append({
             "instruments": key,

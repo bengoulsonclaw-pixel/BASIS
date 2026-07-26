@@ -52,7 +52,8 @@ Every strategy then runs on real settlement data. (Back to demo: `Remove-Item En
 | `src/flagreport.py` + `templates/flagreport.html` | Visual **Flag Breakout** Report PDF (readiness bar + per-product flag charts) |
 | `backtest_flags.py` | Walk-forward flag-breakout follow-through study (calibrate the detector knobs) |
 | `src/tascore.py` | Cross-strategy **conviction scoring** (per-signal strength + per-product score) shared by the TA hub & report |
-| `src/tareport.py` + `templates/tareport.html` | **Technical Analysis** overview PDF (conviction leaderboard + stacked/flagged tables) |
+| `src/convreport.py` + `templates/convreport.html` | **Technical Analysis** report PDF (conviction leaderboard + summary table, then per-pick multi-indicator charts & neutral write-ups) |
+| `src/tareport.py` + `templates/tareport.html` | _Retired_ standalone TA-overview PDF — merged into the Technical Analysis report above; kept for reference |
 | `data/signals/` | Cached daily opportunities (written by `run_daily.py`) |
 
 ## Schedule the daily run (Windows Task Scheduler)
@@ -243,10 +244,11 @@ drill-down, a **chart gallery** of the top stacked setups (price + the visual st
 overlaid), and the full filterable leaderboard. Trend is held to a selective bar (|3-month| ≥ 10%)
 so it doesn't flood the hub (`tascore.TA_HUB_TRIGGER`).
 
-The **🔬 Generate TA Report** button renders a branded PDF (`src/tareport.py` +
-`templates/tareport.html`): the conviction-leaderboard bar, the per-strategy counts, the
-stacked-signals table and the top-60 flagged list. `tascore` is shared, so the PDF scores
-identically to the page.
+The **📈 Generate Technical Analysis Report** button renders a branded PDF (`src/convreport.py` +
+`templates/convreport.html`): page 1 is the conviction-leaderboard bar and the stacked-signals
+summary table; the per-pick multi-indicator charts and neutral write-ups follow from page 2. This
+is the merged report (the old standalone "TA Report" has been retired). `tascore` is shared, so the
+PDF scores identically to the page.
 
 ## Adding a strategy
 Copy `src/strategies/trend.py`, rewrite `find_opportunities()` to return the

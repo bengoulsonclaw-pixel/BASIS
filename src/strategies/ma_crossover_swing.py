@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..datafeed import get_history
+from ..datafeed import get_history_ta as get_history   # fixed income → yields (see universe)
 from ..universe import TREND_UNIVERSE
 from .ma_crossover import SWING, _chart, _find
 

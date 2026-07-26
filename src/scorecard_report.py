@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
-from reportkit import BLACK, CHEAP, RICH, data_uri, png, render_pdf
+from reportkit import pretty_date, BLACK, CHEAP, RICH, data_uri, png, render_pdf
 import matplotlib.pyplot as plt
 
 TEMPLATES = Path(__file__).parent.parent / "templates"
@@ -75,7 +75,7 @@ def render_html(res: pd.DataFrame, meta: dict) -> str:
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     res = res.sort_values("sharpe", ascending=False)
     return env.get_template("scorecard_report.html").render(
-        variant=meta["variant"], asof=meta["asof"], years=meta["years"],
+        variant=meta["variant"], asof=pretty_date(meta["asof"]), years=meta["years"],
         n=len(res), n_pos=int((res["sharpe"] > 0).sum()),
         vt_total=f"{res['vt_usd'].sum():+,.0f}",
         best=_rows(res.head(12)), worst=_rows(res.tail(8)),

@@ -15,6 +15,7 @@
   :root {
     --black:#000000; --dark:#2B2B2B; --yellow:#F5C518; --lgray:#F2F2F2;
     --pos-bg:#E8F5E9; --pos-tx:#1B5E20; --neg-bg:#FFEBEE; --neg-tx:#B71C1C;
+    --warn-bg:#FFF8E1; --warn-tx:#C8901A;   /* house amber: trigger-box tint + drift text */
   }
 
   /* Inset black sidebar band: 0.30" white margin all around, 1.55" wide, yellow
@@ -37,14 +38,21 @@
   .content { margin-left: 2.05in; margin-right: 0.30in; padding: 0;
              position: relative; z-index: 1; }
 
-  .watermark { position: fixed; left: 2.05in; right: 0.30in; bottom: 0; z-index: 0; pointer-events: none; }
-  .watermark img { width: 100%; opacity: 0.22; filter: grayscale(1); }
+  /* Watermark RETIRED 2026-07-17. It was bottom-anchored on every page (position:fixed; bottom:0)
+     — exactly where the body text ends and where the sales-commentary disclaimer is now pinned —
+     so the line-work ran straight through 7-8.5pt type and cost legibility on every report. The
+     rules are kept (rather than deleted) so it can be restored in one line: drop the `display:none`
+     and set the image opacity to taste. Templates still pass a `watermark` image; it simply
+     isn't painted. */
+  .watermark { display: none;                                     /* ← delete this line to restore */
+               position: fixed; left: 2.05in; right: 0.30in; bottom: 0; z-index: 0; pointer-events: none; }
+  .watermark img { width: 100%; opacity: 0.07; filter: grayscale(1); }
 
   .titleband { background: var(--black); padding: 3pt 7pt; }
   .titleband h1 { margin: 0; color: #fff; font-size: 23pt; font-weight: 700; line-height: 1.05; }
   .titleband .sub { color: var(--yellow); font-style: italic; font-size: 12pt; margin-top: 1mm; }
 
-  .trigger { font-size: 9pt; color: #333; margin-top: 3mm; padding: 2mm 3mm;
+  .trigger { font-size: 10pt; color: #333; margin-top: 3mm; padding: 2mm 3mm;
              background: #FFF8E1; border-left: 3pt solid var(--yellow); }
 
   .banner { background: var(--black); color: var(--yellow); font-weight: 700; text-transform: uppercase;
@@ -53,12 +61,16 @@
   .banner .sig.long { color: #8BE6A0; }
   .banner .sig.short { color: #FF9A8B; }
 
-  .summary { font-size: 8.5pt; color: #333; margin: 3mm 0 0; }
+  /* Body copy sizes bumped 2026-07-20 (Ben: "really tough to read") — the reports are read on
+     screen as often as on paper, where 7-8.5pt is punishing. Nothing here is decorative: if you
+     shrink these again, re-check convreport's _est_section_in(), whose chars-per-line and
+     line-height constants are calibrated to .summary. */
+  .summary { font-size: 9.5pt; color: #333; margin: 3mm 0 0; line-height: 1.4; }
   .summary b { color: #111; }
   .summary .rich { color: var(--neg-tx); font-weight: 700; }
   .summary .cheap { color: var(--pos-tx); font-weight: 700; }
 
-  .stats { font-size: 8pt; color: #333; margin: 2mm 0; }
+  .stats { font-size: 9pt; color: #333; margin: 2mm 0; }
   .stats b { color: #111; }
 
   .chart { margin-top: 2mm; }
@@ -67,6 +79,12 @@
 
   hr.rule { border: 0; border-top: 1pt solid var(--yellow); margin: 4mm 0 3mm; }
 
+  /* DELIBERATELY still 8.5pt while the body copy went to 9.5pt (2026-07-20). Several reports run
+     10-30 column tables (flag, scorecard, bt, term, cot, volbt…) inside the 5.92in column and are
+     already at the edge of wrapping; the dense ones override this line with 7.5pt, but the ones
+     that don't inherited a 9.5pt bump and flagreport's 11-column table promptly spilled 0.28in
+     past the column onto the paper edge. Raise this only per-template, after rasterising THAT
+     report and checking its widest table. */
   table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-top: 2mm; }
   thead th { background: var(--dark); color: #fff; text-align: left; font-weight: 700;
              padding: 2.75pt 4.5pt; border: 0.75pt solid #555; }
@@ -76,14 +94,50 @@
   tr.long  td { background: var(--pos-bg); }
   tr.short td { background: var(--neg-bg); }
   tr.flat  td { background: var(--lgray); }
+  tr.warnrow td { background: var(--warn-bg); }  /* amber watch: z at trigger, sign unconfirmed */
   td.sig { font-weight: 700; white-space: nowrap; }
   tr.long  td.sig { color: var(--pos-tx); }
   tr.short td.sig { color: var(--neg-tx); }
   tr.flat  td.sig { color: var(--dark); }
+  tr.warnrow td.sig { color: var(--warn-tx); }
 
-  .legend { font-size: 7.5pt; margin-top: 3mm; }
+  .legend { font-size: 8.5pt; margin-top: 3mm; }
   .legend .sw { padding: 0.5mm 2mm; margin-right: 1mm; }
 
-  .disclaimer { font-weight: 700; font-size: 7pt; color: #888; margin-top: 4mm; letter-spacing: .3px; }
-  .fine { font-size: 7pt; color: #aaa; margin-top: 2mm; line-height: 1.45; }
+  .disclaimer { font-weight: 700; font-size: 8pt; color: #1a1a1a; margin-top: 4mm; letter-spacing: .3px; }
+  .fine { font-size: 7.5pt; color: #222; margin-top: 2mm; line-height: 1.45; }
+
+  /* Sales-commentary footer pinned to the VERY BOTTOM of the final page. `.report-footer` is a
+     break-before-page, one-page-tall flex column, so it's a SINGLE-page context in which
+     `margin-top:auto` on `.foot-disclaimer` has real free space to push the disclaimer to the
+     bottom (across a multi-page flow it can't). min-height is one content page less a hair so it
+     never spills to an extra page. Anything else inside `.report-footer` (e.g. a watchlist) sits
+     at the top of that closing page. */
+  /* MEASURED, not assumed: in Chromium's paged media `100vh` is the page's CONTENT box — i.e.
+     the page height ALREADY less the @page margins — not the full sheet. So min-height is 100vh
+     bar a hair; subtracting the 0.3in margins here would double-count them and leave the
+     disclaimer floating ~0.6in high (which it did). The 0.04in shortfall is deliberate: at exactly
+     100vh, sub-pixel rounding can tip the block onto a second, blank page. `margin-top:auto` then
+     drops the disclaimer flush with the bottom of the text area, the 0.3in margin being the
+     paper edge. Verify by rasterising and measuring the gap — expect ~0.34in to the sheet edge. */
+  .report-footer { break-before: page; min-height: calc(100vh - 0.04in);
+                   display: flex; flex-direction: column; }
+  .foot-disclaimer { margin-top: auto; }
+  .foot-disclaimer .fine { margin-bottom: 0; }
+
+  /* convreport pagination (2026-07-20): each pick page is a full-height flex column that
+     DISTRIBUTES its charts down the sheet with space-between, so a page that isn't quite full
+     spreads the slack between its charts instead of pooling it in one dead block at the foot.
+     `.footer-picks` does the same for the charts sharing the closing page with the disclaimer
+     (which stays pinned to the bottom via .report-footer's column + .foot-disclaimer margin-top).
+     Only convreport uses these classes; every other report is untouched. 100vh is the page
+     CONTENT box in Chromium print (margins already out) — see the note on .report-footer. */
+  .pick-page { break-before: page; min-height: calc(100vh - 0.04in);
+               display: flex; flex-direction: column; justify-content: space-between; }
+  .footer-picks { flex: 1 1 auto; display: flex; flex-direction: column;
+                  justify-content: space-between; }
+  /* An odd pick count leaves ONE chart alone on the closing page. Rather than strand it at the top
+     over a void, centre it in the space above the disclaimer so it reads as deliberate. Only bites
+     when it's the sole pick (a 2-pick closing page keeps space-between above). */
+  .footer-picks > .section:only-child { margin-top: auto; margin-bottom: auto; }
 </style>

@@ -35,10 +35,22 @@ REPORTS = {
     "morning_coffee": {"label": "Morning Coffee briefing",
                        "schedule": "Daily, on weekday mornings",
                        "tasks": ["Morning Coffee Report"], "recipients": "morning_coffee"},
+    "convreport": {"label": "Technical Analysis Report",
+                   "schedule": "Weekly (Monday morning)",
+                   "tasks": ["Technical Analysis Report (weekly)"],
+                   "recipients": "convreport"},
     "sectorcorr": {"label": "Product Correlations alert",
                    "schedule": "Daily after the close — sends only when a pair hits an extreme",
                    "tasks": ["Product Correlations Alert (daily)"],
                    "recipients": "sectorcorr"},
+    "precious_metals": {"label": "Precious Metals Fundamentals monitor",
+                        "schedule": "Monthly, 5th at 07:00 (after LBMA vault data lands)",
+                        "tasks": ["Precious Metals Monitor (monthly)"],
+                        "recipients": "precious_metals"},
+    "pm_releases": {"label": "Precious Metals release synopses (WGC / WPIC)",
+                    "schedule": "Daily 08:30 check — sends only on a new release",
+                    "tasks": ["PM Release Synopses (daily)"],
+                    "recipients": "pm_releases"},
 }
 
 

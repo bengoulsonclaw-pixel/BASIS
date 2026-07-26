@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from reportkit import data_uri, png, RICH, CHEAP   # noqa: E402  (sets matplotlib Agg backend)
+from reportkit import pretty_date, data_uri, png, RICH, CHEAP   # noqa: E402  (sets matplotlib Agg backend)
 import matplotlib.pyplot as plt                     # noqa: E402
 from jinja2 import Environment, FileSystemLoader    # noqa: E402
 
@@ -83,7 +83,7 @@ def render_html(tickers, asof, threshold) -> str:
         })
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     return env.get_template("trendreport.html").render(
-        asof=asof, thr=f"{threshold:g}", sections=sections, n=len(sections),
+        asof=pretty_date(asof), thr=f"{threshold:g}", sections=sections, n=len(sections),
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )
 

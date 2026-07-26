@@ -13,7 +13,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from reportkit import data_uri, png, render_pdf, RICH, CHEAP, NEUTRAL, BLACK
+from reportkit import pretty_date, data_uri, png, render_pdf, RICH, CHEAP, NEUTRAL, BLACK
 import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 
@@ -61,7 +61,7 @@ def render_html(d: dict) -> str:
         } for r in g["rows"]],
     } for g in d.get("groups", [])]
     return env.get_template("eqfundareport.html").render(
-        asof=date.fromisoformat(d["asof"]).strftime("%d %b %Y"),
+        asof=pretty_date(d["asof"]),
         name=d["name"], ticker=d["ticker"], sector=d["sector"], region=d.get("region", ""),
         indices=d.get("indices", ""), mktcap=d.get("mktcap", "—"), crncy=d.get("crncy", ""),
         next_report=d.get("next_report", "—"), n_peers=d.get("n_peers", 0), mode=d.get("mode", ""),

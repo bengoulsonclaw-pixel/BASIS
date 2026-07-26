@@ -15,6 +15,11 @@
            padding: 1.6mm 3mm; margin-top: 3mm; }
   .newpage { break-before: page; page-break-before: always; }
   .chart + .chart { margin-top: 3mm; }
+  .banner { margin-top: 3.5mm; }
+  .chart { margin-top: 1.5mm; }
+  hr.rule { margin: 3mm 0 2mm; }
+  .disclaimer { margin-top: 3mm; }
+  .fine { font-size: 6.5pt; margin-top: 2mm; line-height: 1.35; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .mom-up { color: var(--pos-tx); font-weight: 700; }
   .mom-dn { color: var(--neg-tx); font-weight: 700; }
@@ -98,69 +103,40 @@
       {% endif %}
     </div>
 
-    <!-- ============================ CHART DECK ============================ -->
-    {% if charts.balance or charts.demand_split %}
+    <!-- ===== CHART DECK — one page break, then charts flow and pack (2-3 / page) ===== -->
+    {% set has_charts = charts.balance or charts.demand_split or charts.supply_contrib or charts.doc_production or charts.balance_quarters or charts.basket or charts.eia_prices %}
+    {% if has_charts %}
     <div class="newpage"></div>
-    <div class="titleband"><h1>Charts — Demand &amp; Supply</h1>
-      <div class="sub">{{ d.month }} MOMR &nbsp;·&nbsp; XP Inc. Global Macro</div></div>
-    {% if charts.balance %}
-    <div class="section"><div class="banner">Demand vs Non-DoC Supply Growth — the call on DoC crude</div>
-      <div class="chart"><img src="{{ charts.balance }}" alt="demand vs supply balance"></div></div>
-    {% endif %}
-    {% if charts.demand_split %}
-    <div class="section"><div class="banner">World Oil Demand Growth — by region</div>
-      <div class="chart"><img src="{{ charts.demand_split }}" alt="demand growth split"></div></div>
-    {% endif %}
+    <div class="titleband"><h1>Charts &mdash; {{ d.month }} MOMR</h1>
+      <div class="sub">Demand &middot; Supply &middot; Balance &middot; Price &nbsp;|&nbsp; XP Inc. Global Macro</div></div>
+    {% if charts.balance %}<div class="section"><div class="banner">Demand vs Non-DoC Supply Growth &mdash; the call on DoC crude</div>
+      <div class="chart"><img src="{{ charts.balance }}" alt="demand vs supply balance"></div></div>{% endif %}
+    {% if charts.demand_split %}<div class="section"><div class="banner">World Oil Demand Growth &mdash; by region</div>
+      <div class="chart"><img src="{{ charts.demand_split }}" alt="demand growth split"></div></div>{% endif %}
+    {% if charts.supply_contrib %}<div class="section"><div class="banner">Non-DoC Supply Growth &mdash; by country</div>
+      <div class="chart"><img src="{{ charts.supply_contrib }}" alt="supply contributors"></div></div>{% endif %}
+    {% if charts.doc_production %}<div class="section"><div class="banner">DoC Crude Production &mdash; by country (secondary sources)</div>
+      <div class="chart"><img src="{{ charts.doc_production }}" alt="DoC production"></div></div>{% endif %}
+    {% if charts.balance_quarters %}<div class="section"><div class="banner">Implied Market Balance &mdash; required DoC crude vs output</div>
+      <div class="chart"><img src="{{ charts.balance_quarters }}" alt="quarterly balance"></div></div>{% endif %}
+    {% if charts.basket %}<div class="section"><div class="banner">OPEC Reference Basket &mdash; price</div>
+      <div class="chart"><img src="{{ charts.basket }}" alt="reference basket"></div></div>{% endif %}
+    {% if charts.eia_prices %}<div class="section"><div class="banner">Brent &amp; WTI &mdash; EIA spot &amp; forward path (independent cross-check)</div>
+      <div class="chart"><img src="{{ charts.eia_prices }}" alt="EIA Brent WTI"></div>
+      <p class="summary" style="font-size:7pt;margin-top:1mm">Independent reference: EIA STEO crude-price path (actual to the report month, forecast beyond). The OPEC vs EIA balance comparison is on page 1.</p></div>{% endif %}
     {% endif %}
 
-    {% if charts.supply_contrib or charts.doc_production %}
-    <div class="newpage"></div>
-    <div class="titleband"><h1>Charts — Supply &amp; Production</h1>
-      <div class="sub">{{ d.month }} MOMR &nbsp;·&nbsp; XP Inc. Global Macro</div></div>
-    {% if charts.supply_contrib %}
-    <div class="section"><div class="banner">Non-DoC Supply Growth — by country</div>
-      <div class="chart"><img src="{{ charts.supply_contrib }}" alt="supply contributors"></div></div>
-    {% endif %}
-    {% if charts.doc_production %}
-    <div class="section"><div class="banner">DoC Crude Production — by country (secondary sources)</div>
-      <div class="chart"><img src="{{ charts.doc_production }}" alt="DoC production"></div></div>
-    {% endif %}
-    {% endif %}
-
-    {% if charts.balance_quarters or charts.basket %}
-    <div class="newpage"></div>
-    <div class="titleband"><h1>Charts — Balance &amp; Price</h1>
-      <div class="sub">{{ d.month }} MOMR &nbsp;·&nbsp; XP Inc. Global Macro</div></div>
-    {% if charts.balance_quarters %}
-    <div class="section"><div class="banner">Implied Market Balance — required DoC crude vs output</div>
-      <div class="chart"><img src="{{ charts.balance_quarters }}" alt="quarterly balance"></div></div>
-    {% endif %}
-    {% if charts.basket %}
-    <div class="section"><div class="banner">OPEC Reference Basket — price</div>
-      <div class="chart"><img src="{{ charts.basket }}" alt="reference basket"></div></div>
-    {% endif %}
-    {% endif %}
-
-    {% if charts.eia_prices %}
-    <div class="newpage"></div>
-    <div class="titleband"><h1>Charts — Independent Cross-Check (EIA)</h1>
-      <div class="sub">{{ d.month }} MOMR &nbsp;·&nbsp; EIA Short-Term Energy Outlook</div></div>
-    <div class="section"><div class="banner">Brent &amp; WTI — EIA monthly spot &amp; forward path</div>
-      <div class="chart"><img src="{{ charts.eia_prices }}" alt="EIA Brent WTI"></div></div>
-    <p class="summary" style="font-size:7.5pt;margin-top:2mm">An independent reference: EIA's
-      Short-Term Energy Outlook crude-price path (actual to the report month, STEO forecast beyond).
-      The OPEC vs EIA balance comparison is on page 1.</p>
-    {% endif %}
-
+    <div class="report-footer">
+    <div class="foot-disclaimer">
     <hr class="rule">
     <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
       Synopsis of OPEC's Monthly Oil Market Report ({{ d.month }} edition){% if d.asof %}, published {{ d.asof }}{% endif %}.
-      Figures, forecasts and the OPEC Reference Basket are OPEC's own, sourced from the MOMR; "DoC" = the OPEC and
-      non-OPEC countries participating in the Declaration of Cooperation; crude production figures are OPEC's
-      secondary-sources assessment. Reproduced here for client information under fair-use summary; the full report
-      is the property of the OPEC Secretariat (opec.org). Generated by the internal Strategy Monitor for information
-      only &mdash; not investment advice or a solicitation. {{ d.sources_note }}
+      Figures &amp; the OPEC Reference Basket are OPEC's own (from the MOMR); "DoC" = OPEC + non-OPEC signatories to the
+      Declaration of Cooperation; crude production is OPEC's secondary-sources assessment. Fair-use summary; full report
+      &copy; OPEC Secretariat (opec.org). Information only &mdash; not investment advice. {{ d.sources_note }}
+    </div>
+  </div>
     </div>
   </div>
 </body>

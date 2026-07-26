@@ -27,7 +27,8 @@ import run_daily
 from src.datafeed import (MODE, get_live_quote, get_history, get_history_ta,
                           get_implied_vol_history, get_realized_vol_history,
                           get_term_structure, stale_iv_reasons)
-from src.specs import SPECS, reflag_rows, trigger_default, save_trigger_default
+from src.specs import (SPECS, reflag_rows, trigger_default, save_trigger_default,
+                       ta_report_defaults, save_ta_report_defaults)
 from src import universe
 from src import brand
 from src import recipients
@@ -38,6 +39,7 @@ from src import fedpath
 from src import volbt
 from src import sectorcorr
 from src import worldclock
+from src import prodsearch
 from src import tascore
 from src import markethours
 from src import blocksizes
@@ -72,8 +74,7 @@ USDAREACTION_CLI = ROOT / "src" / "usdareaction.py"
 WASDEREPORT_CLI = ROOT / "src" / "wasdereport.py"
 FLAGREPORT_CLI = ROOT / "src" / "flagreport.py"
 FLAG_DETAIL_FILE = ROOT / "data" / "signals" / "flag_breakout.parquet"
-TAREPORT_CLI = ROOT / "src" / "tareport.py"
-CONVREPORT_CLI = ROOT / "src" / "convreport.py"
+CONVREPORT_CLI = ROOT / "src" / "convreport.py"   # the merged "Technical Analysis" report (was the Conviction Screen)
 SNAPSHOT_CLI = ROOT / "snapshot.py"
 SNAPSHOT_DIR = ROOT / "data" / "snapshot"
 SNAPSHOT_MANIFEST = SNAPSHOT_DIR / "manifest.json"
@@ -212,6 +213,22 @@ STRATEGY_BLURB = {
     "Bollinger Squeeze": "Bollinger Bands (20, 2σ): a squeeze — bandwidth in a low percentile of its own "
                          "year — flags compressed volatility coiling for a breakout; a close outside the "
                          "band is the break. Ranked by squeeze intensity (0–100).",
+    "Elliott Wave": "Rules-based impulse wave count: adaptive ZigZag pivots checked against the three hard "
+                    "Elliott rules, flagging wave-3 setups, wave-5 setups and completed five-wave sequences "
+                    "(corrective risk). Ranked by wave fit (0–100) — how textbook the count's Fibonacci "
+                    "proportions are; fixed income counted on yields.",
+    "Ichimoku Cloud": "Ichimoku Kinko Hyo: price vs the cloud (Kumo), scored by confluence of the "
+                      "Tenkan/Kijun cross, the future cloud colour and the lagging span. Flags fresh cloud "
+                      "breakouts and TK crosses (score 0–100). Close-based (n-high/low from closes); fixed "
+                      "income on yields.",
+    "On-Balance Volume": "Cumulative volume signed by the day's direction — is volume BEHIND the move? "
+                         "Flags OBV divergences (trend-failure warnings), volume-(un)confirmed breakouts and "
+                         "hidden accumulation/distribution. FX futures excluded (real FX volume is OTC); "
+                         "fixed income on yields.",
+    "Money Flow Index": "Volume-weighted RSI (14d money flow): overbought/oversold on REAL flow — validating "
+                        "or faulting RSI signals — early distribution/accumulation against the price trend, "
+                        "and 50-line flow shifts. FX futures excluded (real FX volume is OTC); fixed income "
+                        "on yields.",
     "Carry": "Roll yield from the shape of each curve - needs the Bloomberg strip (front vs deferred). Coming soon.",
     "Volatility": "1-month ATM implied vs ~1-month (21d) realized vol. Rich = options dear vs "
                   "delivered (sell vol); cheap = options underpricing moves (buy vol). "
@@ -419,9 +436,22 @@ def _vol_charts(threshold):
         d["iv_sd"] = np.nan; d["rv_sd"] = np.nan; d["px_dec"] = 1
     d["iv_lbl"] = [_vol_sd_label(v, s, dc) for v, s, dc in zip(d["iv"], d["iv_sd"], d["px_dec"])]
     d["rv_lbl"] = [_vol_sd_label(v, s, dc) for v, s, dc in zip(d["rv"], d["rv_sd"], d["px_dec"])]
+    _srclbl = {"own": "our curve", "bbg": "vendor surface", "otc": "OTC pair vol"}
+    d["src_lbl"] = (d["src"].map(_srclbl).fillna("vendor surface")
+                    if "src" in d.columns else "vendor surface")
+    if "rv5" not in d.columns:                           # older cross-section — no 5d stored
+        d["rv5"] = np.nan; d["rv_state"] = ""
+    _mk5 = {"decay": " ▾ event fading", "heat": " ▴ accelerating"}
+    d["rv5_lbl"] = [(f"{v:.1f}{_mk5.get(s, '')}" if pd.notna(v) else "—")
+                    for v, s in zip(d["rv5"], d["rv_state"].fillna(""))]
     thr = float(threshold) if threshold is not None else 1.5
-    d["flag"] = np.where(d["z"] >= thr, "Rich — sell vol",
-                np.where(d["z"] <= -thr, "Cheap — buy vol", "Neutral"))
+    # Directional flags require the z AND the spread's sign to agree (a stretched z on
+    # a negative spread = the discount narrowing, not rich vol) — sign-mismatched
+    # extremes get the house-AMBER watch tier: at the trigger, sign unconfirmed.
+    d["flag"] = np.where((d["z"] >= thr) & (d["spread"] > 0), "Rich — sell vol",
+                np.where((d["z"] >= thr), "Discount narrowing",
+                np.where((d["z"] <= -thr) & (d["spread"] < 0), "Cheap — buy vol",
+                np.where((d["z"] <= -thr), "Premium compressing", "Neutral"))))
 
     # ---- Relative-value peer finder: return / IV-change correlation (matches Product Correlations page) ----
     _metric_lbl = st.radio("Relative-value peers — correlate on", ["Returns", "IV changes", "Realized vol"],
@@ -456,14 +486,17 @@ def _vol_charts(threshold):
     d["peers"] = [_peerstr(tk) for tk in d["ticker"]]
 
     cc = brand.chart_colors()
-    dom, rng = ["Rich — sell vol", "Cheap — buy vol", "Neutral"], [cc["short"], cc["long"], cc["muted"]]
+    dom = ["Rich — sell vol", "Cheap — buy vol", "Discount narrowing", "Premium compressing", "Neutral"]
+    rng = [cc["short"], cc["long"], cc["accent"], cc["accent"], cc["muted"]]
     color = alt.Color("flag:N", scale=alt.Scale(domain=dom, range=rng),
                       legend=alt.Legend(title=None, orient="top"))
     tip = [alt.Tooltip("market:N", title="Market"),
-           alt.Tooltip("iv_lbl:N", title="Implied"),
-           alt.Tooltip("rv_lbl:N", title="Realized"),
+           alt.Tooltip("iv_lbl:N", title="Implied (1M)"),
+           alt.Tooltip("rv_lbl:N", title="Realized (1M)"),
+           alt.Tooltip("rv5_lbl:N", title="Realized 5d"),
            alt.Tooltip("spread:Q", title="Spread", format="+.1f"),
            alt.Tooltip("z:Q", title="z (1y)", format="+.2f"),
+           alt.Tooltip("src_lbl:N", title="Implied source"),
            alt.Tooltip("peers:N", title=f"RV peers ≥{int(corr_thr*100)}%")]
 
     hi = float(max(d["iv"].max(), d["rv"].max())) * 1.05
@@ -490,6 +523,46 @@ def _vol_charts(threshold):
         color=cc["muted"], strokeDash=[3, 3]).encode(x="z:Q")
     st.markdown(f"**All markets ranked by spread z-score** &nbsp;·&nbsp; flagged in colour; dashed lines = your trigger (±{thr:g}).")
     brand.show_chart((bars + rule).properties(height=max(260, 15 * len(allp))))
+    st.caption("Implied vols are **our own constant-30-day curve** — ATM call/put settlements of every "
+               "listed option expiry, inverted through Black-76 and curve-fitted per product. FX uses OTC "
+               "pair vols and equity cash indices the vendor surface, which also backstops any market our "
+               "build misses on the day (hover a point for each market's source). **Amber** = the z-trigger "
+               "is hit but implied hasn't crossed realized — a compressing premium or narrowing discount "
+               "to watch, not a signal. Hover also shows **5d realized**: ▾ = under half the 1-month for "
+               "two straight sessions (an event fading out of the window — treat cheap readings with "
+               "care), ▴ = more than double it (realizing accelerating past the 1-month).")
+
+    # ---- Short-term rates: own section, rate-vol convention (1σ moves in bp) ----
+    stir_path = VOL_DETAIL_FILE.parent / "stirvol.parquet"
+    if stir_path.exists():
+        sd = _filter_signals(pd.read_parquet(stir_path))
+        if not sd.empty:
+            st.markdown("#### Short-term rates — rate vol")
+            sd = sd.copy()
+            # Directional flag only when the z and the spread's SIGN agree (a high z on a
+            # still-negative spread = the discount narrowing, not rich vol).
+            sd["flag"] = np.where((sd["z"] >= thr) & (sd["spread"] > 0), "Rich — sell vol",
+                         np.where((sd["z"] >= thr), "Discount narrowing",
+                         np.where((sd["z"] <= -thr) & (sd["spread"] < 0), "Cheap — buy vol",
+                         np.where((sd["z"] <= -thr), "Premium compressing", "—"))))
+            tbl_s = sd.assign(
+                Implied=[f"±{b:.1f}bp  ({v:.1f} vol)" for v, b in zip(sd["iv"], sd["iv_bp"])],
+                Realized=[f"±{b:.1f}bp  ({v:.1f} vol)" for v, b in zip(sd["rv"], sd["rv_bp"])],
+                Spread=sd["spread"].map("{:+.1f}".format), Z=sd["z"].map("{:+.2f}".format),
+            )[["market", "ticker", "rate", "Implied", "Realized", "Spread", "Z", "pctl", "flag"]].rename(
+                columns={"market": "Market", "ticker": "Instrument", "rate": "Rate %",
+                         "Implied": "Implied ±1σ (bp/day)", "Realized": "Realized ±1σ (bp/day)",
+                         "Z": "z (1y)", "pctl": "%ile", "flag": "Signal"})
+            st.dataframe(tbl_s, use_container_width=True, hide_index=True)
+            st.caption("**The headline figure is the 1-day 1σ move in basis points — the number the desk "
+                       "actually trades.** Implied is **our own constant 90-day ATM**, built identically for "
+                       "all three markets: listed quarterly option settlements inverted through Black-76 on "
+                       "the implied rate (100 − price), ATM call/put mids interpolated in total variance. "
+                       "Realized is the matching 63-day delivered vol of the implied rate; implied naturally "
+                       "sits above it (options price the meetings ahead) — judge each market's z against its "
+                       "own year. Bloomberg's published 3M point is carried as a cross-check where it exists "
+                       "(none for Euribor). 1M SOFR / Fed Funds options are too thin for a reliable mark; "
+                       "€STR has no listed options.")
 
     # ---- Relative-value: pick a product, see its vol-correlated peers + their signal ----
     if cm is not None:
@@ -1034,6 +1107,14 @@ def _home_heatmap() -> None:
                     height=height + 6, scrolling=False)
 
 
+def _md_money(s: str) -> str:
+    """Escape '$' before handing prose to st.markdown. Streamlit renders $...$ as inline LaTeX,
+    so TWO dollar prices in one paragraph (e.g. '$87 ... $81') swallow the text between them and
+    render it as maths — while an odd one out ('$90') renders fine, which is what made this look
+    random. Escaping keeps every price literal."""
+    return str(s).replace("$", r"\$")
+
+
 def _mc_commentary(log: str) -> str:
     """Pull the English Market Commentary prose out of the Morning Coffee run log —
     main.py prints it between 'Formatting commentary with Claude...' and
@@ -1194,7 +1275,15 @@ def _sf_current_off():
 
 
 def _persist_filter() -> None:
-    """Write the live filter json (read by the whole app + the report generators)."""
+    """Write the live filter json (read by the whole app + the report generators).
+
+    Guard: never persist a *fully-off* filter. An all-off state enables nothing — it silently
+    blanks every page and report, and because the live filter only resets to the default on a Home
+    render it would survive restarts. A transient empty selection (just after "None", or a widget
+    reset during "Re-run signals") must not become the saved state, so skip the write and leave the
+    last good filter in place."""
+    if not _sf_enabled():
+        return
     universe.save_filter(*_sf_current_off())
 
 
@@ -1216,6 +1305,10 @@ def render_sector_filter() -> None:
     if "sf_init" not in st.session_state:                # each launch starts from the saved default
         st.session_state["sf_init"] = True
         universe.save_filter(*universe.default_off())
+    elif not universe.enabled_tickers():                 # stuck fully-off (stale file / glitch) → self-heal
+        universe.save_filter(*universe.default_off())    # restore the saved default…
+        for _s in secs:                                  # …and drop the stale empty pills so they re-seed
+            st.session_state.pop(_s[3], None)
     off_a, off_t = universe.filter_off()
     for _g, _p, tks, key in secs:                        # seed the pills from that (once per session)
         st.session_state.setdefault(
@@ -1581,6 +1674,10 @@ def _equities_overnight_moves(index_keys, snap) -> None:
         st.caption("No overnight equity quotes available. In Bloomberg mode click **Pull equities "
                    "data**; otherwise this shows the built-in demo universe.")
         return
+    f, _q = prodsearch.search_row_box(f, ["ticker", "name", "sector", "index"], key="eq_home_search")
+    if _q and f.empty:
+        st.info(prodsearch.NO_MATCH_STOCK.format(q=_q))
+        return
     # One row per COMPANY (by name) — a company in more than one selected index is listed once, with
     # every index it belongs to joined in the Index column (registry order). This also collapses a
     # cross-listed name that appears under different exchange tickers across indexes (e.g. Stellantis
@@ -1675,10 +1772,18 @@ def render_equities_home() -> None:
     sel = sel or _keys
     st.subheader("Data")
     c1, c2, c3 = st.columns(3)
+    try:                                   # mirror snapshot.py's equities pull switches
+        from snapshot import PULL_EQUITY_CONSTITUENTS as _EQ_ON, PULL_FUNDAMENTALS as _EQF_ON
+    except Exception:
+        _EQ_ON = _EQF_ON = True
+    _eq_pull_on = bool(_EQ_ON or _EQF_ON)
     if c1.button("📥 Pull equities data", use_container_width=True, key="eq_pull",
-                 help="The Equities side's own Bloomberg pull — index membership, overnight "
-                      "quotes/history and the (weekly-guarded) fundamentals refresh. Separate "
-                      "from the FICC snapshot pull. Needs the Terminal."):
+                 disabled=not _eq_pull_on,
+                 help=("The Equities side's own Bloomberg pull — index membership, overnight "
+                       "quotes/history and the (weekly-guarded) fundamentals refresh. Separate "
+                       "from the FICC snapshot pull. Needs the Terminal.") if _eq_pull_on else
+                      ("OFF — individual-stock & Company-Fundamentals pulling is disabled to keep "
+                       "the Bloomberg pull light. Equity INDEX numbers come from the FICC snapshot.")):
         # No app-mode gate: the app itself runs in snapshot mode all day — the pull SUBPROCESS
         # sets DATAFEED_MODE=bloomberg, same as the FICC snapshot button. If the Terminal is
         # closed the pull fails gracefully and never wipes the caches.
@@ -1689,6 +1794,10 @@ def render_equities_home() -> None:
             st.session_state["eq_pull_confirm"] = True
         else:
             st.session_state["eq_pull_go"] = True
+    if not _eq_pull_on:
+        st.caption("ℹ️ Individual-stock & Company-Fundamentals pulling is **off** — equity "
+                   "**index** numbers come from the FICC snapshot. Re-enable in snapshot.py "
+                   "(`PULL_EQUITY_CONSTITUENTS` / `PULL_FUNDAMENTALS`) for per-stock data.")
     if st.session_state.get("eq_pull_confirm"):
         st.warning(f"⚡ Equities **already pulled today** "
                    f"({_to_et((snap or {}).get('equities_pulled', ''))}). Pulling again re-spends "
@@ -1799,6 +1908,10 @@ def _eqf_screener(df: pd.DataFrame) -> None:
                           format_func=lambda f: labels[f], key="eqf_cols") or eqfunda.SCREENER_DEFAULT
     cols = [f for f in cols if f in df.columns]        # a field a pull didn't return can't be a column
     sub = df[df["sector"].isin(sec_sel)] if sec_sel else df
+    sub, _q = prodsearch.search_row_box(sub, ["name", "ticker", "sector", "indices"], key="eqf_search")
+    if _q and sub.empty:
+        st.info(prodsearch.NO_MATCH_STOCK.format(q=_q))
+        return
     for f, op, thr in _EQF_PRESETS[preset]:
         col = f if op == "raw<=" else f + "__pctl"
         if col not in sub.columns:
@@ -2051,6 +2164,10 @@ def render_eq_earnings() -> None:
     sectors = sorted(df["sector"].dropna().unique())
     sec_sel = fc2.multiselect("Sectors", sectors, key="ecal_sectors", help="Blank = all sectors.")
     dff = df[df["sector"].isin(sec_sel)] if sec_sel else df
+    dff, _q = prodsearch.search_row_box(dff, ["name", "ticker", "sector", "indices"], key="ecal_search")
+    if _q and dff.empty:
+        st.info(prodsearch.NO_MATCH_STOCK.format(q=_q))
+        return
     n_dated = int(pd.to_datetime(dff.get("EXPECTED_REPORT_DT"), errors="coerce").notna().sum())
     st.caption(f"**{n_dated}** of {len(dff)} companies in the selection have a Bloomberg expected "
                f"report date (from the {asof} {src} pull). Each date is the company's **next** "
@@ -2218,6 +2335,16 @@ def render_eq_correlations() -> None:
     st.divider()
     st.markdown(f"**Qualifying pairs — {p1} correlation ≥ {thr:.2f}**")
     pt = cs.pairs
+    _q = st.text_input("Find a stock — shows the pairs it appears in", key="eqc_search",
+                       placeholder="name, ticker or sector — e.g. Apple, AAPL, Financials").strip()
+    if _q:
+        _tmp = pt.copy()
+        _tmp["_na"] = _tmp["a"].map(lambda x: cs.names.get(x, x))
+        _tmp["_nb"] = _tmp["b"].map(lambda x: cs.names.get(x, x))
+        pt = prodsearch.filter_rows(_tmp, ["a", "b", "_na", "_nb", "sector_a", "sector_b"], _q)
+        if pt.empty:
+            st.info(prodsearch.NO_MATCH_STOCK.format(q=_q))
+            return
     shown = pt.head(200)
     disp = pd.DataFrame({
         "Pair": [f"{cs.names[a]}  ↔  {cs.names[b]}" for a, b in zip(shown["a"], shown["b"])],
@@ -2532,7 +2659,7 @@ def render_morning_coffee() -> None:
         st.markdown("#### Market Commentary")
         for para in commentary.split("\n\n"):
             if para.strip():
-                st.markdown(para.strip())
+                st.markdown(_md_money(para.strip()))
     else:
         st.caption("(Couldn't read the English text from this run — the .docx download below "
                    "has the full report.)")
@@ -2545,8 +2672,8 @@ def render_morning_coffee() -> None:
                 continue
             _u = str(_h.get("url", "")).strip()
             _src = str(_h.get("source", "")).strip()
-            st.markdown((f"- [{_t}]({_u})" if _u else f"- {_t}")
-                        + (f" — *{_src}*" if _src else ""))
+            st.markdown((f"- [{_md_money(_t)}]({_u})" if _u else f"- {_md_money(_t)}")
+                        + (f" — *{_md_money(_src)}*" if _src else ""))
     if st.session_state.get("mc_docx"):
         st.download_button("⬇️  Download the report (.docx)", data=st.session_state["mc_docx"],
                            file_name=st.session_state.get("mc_docx_name", "Morning_Coffee.docx"),
@@ -2561,7 +2688,8 @@ _STRAT_SHORT = {
     "Mean Reversion": "MeanRev", "Trend": "Trend", "MA Crossover": "MA×",
     "MA Swing": "MA∿", "Flag Breakout": "Flag", "Support & Resistance": "S/R",
     "Fibonacci Retracement": "Fib", "Breakout & Retest": "Retest",
-    "Momentum (RSI/MACD)": "Mom", "Bollinger Squeeze": "BBands",
+    "Momentum (RSI/MACD)": "Mom", "Bollinger Squeeze": "BBands", "Elliott Wave": "Elliott",
+    "Ichimoku Cloud": "Ichimoku", "On-Balance Volume": "OBV", "Money Flow Index": "MFI",
     "Volatility": "Vol", "Skew Volatility": "Skew",
     "Vol Term Structure": "Term", "COT Reports": "COT", "Put/Call Ratios": "P/C",
     "AG Fundamentals": "AG",
@@ -2607,6 +2735,12 @@ def render_confluence() -> None:
         st.info(f"Nothing is flagged by {minc}+ strategies right now — lower the threshold above.")
         return
     conf = pd.DataFrame(rows).sort_values(["# Strats", "Market"], ascending=[False, True])
+    _q = st.text_input("Find a product", key="conf_search", placeholder=prodsearch.PLACEHOLDER).strip()
+    if _q:
+        conf = prodsearch.filter_frame(conf, INSTRUMENTS, _q, name_col="Market")
+        if conf.empty:
+            st.info(prodsearch.NO_MATCH.format(q=_q))
+            return
     st.caption(f"**{len(conf)}** instruments flagged by **{minc}+** of {n_strats} strategies. "
                "**Lean** = directional signals leaning long (▲) vs short (▼), excluding the vol strategies.")
     brand.themed_dataframe(conf, {})
@@ -2648,79 +2782,149 @@ _fragment = getattr(st, "fragment", None) or getattr(st, "experimental_fragment"
 
 
 @_fragment
-def _ta_reports(meta) -> None:
-    """The two report-generation buttons, ISOLATED in a Streamlit fragment: clicking a Generate
-    button (a ~15–25s PDF subprocess) reruns ONLY this block, so the heavy leaderboard/gallery
-    below don't re-execute and the page no longer ghosts / half-redraws while the report builds."""
-    # --- one-click branded PDF ---
-    rc1, rc2 = st.columns([1, 3])
-    if rc1.button("📈 Generate TA Report (PDF)", type="primary", disabled=not SIGNALS_FILE.exists()):
-        with st.spinner("Rendering the Technical Analysis report…"):
+def _ta_reports(meta, prod=None) -> None:
+    """The report controls, ISOLATED in a Streamlit fragment: clicking Generate (a ~15–25s PDF
+    subprocess) reruns ONLY this block, so the heavy leaderboard/gallery below don't re-execute
+    and the page no longer ghosts / half-redraws while the report builds. `prod` is the scored
+    product table, used to offer the pick list."""
+    # --- Technical Analysis report (merged: conviction leaderboard + the curated best-ideas screen) ---
+    cc1, cc2 = st.columns([1, 3])
+    _rd = ta_report_defaults()                    # saved build settings; also drive the weekly email
+    _MODE_IX = {"per_side": 0, "overall": 1, "threshold": 2}
+    _conv_mode_lbl = cc1.radio("Selection",
+                               ["Balanced — N per side", "Strongest overall — top N",
+                                "Quality bar — min conviction & score"],
+                               key="conv_mode", index=_MODE_IX.get(_rd["mode"], 1),
+                               help="Balanced: the top N constructive AND the top N cautious. "
+                                    "Strongest overall: the top N by conviction regardless of side. "
+                                    "Quality bar: only setups clearing an ABSOLUTE bar — so a quiet "
+                                    "week reports as quiet instead of padding out N weak charts.")
+    _conv_mode = ("threshold" if "Quality" in _conv_mode_lbl
+                  else "overall" if "overall" in _conv_mode_lbl else "per_side")
+    _conv_top = cc1.number_input("How many", 3, 12, int(_rd["top_n"]), key="conv_top",
+                                 help="Balanced mode: this many on EACH side. Strongest-overall: "
+                                      "this many in TOTAL. Quality bar: an upper CAP on how many "
+                                      "qualifying setups get written up.")
+    _min_conv = _min_score = 0.0
+    if _conv_mode == "threshold":
+        _min_conv = cc1.number_input(
+            "Min conviction", 0, 100, int(_rd["min_conviction"]), 5, key="conv_minconv",
+            help="Average strength of the flagging strategies (0–100). Filters out setups that are "
+                 "broad but individually weak.")
+        _min_score = cc1.number_input(
+            "Min |score|", 0, 600, int(_rd["min_score"]), 10, key="conv_minscore",
+            help="Score = conviction × how many strategies agree, so this is effectively a BREADTH "
+                 "floor on top of conviction. With a 5-strategy set, ~150 ≈ two strong agreeing "
+                 "reads; 200+ demands three or more.")
+    _conv_ai = cc1.checkbox("✨ AI-polish the write-ups", key="conv_ai", value=bool(_rd["ai_polish"]),
+                            help="Rewrite each chart note in a conversational desk-analyst voice via "
+                                 "Claude (numbers & levels kept exact, neutral tone); falls back to "
+                                 "the plain template if the model isn't reachable. Adds ~30–90s.")
+    # One place to fix the report's build settings — and the WEEKLY email obeys the same saved values.
+    if cc1.button("📌 Set as default", key="conv_defaults_save",
+                  help="Save this Selection / How many / AI-polish (and the quality bar) as the "
+                       "startup default — the weekly emailed report runs on exactly these."):
+        save_ta_report_defaults(mode=_conv_mode, top_n=int(_conv_top), ai_polish=bool(_conv_ai),
+                                min_conviction=float(_min_conv), min_score=float(_min_score))
+        st.toast("Report defaults saved — the weekly email will use these.", icon="📌")
+    cc1.caption(f"📌 Default: **{_rd['mode'].replace('_', ' ')}**, **{int(_rd['top_n'])}** picks, "
+                f"AI-polish **{'on' if _rd['ai_polish'] else 'off'}**"
+                + (f", bar **{_rd['min_conviction']:g}/{_rd['min_score']:g}**"
+                   if _rd["mode"] == "threshold" else ""))
+    # --- products the CLIENT rarely trades: out of this report, live everywhere else in BASIS ---
+    with st.expander("🚫 Products excluded from the client report", expanded=False):
+        _excl = st.multiselect(
+            "Held out of the report entirely (picks, leaderboard, summary and watchlist)",
+            options=sorted(INSTRUMENTS, key=lambda t: str(universe.name(t))),
+            default=[t for t in universe.report_excluded() if t in INSTRUMENTS],
+            format_func=lambda t: str(universe.name(t)), key="rep_excl",
+            help="For markets your clients don't trade. They stay FULLY live everywhere else — the "
+                 "universe, every strategy page, the hub scoring and the other reports. (This is not "
+                 "the Home ‘Sectors & products’ filter, which switches a market off app-wide.)")
+        _rx1, _rx2 = st.columns([1, 2.4])
+        if _rx1.button("💾 Save as default", key="rep_excl_save",
+                       help="Persist this list — used by the weekly emailed report and on every launch."):
+            universe.save_report_excluded(_excl)
+            st.toast(f"{len(_excl)} product(s) excluded from the report.", icon="🚫")
+        _rx2.caption("**Generate report** uses whatever's selected here; **Save** also applies it to "
+                     "the weekly email and future launches.")
+
+    # --- which picks get written up: defaults to the strongest N, but the desk can adjust ---
+    _picks = None
+    if prod is not None and not getattr(prod, "empty", True):
+        _cand = prod[(prod["n"] >= 2) & (~prod["conflict"])
+                     & (~prod["instruments"].isin(set(_excl)))]
+        if not _cand.empty:
+            if _conv_mode == "threshold":
+                _q = _cand[(_cand["conviction"] >= float(_min_conv))
+                           & (_cand["score"].abs() >= float(_min_score))]
+                _dflt = set(_q.head(int(_conv_top))["instruments"])
+            elif _conv_mode == "overall":
+                _dflt = set(_cand.head(int(_conv_top))["instruments"])
+            else:
+                _dflt = (set(_cand[_cand["net_dir"] > 0].head(int(_conv_top))["instruments"])
+                         | set(_cand[_cand["net_dir"] < 0].head(int(_conv_top))["instruments"]))
+            with st.expander(f"✅ Picks written up — {len(_dflt)} of {len(_cand)} candidates "
+                             "(default = the strongest; untick / add as you like)", expanded=False):
+                _view = pd.DataFrame({
+                    "Include": [t in _dflt for t in _cand["instruments"]],
+                    "Market": _cand["market"].tolist(),
+                    "Sector": [universe.asset(t) or "—" for t in _cand["instruments"]],
+                    "#": _cand["n"].tolist(),
+                    "Net": ["▲ constructive" if d > 0 else "▼ cautious" for d in _cand["net_dir"]],
+                    "Conviction": [round(float(c)) for c in _cand["conviction"]],
+                    "Score": [round(abs(float(s))) for s in _cand["score"]],
+                })
+                # key includes mode/N so changing them re-defaults; manual ticks persist otherwise
+                _ed = st.data_editor(
+                    _view, hide_index=True, use_container_width=True,
+                    disabled=[c for c in _view.columns if c != "Include"],
+                    key=f"ta_picks_{_conv_mode}_{int(_conv_top)}_{len(_cand)}")
+                _picks = [t for t, keep in zip(_cand["instruments"], _ed["Include"]) if keep]
+                st.caption(f"**{len(_picks)}** pick(s) will be written up, ranked by |Score|. "
+                           "Leave the defaults for the automatic strongest-N behaviour.")
+
+    if cc1.button("📈 Generate Technical Analysis Report (PDF)", type="primary", disabled=not SIGNALS_FILE.exists()):
+        with st.spinner("Selecting the setups and drawing each chart…"):
             with tempfile.TemporaryDirectory() as tmp:
                 out_pdf = Path(tmp) / "ta.pdf"
-                res = subprocess.run([sys.executable, str(TAREPORT_CLI), str(SIGNALS_FILE), str(out_pdf),
-                                      "--asof", str(meta.get("as_of", ""))], capture_output=True, text=True)
-                ok = res.returncode == 0 and out_pdf.exists()
-                st.session_state["ta_pdf"] = out_pdf.read_bytes() if ok else None
-        if not st.session_state.get("ta_pdf"):
-            st.error("TA report failed:\n\n" + (res.stderr or res.stdout or "no output"))
-        else:
-            st.success("TA report ready.")
-    if st.session_state.get("ta_pdf"):
-        st.download_button("⬇️ Download Technical_Analysis_Report.pdf", data=st.session_state["ta_pdf"],
-                           file_name="Technical_Analysis_Report.pdf", mime="application/pdf", key="ta_pdf_dl")
-        email_report_ui("ta_pdf", "ta_pdf", st.session_state.get("ta_pdf"),
-                        subject="Technical Analysis Report", attachment_name="Technical_Analysis_Report.pdf")
-    rc2.caption("A branded one-click PDF — the conviction leaderboard, the stacked-signals table and the "
-                "full flagged list, on the XP brand.")
-
-    # --- Technical Conviction Screen (the curated "best ideas" report) ---
-    cc1, cc2 = st.columns([1, 3])
-    _conv_mode_lbl = cc1.radio("Selection", ["Balanced — N per side", "Strongest overall — top N"],
-                               key="conv_mode",
-                               help="Balanced: the top N constructive AND the top N cautious. "
-                                    "Strongest overall: the top N by conviction regardless of side — "
-                                    "could be all cautious (or all constructive).")
-    _conv_mode = "overall" if "overall" in _conv_mode_lbl else "per_side"
-    _conv_top = cc1.number_input("How many", 3, 12, 5, key="conv_top",
-                                 help="Balanced mode: this many on EACH side. "
-                                      "Strongest-overall mode: this many in TOTAL.")
-    _conv_ai = cc1.checkbox("✨ AI-polish the write-ups", key="conv_ai",
-                            help="Rephrase each read more naturally via Claude (numbers & levels kept "
-                                 "exact, neutral tone); falls back to the template if the model isn't "
-                                 "reachable. Adds ~20–40s.")
-    if cc1.button("🎯 Generate Conviction Screen (PDF)", type="primary", disabled=not SIGNALS_FILE.exists()):
-        with st.spinner("Selecting the strongest setups and drawing each chart…"):
-            with tempfile.TemporaryDirectory() as tmp:
-                out_pdf = Path(tmp) / "conv.pdf"
                 cmd = [sys.executable, str(CONVREPORT_CLI), str(SIGNALS_FILE), str(out_pdf),
                        "--asof", str(meta.get("as_of", "")), "--top", str(int(_conv_top)),
                        "--mode", _conv_mode]
+                if _conv_mode == "threshold":
+                    cmd += ["--min-conviction", str(float(_min_conv)),
+                            "--min-score", str(float(_min_score))]
                 if _conv_ai:
                     cmd.append("--ai-polish")
+                _cs = st.session_state.get("conf_set") or tascore.CONFLUENCE_DEFAULT
+                cmd += ["--strategies", ",".join(_cs)]       # match the on-page confluence set
+                if _picks is not None:                       # the desk's curated pick list
+                    cmd += ["--picks", ",".join(_picks)]
+                cmd += ["--exclude", ",".join(_excl)]        # WYSIWYG even before Save
                 res = subprocess.run(cmd, capture_output=True, text=True)
                 ok = res.returncode == 0 and out_pdf.exists()
                 st.session_state["conv_pdf"] = out_pdf.read_bytes() if ok else None
         if not st.session_state.get("conv_pdf"):
-            st.error("Conviction screen failed:\n\n" + (res.stderr or res.stdout or "no output"))
+            st.error("Technical Analysis report failed:\n\n" + (res.stderr or res.stdout or "no output"))
         else:
-            st.success("Conviction screen ready.")
+            st.success("Technical Analysis report ready.")
     if st.session_state.get("conv_pdf"):
-        st.download_button("⬇️ Download Technical_Conviction_Screen.pdf", data=st.session_state["conv_pdf"],
-                           file_name="Technical_Conviction_Screen.pdf", mime="application/pdf", key="conv_pdf_dl")
+        st.download_button("⬇️ Download Technical_Analysis_Report.pdf", data=st.session_state["conv_pdf"],
+                           file_name="Technical_Analysis_Report.pdf", mime="application/pdf", key="conv_pdf_dl")
         email_report_ui("conv_pdf", "conv_pdf", st.session_state.get("conv_pdf"),
-                        subject="Technical Conviction Screen", attachment_name="Technical_Conviction_Screen.pdf")
-    cc2.caption("The **curated best-ideas** report — the strongest constructive & cautious setups by "
+                        subject="Technical Analysis Report", attachment_name="Technical_Analysis_Report.pdf")
+    cc2.caption("The merged **Technical Analysis** report — opens with the conviction leaderboard and the "
+                "stacked-signals summary, then the strongest constructive & cautious setups by "
                 "cross-strategy conviction, each with a multi-indicator chart, a plain-English read and "
                 "objective / invalidation levels. Neutral, client-safe language; fixed income read on yields.")
 
 
 @st.cache_data(show_spinner=False)
-def _ta_scored(as_of, filter_key):
+def _ta_scored(as_of, filter_key, scored_key=None):
     """Cached cross-strategy scoring for the TA overview — recomputed only when the signals
-    (`as_of`) or the sector filter change, not on every rerun / button click."""
+    (`as_of`), the sector filter, or the confluence set (`scored_key`) change, not on every rerun."""
     df, _ = load_signals()
-    flagged = tascore.ta_flagged(_filter_signals(df))
+    flagged = tascore.ta_flagged(_filter_signals(df), list(scored_key) if scored_key else None)
     if flagged is None or flagged.empty:
         return None, None
     flagged = flagged.copy()
@@ -2803,8 +3007,9 @@ def render_ta_overview() -> None:
             "| Mean Reversion | \\|z-score\\| | 3.0 |\n"
             "| Trend | \\|3-month return\\| | 25% |\n"
             "| MA Crossover / MA Swing | \\|MA gap\\| | 10% |\n"
-            "| Flag Breakout · S&R · Fibonacci · Breakout & Retest · Momentum · Bollinger Squeeze | "
-            "already 0–100 (readiness / proximity / momentum / squeeze) | used as-is |\n\n"
+            "| Flag Breakout · S&R · Fibonacci · Breakout & Retest · Momentum · Bollinger Squeeze · "
+            "Elliott Wave · Ichimoku · OBV · MFI | already 0–100 (readiness / proximity / momentum / "
+            "squeeze / wave fit / Ichimoku / volume flow) | used as-is |\n\n"
             "**2 · Conviction (0–100) = the _average_ strength** of the strategies flagging that product — "
             "how strong the signals are on average, *regardless of how many* agree.\n\n"
             "**3 · Score = the _signed sum_ of those strengths** — long signals count **＋**, short **－** — "
@@ -2813,6 +3018,12 @@ def render_ta_overview() -> None:
             "So Score rewards **both** confluence (more agreeing strategies) **and** strength, while "
             "opposing calls partly cancel. The **sign** of that sum sets the **Net** column "
             "(▲ long / ▼ short, or ⚠ *mixed* when both sides fire), and **|Score| ranks the table**.\n\n"
+            "**Confluence set.** Only a curated, *independent* subset feeds this score — by default "
+            "**Trend, Momentum (RSI/MACD), OBV, Support & Resistance and Flag Breakout**, one per axis "
+            "(direction / momentum / volume / location / pattern) — so agreement is real corroboration, "
+            "not the same read echoed. Edit it under **🎯 Confluence set** above; every other strategy "
+            "keeps its page and chart overlays but stays out of the score. If you add more than one "
+            "*trend* read, they're de-duplicated (strongest full, the next at **½**, **⅓**, …).\n\n"
             "**Worked example.** Three strategies flag a product **Long** at strengths 90 / 80 / 70 and one "
             "flags it **Short** at 60 → Conviction = (90+80+70+60) ÷ 4 = **75**; "
             "Score = |＋90＋80＋70－60| = **180** (the short partly cancels); Net = **▲ long**. If instead all "
@@ -2824,8 +3035,34 @@ def render_ta_overview() -> None:
     _ta_quicknav()
 
     df, meta = load_signals()
+    if _all_filtered_off():                              # the Sectors & products filter hides everything
+        st.warning("🗂️ **All sectors are switched off** in the Sectors & products filter (🏠 Home) — "
+                   "nothing is enabled to analyse, so this page looks empty. Your data is fine.")
+        if st.button("🗂️  Turn all sectors back on", key="ta_filter_reset", type="primary"):
+            universe.save_filter(set(), set())
+            for _s in _sf_sections():
+                st.session_state.pop(_s[3], None)        # clear stale empty pills so they re-seed on
+            st.rerun()
+        return
+    with st.expander("🎯 Confluence set — which strategies feed the score", expanded=False):
+        _conf = st.multiselect(
+            "Scored strategies (independent reads → genuine confluence)",
+            options=list(tascore.TA_STRATEGIES), default=tascore.confluence_set(), key="conf_set",
+            help="Only these feed the conviction score, leaderboard and report; the rest keep their "
+                 "pages and chart overlays but stay out of the score. Pick independent reads — one per "
+                 "axis (trend / momentum / volume / location / pattern) — so agreement is real "
+                 "corroboration, not the same signal echoed. Default: Trend, Momentum, OBV, "
+                 "Support & Resistance, Flag Breakout.")
+        _cs1, _cs2 = st.columns([1, 2.4])
+        if _cs1.button("💾 Save as default", key="conf_save",
+                       help="Persist this set — used by the weekly report and on every launch."):
+            tascore.save_confluence_set(_conf or tascore.CONFLUENCE_DEFAULT)
+            st.toast("Confluence set saved.", icon="🎯")
+        _cs2.caption("**Generate report** uses whatever's ticked here; **Save** also makes it the "
+                     "default for the weekly email and future launches.")
+    _conf = _conf or tascore.CONFLUENCE_DEFAULT            # never score an empty set
     _fkey = tuple(sorted(universe.enabled_tickers())) if universe.filter_active() else ()
-    flagged, prod = _ta_scored(meta.get("as_of", ""), _fkey)
+    flagged, prod = _ta_scored(meta.get("as_of", ""), _fkey, tuple(_conf))
     if flagged is None or flagged.empty:
         st.info("Nothing flagged across the technical strategies right now. Open a strategy to lower its "
                 "trigger, or pull a fresh snapshot on the 🏠 Home page.")
@@ -2842,7 +3079,7 @@ def render_ta_overview() -> None:
 
     # Report generation, isolated in a fragment: a Generate click reruns ONLY that block, so the
     # heavy leaderboard/gallery below don't re-render — no more mid-page ghosting while the PDF builds.
-    _ta_reports(meta)
+    _ta_reports(meta, prod)
 
     def _arrow(d):
         return " ▲" if d > 0 else " ▼" if d < 0 else ""
@@ -2853,6 +3090,11 @@ def render_ta_overview() -> None:
     # --- stacked signals (2+ strategies), ranked by conviction score. The table is
     #     click-selectable: picking a row drives the per-product chart panel below. ---
     multi = prod[prod["n"] >= 2]
+    _q = st.text_input("Find a product", key="ta_ov_search", placeholder=prodsearch.PLACEHOLDER).strip()
+    if _q:
+        multi = prodsearch.filter_frame(multi, INSTRUMENTS, _q, ticker_col="instruments")
+        if multi.empty:
+            st.info(prodsearch.NO_MATCH.format(q=_q))
     sel_pos = 0
     if not multi.empty:
         st.markdown("##### Stacked signals — flagged by 2 or more strategies (ranked by conviction)")
@@ -3092,11 +3334,13 @@ def render_market_hours() -> None:
     st.subheader("🕒 Market hours")
 
     labels = list(markethours.TZ_CHOICES.keys())
-    c1, c2 = st.columns([0.45, 0.55])
+    c1, c2 = st.columns([0.4, 0.6])
     pick = c1.selectbox("Reference time zone", labels,
                         index=labels.index("New York (ET)"), key="mh_tz")
     ref_tz = markethours.TZ_CHOICES[pick]
-    apply_filter = c2.checkbox("Show only the sectors enabled on Home", value=False, key="mh_filter")
+    search = c2.text_input("Find a product", key="mh_search",
+                           placeholder="type a name, ticker or sector — e.g. oil, CLA, metals").strip()
+    apply_filter = st.checkbox("Show only the sectors enabled on Home", value=False, key="mh_filter")
 
     now = datetime.now(ZoneInfo(ref_tz))
     now_h = now.hour + now.minute / 60
@@ -3106,6 +3350,11 @@ def render_market_hours() -> None:
     if apply_filter and universe.filter_active():
         en = universe.enabled_tickers()
         tickers = [t for t in tickers if t in en]
+    if search:                                  # free-text find: name / ticker / sector / region / alias
+        tickers = prodsearch.filter_tickers(tickers, INSTRUMENTS, search)
+        if not tickers:
+            st.info(prodsearch.NO_MATCH.format(q=search))
+            return
     _aorder = [a for a in universe.ASSET_CLASSES if a != "FX"] + ["FX"]   # FX at the bottom
     order = {a: i for i, a in enumerate(_aorder)}
     tickers.sort(key=lambda t: (order.get(INSTRUMENTS[t][2], 99), INSTRUMENTS[t][0]))
@@ -3216,6 +3465,10 @@ def render_block_sizes() -> None:
     if apply_filter and universe.filter_active():
         en = universe.enabled_tickers()
         tickers = [t for t in tickers if t in en]
+    tickers, _q = prodsearch.search_box(tickers, INSTRUMENTS, key="bs_search", container=c2)
+    if _q and not tickers:
+        st.info(prodsearch.NO_MATCH.format(q=_q))
+        return
     _aorder = [a for a in universe.ASSET_CLASSES if a != "FX"] + ["FX"]
     order = {a: i for i, a in enumerate(_aorder)}
     tickers.sort(key=lambda t: (order.get(INSTRUMENTS[t][2], 99), INSTRUMENTS[t][0]))
@@ -6685,6 +6938,211 @@ if active == "Bollinger Squeeze":
                        "snapshot — no Bloomberg pull.")
     st.divider()
 
+# Elliott Wave: price with the ZigZag skeleton, the counted pivots labelled 0..5, and the
+# juncture's projection (green objective / red invalidation). No st.stop().
+if active == "Elliott Wave":
+    import altair as alt
+    from src.strategies import elliott_wave as _ew
+
+    _v = _filter_signals(df[df["strategy"] == active])
+    _tick = dict(zip(_v["market"], _v["instruments"]))
+    if _v.empty:
+        st.info("No Elliott reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
+    else:
+        sel = st.selectbox("Chart a market (best wave fit first)", _v["market"].tolist(), key="ew_market")
+        try:
+            cdata, info = _ew.elliott_chart_data(_tick[sel])
+        except Exception as e:
+            cdata, info = None, None
+            st.info(f"Couldn't build the chart for {sel}: {e}")
+        if cdata is not None and not cdata.empty:
+            _cc = brand.chart_colors()
+            _ph = {"W3": "Wave 3 of 5", "W5": "Wave 5 of 5", "done": "Five waves done"}
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Signal", info["signal"])
+            c2.metric("Phase", _ph.get(info["phase"], info["phase"]),
+                      help="Where the count sits within the five-wave impulse.")
+            c3.metric("Wave fit", f"{info['fit']:.0f}/100",
+                      help="How textbook the count's Fibonacci proportions are.")
+            c4.metric("R:R", "—" if not np.isfinite(info["rr"]) else f"{info['rr']:.1f}:1",
+                      help="Classic projection for the juncture vs the last counted pivot.")
+            base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
+                y=alt.Y("price:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
+                        axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
+                tooltip=[alt.Tooltip("date:T", title="Date"),
+                         alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
+            zz = pd.DataFrame(info["zigzag"])
+            zz_ln = alt.Chart(zz).mark_line(color=_cc["muted"], strokeWidth=1.4, point=True,
+                                            opacity=0.65).encode(x="date:T", y="price:Q")
+            cp = pd.DataFrame(info["pivots"])
+            cnt_ln = alt.Chart(cp).mark_line(color="#7E57C2", strokeWidth=2.4, point=True).encode(
+                x="date:T", y="price:Q")
+            cnt_tx = (alt.Chart(cp[cp["kind"] == "H"]).mark_text(
+                          fontSize=13, fontWeight="bold", color="#7E57C2", dy=-12).encode(
+                          x="date:T", y="price:Q", text="label:N")
+                      + alt.Chart(cp[cp["kind"] == "L"]).mark_text(
+                          fontSize=13, fontWeight="bold", color="#7E57C2", dy=14).encode(
+                          x="date:T", y="price:Q", text="label:N"))
+            tgt = alt.Chart(pd.DataFrame({"y": [info["target"]]})).mark_rule(
+                color=_cc["long"], strokeDash=[2, 2], strokeWidth=1.9).encode(y="y:Q")
+            stp = alt.Chart(pd.DataFrame({"y": [info["stop"]]})).mark_rule(
+                color=_cc["short"], strokeDash=[2, 2], strokeWidth=1.9).encode(y="y:Q")
+            today = alt.Chart(cdata.iloc[[-1]]).mark_point(
+                color=(_cc["long"] if info["direction"] > 0 else _cc["short"] if info["direction"] < 0 else _cc["muted"]),
+                size=130, filled=True).encode(x="date:T", y="price:Q")
+            brand.show_chart((zz_ln + cnt_ln + price_ln + cnt_tx + tgt + stp + today).properties(
+                height=440, title=f"{sel} — Elliott count (purple, waves 0–5) on the ZigZag skeleton "
+                                  f"(grey); green objective · red invalidation; today ●"))
+            st.caption(f"**{info['signal']}** — wave fit **{info['fit']:.0f}/100**; ZigZag reversal "
+                       f"threshold **{info['thr_pct']:.1f}%** (scaled to this market's own volatility). "
+                       f"Objective **{info['target']:g}**, invalidation **{info['stop']:g}**. "
+                       "Close-based; reads the cached snapshot — no Bloomberg pull.")
+    st.divider()
+
+# Ichimoku: price + the cloud (Kumo) with its forward projection, Tenkan/Kijun and the lagging
+# span — the whole system on one axis. No st.stop().
+if active == "Ichimoku Cloud":
+    import altair as alt
+    from src.strategies import ichimoku as _ic
+
+    _v = _filter_signals(df[df["strategy"] == active])
+    _tick = dict(zip(_v["market"], _v["instruments"]))
+    if _v.empty:
+        st.info("No Ichimoku events right now — click **🔁 Re-run signals** on the 🏠 Home page.")
+    else:
+        sel = st.selectbox("Chart a market (strongest read first)", _v["market"].tolist(), key="ichi_market")
+        try:
+            cdata, info = _ic.ichimoku_chart_data(_tick[sel])
+        except Exception as e:
+            cdata, info = None, None
+            st.info(f"Couldn't build the chart for {sel}: {e}")
+        if cdata is not None and not cdata.empty:
+            _cc = brand.chart_colors()
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Signal", info["signal"])
+            c2.metric("Ichimoku score", f"{info['score']:.0f}/100")
+            c3.metric("Tenkan / Kijun", f"{info['tenkan_now']:g} / {info['kijun_now']:g}")
+            c4.metric("Cloud", f"{info['cloud_bot']:g} – {info['cloud_top']:g}",
+                      help="Price above = constructive, below = cautious, inside = no signal.")
+            cloud_df = pd.DataFrame(info["cloud"])
+            _green = _cc.get("long", "#2E7D32")
+            _red = _cc.get("short", "#C62828")
+            cloud = alt.Chart(cloud_df).mark_area(opacity=0.22).encode(
+                x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)),
+                y=alt.Y("a:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
+                        axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
+                y2="b:Q",
+                color=alt.condition("datum.a >= datum.b", alt.value(_green), alt.value(_red)))
+            base = alt.Chart(cdata).encode(x="date:T")
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.4).encode(
+                y="price:Q", tooltip=[alt.Tooltip("date:T", title="Date"),
+                                      alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
+            tk = alt.Chart(pd.DataFrame(info["tenkan"])).mark_line(
+                color="#1F77B4", strokeWidth=1.5).encode(x="date:T", y="val:Q")
+            kj = alt.Chart(pd.DataFrame(info["kijun"])).mark_line(
+                color="#E08A00", strokeWidth=1.5).encode(x="date:T", y="val:Q")
+            ch = alt.Chart(pd.DataFrame(info["chikou"])).mark_line(
+                color="#7E57C2", strokeWidth=1.3, strokeDash=[4, 3]).encode(x="date:T", y="val:Q")
+            today = alt.Chart(cdata.iloc[[-1]]).mark_point(
+                color=(_cc["long"] if info["direction"] > 0 else _cc["short"] if info["direction"] < 0 else _cc["muted"]),
+                size=130, filled=True).encode(x="date:T", y="price:Q")
+            brand.show_chart((cloud + tk + kj + ch + price_ln + today).properties(
+                height=460, title=f"{sel} — Ichimoku: cloud (green/red, projected 26 ahead), "
+                                  f"Tenkan (blue) / Kijun (orange), lagging span (purple dash); today ●"))
+            st.caption(f"**{info['signal']}** — {info['note']}; score **{info['score']:.0f}/100**. "
+                       "Cloud is projected 26 sessions ahead (Ichimoku convention). Close-based "
+                       "(n-period highs/lows from closes); reads the cached snapshot — no Bloomberg pull.")
+    st.divider()
+
+# On-Balance Volume: price + the OBV line beneath — divergences, (un)confirmed breakouts and
+# quiet accumulation/distribution are all visible as price-vs-OBV disagreement. No st.stop().
+if active == "On-Balance Volume":
+    import altair as alt
+    from src.strategies import obv as _obv
+
+    _v = _filter_signals(df[df["strategy"] == active])
+    _tick = dict(zip(_v["market"], _v["instruments"]))
+    if _v.empty:
+        st.info("No OBV reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
+    else:
+        sel = st.selectbox("Chart a market (strongest read first)", _v["market"].tolist(), key="obv_market")
+        try:
+            cdata, info = _obv.obv_chart_data(_tick[sel])
+        except Exception as e:
+            cdata, info = None, None
+            st.info(f"Couldn't build the chart for {sel}: {e}")
+        if cdata is not None and not cdata.empty:
+            _cc = brand.chart_colors()
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Signal", info["signal"])
+            c2.metric("OBV score", f"{info['score']:.0f}/100",
+                      help="Strength of the dominant read (divergence / breakout / accumulation).")
+            c3.metric("Read", info["note"])
+            base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
+                y=alt.Y("price:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
+                        axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
+                tooltip=[alt.Tooltip("date:T", title="Date"),
+                         alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
+            brand.show_chart(price_ln.properties(height=300, title=f"{sel} — price"))
+            obv_ln = base.mark_line(color="#00897B", strokeWidth=2.1).encode(
+                y=alt.Y("obv:Q", title="OBV", scale=alt.Scale(zero=False),
+                        axis=alt.Axis(labelFontSize=11, titleFontSize=13, format="~s")),
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("obv:Q", title="OBV", format=",.0f")])
+            brand.show_chart(obv_ln.properties(
+                height=190, title="On-Balance Volume — Σ volume signed by the day's direction"))
+            st.caption(f"**{info['signal']}** — {info['note']}. Volume = FUT_AGGTE_VOL (all listed "
+                       "contracts). FX futures excluded (real FX volume trades OTC). Close-based; "
+                       "reads the cached snapshot — no Bloomberg pull.")
+    st.divider()
+
+# Money Flow Index: price + MFI vs RSI on one 0–100 panel — validation and flow-vs-momentum
+# gaps are directly visible. No st.stop().
+if active == "Money Flow Index":
+    import altair as alt
+    from src.strategies import mfi as _mfi
+
+    _v = _filter_signals(df[df["strategy"] == active])
+    _tick = dict(zip(_v["market"], _v["instruments"]))
+    if _v.empty:
+        st.info("No MFI reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
+    else:
+        sel = st.selectbox("Chart a market (strongest read first)", _v["market"].tolist(), key="mfi_market")
+        try:
+            cdata, info = _mfi.mfi_chart_data(_tick[sel])
+        except Exception as e:
+            cdata, info = None, None
+            st.info(f"Couldn't build the chart for {sel}: {e}")
+        if cdata is not None and not cdata.empty:
+            _cc = brand.chart_colors()
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Signal", info["signal"])
+            c2.metric("MFI (14)", f"{info['mfi']:.0f}", help="≥80 overbought on flow · ≤20 oversold.")
+            c3.metric("RSI (14)", f"{info['rsi']:.0f}", help="For the validation read — momentum without flow is suspect.")
+            c4.metric("MFI score", f"{info['score']:.0f}/100")
+            base = alt.Chart(cdata).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)))
+            price_ln = base.mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
+                y=alt.Y("price:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
+                        axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
+                tooltip=[alt.Tooltip("date:T", title="Date"),
+                         alt.Tooltip("price:Q", title=_ax(_tick[sel]), format=",.2f")])
+            brand.show_chart(price_ln.properties(height=300, title=f"{sel} — price"))
+            mfi_ln = base.mark_line(color="#00897B", strokeWidth=2.1).encode(
+                y=alt.Y("mfi:Q", title="MFI / RSI", scale=alt.Scale(domain=[0, 100]),
+                        axis=alt.Axis(labelFontSize=11, titleFontSize=13)),
+                tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("mfi:Q", title="MFI", format=".0f")])
+            rsi_ln = base.mark_line(color="#7E57C2", strokeWidth=1.6, strokeDash=[4, 3]).encode(
+                y="rsi:Q", tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("rsi:Q", title="RSI", format=".0f")])
+            _bands = alt.Chart(pd.DataFrame({"y": [80.0, 20.0]})).mark_rule(
+                color=_cc["muted"], strokeDash=[2, 2], strokeWidth=1.2).encode(y="y:Q")
+            brand.show_chart((_bands + mfi_ln + rsi_ln).properties(
+                height=190, title="MFI (solid, volume-weighted) vs RSI (dashed) — 80/20 = flow extremes"))
+            st.caption(f"**{info['signal']}** — {info['note']}. MFI = 14-day money-flow RSI "
+                       "(close × volume). FX futures excluded (real FX volume trades OTC). "
+                       "Close-based; reads the cached snapshot — no Bloomberg pull.")
+    st.divider()
+
 # Volatility / Skew get a dedicated visual client report (charts), built from the
 # full cross-section rather than the hand-ticked rows below.
 if active in REPORTS:
@@ -7164,6 +7622,11 @@ if active == "COT Reports":
                 else "color:#c5221f;font-weight:700" if v == "Crowded short"
                 else "color:#888" for v in col]
 
+    _q = st.text_input("Find a market", key="cot_search", placeholder=prodsearch.PLACEHOLDER).strip()
+    if _q:
+        show = prodsearch.filter_frame(show, INSTRUMENTS, _q, name_col="Market")
+        if show.empty:
+            st.info(prodsearch.NO_MATCH.format(q=_q)); st.stop()
     st.caption("Full cross-section — every market with CFTC COT, most crowded first.")
     brand.themed_dataframe(show, _cot_fmt, colorers=[(["Signal"], _sig_color)],
                            na_rep="—", height=520)
@@ -7461,6 +7924,11 @@ if active == "Put/Call Ratios":
                 else "color:#137333;font-weight:700" if v == "Call-heavy"
                 else "color:#888" for v in col]
 
+    _q = st.text_input("Find a market", key="pc_search", placeholder=prodsearch.PLACEHOLDER).strip()
+    if _q:
+        show = prodsearch.filter_frame(show, INSTRUMENTS, _q, name_col="Market")
+        if show.empty:
+            st.info(prodsearch.NO_MATCH.format(q=_q)); st.stop()
     st.caption("Full cross-section — every market with options data, most extreme first. "
                "Red = put-heavy (defensive) · green = call-heavy (bullish). **Calls / Puts (1y)** = "
                "contracts traded over the last ~1 year; **Avg/day** = average traded per day — click a "
@@ -7686,8 +8154,13 @@ if spec.get("hi") and threshold is not None and not view.empty:
     view = reflag_rows(view, threshold, spec["hi"], spec["lo"],
                        fi_yield=active in tascore.TA_STRATEGIES)
 
+_find = st.text_input("Find a product", key=f"find_{active}", placeholder=prodsearch.PLACEHOLDER).strip()
+if _find:
+    view = prodsearch.filter_frame(view, universe.INSTRUMENTS, _find, ticker_col="instruments")
+
 if view.empty:
-    st.info("No opportunities flagged for this strategy yet.")
+    st.info(prodsearch.NO_MATCH.format(q=_find) if _find
+            else "No opportunities flagged for this strategy yet.")
 else:
     view.insert(0, "Include", view["signal"].ne("—"))
     # Sector column, derived from the instrument (a " / " pair reads as "pair"). The market

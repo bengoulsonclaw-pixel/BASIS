@@ -47,6 +47,12 @@ _SEED_INSTRUMENTS = {
     "SX7E Index":  ("Euro Stoxx Banks",      270.0,  "Indices", "EMEA"),
     "DAX Index":   ("DAX",                 24900.0,  "Indices", "EMEA"),
     "UKX Index":   ("FTSE 100",            10360.0,  "Indices", "EMEA"),
+    # CAC/SMI + APAC twins added 2026-07-21 — surfaces verified LIVE on the Terminal.
+    # NB KOSPI2 (the optionable KOSPI 200 the KMA futures track), NOT the KOSPI Composite.
+    "CAC Index":   ("CAC 40",               7800.0,  "Indices", "EMEA"),
+    "SMI Index":   ("SMI (Swiss)",         12000.0,  "Indices", "EMEA"),
+    "NKY Index":   ("Nikkei 225",          42000.0,  "Indices", "APAC"),
+    "KOSPI2 Index": ("KOSPI 200",            420.0,  "Indices", "APAC"),
 
     # ── FIXED INCOME · STIRs ───────────────────────────────────────────────
     # NA
@@ -55,7 +61,7 @@ _SEED_INSTRUMENTS = {
     "FFA Comdty":  ("30-Day Fed Funds",       95.8,  "STIRs", "NA"),
     # EMEA
     "ERA Comdty":  ("3M Euribor",             97.8,  "STIRs", "EMEA"),
-    "TKYA Comdty": ("3M ESTR",                99.7,  "STIRs", "EMEA"),
+    "TKYA Comdty": ("3M ESTR",                98.0,  "STIRs", "EMEA"),
     "SFIA Comdty": ("3M SONIA (Short Sterling)", 96.0, "STIRs", "EMEA"),
 
     # ── FIXED INCOME · BONDS ───────────────────────────────────────────────
@@ -156,6 +162,8 @@ PAIRS = [
 _SEED_PRICE_FIELD = {
     "SX5E Index": "PX_LAST", "SX7E Index": "PX_LAST",
     "DAX Index": "PX_LAST", "UKX Index": "PX_LAST",
+    "CAC Index": "PX_LAST", "SMI Index": "PX_LAST",
+    "NKY Index": "PX_LAST", "KOSPI2 Index": "PX_LAST",
 }
 
 # Where to pull 1-month ATM implied vol when LIVE (Bloomberg mode). By default
@@ -192,6 +200,15 @@ _SEED_VOL_OVERRIDE = {
     # 2026-06-14). OTC 1M vol (USDHUFV1M / USDCZKV1M / USDPLNV1M Curncy) not yet
     # verified, so they stay on the default surface field (RV-only) until mapped.
 
+    # Euribor — the smoothed *_DF surface is NOT published for it on any root
+    # (verified live 2026-07-21), but the listed near-ATM option implieds are:
+    # the call/put MID via the composite "A+B" field syntax (datafeed averages the
+    # legs), quoted in the same implied-RATE convention as the other STIR surfaces
+    # (~21 vol on a 2.8% rate ≈ 3.8bp/day), 14+ months of history. NB it rolls with
+    # the listed front expiry (not constant-maturity) — disclosed under the report's
+    # STIR cards. €STR (TKYA) returns nothing anywhere — no listed vol market.
+    "ERA Comdty":  ("ERA Comdty", "HIST_CALL_IMP_VOL+HIST_PUT_IMP_VOL"),   # 3M Euribor
+
     # Non-US equity indices are IGNORED for now (excluded in volatility.py). To
     # bring them back: drop the non-US-index rule in volatility._excluded() and
     # re-enable these verified vol-index sources (US indices use the surface field):
@@ -200,6 +217,62 @@ _SEED_VOL_OVERRIDE = {
     #   "SMA Index": ("V3X Index",  "PX_LAST"),   # SMI           -> VSMI
     #   "NKA Index": ("VNKY Index", "PX_LAST"),   # Nikkei 225
 }
+
+
+# ── Fixed income → YIELDS (the technical strategies run on yields, not futures) ─
+# Rates desks read YIELD charts, and the price↔yield inversion makes futures-price
+# TA misleading (a bond-future "golden cross" is falling yields = a bond rally, the
+# opposite of a bullish-rates read). So the price-based technical strategies convert
+# fixed income to yields first:
+#   • STIRs  -> implied rate = 100 − price (exact; no extra data — see is_stir()).
+#   • Bonds  -> the benchmark generic yield each future tracks, pulled from Bloomberg
+#     (map below). The future→yield relationship runs through the CTD + conversion
+#     factor + roll, so we DON'T invert the price — we chart the benchmark yield.
+# Tickers are best-standard generics; confirm/adjust on the Terminal. The US Long
+# Bond / Ultra map to the 30Y generic as a pragmatic proxy (classic-bond CTD ~15–20Y).
+BOND_YIELD_SOURCE = {
+    "TUA Comdty":  "USGG2YR Index",    # US 2Y Note
+    "FVA Comdty":  "USGG5YR Index",    # US 5Y Note
+    "TYA Comdty":  "USGG10YR Index",   # US 10Y Note
+    "UXYA Comdty": "USGG10YR Index",   # Ultra 10Y ≈ 10Y
+    "USA Comdty":  "USGG30YR Index",   # Long Bond ≈ 30Y (confirm)
+    "WNA Comdty":  "USGG30YR Index",   # Ultra Bond ≈ 30Y
+    "DUA Comdty":  "GDBR2 Index",      # German 2Y (Schatz)
+    "OEA Comdty":  "GDBR5 Index",      # German 5Y (Bobl)
+    "RXA Comdty":  "GDBR10 Index",     # German 10Y (Bund)
+    "UBA Comdty":  "GDBR30 Index",     # German 30Y (Buxl)
+    "OATA Comdty": "GTFRF10Y Govt",    # French 10Y (OAT)
+    "G A Comdty":  "GUKG10 Index",     # UK 10Y (Long Gilt)
+}
+
+
+def is_stir(tk: str) -> bool:
+    return asset(tk) == "STIRs"
+
+
+def is_bond(tk: str) -> bool:
+    return asset(tk) == "Bonds"
+
+
+def is_fixed_income(tk: str) -> bool:
+    return asset(tk) in ("STIRs", "Bonds")
+
+
+def yield_source(tk: str) -> str | None:
+    """The Bloomberg benchmark-yield ticker whose series the technical strategies run
+    on for this BOND future; None for non-bonds (STIRs use 100 − price instead)."""
+    return BOND_YIELD_SOURCE.get(tk)
+
+
+def yield_name(tk: str) -> str:
+    """Display label for an FI instrument once it's expressed as a yield/rate for the
+    technical strategies — e.g. 'US 10Y Note (yield)', '3M SOFR (rate)'."""
+    n = name(tk)
+    if is_stir(tk):
+        return f"{n} (rate)"
+    if is_bond(tk):
+        return f"{n} (yield)"
+    return n
 
 
 # ── Editable store (data/universe.json) ─────────────────────────────────────
@@ -357,3 +430,26 @@ def save_default(off_assets, off_tickers) -> None:
     DEFAULT_FILTER.write_text(json.dumps(
         {"off_assets": sorted(off_assets), "off_tickers": sorted(off_tickers)}, indent=2),
         encoding="utf-8")
+
+
+# ── Client-report product exclusions (data/report_exclude.json) ──────────────
+# Products the desk's CLIENTS rarely trade: held out of the client-facing Technical
+# Analysis report only. They stay fully live everywhere else in BASIS — the universe,
+# every strategy page, the hub scoring and the other reports. Deliberately SEPARATE
+# from the Sectors & products filter above, which switches a market off app-wide.
+REPORT_EXCLUDE = STORE.parent / "report_exclude.json"
+
+
+def report_excluded() -> set:
+    """Tickers held out of the client Technical Analysis report; empty set if none."""
+    try:
+        return set(json.loads(REPORT_EXCLUDE.read_text(encoding="utf-8")).get("tickers", []))
+    except Exception:
+        return set()
+
+
+def save_report_excluded(tickers) -> None:
+    """Persist the report-only exclusion list."""
+    REPORT_EXCLUDE.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_EXCLUDE.write_text(json.dumps({"tickers": sorted(set(tickers))}, indent=2),
+                              encoding="utf-8")

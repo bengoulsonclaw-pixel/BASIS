@@ -26,6 +26,8 @@ FLAG_FILE = Path(__file__).resolve().parents[1] / "data" / "alerts.json"
 ALERT_REPORTS = OrderedDict([
     ("morning_coffee", {"label": "Morning Coffee briefing", "group": "Desk & positioning",
                         "email": "morning_coffee", "alerts": []}),
+    ("convreport", {"label": "Technical Analysis Report (weekly)", "group": "Desk & positioning",
+                    "email": "convreport", "alerts": []}),
     ("cot", {"label": "CFTC COT positioning", "group": "Desk & positioning",
              "email": "cot", "alerts": ["CFTC COT"]}),
     # Not a calendar release: the banner fires whenever a product pair's 1M correlation sits at
@@ -42,6 +44,10 @@ ALERT_REPORTS = OrderedDict([
                    "alerts": ["USDA Crop Production (Annual)", "USDA Cattle on Feed", "USDA Hogs & Pigs"]}),
     ("opec", {"label": "OPEC Oil Market Report", "group": "Energy",
               "email": "opec", "alerts": ["OPEC MOMR"]}),
+    ("precious_metals", {"label": "Precious Metals Fundamentals (monthly)", "group": "Metals",
+                         "email": "precious_metals", "alerts": []}),
+    ("pm_releases", {"label": "PM release synopses (WGC / WPIC)", "group": "Metals",
+                     "email": "pm_releases", "alerts": []}),
     ("iea", {"label": "IEA Oil Market Report", "group": "Energy",
              "email": None, "alerts": ["IEA OMR"]}),
     ("eia_steo", {"label": "EIA Short-Term Energy Outlook", "group": "Energy",

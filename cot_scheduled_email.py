@@ -283,15 +283,21 @@ def main():
     marker = read_marker()
     ny = datetime.now(NY_TZ)
 
-    # Release window gate (DST-aware): the CFTC posts the COT at ~15:30 New York. Begin
-    # polling at 15:20 NY so we never act before the release; the 15-minute trigger then
-    # catches the new data on the next tick (~15:35 NY) and the marker stops further sends.
-    # The machine clock is fixed UTC-5 with NO daylight saving, so this in-script NY check —
-    # not the OS trigger time — is what keeps the 3:20pm-ET start correct year-round.
+    # Send windows (DST-aware). The machine clock is fixed UTC-5 with NO daylight saving, so
+    # these in-script NEW YORK checks — not the OS trigger times — are what stay correct all year:
+    #   1. RELEASE  — from 15:27 NY. The CFTC posts at ~15:30, so the 5-minute poll picks the new
+    #      data up on the next tick (~15:32 NY); the marker then stops any further sends.
+    #   2. CATCH-UP — Monday 07:00–07:30 NY. Only matters when Friday's report never went out
+    #      (laptop shut, or the CFTC's public API posted too late in the day). The marker check
+    #      below means this silently no-ops whenever Friday already sent, so it can never
+    #      duplicate — it only rescues a missed release.
     # Bypassed by --force-send; not relevant to --seed.
     if not (args.force_send or args.seed):
-        if (ny.hour, ny.minute) < (15, 20):
-            print(f"Release: before the 15:20 NY release window (NY now {ny:%a %H:%M}); nothing to do.")
+        hm = (ny.hour, ny.minute)
+        in_release = hm >= (15, 27)
+        in_catchup = ny.weekday() == 0 and (7, 0) <= hm <= (7, 30)     # Monday morning rescue
+        if not (in_release or in_catchup):
+            print(f"Outside the send windows (NY now {ny:%a %H:%M}); nothing to do.")
             return
 
     # Cheap pre-check: skip the heavy refresh when there's nothing new (release mode only;
@@ -340,9 +346,13 @@ def main():
         sys.exit(1)
 
     send_email(OUT_PDF, latest, dry_run=args.dry_run, to_override=args.to)
-    if not args.dry_run:
+    if not args.dry_run and not args.to:
         MARKER.write_text(str(latest))                 # release marker
         print(f"Sent. Marker updated (release={latest}).")
+    elif args.to:
+        # A --to override is a test/preview, NOT the release — leave the marker alone so
+        # the scheduled send to the managed recipient list still goes out.
+        print("Sent (recipient override) — release marker left unchanged.")
 
 
 if __name__ == "__main__":

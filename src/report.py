@@ -47,14 +47,14 @@ def render_html(rows, title, asof, trigger="") -> str:
             "direction": r.get("direction", 0) or 0,
         })
     return env.get_template("report.html").render(
-        title=title, asof=asof, rows=table, trigger=trigger,
+        title=title, asof=pretty_date(asof), rows=table, trigger=trigger,
         logo=_data_uri(ASSETS / "logo.png"),
         watermark=_data_uri(ASSETS / "building.jpg"),
     )
 
 
 def build_pdf(rows, title, asof, out_path, trigger=""):
-    from reportkit import render_pdf   # self-healing headless-Chromium renderer
+    from reportkit import pretty_date, render_pdf   # self-healing headless-Chromium renderer
     return render_pdf(render_html(rows, title, asof, trigger), out_path)
 
 

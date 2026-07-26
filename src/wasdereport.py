@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import sys
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -204,11 +205,37 @@ def build_data(year=None):
             "us": us_rows, "world": world_rows, "bar": bar, "reax": reax, "reax_on": reax_on}
 
 
+def data_is_fresh() -> bool:
+    """Has PS&D refreshed for a NEW WASDE? True if current US ending stocks differ from the most
+    recent stored snapshot (the release is reflected); False if they still match it (not yet posted).
+    No prior snapshot -> True (nothing to gate on). Lets the auto-send fire the moment the data posts
+    instead of on a fixed clock time."""
+    month = _wasde_month()
+    prior = _prior_snapshot(month)
+    if not prior:
+        return True
+    groups = {}
+    for _, grp, _, _ in CROPS:
+        groups.setdefault(grp, agdata._psd_download(grp))
+    for crop, grp, comm, fac in CROPS:
+        usp = _pivot(groups[grp], comm, True)
+        if usp.empty:
+            continue
+        cand = [y for y in sorted(usp.index) if _g(usp, y, "Ending Stocks") is not None]
+        if not cand:
+            continue
+        end = _g(usp, int(cand[-1]), "Ending Stocks")
+        prior_end = (prior.get(crop) or {}).get("end")
+        if end is not None and prior_end is not None and round(end * fac / 1000.0) != round(prior_end):
+            return True
+    return False
+
+
 def stu_fig(bar):
-    from reportkit import png
+    from reportkit import pretty_date, png
     import matplotlib.pyplot as plt
     bar = sorted(bar, key=lambda r: r["stu"], reverse=True)
-    fig, ax = plt.subplots(figsize=(6.1, max(1.4, 0.5 * len(bar) + 0.5)))
+    fig, ax = plt.subplots(figsize=(6.1, max(1.1, 0.35 * len(bar) + 0.4)))
     colors = ["#2E7D32" if r["stu"] <= TIGHT else "#C62828" if r["stu"] >= AMPLE else "#9E9E9E" for r in bar]
     ax.barh(range(len(bar)), [r["stu"] for r in bar], color=colors, edgecolor="white", zorder=3)
     ax.set_yticks(range(len(bar)))
@@ -224,7 +251,6 @@ def stu_fig(bar):
     ax.set_axisbelow(True)
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
-    ax.set_title("US stocks-to-use — tight vs loose", fontsize=7.2, loc="left", fontweight="bold")
     fig.tight_layout()
     return png(fig)
 
@@ -234,7 +260,7 @@ def render_html(year, asof, demo=False, light=False):
     data = build_data(year)
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     return env.get_template("wasdereport.html").render(
-        asof=asof, demo=demo, stu_img=(stu_fig(data["bar"]) if data["bar"] else ""),
+        asof=pretty_date(asof), demo=demo, stu_img=(stu_fig(data["bar"]) if data["bar"] else ""),
         logo=data_uri(ASSETS / "logo.png"),
         watermark="" if light else data_uri(ASSETS / "building.jpg"), **data)
 
@@ -251,7 +277,13 @@ def main():
     ap.add_argument("--asof", default="")
     ap.add_argument("--demo", action="store_true")
     ap.add_argument("--json", dest="json_out", default="")
+    ap.add_argument("--check-fresh", action="store_true",
+                    help="print FRESH/STALE (has PS&D refreshed for a new WASDE?) and exit; exit 3 = stale")
     args = ap.parse_args()
+    if args.check_fresh:
+        ok = data_is_fresh()
+        print("FRESH" if ok else "STALE")
+        sys.exit(0 if ok else 3)
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(build_data(args.year)), encoding="utf-8")
         print(f"Wrote {args.json_out}")

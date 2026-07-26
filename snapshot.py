@@ -104,36 +104,58 @@ def run_oi() -> int:
     return n
 
 
-def run_equities() -> dict:
-    """The EQUITIES daily pull — index membership + overnight quotes/short history, plus the
-    weekly-guarded Company Fundamentals refresh. Its own job (CLI --equities, and the
-    'Pull equities data' button on the Equities home) so FICC and Equities pull separately.
-    Guarded like the futures pull: a dead pull never wipes the caches. Also stamps the
-    snapshot manifest's 'equities' entry so both sides' provenance lives in one place."""
-    eq, fr = {}, {}
-    try:
-        from src import equities
-        eq = equities.build_snapshot()
-        print(f"  Equities: {eq.get('n_memberships', 0)} constituents / {eq.get('n_unique', 0)} "
-              f"unique across {len(eq.get('indices', {}))} indices"
-              if eq.get("ok") else f"  Equities snapshot skipped: {eq.get('reason')}")
-    except Exception as e:
-        print(f"  (Equities snapshot skipped: {e})")
+# ── Equities pull switches ──────────────────────────────────────────────────────────────────
+# Individual-stock (index constituent) prices and Company Fundamentals are turned OFF at the
+# user's request (2026-07-24) to keep the Bloomberg pull light: they were the bulk of the daily
+# hits (~264 constituent names + a ~70k-hit weekly fundamentals re-pull) and kept re-tripping the
+# -4002 workflow-review block. Nothing index-level is lost — the equity INDEX numbers the desk
+# needs are already in the FICC pull (asset class "Indices": index futures + cash levels like
+# SX5E/DAX/UKX/CAC/NKY/KOSPI2). Flip a flag back to True to restore that part of the pull.
+PULL_EQUITY_CONSTITUENTS = False   # per-stock index membership + overnight quotes/history
+PULL_FUNDAMENTALS        = False   # Company Fundamentals DB refresh
 
-    # Company fundamentals — WEEKLY-guarded append to data/equities/fundamentals.parquet
-    # (fundamentals move slowly; a fresh-enough last pull is left alone). Guarded the same way:
-    # a failure never blocks the pull, a dead pull never wipes the DB.
-    try:
-        from src import eqfunda
-        fr = eqfunda.maybe_refresh(max_age_days=7)
-        if fr.get("skipped"):
-            print(f"  Fundamentals: last pull {fr.get('last_pull')} is {fr.get('age_days')}d old — kept.")
-        elif fr.get("ok"):
-            print(f"  Fundamentals: {fr.get('n_tickers', 0)} names appended ({fr.get('last_pull')}).")
-        else:
-            print(f"  Fundamentals pull skipped: {fr.get('reason')}")
-    except Exception as e:
-        print(f"  (Fundamentals pull skipped: {e})")
+
+def run_equities() -> dict:
+    """The EQUITIES pull — index membership + overnight quotes/short history, plus the
+    weekly-guarded Company Fundamentals refresh. Both are gated behind PULL_EQUITY_CONSTITUENTS /
+    PULL_FUNDAMENTALS (currently OFF — see the note above); with both off this is a no-op that
+    leaves the equity INDEX numbers to the FICC pull and the existing equities caches untouched.
+    Its own job (CLI --equities, and the 'Pull equities data' button on the Equities home).
+    Guarded like the futures pull: a dead pull never wipes the caches."""
+    if not PULL_EQUITY_CONSTITUENTS and not PULL_FUNDAMENTALS:
+        print("  Equities pull is OFF — individual-stock (constituent) prices and Company "
+              "Fundamentals are disabled to keep the Bloomberg pull light.")
+        print("  Equity INDEX numbers come from the FICC pull (asset class 'Indices'); the "
+              "existing equities caches are left as-is.")
+        return {"ok": False, "disabled": True,
+                "reason": "equities constituent + fundamentals pull disabled"}
+
+    eq, fr = {}, {}
+    if PULL_EQUITY_CONSTITUENTS:
+        try:
+            from src import equities
+            eq = equities.build_snapshot()
+            print(f"  Equities: {eq.get('n_memberships', 0)} constituents / {eq.get('n_unique', 0)} "
+                  f"unique across {len(eq.get('indices', {}))} indices"
+                  if eq.get("ok") else f"  Equities snapshot skipped: {eq.get('reason')}")
+        except Exception as e:
+            print(f"  (Equities snapshot skipped: {e})")
+
+    if PULL_FUNDAMENTALS:
+        # Company fundamentals — WEEKLY-guarded append to data/equities/fundamentals.parquet
+        # (fundamentals move slowly; a fresh-enough last pull is left alone). Guarded the same
+        # way: a failure never blocks the pull, a dead pull never wipes the DB.
+        try:
+            from src import eqfunda
+            fr = eqfunda.maybe_refresh(max_age_days=7)
+            if fr.get("skipped"):
+                print(f"  Fundamentals: last pull {fr.get('last_pull')} is {fr.get('age_days')}d old — kept.")
+            elif fr.get("ok"):
+                print(f"  Fundamentals: {fr.get('n_tickers', 0)} names appended ({fr.get('last_pull')}).")
+            else:
+                print(f"  Fundamentals pull skipped: {fr.get('reason')}")
+        except Exception as e:
+            print(f"  (Fundamentals pull skipped: {e})")
 
     # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit):
     # ~3 per name for quotes/history + ~30 per name actually re-pulled by fundamentals.
@@ -210,6 +232,26 @@ def run(include_equities: bool = False) -> dict:
     except Exception as e:
         print(f"  (COT price DB update skipped: {e})")
 
+    # Our own constant-90d STIR ATM curve (settlement-inverted, src/stircurve.py) — top up
+    # the last ~2 weeks so settles finalise and expiries roll. Backfilled 13 months 2026-07-22.
+    try:
+        from src import stircurve
+        stircurve.update_history(log=lambda *a: None)
+        print("  STIR 90d curve history topped up (our own construction)")
+    except Exception as e:
+        print(f"  (STIR curve update skipped: {e})")
+
+    # Our own 30d/90d ATM curve for the whole listed-futures book (src/owncurve.py) —
+    # THE VOL BOOK'S IMPLIED SOURCE since 2026-07-22 (backfilled 13 months): the vol
+    # cross-section overlays this history onto the vendor frame, so this append must
+    # stay AHEAD of any signals rebuild. bbg30 rides along as the standing cross-check.
+    try:
+        from src import owncurve
+        owncurve.append_today(log=lambda *a: None)
+        print("  Own-curve 30d/90d book rebuilt + history appended")
+    except Exception as e:
+        print(f"  (own-curve book update skipped: {e})")
+
     # Equities are a SEPARATE pull (run_equities / --equities, wired to the Equities home
     # page) so the FICC morning pull stays fast — chain both with include_equities=True.
     eq = {}
@@ -270,8 +312,9 @@ def main():
     if args.equities:
         eq = run_equities()
         print(json.dumps(eq, indent=2, default=str))
-        # nonzero on a dead pull so the app's button shows the failure instead of "refreshed"
-        raise SystemExit(0 if eq.get("ok") else 1)
+        # nonzero on a dead pull so the app's button shows the failure instead of "refreshed";
+        # a DELIBERATELY-disabled pull ("disabled") is not a failure, so it exits 0.
+        raise SystemExit(0 if (eq.get("ok") or eq.get("disabled")) else 1)
     m = run(include_equities=args.with_equities)
     print("Snapshot written to", SNAP)
     print(json.dumps(m, indent=2))

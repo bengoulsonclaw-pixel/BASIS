@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 8pt; }
+  .kpis { display: flex; gap: 3mm; margin: 3mm 0 1mm; }
+  .kpi { flex: 1; border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+         padding: 2mm 3mm; background: #FafafA; }
+  .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .val { font-size: 11pt; font-weight: 700; color: #111; }
+  .kpi .note { font-size: 6.5pt; color: #888; }
+  .kpi .val.small { font-size: 9pt; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Option Strategy Ticket</h1>
+      <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      <b>{{ title }}</b> on <b>{{ underlying }}</b>{% if ticker %} ({{ ticker }}){% endif %}
+      &mdash; a {{ n_legs }}-leg options position at an underlying reference price of
+      <b>{{ spot }}</b>. Legs are model-priced with <b>Black-76 on the futures price</b>
+      (rate {{ rate }}%); premiums marked &ldquo;screen&rdquo; were typed in from live quotes.
+      Vol marks: {{ vol_source }}. Risk figures are read at the <b>front expiry
+      (T+{{ front }}d)</b>{% if in_ccy %}; money values use a point value of {{ pv }} {{ ccy }}
+      per 1.00 of price, per lot{% endif %}.
+    </p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lab">{{ net_lab }}</div>
+        <div class="val small">{{ net }}</div><div class="note">to put the package on</div></div>
+      <div class="kpi"><div class="lab">Max profit</div>
+        <div class="val small">{{ max_profit }}</div><div class="note">at front expiry</div></div>
+      <div class="kpi"><div class="lab">Max loss</div>
+        <div class="val small">{{ max_loss }}</div><div class="note">at front expiry</div></div>
+      <div class="kpi"><div class="lab">Breakeven{% if '·' in breakevens %}s{% endif %}</div>
+        <div class="val small">{{ breakevens }}</div><div class="note">P&amp;L crosses zero</div></div>
+      <div class="kpi"><div class="lab">P(profit)</div>
+        <div class="val small">{{ pop }}</div><div class="note">model estimate</div></div>
+    </div>
+
+    <div class="section">
+      <div class="banner">Payoff &mdash; front expiry vs scenario ({{ scn_lbl }})</div>
+      <div class="chart"><img src="{{ chart }}" alt="Payoff chart"></div>
+    </div>
+
+    <div class="banner">Legs</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Side</th><th class="center">Qty</th><th>Type</th>
+          <th class="center">Strike / entry</th><th class="center">Expiry</th>
+          <th class="center">Vol %</th><th class="center">Premium (pts)</th>
+          {% if in_ccy %}<th class="center">Premium ({{ ccy }})</th>{% endif %}
+          <th class="center">Priced</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="{% if r.long %}long{% else %}short{% endif %}">
+          <td class="market">{{ r.side }}</td>
+          <td class="center">{{ r.qty }}</td>
+          <td>{{ r.kind }}</td>
+          <td class="center">{{ r.strike }}</td>
+          <td class="center">{{ r.days }}</td>
+          <td class="center">{{ r.vol }}</td>
+          <td class="center">{{ r.prem }}</td>
+          {% if in_ccy %}<td class="center">{{ r.prem_ccy }}</td>{% endif %}
+          <td class="center">{{ r.src }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="banner">Position Greeks &mdash; at today's mark</div>
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Delta</div>
+        <div class="val small">{{ delta }}</div><div class="note">underlying-equivalent units</div></div>
+      <div class="kpi"><div class="lab">Gamma</div>
+        <div class="val small">{{ gamma }}</div><div class="note">delta per 1.00 move</div></div>
+      <div class="kpi"><div class="lab">Vega</div>
+        <div class="val small">{{ vega }}</div><div class="note">per +1 vol point</div></div>
+      <div class="kpi"><div class="lab">Theta</div>
+        <div class="val small">{{ theta }}</div><div class="note">per calendar day</div></div>
+    </div>
+
+    <div class="report-footer">
+    <div class="foot-disclaimer">
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      All option values are European-exercise Black-76 model marks on the futures price at the
+      flat per-leg vols shown &mdash; indicative levels, not executable quotes; premiums flagged
+      &ldquo;screen&rdquo; were entered from market quotes at build time. Max profit / max loss and
+      breakevens are read from the payoff at the front expiry with any longer-dated legs re-priced,
+      not expired. P(profit) is the probability the front-expiry P&amp;L ends positive under a
+      drift-free lognormal distribution at the legs&rsquo; average vol &mdash; a model estimate,
+      not a market-implied probability. Generated by the internal Strategy Monitor for information
+      only &mdash; not investment advice or a solicitation. Market data is subject to your licence
+      terms; verify redistribution rights before external use.
+    </div>
+  </div>
+    </div>
+  </div>
+</body>
+</html>

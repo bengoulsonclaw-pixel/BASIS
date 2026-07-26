@@ -23,6 +23,7 @@ from .volatility import _z_and_pctl, _last, _excluded, _ord, Z_FLAG, _SQRT252
 
 STRATEGY = "Vol Term Structure"
 DETAIL_FILE = Path(__file__).resolve().parents[2] / "data" / "signals" / "termstructure.parquet"
+HISTORY_FILE = Path(__file__).resolve().parents[2] / "data" / "signals" / "termstructure_history.parquet"
 
 _LABS = [lab for lab, *_ in TENORS]
 DETAIL_COLUMNS = (["market", "ticker", "asset", "region"]
@@ -33,12 +34,39 @@ DETAIL_COLUMNS = (["market", "ticker", "asset", "region"]
                   + [f"iv_sd_{l.lower()}" for l in _LABS] + ["px_dec"])   # daily 1σ move + native dp
 
 
+def _persist_term_history(ts, px, window: int = 252):
+    """Cache ~1y of the 3M−1M slope, its two legs and the underlying price per market
+    (long format) for the term report's slope-vs-underlying panels + captions."""
+    frames = []
+    for t in px.columns:
+        if _excluded(t) or not all(t in ts[l].columns for l in ("1M", "3M")):
+            continue
+        h = pd.DataFrame({"slope": ts["3M"][t] - ts["1M"][t], "price": px[t],
+                          "iv1m": ts["1M"][t], "iv3m": ts["3M"][t]}).dropna().iloc[-window:]
+        if h.empty:
+            continue
+        h = h.reset_index()
+        h.columns = ["date", "slope", "price", "iv1m", "iv3m"]
+        h["ticker"] = t
+        frames.append(h[["date", "ticker", "slope", "price", "iv1m", "iv3m"]])
+    if frames:
+        try:
+            HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            pd.concat(frames, ignore_index=True).to_parquet(HISTORY_FILE, index=False)
+        except Exception:
+            pass
+
+
 def compute_termstructure_table() -> pd.DataFrame:
     """Cross-section: per market the 1M/3M/6M/12M ATM curve, the 3M−1M slope and its
     z-score/percentile, and each tenor's implied-vs-realized premium. Sorted by |z|."""
     tickers = list(INSTRUMENTS)
     ts = get_term_structure(tickers)                       # {label: date×ticker df}
     px = get_history(tickers)                               # underlying settlement — SD + realized
+    try:
+        _persist_term_history(ts, px)                      # 1y slope + underlying for the report
+    except Exception:
+        pass
     logret = np.log(px).diff()
     rvw = {win: logret.rolling(win).std() * np.sqrt(252) * 100.0
            for _, _, _, win in TENORS}                     # realized at each matched window

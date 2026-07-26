@@ -18,7 +18,7 @@ import argparse
 import html
 from pathlib import Path
 
-from reportkit import data_uri, png, render_pdf, BLACK
+from reportkit import pretty_date, data_uri, png, render_pdf, BLACK
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -455,7 +455,7 @@ def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str,
         prev_day = asof
 
     return env.get_template("pcreport.html").render(
-        asof=asof, commentary=commentary(detail, hi, lo),
+        asof=pretty_date(asof), commentary=commentary(detail, hi, lo),
         activity_bar=_png(activity_fig(detail)), prev_day=prev_day, act_lead=_activity_lead(detail),
         heatmap=_png(heatmap_fig(hist, detail)),
         rank=_png(rank_fig(detail, hi, lo)),

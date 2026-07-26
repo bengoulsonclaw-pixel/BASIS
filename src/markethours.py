@@ -33,7 +33,7 @@ SETTLE = {
     "cme_eq": "15:00", "cme_fx": "14:00", "cme_stir": "14:00", "cbot_rates": "14:00",
     "cbot_grain": "13:20", "cme_live": "13:05", "nymex_en": "14:30", "comex_me": "13:30",
     "eurex_bond": "17:15", "eurex_eq": "17:30", "euronext_eq": "17:30", "ice_ftse": "16:30",
-    "ice_gilt": "16:15", "ice_stir_eu": "17:00", "ice_brent": "19:30", "ice_ttf": "17:00",
+    "ice_gilt": "16:15", "ice_stir_eu": "17:00", "ice_brent": "19:30", "ice_gasoil": "16:30", "ice_ttf": "17:00",
     "ice_eua": "17:00", "ice_robusta": "16:30", "ice_sugar": "13:00", "ice_coffee": "13:30",
     "ice_cocoa": "11:50", "ice_cotton": "14:20", "ice_oj": "14:00", "cash_eu_de": "17:30",
     "cash_uk": "16:30", "jpx_nikkei": "15:15", "krx_kospi": "15:45", "asx_spi": "16:30",
@@ -57,7 +57,10 @@ PROFILES = {
     "ice_ftse":    ("ICE Europe", "Europe/London",     [("01:00", "21:00")], [("08:00", "16:30")]),
     "ice_gilt":    ("ICE Europe", "Europe/London",     [("08:00", "18:00")], [("08:00", "18:00")]),
     "ice_stir_eu": ("ICE Europe", "Europe/London",     [("01:00", "21:00")], [("07:00", "18:00")]),
-    "ice_brent":   ("ICE Europe", "Europe/London",     [("01:00", "23:00")], [("08:00", "16:30")]),
+    # Brent stays liquid through the London day and the NY overlap, right into the ICE
+    # settlement (19:30 London = 14:30 ET in summer — the same instant WTI settles).
+    "ice_brent":   ("ICE Europe", "Europe/London",     [("01:00", "23:00")], [("08:00", "19:30")]),
+    "ice_gasoil":  ("ICE Europe", "Europe/London",     [("01:00", "23:00")], [("08:00", "16:30")]),
     "ice_ttf":     ("ICE Endex",  "Europe/London",     [("08:00", "18:00")], [("08:00", "18:00")]),
     "ice_eua":     ("ICE Europe", "Europe/London",     [("07:00", "17:00")], [("07:00", "17:00")]),
     "ice_robusta": ("ICE Europe", "Europe/London",     [("09:00", "17:30")], [("09:00", "17:30")]),
@@ -104,7 +107,7 @@ PROFILE_OF = {
     "UBA Comdty": "eurex_bond", "RXA Comdty": "eurex_bond", "OEA Comdty": "eurex_bond",
     "DUA Comdty": "eurex_bond", "OATA Comdty": "eurex_bond", "G A Comdty": "ice_gilt",
     # Energy
-    "COA Comdty": "ice_brent", "QSA Comdty": "ice_brent",
+    "COA Comdty": "ice_brent", "QSA Comdty": "ice_gasoil",
     "CLA Comdty": "nymex_en", "XBA Comdty": "nymex_en", "NGA Comdty": "nymex_en", "HOA Comdty": "nymex_en",
     "FJSA Comdty": "ice_ttf", "MOA Comdty": "ice_eua", "CUAA Comdty": "cbot_grain",
     # Metals
@@ -144,8 +147,8 @@ CALENDAR_OF = {
     "ice_oj": "US_ICE",
     "eurex_bond": "DE", "eurex_eq": "DE", "cash_eu_de": "DE",
     "euronext_eq": "FR",
-    "ice_ftse": "UK", "ice_gilt": "UK", "ice_stir_eu": "UK", "ice_brent": "UK", "ice_ttf": "UK",
-    "ice_eua": "UK", "ice_robusta": "UK", "cash_uk": "UK",
+    "ice_ftse": "UK", "ice_gilt": "UK", "ice_stir_eu": "UK", "ice_brent": "UK", "ice_gasoil": "UK",
+    "ice_ttf": "UK", "ice_eua": "UK", "ice_robusta": "UK", "cash_uk": "UK",
     "jpx_nikkei": "JP", "krx_kospi": "KR", "asx_spi": "AU", "sgx_iron": "SG",
 }
 

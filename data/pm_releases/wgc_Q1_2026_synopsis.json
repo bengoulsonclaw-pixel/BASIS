@@ -1,0 +1,24 @@
+{
+ "pub": "wgc",
+ "edition": "Q1 2026",
+ "url": "https://www.gold.org/goldhub/research/gold-demand-trends/gold-demand-trends-q1-2026",
+ "published": "29 Apr 2026",
+ "label": "WGC Gold Demand Trends",
+ "publisher": "World Gold Council",
+ "headline": "This modest growth in volumes combined with gold\u2019s exceptional price rise, generated a 74% jump in the value of quarterly demand to a record US$193bn.",
+ "bullets": [
+  "Bar and coin demand of 474t (+42%) was the second highest quarter on record.",
+  "Buying of gold-backed ETFs continued in Q1 (+62t), but at a lower rate than the very strong Q1\u201925 (+230t) following sizable outflows from US funds in March.",
+  "Amid record high gold prices, jewellery demand volumes remained under pressure (-23% y/y), while levels of spend again increased (+31%), signalling continued positive sentiment towards gold jewellery.",
+  "Central banks bought 244t (+3% y/y) of gold on a net basis in Q1 despite a visible uptick in selling activity during the quarter.",
+  "Demand for gold used in technology edged 1% higher to 82t, fuelled largely by the continued growth in AI infrastructure.",
+  "The supply of gold increased in Q1 by 2% y/y to 1,231t."
+ ],
+ "figures": [
+  {
+   "label": "Central-bank net buying",
+   "value": "244t"
+  }
+ ],
+ "built": "2026-07-17"
+}

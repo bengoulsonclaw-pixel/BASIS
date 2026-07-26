@@ -13,8 +13,12 @@ snapshot / live all work):
     log-moneyness, decayed ~1/sqrt(tenor) beyond 1M
 
 Leg RATIO (sell straddles per buy straddle) at entry and at every re-strike:
+  rn_gamma — risk-normalised gamma (Γ·F²·σ²·mult): each leg carries the same
+             EXPECTED daily gamma earn at its own vol (default). Same-expiry
+             identities: theta-flat (zero net carry) and vega·σ-flat (neutral
+             to PROPORTIONAL vol moves rather than parallel ones).
   gamma    — equal dollar gamma (Γ·F²·mult): the realized-vol engines net out;
-             the vol-swap-like weighting (default).
+             the vol-swap-like weighting.
   vega     — equal dollar vega: P&L ≈ the implied spread mark-to-market.
   beta_vega— sell vega = β × buy vega, β from regressing daily 1M ATM IV changes
              (buy on sell) over the year before entry: vol-market-neutral.
@@ -71,7 +75,34 @@ POINT_VALUE = {
     "NVA Curncy": 100000.0, "PEA Curncy": 500000.0,
 }
 
-WEIGHTINGS = ["gamma", "vega", "beta_vega", "premium"]
+# ── contract currencies (non-USD only; anything absent = USD) ───────────────
+# A mixed-currency pair (e.g. buy ES / sell SX5E) needs the legs on one money
+# before greeks can be ratioed or P&L netted. The engine converts non-USD point
+# values to USD at the ENTRY-date rate, frozen for the run — the daily-margined
+# / FX-swept convention — using the FX futures already in the universe.
+CCY = {
+    "VGA Index": "EUR", "SX5E Index": "EUR", "SX7E Index": "EUR", "DAX Index": "EUR",
+    "GXA Index": "EUR", "CAA Index": "EUR", "CAC Index": "EUR",
+    "SMA Index": "CHF", "SMI Index": "CHF",
+    "Z A Index": "GBP", "UKX Index": "GBP",
+    "NKA Index": "JPY", "NKY Index": "JPY",
+    "KMA Index": "KRW", "KOSPI2 Index": "KRW", "XPA Index": "AUD",
+    "RXA Comdty": "EUR", "UBA Comdty": "EUR", "OEA Comdty": "EUR",
+    "DUA Comdty": "EUR", "OATA Comdty": "EUR", "ERA Comdty": "EUR",
+    # TKYA = ICE 3M ESTR (Tokyo-looking Bloomberg root, but a EUR contract).
+    "TKYA Comdty": "EUR",
+    "G A Comdty": "GBP", "SFIA Comdty": "GBP",
+}
+# USD per 1 unit of ccy — CME FX futures generics (all quoted American terms).
+FX_USD = {"EUR": "ECA Curncy", "GBP": "BPA Curncy", "JPY": "JYA Curncy",
+          "CHF": "SFA Curncy", "AUD": "ADA Curncy", "CAD": "CDA Curncy"}
+
+
+def currency(ticker: str) -> str:
+    return CCY.get(ticker, "USD")
+
+
+WEIGHTINGS = ["rn_gamma", "gamma", "vega", "beta_vega", "premium"]
 RESTRIKES = ["never", "daily", "threshold"]
 
 
@@ -234,9 +265,12 @@ class PairCorr:
     px_1m: float          # return corr, trailing 21 obs
     iv_1y: float          # 1M ATM IV daily-change corr, trailing 252 obs
     iv_1m: float          # ... trailing 21 obs
+    rv_1y: float          # 1M realized-vol daily-change corr, trailing 252 obs
+    rv_1m: float          # ... trailing 21 obs
     pctl: float           # where px_1m sits in the year of rolling 1M corr (0-100)
     rolling_px: pd.Series   # rolling 21d return corr, last ~252 obs
     rolling_iv: pd.Series   # rolling 21d IV-change corr, aligned window
+    rolling_rv: pd.Series   # rolling 21d realized-vol-change corr, aligned window
 
 
 def correlation_stats(buy: str, sell: str, asof, *, short: int = 21,
@@ -253,18 +287,23 @@ def correlation_stats(buy: str, sell: str, asof, *, short: int = 21,
     if len(rets) < short + 5:
         return None
     dv = iv.diff().dropna().loc[:end]
+    rvol = rets.rolling(short).std() * np.sqrt(252) * 100.0    # 1M realized vol (both legs)
+    drv = rvol.diff().dropna().loc[:end]                       # its daily changes
     r1y = rets.iloc[-long:]
     r1m = rets.iloc[-short:]
     roll_px = rets[buy].rolling(short).corr(rets[sell]).dropna().iloc[-long:]
     roll_iv = (dv[buy].rolling(short).corr(dv[sell]).dropna().reindex(roll_px.index)
                if len(dv) >= short + 5 else pd.Series(index=roll_px.index, dtype=float))
+    roll_rv = (drv[buy].rolling(short).corr(drv[sell]).dropna().reindex(roll_px.index)
+               if len(drv) >= short + 5 else pd.Series(index=roll_px.index, dtype=float))
     px_1m = float(r1m[buy].corr(r1m[sell]))
     pctl = float((roll_px <= px_1m).mean() * 100.0) if len(roll_px) else np.nan
     def _c(d):
         return float(d[buy].corr(d[sell])) if len(d) >= 5 else np.nan
     return PairCorr(asof=end, px_1y=_c(r1y), px_1m=px_1m,
                     iv_1y=_c(dv.iloc[-long:]), iv_1m=_c(dv.iloc[-short:]),
-                    pctl=pctl, rolling_px=roll_px, rolling_iv=roll_iv)
+                    rv_1y=_c(drv.iloc[-long:]), rv_1m=_c(drv.iloc[-short:]),
+                    pctl=pctl, rolling_px=roll_px, rolling_iv=roll_iv, rolling_rv=roll_rv)
 
 
 def vol_beta(iv: pd.DataFrame, buy: str, sell: str, entry, lookback: int = 252):
@@ -280,10 +319,14 @@ def vol_beta(iv: pd.DataFrame, buy: str, sell: str, entry, lookback: int = 252):
 
 
 def _ratio(mode: str, gb: Greeks, gs: Greeks, Fb: float, Fs: float,
-           mb: float, ms: float, beta: float) -> float:
-    """Sell straddles per buy straddle so the chosen exposure nets to zero."""
+           mb: float, ms: float, beta: float,
+           vb: float = np.nan, vs: float = np.nan) -> float:
+    """Sell straddles per buy straddle so the chosen exposure nets to zero.
+    `vb`/`vs` are the legs' marking vols (vol points) — rn_gamma only."""
     if mode == "gamma":
         return (gb.gamma * Fb * Fb * mb) / (gs.gamma * Fs * Fs * ms)
+    if mode == "rn_gamma":
+        return (gb.gamma * Fb * Fb * vb * vb * mb) / (gs.gamma * Fs * Fs * vs * vs * ms)
     if mode == "vega":
         return (gb.vega * mb) / (gs.vega * ms)
     if mode == "beta_vega":
@@ -294,9 +337,9 @@ def _ratio(mode: str, gb: Greeks, gs: Greeks, Fb: float, Fs: float,
 
 
 def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
-                 weighting: str = "gamma", restrike: str = "threshold",
+                 weighting: str = "rn_gamma", restrike: str = "threshold",
                  restrike_mult: float = 1.0, buy_lots: float = 10.0,
-                 opt_cost_vol: float = 0.10, fut_cost_bp: float = 0.5,
+                 opt_cost_lot: float = 0.0, fut_cost_lot: float = 0.0,
                  exit_bd_before_expiry: int = 5, end: date | None = None,
                  mult_override: dict | None = None) -> Result:
     """Run the delta-hedged straddle trade.
@@ -306,9 +349,10 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
     futures, so the P&L is that product's implied vs its OWN realized. In
     single-leg mode `weighting` is ignored (size = `buy_lots` straddles).
 
-    Costs: option trades pay `opt_cost_vol` vol points on the dollar vega traded
-    (half the quoted vol spread); futures hedges pay `fut_cost_bp` bp of the
-    notional traded."""
+    Costs are flat per-lot amounts in the instrument's own currency: option
+    trades pay `opt_cost_lot` per option contract traded (a straddle = 1 call
+    + 1 put = 2 lots), futures hedges pay `fut_cost_lot` per futures contract
+    traded."""
     warnings: list[str] = []
     leg_defs = {k: t for k, t in (("buy", buy), ("sell", sell)) if t}
     if not leg_defs:
@@ -353,6 +397,34 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
         mults.setdefault(t, point_value(t))
         if mults[t] <= 0:
             raise ValueError(f"no point value for {t} — set one on the page")
+
+    # ---- FX: put non-USD legs onto dollars at the entry-date rate (frozen) ------
+    fx_used = {}
+    for k, t in leg_defs.items():
+        ccy = currency(t)
+        if ccy == "USD":
+            continue
+        rate = np.nan
+        src = FX_USD.get(ccy)
+        if src:
+            try:
+                fxh = get_history([src], start=start_hist, end=end_ts)
+                if src in fxh.columns:
+                    fxs = fxh[src].dropna()
+                    fxs = fxs[fxs.index <= days[0]]
+                    if len(fxs):
+                        rate = float(fxs.iloc[-1])
+            except Exception:
+                rate = np.nan
+        if np.isfinite(rate) and rate > 0:
+            mults[t] = mults[t] * rate
+            fx_used[k] = {"ccy": ccy, "rate": rate}
+            warnings.append(f"{product_name(t)} is {ccy}-denominated — its point value is "
+                            f"converted at {ccy}USD {rate:.4f} (the entry-date rate, frozen "
+                            f"for the run), so every figure reads as USD")
+        else:
+            warnings.append(f"{product_name(t)} is {ccy}-denominated but no {ccy}USD rate "
+                            f"was available from the feed — treating 1 {ccy} = 1 USD")
 
     if single:
         n_beta, beta = 0, 1.0
@@ -405,13 +477,14 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
         else:
             r = _ratio("vega" if (weighting == "beta_vega" and n_beta < 60) else weighting,
                        g["buy"], g["sell"], F["buy"], F["sell"],
-                       legs["buy"].mult, legs["sell"].mult, beta)
+                       legs["buy"].mult, legs["sell"].mult, beta,
+                       vol["buy"], vol["sell"])
             n = {"buy": buy_lots, "sell": buy_lots * r}
         c_opt = c_fut = 0.0
         for k, leg in legs.items():
-            c_opt += opt_cost_vol * g[k].vega * n[k] * leg.mult
+            c_opt += opt_cost_lot * 2.0 * n[k]          # a straddle = call + put = 2 lots
             new_hedge = -sides[k] * n[k] * g[k].delta
-            c_fut += abs(new_hedge - leg.hedge) * F[k] * leg.mult * fut_cost_bp / 1e4
+            c_fut += abs(new_hedge - leg.hedge) * fut_cost_lot
             act = "buy" if k == "buy" else "sell"
             reason = "Entry" if tag == "entry" else "Re-strike open"
             _trade(day, k, leg, "call", act, n[k], g[k].call, F[k], reason)
@@ -480,9 +553,8 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
                 if abs(leg.hedge) > 1e-9:
                     _trade(day, k, leg, "future", "buy" if leg.hedge < 0 else "sell",
                            abs(leg.hedge), leg.F, np.nan, "Delta hedge (close)")
-            c_opt = sum(opt_cost_vol * leg.g.vega * leg.n * leg.mult for leg in legs.values())
-            c_fut = sum(abs(leg.hedge) * leg.F * leg.mult * fut_cost_bp / 1e4
-                        for leg in legs.values())
+            c_opt = sum(opt_cost_lot * 2.0 * leg.n for leg in legs.values())
+            c_fut = sum(abs(leg.hedge) * fut_cost_lot for leg in legs.values())
             cost_opt_total += c_opt; cost_fut_total += c_fut
             row["cost"] = c_opt + c_fut
             _a = lambda k, a: getattr(legs[k], a) if k in legs else np.nan
@@ -504,8 +576,7 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
                     act = "sell" if k == "buy" else "buy"
                     _trade(day, k, leg, "call", act, leg.n, leg.g.call, leg.K, "Re-strike close")
                     _trade(day, k, leg, "put", act, leg.n, leg.g.put, leg.K, "Re-strike close")
-                c_close = sum(opt_cost_vol * leg.g.vega * leg.n * leg.mult
-                              for leg in legs.values())
+                c_close = sum(opt_cost_lot * 2.0 * leg.n for leg in legs.values())
                 c_opt, c_fut = _open(day, restrike)
                 cost_opt_total += c_close + c_opt; cost_fut_total += c_fut
                 row["cost"] = c_close + c_opt + c_fut
@@ -514,7 +585,7 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
                 c_fut = 0.0
                 for k, leg in legs.items():
                     new_hedge = -sides[k] * leg.n * leg.g.delta
-                    c_fut += abs(new_hedge - leg.hedge) * leg.F * leg.mult * fut_cost_bp / 1e4
+                    c_fut += abs(new_hedge - leg.hedge) * fut_cost_lot
                     dq = new_hedge - leg.hedge
                     if abs(dq) > 1e-9:
                         _trade(day, k, leg, "future", "buy" if dq > 0 else "sell",
@@ -546,10 +617,11 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
         "sell_name": product_name(sell) if sell else "",
         "mode": MODE, "weighting": weighting, "restrike": restrike,
         "restrike_mult": restrike_mult, "buy_lots": buy_lots,
-        "opt_cost_vol": opt_cost_vol, "fut_cost_bp": fut_cost_bp,
+        "opt_cost_lot": opt_cost_lot, "fut_cost_lot": fut_cost_lot,
         "entry": days[0].date(), "exit": days[-1].date(), "expiry": expiry,
         "n_days": len(days) - 1, "beta": beta, "beta_obs": n_beta,
         "mult_buy": mults.get(buy, np.nan), "mult_sell": mults.get(sell, np.nan),
+        "fx": fx_used,
         "entry_iv_buy": entry_iv.get("buy", np.nan), "entry_iv_sell": entry_iv.get("sell", np.nan),
         "entry_iv_spread": (entry_iv["buy"] - entry_iv["sell"]) if not single else np.nan,
         "rlz_buy": float(rlz[buy]) if buy else np.nan,

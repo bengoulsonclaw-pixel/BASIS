@@ -17,7 +17,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from reportkit import data_uri, png, render_pdf, BLACK, YELLOW, RICH, CHEAP, NEUTRAL
+from reportkit import pretty_date, data_uri, png, render_pdf, BLACK, YELLOW, RICH, CHEAP, NEUTRAL
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from jinja2 import Environment, FileSystemLoader
@@ -29,8 +29,7 @@ BLUE = "#1F5FA8"
 
 def _fmt_asof(iso: str) -> str:
     try:
-        d = date.fromisoformat(iso)
-        return d.strftime("%d %b %Y")
+        return pretty_date(date.fromisoformat(iso))
     except Exception:
         return iso
 

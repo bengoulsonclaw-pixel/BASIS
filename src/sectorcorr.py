@@ -52,9 +52,9 @@ class CorrSet:
 
 
 def instrument_changes(metric: str, asof) -> tuple[pd.DataFrame, list]:
-    """Daily changes per product up to `asof` — log returns ('returns') or 1M ATM
-    IV vol-point diffs ('iv') — plus the tickers excluded and why they'd mislead
-    (stale surface, too little history)."""
+    """Daily changes per product up to `asof` — log returns ('returns'), 1M ATM IV
+    vol-point diffs ('iv'), or 1M realized-vol changes ('realized') — plus the tickers
+    excluded and why they'd mislead (stale surface, too little history)."""
     end = pd.Timestamp(asof)
     start = end - pd.Timedelta(days=LOOKBACK_DAYS)
     dropped: list = []
@@ -64,6 +64,10 @@ def instrument_changes(metric: str, asof) -> tuple[pd.DataFrame, list]:
         stale = stale_iv_reasons(raw)
         dropped += sorted(t for t in stale if t in raw.columns)
         chg = raw.drop(columns=dropped, errors="ignore").diff()
+    elif metric == "realized":
+        px = get_history(list(TREND_UNIVERSE), start=start, end=end).loc[:end]
+        rv = np.log(px.where(px > 0)).diff().rolling(SHORT).std() * np.sqrt(252) * 100.0
+        chg = rv.diff()                                  # daily changes in 1M realized vol
     else:
         px = get_history(list(TREND_UNIVERSE), start=start, end=end).loc[:end]
         chg = np.log(px.where(px > 0)).diff()

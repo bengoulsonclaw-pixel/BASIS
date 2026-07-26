@@ -15,7 +15,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .universe import INSTRUMENTS, IMPLIED_VOL_OVERRIDE, PRICE_FIELD_OVERRIDE
+from .universe import (INSTRUMENTS, IMPLIED_VOL_OVERRIDE, PRICE_FIELD_OVERRIDE,
+                       is_stir, is_bond, yield_source, asset)
+
+
+def _fx_override_tickers(tickers):
+    """The FX tickers whose vol comes from the OTC pair source. Classified by ASSET
+    CLASS, not by mere override membership — a non-FX market with a vol override
+    (e.g. Euribor's listed call/put mid) must NOT fall into the OTC …V1M/25R ticker
+    substitution the FX branches perform."""
+    return [t for t in tickers if asset(t) == "FX" and t in IMPLIED_VOL_OVERRIDE]
 
 # "mock"      -> synthetic data (no Bloomberg needed)
 # "bloomberg" -> live Bloomberg via xbbg/blpapi (Terminal must be running)
@@ -80,9 +89,9 @@ def _seed(ticker: str) -> int:
     return int.from_bytes(hashlib.md5(ticker.encode()).digest()[:4], "little")
 
 
-def _mock_series(ticker: str, base: float, n: int) -> np.ndarray:
+def _mock_series(ticker: str, base: float, n: int, vol_frac: float = 0.012) -> np.ndarray:
     rng = np.random.default_rng(_seed(ticker))
-    vol = base * 0.012          # ~1.2% daily move
+    vol = base * vol_frac       # ~1.2% daily move (STIRs get a tiny frac — see _mock_history)
     kappa = 0.015               # gentle pull back toward the base level
     prices = np.empty(n)
     prices[0] = base
@@ -95,9 +104,101 @@ def _mock_series(ticker: str, base: float, n: int) -> np.ndarray:
 def _mock_history(tickers, start, end, field) -> pd.DataFrame:
     end = pd.Timestamp.today().normalize() if end is None else pd.Timestamp(end)
     dates = pd.bdate_range(end=end, periods=LOOKBACK_DAYS)
-    data = {t: _mock_series(t, INSTRUMENTS.get(t, (t, 100.0, "", ""))[1], len(dates))
+    # STIR futures sit near 100 and barely move, so they get a tiny vol fraction —
+    # otherwise the demo's implied rate (100 − price) would swing wildly.
+    data = {t: _mock_series(t, INSTRUMENTS.get(t, (t, 100.0, "", ""))[1], len(dates),
+                            0.0005 if is_stir(t) else 0.012)
             for t in tickers}
     return pd.DataFrame(data, index=dates)
+
+
+# ---------------------------------------------------------------------------
+# FIXED-INCOME YIELDS  (the price-based TECHNICAL strategies run on yields, not
+# futures prices — rates desks read yield charts, and the price↔yield inversion
+# makes futures-price TA misleading). get_history_ta is aliased over get_history
+# inside those strategy modules; vol/positioning keep true prices via get_history.
+#   • STIRs -> implied rate = 100 − price (exact, from the price series).
+#   • Bonds -> the benchmark generic yield each future tracks (universe.BOND_YIELD_SOURCE).
+# ---------------------------------------------------------------------------
+def get_history_ta(tickers, start=None, end=None, field: str = DEFAULT_FIELD) -> pd.DataFrame:
+    """Like get_history, but fixed income comes back as YIELDS (%) instead of futures
+    prices: STIRs as 100 − price, bond futures as their mapped benchmark yield. Non-FI
+    tickers are unchanged (prices). This is what the technical strategies compute on."""
+    tickers = list(tickers)
+    out = get_history(tickers, start, end, field).copy()
+    bonds = [t for t in tickers if is_bond(t) and yield_source(t)]
+    ylds = get_yield_history(bonds, start, end) if bonds else None
+    ycols = list(getattr(ylds, "columns", []))
+    for t in tickers:
+        if is_stir(t) and t in out.columns:
+            out[t] = 100.0 - out[t]
+        elif t in ycols:
+            out[t] = ylds[t].reindex(out.index).ffill()
+    return out
+
+
+def get_yield_history(tickers, start=None, end=None) -> pd.DataFrame:
+    """Benchmark yields (%) for BOND futures — one column per bond future ticker, valued
+    by its mapped generic-yield series (universe.BOND_YIELD_SOURCE). Modes mirror
+    get_history: bloomberg pulls the yield sources, snapshot reads yields.parquet, mock
+    synthesises a plausible mean-reverting series. Non-bond tickers are dropped."""
+    tickers = [t for t in tickers if yield_source(t)]
+    if not tickers:
+        return pd.DataFrame()
+    if MODE == "bloomberg":
+        return _bloomberg_yield(tickers, start, end)
+    if MODE == "snapshot":
+        snap = _read_snapshot("yields.parquet")
+        if snap is not None:
+            return snap.reindex(columns=tickers)
+    return _mock_yield(tickers, start, end)
+
+
+# Rough current-ish yield levels (%) per bond future, so mock/offline FI TA is realistic.
+_MOCK_YIELD_BASE = {
+    "TUA Comdty": 4.20, "FVA Comdty": 4.10, "TYA Comdty": 4.30, "UXYA Comdty": 4.35,
+    "USA Comdty": 4.60, "WNA Comdty": 4.60, "DUA Comdty": 2.40, "OEA Comdty": 2.50,
+    "RXA Comdty": 2.60, "UBA Comdty": 2.90, "OATA Comdty": 3.20, "G A Comdty": 4.40,
+}
+
+
+def _mock_yield(tickers, start, end) -> pd.DataFrame:
+    """Synthetic yields (%): mean-reverting around a plausible level per tenor, ~3bp/day.
+    Deterministic per ticker so the demo is stable."""
+    end = pd.Timestamp.today().normalize() if end is None else pd.Timestamp(end)
+    dates = pd.bdate_range(end=end, periods=LOOKBACK_DAYS)
+    data = {}
+    for t in tickers:
+        b = _MOCK_YIELD_BASE.get(t, 4.0)
+        rng = np.random.default_rng(_seed(t) ^ 0x51E1D)
+        y = np.empty(len(dates))
+        y[0] = b
+        for i in range(1, len(dates)):
+            y[i] = max(0.05, y[i - 1] + 0.02 * (b - y[i - 1]) + rng.normal(0, 0.03))
+        data[t] = y
+    return pd.DataFrame(data, index=dates)
+
+
+def _bloomberg_yield(tickers, start, end) -> pd.DataFrame:
+    """LIVE benchmark yields — one batched bdh (PX_LAST) on the distinct yield-source
+    tickers, mapped back onto each bond future ticker."""
+    from xbbg import blp
+    start, end = _span(start, end)
+    srcs: dict = {}
+    for t in tickers:
+        srcs.setdefault(yield_source(t), []).append(t)
+    wide = _bdh_to_wide(blp.bdh(tickers=list(srcs), flds="PX_LAST", start_date=start, end_date=end))
+    cols = {}
+    if wide is not None:
+        wide.index = pd.to_datetime(wide.index)
+        wide = wide.sort_index()
+        for src, futs in srcs.items():
+            if src in wide.columns:
+                for f in futs:
+                    cols[f] = wide[src]
+    if not cols:
+        return pd.DataFrame(columns=list(tickers))
+    return pd.DataFrame(cols).ffill().reindex(columns=list(tickers))
 
 
 # ---------------------------------------------------------------------------
@@ -398,12 +499,21 @@ def _bloomberg_implied_vol(tickers, start, end) -> pd.DataFrame:
     cols = {}
     for fld, pairs in by_field.items():
         srcs = sorted({src for _, src in pairs})
-        try:
-            wide = _bdh_to_wide(blp.bdh(tickers=srcs, flds=fld, start_date=start, end_date=end))
-        except Exception:
-            wide = None
-        if wide is None:
+        # A composite field "A+B" pulls each leg and takes the element-wise mean — e.g.
+        # Euribor's "HIST_CALL_IMP_VOL+HIST_PUT_IMP_VOL" (the near-ATM call/put mid; no
+        # smoothed surface exists for it). A date where only one leg prints keeps that leg.
+        parts = [p.strip() for p in fld.split("+") if p.strip()] if "+" in fld else [fld]
+        wides = []
+        for part in parts:
+            try:
+                w = _bdh_to_wide(blp.bdh(tickers=srcs, flds=part, start_date=start, end_date=end))
+            except Exception:
+                w = None
+            if w is not None:
+                wides.append(w)
+        if not wides:
             continue
+        wide = wides[0] if len(wides) == 1 else pd.concat(wides).groupby(level=0).mean()
         for fut, src in pairs:
             if src in wide.columns and wide[src].notna().any():
                 cols[fut] = wide[src]
@@ -485,8 +595,8 @@ def _mock_skew(tickers, start, end) -> dict:
 def _bloomberg_skew(tickers, start, end) -> dict:
     from xbbg import blp
     start, end = _span(start, end)
-    fx = [t for t in tickers if t in IMPLIED_VOL_OVERRIDE]          # OTC 25Δ risk reversal
-    listed = [t for t in tickers if t not in IMPLIED_VOL_OVERRIDE]  # 90/110% moneyness wings
+    fx = _fx_override_tickers(tickers)                  # OTC 25Δ risk reversal
+    listed = [t for t in tickers if t not in set(fx)]   # 90/110% moneyness wings
     put, call, atm = {}, {}, {}
 
     if listed:
@@ -581,8 +691,8 @@ def _mock_term_structure(tickers, start, end) -> dict:
 def _bloomberg_term_structure(tickers, start, end) -> dict:
     from xbbg import blp
     start, end = _span(start, end)
-    fx = [t for t in tickers if t in IMPLIED_VOL_OVERRIDE]
-    listed = [t for t in tickers if t not in IMPLIED_VOL_OVERRIDE]
+    fx = _fx_override_tickers(tickers)
+    listed = [t for t in tickers if t not in set(fx)]
     out = {}
     for lab, fld, tok, _win in TENORS:
         cols = {}

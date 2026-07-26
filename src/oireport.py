@@ -22,7 +22,7 @@ import html
 import math
 from pathlib import Path
 
-from reportkit import data_uri, png, render_pdf
+from reportkit import pretty_date, data_uri, png, render_pdf
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -206,7 +206,7 @@ def book_commentary(products: list, n_products: int) -> str:
 
 def render_html(df: pd.DataFrame, asof: str, scope: str, light: bool = False) -> str:
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
-    common = dict(asof=asof, logo=data_uri(ASSETS / "logo.png"),
+    common = dict(asof=pretty_date(asof), logo=data_uri(ASSETS / "logo.png"),
                   watermark="" if light else data_uri(ASSETS / "building.jpg"))
 
     # Grouped (Fixed Income): a curated `page` order, each page its own banner + a single

@@ -59,7 +59,7 @@ def build_payload(asof: date, extremes: pd.DataFrame) -> dict:
         if len(sectors) + len(need) <= MAX_PDF_SECTORS:
             sectors.extend(need)
     sectors = [s for s in sectorcorr.SECTOR_ORDER if s in sectors]
-    ci = sectorcorr.instrument_corr("returns", asof, sectors)
+    ci = sectorcorr.instrument_corr("realized", asof, sectors)
     names = {}
     for t in ci.labels:
         nm = universe.name(t)
@@ -67,10 +67,10 @@ def build_payload(asof: date, extremes: pd.DataFrame) -> dict:
             universe.name(o) == nm for o in ci.labels if o != t) else nm
     D = ci.diff.rename(index=names, columns=names)
     span = max(0.2, float((D.abs().max().max() * 10 // 1 + 1) / 10))
-    bt = sectorcorr.top_breaks("returns", asof, n=15)
+    bt = sectorcorr.top_breaks("realized", asof, n=15)
     payload = {
         "asof": asof.isoformat(), "sectors": sectors, "mode": os.environ["DATAFEED_MODE"],
-        "metric_label": "settlement-price log returns",
+        "metric_label": "1M realized-vol changes",
         "labels": [names[t] for t in ci.labels],
         "m1y": _mat(ci.long_.rename(index=names, columns=names)),
         "m1m": _mat(ci.short_.rename(index=names, columns=names)),
@@ -84,7 +84,7 @@ def build_payload(asof: date, extremes: pd.DataFrame) -> dict:
                 bt["a"], bt["b"], bt["sector_a"], bt["sector_b"],
                 bt["corr_1y"], bt["corr_1m"], bt["diff"], bt["pctl"])],
     }
-    di = sectorcorr.diversification_index("returns", asof)
+    di = sectorcorr.diversification_index("realized", asof)
     if di is not None:
         payload.update(div_dates=[x.isoformat() for x in di.index.date],
                        div_avg=[float(v) for v in di["avg"]],
@@ -129,7 +129,7 @@ def main():
         print(f"Already emailed today ({today}). Nothing to do.")
         return
 
-    extremes = sectorcorr.percentile_extremes("returns", today)
+    extremes = sectorcorr.percentile_extremes("realized", today)
     if extremes.empty:
         print(f"No correlation extremes as of {today} — nothing to alert. "
               "(Pairs need |1M − 1Y| ≥ 0.30 at the ≤5th / ≥95th percentile.)")

@@ -69,7 +69,7 @@ def chart_balance(demand, supply) -> str | None:
     dem = [_num(d.get("total")) for d in demand]
     sup_by = {s.get("year"): _num(s.get("nondoc")) for s in (supply or [])}
     sup = [sup_by.get(y) for y in years]
-    fig, ax = plt.subplots(figsize=(6.6, 2.9))
+    fig, ax = plt.subplots(figsize=(6.9, 2.2))
     x = range(len(years))
     w = 0.38
     ax.bar([i - w / 2 for i in x], [d or 0 for d in dem], width=w, color=GOLD,
@@ -99,7 +99,7 @@ def chart_demand_split(demand) -> str | None:
     years = [d.get("year", "") for d in rows]
     oecd = [_num(d.get("oecd")) or 0 for d in rows]
     nono = [_num(d.get("nonoecd")) or 0 for d in rows]
-    fig, ax = plt.subplots(figsize=(6.4, 2.7))
+    fig, ax = plt.subplots(figsize=(6.9, 2.1))
     x = range(len(years))
     ax.bar(x, oecd, color=GREY, edgecolor="white", linewidth=0.6, label="OECD", zorder=3)
     ax.bar(x, nono, bottom=oecd, color=GOLD, edgecolor=GOLDEDGE, linewidth=0.6, label="Non-OECD", zorder=3)
@@ -123,7 +123,7 @@ def chart_supply_contrib(contrib) -> str | None:
     rows = sorted(rows, key=lambda c: _num(c.get("value")))
     names = [c.get("name", "") for c in rows]
     vals = [_num(c.get("value")) for c in rows]
-    fig, ax = plt.subplots(figsize=(6.4, max(2.0, 0.42 * len(rows) + 0.8)))
+    fig, ax = plt.subplots(figsize=(6.9, max(1.5, 0.3 * len(rows) + 0.55)))
     y = range(len(rows))
     ax.barh(list(y), vals, color=[GREEN if v and v >= 0 else RED for v in vals],
             edgecolor="white", linewidth=0.5, zorder=3)
@@ -154,7 +154,7 @@ def chart_doc_production(prod) -> str | None:
     names = [p.get("country", "") for p in rows]
     vals = [_num(p.get("value")) for p in rows]
     moms = [_num(p.get("mom")) for p in rows]
-    fig, ax = plt.subplots(figsize=(6.4, max(2.4, 0.34 * len(rows) + 0.9)))
+    fig, ax = plt.subplots(figsize=(6.9, max(1.4, 0.2 * len(rows) + 0.45)))
     y = range(len(rows))
     ax.barh(list(y), vals, color=GOLD, edgecolor=GOLDEDGE, linewidth=0.5, zorder=3)
     for i, (v, m) in enumerate(zip(vals, moms)):
@@ -188,7 +188,7 @@ def chart_balance_quarters(rows, prod_ref=None, prod_ref_label="") -> str | None
     call = [_num(r.get("call")) for r in rows]
     prod = [_num(r.get("prod")) for r in rows]
     ref = _num(prod_ref)
-    fig, ax = plt.subplots(figsize=(6.4, 2.9))
+    fig, ax = plt.subplots(figsize=(6.9, 2.2))
     x = range(len(rows))
     has_prod = any(p is not None for p in prod)
     w = 0.40 if has_prod else 0.62
@@ -239,7 +239,7 @@ def chart_eia_prices(prices, split=None) -> str | None:
     brent = [_num(p.get("brent")) for p in rows]
     wti = [_num(p.get("wti")) for p in rows]
     cut = next((i for i, m in enumerate(months) if split and m >= split), len(months) - 1)
-    fig, ax = plt.subplots(figsize=(6.6, 3.0))
+    fig, ax = plt.subplots(figsize=(6.9, 2.0))
     x = list(range(len(rows)))
     for series, col, lbl in ((brent, NAVY, "Brent"), (wti, "#E67E22", "WTI")):
         ax.plot(x[:cut + 1], series[:cut + 1], lw=1.6, color=col, label=lbl, zorder=3)
@@ -269,7 +269,7 @@ def chart_basket(hist) -> str | None:
     vals = [_num(h.get("v")) for h in rows]
     colors = [NAVY] * (len(rows) - 1) + [GOLD]
     edges = ["white"] * (len(rows) - 1) + [GOLDEDGE]
-    fig, ax = plt.subplots(figsize=(6.6, 3.3))
+    fig, ax = plt.subplots(figsize=(6.9, 2.1))
     x = range(len(rows))
     ax.bar(list(x), vals, color=colors, edgecolor=edges, linewidth=0.6, zorder=3)
     for i, v in enumerate(vals):

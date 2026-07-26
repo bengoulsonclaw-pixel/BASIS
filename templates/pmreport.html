@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>  /* Precious Metals Fundamentals Monitor */
+  ul.points { margin: 2mm 0 0; padding-left: 4.5mm; }
+  ul.points li { font-size: 8.5pt; color: #333; margin-bottom: 1.4mm; line-height: 1.32; }
+  ul.points li b { color: #111; }
+  .draft { background: #FFF8E1; border: 1pt solid var(--yellow); color: #7a5b00;
+           font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+           padding: 1.6mm 3mm; margin-top: 3mm; }
+  .newpage { break-before: page; page-break-before: always; }
+  .banner { margin-top: 3.5mm; }
+  .chart { margin-top: 1.5mm; }
+  hr.rule { margin: 3mm 0 2mm; }
+  .disclaimer { margin-top: 3mm; }
+  .fine { font-size: 6.5pt; margin-top: 2mm; line-height: 1.35; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: var(--pos-tx); font-weight: 700; }
+  .dn { color: var(--neg-tx); font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <!-- ======================= PAGE 1 — MACRO & POSITIONING ======================= -->
+    <div class="titleband">
+      <h1>Precious Metals Fundamentals</h1>
+      <div class="sub">{{ d.month }} &nbsp;|&nbsp; Monthly Monitor &nbsp;&middot;&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    {% if d.mock_blocks %}
+    <div class="draft">Draft — placeholder data in: {{ d.mock_blocks | join(", ") }}. Not for distribution.</div>
+    {% endif %}
+
+    <p class="summary">{{ d.headline }}</p>
+
+    <div class="section">
+      <div class="banner">Dashboard — price, positioning, holdings</div>
+      <table>
+        <thead><tr>
+          <th>Metal</th><th class="center">Last</th><th class="center">1m</th><th class="center">3m</th>
+          <th class="center">MM net (lots)</th><th class="center">4w &Delta;</th><th class="center">COT idx</th>
+          <th class="center">ETF 1m &Delta;</th><th class="center">COMEX reg 1m &Delta;</th>
+        </tr></thead>
+        <tbody>
+          {% for m in d.metals %}
+          <tr class="flat">
+            <td class="market">{{ m.name }}</td>
+            <td class="num">{{ "{:,.2f}".format(m.last) if m.last is not none else "—" }}</td>
+            <td class="num {{ 'up' if m.chg_1m and m.chg_1m > 0 else 'dn' if m.chg_1m and m.chg_1m < 0 else '' }}">{{ "%+.1f%%" | format(m.chg_1m) if m.chg_1m is not none else "—" }}</td>
+            <td class="num">{{ "%+.1f%%" | format(m.chg_3m) if m.chg_3m is not none else "—" }}</td>
+            <td class="num">{{ "{:+,.0f}".format(m.mm_net) if m.mm_net is not none else "—" }}</td>
+            <td class="num">{{ "{:+,.0f}".format(m.mm_4w) if m.mm_4w is not none else "—" }}</td>
+            <td class="num">{{ "%.0f" | format(m.cot_idx) if m.cot_idx is not none else "—" }}</td>
+            <td class="num">{{ m.etf_disp or "—" }}</td>
+            <td class="num">{{ m.comex_disp or "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="summary" style="font-size:7pt;margin-top:1mm">Managed-money futures &amp; options net position (CFTC, week ending {{ d.metals[0].cot_date }});
+        COT index 0&ndash;100 locates today's net within its 3-year range. ETF = total known holdings
+        (gold, silver) / ETF Securities physical holdings (platinum, palladium).</p>
+    </div>
+
+    {% if charts.cot_panel %}
+    <div class="section"><div class="banner">Managed-money positioning — COT index by metal</div>
+      <div class="chart"><img src="{{ charts.cot_panel }}" alt="COT index panel"></div></div>
+    {% endif %}
+    {% if charts.real_yield %}
+    <div class="section"><div class="banner">Gold vs 10y real yield — the macro anchor</div>
+      <div class="chart"><img src="{{ charts.real_yield }}" alt="gold vs real yield"></div></div>
+    {% endif %}
+
+    <!-- ================================ PAGE 2 — GOLD ================================ -->
+    <div class="newpage"></div>
+    <div class="titleband"><h1>Gold</h1>
+      <div class="sub">{{ d.month }} &nbsp;|&nbsp; Physical flows &middot; Official sector &middot; Premiums</div></div>
+    <ul class="points">{% for p in d.bullets.gold %}<li>{{ p }}</li>{% endfor %}</ul>
+
+    {% if charts.swiss %}
+    <div class="section"><div class="banner">Swiss gold exports — by destination</div>
+      <div class="chart"><img src="{{ charts.swiss }}" alt="swiss exports"></div></div>
+    {% endif %}
+    {% if charts.cb %}
+    <div class="section"><div class="banner">Central-bank net gold purchases</div>
+      <div class="chart"><img src="{{ charts.cb }}" alt="central bank purchases"></div></div>
+    {% endif %}
+    {% if charts.premiums %}
+    <div class="section"><div class="banner">Physical premiums — Shanghai &amp; India vs London</div>
+      <div class="chart"><img src="{{ charts.premiums }}" alt="physical premiums"></div></div>
+    {% endif %}
+
+    <!-- =============================== PAGE 3 — SILVER =============================== -->
+    <div class="newpage"></div>
+    <div class="titleband"><h1>Silver</h1>
+      <div class="sub">{{ d.month }} &nbsp;|&nbsp; Holdings &middot; Relative value &middot; Retail demand</div></div>
+    <ul class="points">{% for p in d.bullets.silver %}<li>{{ p }}</li>{% endfor %}</ul>
+
+    {% if charts.etf_silver %}
+    <div class="section"><div class="banner">Silver ETF holdings — total known</div>
+      <div class="chart"><img src="{{ charts.etf_silver }}" alt="silver ETF holdings"></div></div>
+    {% endif %}
+    {% if charts.ratio %}
+    <div class="section"><div class="banner">Gold / silver ratio</div>
+      <div class="chart"><img src="{{ charts.ratio }}" alt="gold silver ratio"></div></div>
+    {% endif %}
+    {% if charts.mint %}
+    <div class="section"><div class="banner">US Mint bullion coin sales</div>
+      <div class="chart"><img src="{{ charts.mint }}" alt="US Mint sales"></div></div>
+    {% endif %}
+
+    <!-- ========================== PAGE 4 — PLATINUM & PALLADIUM ========================== -->
+    <div class="newpage"></div>
+    <div class="titleband"><h1>Platinum &amp; Palladium</h1>
+      <div class="sub">{{ d.month }} &nbsp;|&nbsp; Market balances &middot; Positioning &middot; Inventories</div></div>
+    <ul class="points">{% for p in d.bullets.platinum %}<li>{{ p }}</li>{% endfor %}
+      {% for p in d.bullets.palladium %}<li>{{ p }}</li>{% endfor %}</ul>
+
+    {% if charts.pgm_balance %}
+    <div class="section"><div class="banner">Published market balances — platinum &amp; palladium</div>
+      <div class="chart"><img src="{{ charts.pgm_balance }}" alt="PGM balances"></div></div>
+    {% endif %}
+    {% if charts.autos %}
+    <div class="section"><div class="banner">World light-vehicle production — the autocatalyst driver</div>
+      <div class="chart"><img src="{{ charts.autos }}" alt="light vehicle production"></div></div>
+    {% endif %}
+    {% if charts.pgm_stocks %}
+    <div class="section"><div class="banner">NYMEX registered stocks — platinum &amp; palladium</div>
+      <div class="chart"><img src="{{ charts.pgm_stocks }}" alt="PGM exchange stocks"></div></div>
+    {% endif %}
+
+    <div class="section">
+    <div class="report-footer">
+    <div class="foot-disclaimer">
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      Data as of {{ d.asof }}. Positioning: CFTC Commitments of Traders (managed money, futures &amp; options).
+      Rates &amp; holdings: US 10y TIPS yield, dollar index and ETF holdings via Bloomberg. Inventories:
+      CME Group depository statistics. Physical flows: Swiss Federal Customs; Shanghai gold price vs
+      London (daily closes, Bloomberg); US Mint.
+      Official sector: IMF IFS / World Gold Council central-bank statistics. Market balances: WPIC Platinum
+      Quarterly, Johnson Matthey PGM Market Report, The Silver Institute / Metals Focus World Silver Survey
+      (all figures cited with attribution to their publishers). Information only &mdash; not investment advice.
+    </div>
+    </div>
+  </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -29,14 +29,17 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from ..datafeed import get_history
+from ..datafeed import get_history_ta as get_history   # fixed income → yields (see universe)
 from ..universe import TREND_UNIVERSE, asset, name
 from .base import frame
 
-# Asset classes these crossover strategies skip. Bonds/rates were a consistent
-# money-loser across EVERY pair in the 9.7-year backtest (Sharpe −0.6 to −1.6),
-# so the MA pages don't signal on them — they stay in every other strategy.
-EXCLUDE_ASSETS = {"Bonds"}
+# Asset classes these crossover strategies skip. Bonds WERE excluded — a consistent
+# money-loser across EVERY pair in the 9.7-year backtest (Sharpe −0.6 to −1.6) — but that
+# backtest was on futures PRICES. Fixed income now runs on YIELDS (get_history_ta), which
+# INVERTS the crossover signal: the losing price-cross becomes its mirror on yields, so a
+# reliably negative-Sharpe price system flips toward positive. Re-included 2026-07-13 on
+# that basis (not yet re-backtested on yields — watch it). STIRs were never excluded.
+EXCLUDE_ASSETS: set = set()
 
 
 @dataclass(frozen=True)
@@ -50,12 +53,17 @@ class MAConfig:
     mom_label: str       # short label for that window, e.g. "3m" / "1m"
     lookback: int        # chart window, trading days
     horizon: str         # "position" / "swing"
+    min_gap: float = 0.0  # min |MA gap %| to take the trade — filters shallow / marginal crosses
 
 
+# min_gap: a confirmed cross only trades once the fast/slow are meaningfully apart, so a
+# 50/200 that's essentially flat (a fresh or borderline cross) doesn't flag — that was the
+# single biggest source of noise (it flagged ~60% of the book). Position needs a wider gap
+# than the faster swing pair.
 POSITION = MAConfig("MA Crossover", fast=50, slow=200, ema=15, ctx=100,
-                    mom=63, mom_label="3m", lookback=504, horizon="position")
+                    mom=63, mom_label="3m", lookback=504, horizon="position", min_gap=2.0)
 SWING = MAConfig("MA Swing", fast=20, slow=50, ema=9, ctx=200,
-                 mom=21, mom_label="1m", lookback=252, horizon="swing")
+                 mom=21, mom_label="1m", lookback=252, horizon="swing", min_gap=0.5)
 
 # Module default = the position (50/200) variant; the swing module reuses _find/_chart.
 CFG = POSITION
@@ -76,13 +84,16 @@ def _days_since_cross(fast: pd.Series, slow: pd.Series) -> int | None:
     return int(len(s) - 1 - (flips[-1] + 1))
 
 
-def _signal(ma_fast: float, ma_slow: float, ema_fast: float, mom: float):
-    """(signal, direction, ema_ok, mom_ok). The fast/slow cross sets the regime; the
-    trade needs BOTH the fast EMA on the trend side and the return agreeing in sign."""
+def _signal(ma_fast: float, ma_slow: float, ema_fast: float, mom: float,
+            ma_gap: float | None = None, min_gap: float = 0.0):
+    """(signal, direction, ema_ok, mom_ok). The fast/slow cross sets the regime; the trade
+    needs BOTH the fast EMA on the trend side and the return agreeing in sign — AND, once
+    min_gap is set, the fast/slow separated by at least that (a shallow cross doesn't trade)."""
     cross_dir = 1 if ma_fast > ma_slow else -1
     ema_ok = (ema_fast > ma_fast) if cross_dir == 1 else (ema_fast < ma_fast)
     mom_ok = (mom > 0) if cross_dir == 1 else (mom < 0)
-    if ema_ok and mom_ok:
+    gap_ok = ma_gap is None or abs(ma_gap) >= min_gap
+    if ema_ok and mom_ok and gap_ok:
         return ("Long", 1, ema_ok, mom_ok) if cross_dir == 1 else ("Short", -1, ema_ok, mom_ok)
     return "—", 0, ema_ok, mom_ok
 
@@ -104,7 +115,7 @@ def _find(history: pd.DataFrame, cfg: MAConfig) -> pd.DataFrame:
 
         mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
         ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
-        signal, direction, ema_ok, mom_ok = _signal(fast, slow, ef, mom)
+        signal, direction, ema_ok, mom_ok = _signal(fast, slow, ef, mom, ma_gap, cfg.min_gap)
 
         cross = "golden cross" if fast > slow else "death cross"
         days = _days_since_cross(fast_s, slow_s)
@@ -113,7 +124,8 @@ def _find(history: pd.DataFrame, cfg: MAConfig) -> pd.DataFrame:
         note = (f"{state}; {cfg.ema}-EMA{ema_sym}{cfg.fast} {'✓' if ema_ok else '✗'}; "
                 f"{cfg.mom_label} {mom * 100:+.1f}% {'✓' if mom_ok else '✗'}")
         if direction == 0:
-            note += " — unconfirmed"
+            note += (f" — cross too shallow (|gap| {abs(ma_gap):.1f}% < {cfg.min_gap:g}%)"
+                     if ema_ok and mom_ok and abs(ma_gap) < cfg.min_gap else " — unconfirmed")
 
         rows.append({
             "strategy": cfg.name,
@@ -158,7 +170,9 @@ def _chart(ticker: str, cfg: MAConfig, history: pd.DataFrame | None = None):
     data["fast_rising"] = data["fast"].diff() > 0        # fast-SMA slope → green/red on the chart
 
     mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
-    signal, direction, ema_ok, mom_ok = _signal(fast_s.iloc[-1], slow_s.iloc[-1], ema_f.iloc[-1], mom)
+    _gap = (fast_s.iloc[-1] / slow_s.iloc[-1] - 1) * 100
+    signal, direction, ema_ok, mom_ok = _signal(fast_s.iloc[-1], slow_s.iloc[-1], ema_f.iloc[-1],
+                                                mom, _gap, cfg.min_gap)
     info = {
         "state": "golden cross" if fast_s.iloc[-1] > slow_s.iloc[-1] else "death cross",
         "mom": float(mom),

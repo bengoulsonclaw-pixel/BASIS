@@ -1,0 +1,7 @@
+{
+  "ai_polish": true,
+  "min_conviction": 60.0,
+  "min_score": 150.0,
+  "mode": "threshold",
+  "top_n": 10
+}

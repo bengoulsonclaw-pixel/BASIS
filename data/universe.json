@@ -161,6 +161,46 @@
       "price_field": "PX_LAST"
     },
     {
+      "ticker": "CAC Index",
+      "name": "CAC 40",
+      "price": 7800.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
+      "ticker": "SMI Index",
+      "name": "SMI (Swiss)",
+      "price": 12000.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
+      "ticker": "NKY Index",
+      "name": "Nikkei 225",
+      "price": 42000.0,
+      "asset": "Indices",
+      "region": "APAC",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
+      "ticker": "KOSPI2 Index",
+      "name": "KOSPI 200",
+      "price": 420.0,
+      "asset": "Indices",
+      "region": "APAC",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": "PX_LAST"
+    },
+    {
       "ticker": "SERA Comdty",
       "name": "1M SOFR",
       "price": 95.7,
@@ -196,14 +236,14 @@
       "price": 97.8,
       "asset": "STIRs",
       "region": "EMEA",
-      "vol_source": "",
-      "vol_field": "",
+      "vol_source": "ERA Comdty",
+      "vol_field": "HIST_CALL_IMP_VOL+HIST_PUT_IMP_VOL",
       "price_field": ""
     },
     {
       "ticker": "TKYA Comdty",
       "name": "3M ESTR",
-      "price": 99.7,
+      "price": 98.0,
       "asset": "STIRs",
       "region": "EMEA",
       "vol_source": "",

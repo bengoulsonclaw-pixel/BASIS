@@ -13,6 +13,10 @@
   p.outcomes b { color: #111; }
   table.fwd { font-size: 6.2pt; }                                  /* 11-col study table — keep tight */
   table.fwd thead th, table.fwd tbody td { padding: 0.9mm 0.6mm; }
+  /* the shared yellow rules box, compacted; rich/cheap colours scoped into it */
+  .trigger { font-size: 8.5pt; line-height: 1.45; margin-top: 2mm; }
+  .trigger .rich { color: var(--neg-tx); font-weight: 700; }
+  .trigger .cheap { color: var(--pos-tx); font-weight: 700; }
   /* slim yellow sub-divider marking each sector group in the chartbook */
   .sectorband { background: var(--yellow); color: var(--black); font-weight: 700; text-transform: uppercase;
                 font-size: 10pt; letter-spacing: .6px; padding: 2.5pt 6pt; margin: 5mm 0 1.5mm;
@@ -39,15 +43,18 @@
     </div>
 
     <p class="summary">
-      CFTC Commitments of Traders — speculative net positioning across <b>{{ n_markets }}</b> markets
-      (commodities: <b>Managed Money</b>; financials: <b>Leveraged Funds</b>) &nbsp;·&nbsp;
-      <span class="cheap">{{ n_long }} crowded long</span> &nbsp;·&nbsp;
-      <span class="rich">{{ n_short }} crowded short</span>.
-      The <b>COT Index</b> is a 0&ndash;100 stochastic of the net position over the trailing 3 years;
-      flagged when <b>&ge; {{ hi }}</b> (crowded long) or <b>&le; {{ lo }}</b> (crowded short).
+      <b><span class="cheap">{{ n_long }} crowded long</span> &nbsp;·&nbsp;
+      <span class="rich">{{ n_short }} crowded short</span></b> this week.
     </p>
 
     <p class="summary outcomes">{{ commentary | safe }}</p>
+
+    <div class="trigger">
+      <b>How to read this.</b> The <b>COT Index</b> = each market's speculative net position (Managed Money /
+      Leveraged Funds) within its own <b>3-year range</b>, 0&ndash;100; <b>&ge; {{ hi }}</b> =
+      <span class="cheap">crowded long</span>, <b>&le; {{ lo }}</b> = <span class="rich">crowded short</span>
+      &mdash; extremes often read as contrarian. Full definition with the crowded-markets table.
+    </div>
 
     <div class="section">
       <div class="banner">COT Index Heatmap &mdash; whole book, last 26 weeks</div>
@@ -63,14 +70,12 @@
     <div class="newpage">
     <div class="banner">Crowded Markets &mdash; positioning at a 3-year extreme</div>
     <p class="summary" style="margin-top:2mm">
-      <b>How &ldquo;crowded&rdquo; is defined.</b> The <b>COT Index</b> places each market's current net
-      position within its own trailing <b>3-year range</b>: <b>0</b> = the most net-short it has been in
-      three years, <b>100</b> = the most net-long. A market is flagged <b class="cheap">crowded long</b> when
-      its COT Index is <b>&ge; {{ hi }}</b> (net positioning near the top of its 3-year range) and
-      <b class="rich">crowded short</b> when <b>&le; {{ lo }}</b> (near the bottom). These are the positioning
-      extremes &mdash; the speculative cohort (managed money in commodities, leveraged funds in financials)
-      heavily one-sided &mdash; and are often read as contrarian, since a crowded long has few new buyers left
-      to add and a crowded short few new sellers.
+      <b>How &ldquo;crowded&rdquo; is defined.</b> The <b>COT Index</b> places each market's net position within
+      its own trailing <b>3-year range</b> (<b>0</b> = most net-short in three years, <b>100</b> = most net-long);
+      a market is flagged <b class="cheap">crowded long</b> at <b>&ge; {{ hi }}</b> and
+      <b class="rich">crowded short</b> at <b>&le; {{ lo }}</b>. These are positioning extremes &mdash; the
+      speculative cohort (managed money in commodities, leveraged funds in financials) heavily one-sided &mdash;
+      often read as contrarian, since a crowded long has few new buyers left and a crowded short few new sellers.
     </p>
     <table>
       <thead>
@@ -102,29 +107,19 @@
     {% if fwd_rows %}
     <div class="banner">Forward Returns After Positioning Extremes &mdash; study</div>
     <p class="summary" style="margin-top:2mm">
-      <b>What this shows.</b> Limited to the markets flagged <b>crowded right now</b> (the table above): once
-      positioning in a market became crowded, what did the price tend to do next? For each, we take every past
-      occasion its COT Index <i>entered</i> a crowded <b>long</b> zone (rose to &ge; {{ hi }}) or a crowded
-      <b>short</b> zone (fell to &le; {{ lo }}), and measure the underlying's average price change over the
-      following <b>4</b> and <b>13</b> weeks.
+      <b>What this shows.</b> For the markets flagged <b>crowded right now</b> (above): each past time a market's
+      COT Index <i>entered</i> a crowded <b>long</b> (&ge; {{ hi }}) or <b>short</b> (&le; {{ lo }}) zone, we
+      measure the underlying's average move over the next <b>4</b> and <b>13</b> weeks, against its <b>Base</b>
+      (average move across <i>all</i> weeks) &mdash; the gap is what the extreme historically added. Window
+      ~<b>{{ study_start }}</b>&ndash;<b>{{ study_end }}</b> (<b>{{ study_years }}y</b> for most; <b>Data&nbsp;(yrs)</b>
+      is each market's actual depth).
     </p>
     <p class="summary" style="margin-top:1.5mm">
-      <b>Sample window.</b> The study looks back over the price history on file — currently from about
-      <b>{{ study_start }}</b> to <b>{{ study_end }}</b> (~<b>{{ study_years }} years</b> for most markets) —
-      and counts, within that span, how many times each market became crowded and what price did next. The
-      <b>Data (yrs)</b> column gives each market's actual depth and <b>n</b> is its number of crowded episodes
-      over that window; read any market showing only a year or two with caution.
-    </p>
-    <p class="summary" style="margin-top:1.5mm">
-      <b>How to read each column.</b>
-      &nbsp;&bull;&nbsp; <b>n</b> (Long&nbsp;n / Short&nbsp;n) — the <b>sample size</b>: how many separate
-      times the market entered that zone (a multi-week crowded run counts <i>once</i>). A low n means treat
-      the figure with caution.
-      &nbsp;&bull;&nbsp; <b>L / S &middot; +4w, +13w</b> — the average price move 4 and 13 weeks after those
-      entries (<span class="cheap">green</span> = price rose, <span class="rich">red</span> = price fell).
-      &nbsp;&bull;&nbsp; <b>Base &middot; +4w, +13w</b> — the market's average move over the same horizon
-      across <i>all</i> weeks. The gap between each side and Base is what the extreme has historically added.
-      A descriptive back-look, <b>not</b> a forecast.
+      <b>n</b> (Long&nbsp;n / Short&nbsp;n) is the <b>sample size</b> &mdash; how many separate times it entered
+      that zone (a multi-week run counts <i>once</i>), so a low n warrants caution.
+      <b>L / S &middot; +4w/+13w</b> is the average move after those entries
+      (<span class="cheap">green</span> = rose, <span class="rich">red</span> = fell); <b>Base</b> is the move
+      across <i>all</i> weeks. A descriptive back-look, <b>not</b> a forecast.
     </p>
     <table class="fwd">
       <thead>
@@ -177,6 +172,8 @@
       {% endfor %}
     </div>
 
+    <div class="report-footer">
+    <div class="foot-disclaimer">
     <hr class="rule">
     <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
@@ -188,6 +185,8 @@
       a recommendation. ICE-Europe (Brent, Gasoil, Robusta), Eurex and other non-US markets are not covered by the
       CFTC and are omitted. Generated by the internal Strategy Monitor for information only &mdash; not investment
       advice or a solicitation.
+    </div>
+  </div>
     </div>
   </div>
 </body>

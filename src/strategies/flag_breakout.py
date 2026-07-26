@@ -35,7 +35,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..datafeed import get_history, get_volume_history
+from ..datafeed import get_history_ta as get_history, get_volume_history   # FI → yields
 from ..universe import TREND_UNIVERSE, name, asset, region
 from .base import frame
 

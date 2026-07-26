@@ -1,0 +1,12 @@
+{
+ "updated": "2026-07-16",
+ "note": "Re-seed on each WPIC Platinum Quarterly (next: 9 Sep 2026) and JM PGM Market Report (annual, May). Figures read from the primary PDFs; balance = supply - demand, koz, negative = deficit. Years suffixed 'f' are the publisher's forecast.",
+ "platinum": {
+  "source": "WPIC Platinum Quarterly Q1 2026 (data by Metals Focus), 18 May 2026",
+  "balance_koz": {"2021": 1427, "2022": 949, "2023": -799, "2024": -1033, "2025": -1191, "2026f": -297}
+ },
+ "palladium": {
+  "source": "Johnson Matthey PGM Market Report, May 2026 (movement-in-stocks basis)",
+  "balance_koz": {"2021": -35, "2022": -722, "2023": -760, "2024": -218, "2025": -416, "2026f": 214}
+ }
+}

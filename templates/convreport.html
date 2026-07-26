@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  /* The at-a-glance leaderboard runs 7 columns incl. a wide "Flagged by", so shrink it a touch —
+     but only a touch: at 7pt it was the least legible thing in the report. */
+  table.lead { font-size: 8.5pt; }
+  table.lead td, table.lead th { padding: 2.5pt 4pt; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact"><div class="label">Contact</div><div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div><div class="email">Futures.Offshore@xpi.us</div></div>
+  </div>
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+  <div class="content">
+    <div class="titleband">
+      <h1>Technical Analysis</h1>
+      <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+    <p class="summary">
+      The strongest technical setups across the futures book, screened by a deliberately
+      <b>independent set of {{ total }} methods</b>{% if scored %} &mdash; {{ scored | join(', ') }}{% endif %}.
+      Each reads a different dimension of the market, so where they agree it is genuine corroboration
+      rather than one indicator restated {{ total }} ways.
+    </p>
+    <p class="summary">
+      <b>This edition: {{ n_con }} constructive, {{ n_cau }} cautious</b>{% if n_new %}
+      ({{ n_new }} new since last week){% endif %}. Nothing appears without at least two of the
+      {{ total }} agreeing and none pointing the other way{% if mode == 'threshold' %}, and every
+      setup clears a minimum <b>conviction of {{ '%g'|format(min_conviction) }}</b> and
+      <b>score of {{ '%g'|format(min_score) }}</b> &mdash; in a week when nothing clears that bar,
+      nothing is put forward{% endif %}. Each chart carries the indicators that flagged it, the
+      measured-move objective, the invalidation level and the per-contract risk where available;
+      fixed income is read on <b>yields</b>.
+    </p>
+
+    <div class="trigger">
+      <b>Reading the two numbers.</b> Every method scores on its own scale, so each signal is first
+      placed on a common 0&ndash;100 <b>strength</b>. <b>Conviction</b> is the <i>average</i> strength
+      of the methods flagging a market &mdash; how compelling each individual read is, irrespective of
+      how many agree. <b>Score</b> is the <i>signed sum</i> of those same strengths, so it rises with
+      signal strength <i>and</i> with how many methods agree, while opposing reads net off against one
+      another. <b>Score sets the ranking</b> &mdash; which is why a market confirmed by three methods
+      of moderate strength ranks above one carried by a single emphatic reading{% if dedup_active %};
+      and where two of the methods are reading the same underlying trend, the second counts only
+      partially, so one signal cannot vote twice{% endif %}.
+    </div>
+
+    {% if table %}
+    <div class="banner">Summary &mdash; every pick, ranked by conviction</div>
+    <table class="lead">
+      <thead><tr><th>Market</th><th>Sector</th><th class="center">#</th><th class="center">Net</th>
+        <th class="center">Conviction</th><th class="center">Score</th><th>Flagged by</th></tr></thead>
+      <tbody>
+        {% for p in table %}
+        <tr class="{% if p.net_dir > 0 %}long{% else %}short{% endif %}">
+          <td class="market">{{ p.market }}</td><td>{{ p.sector }}</td>
+          <td class="center">{{ p.n }}</td><td class="center">{{ p.net_txt }}</td>
+          <td class="center">{{ '%.0f'|format(p.conviction) }}</td>
+          <td class="center">{{ '%.0f'|format(p.score|abs) }}</td>
+          <td>{{ p.flagged_by }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if leaderboard_img %}
+    <div class="banner">Conviction leaderboard &mdash; products ranked by cross-strategy score</div>
+    <div class="chart"><img src="{{ leaderboard_img }}" alt="conviction leaderboard"></div>
+    {% endif %}
+
+    {% macro pick_block(p) %}
+    <div class="section">
+      <div class="banner">{{ p.market }}
+        <span class="sig {% if p.net_dir > 0 %}long{% else %}short{% endif %}">
+          {{ 'Constructive' if p.net_dir > 0 else 'Cautious' }} &middot; {{ p.n }}/{{ p.total }}
+          &middot; Conviction {{ '%.0f'|format(p.conviction) }}
+          &middot; Score {{ '%.0f'|format(p.score|abs) }}</span>
+      </div>
+      <p class="stats">{{ p.sector }}
+        {%- if p.is_new %} &nbsp;·&nbsp; <b>NEW this week</b>{% endif %}
+        {%- if p.levels.get('trigger') is not none %} &nbsp;·&nbsp; trigger
+        <b>{{ '%g'|format(p.levels.trigger) }}</b>{% endif %}
+        {%- if p.levels.get('target') is not none %} &nbsp;·&nbsp; objective
+        <b>{{ '%g'|format(p.levels.target) }}</b>{% endif %}
+        {%- if p.levels.get('stop') is not none %} &nbsp;·&nbsp; invalidation
+        <b>{{ '%g'|format(p.levels.stop) }}</b>{% endif %}
+        {%- if p.levels.get('reward') and p.levels.reward.get('pct') %} &nbsp;·&nbsp; reward to objective
+        <b>{{ '%.1f'|format(p.levels.reward.pct) }}%</b>{% if p.levels.reward.get('usd') %} (&approx;
+        ${{ '{:,.0f}'.format(p.levels.reward.usd) }}/contract){% endif %}{% endif %}
+        {%- if p.levels.get('risk') and p.levels.risk.get('pct') %} &nbsp;·&nbsp; risk to stop
+        <b>{{ '%.1f'|format(p.levels.risk.pct) }}%</b>{% if p.levels.risk.get('usd') %} (&approx;
+        ${{ '{:,.0f}'.format(p.levels.risk.usd) }}/contract){% endif %}{% endif %}
+        {%- if p.levels.get('rr') %} &nbsp;·&nbsp; <b>R:R {{ '%.1f'|format(p.levels.rr) }}:1</b>
+        (reward &divide; risk){% endif %}</p>
+      {% if p.img %}<div class="chart"><img src="{{ p.img }}" alt="technical chart"></div>{% endif %}
+      <p class="summary">{{ p.prose | safe }}</p>
+    </div>
+    {% endmacro %}
+
+    {% macro disclaimer_block() %}
+    <div class="foot-disclaimer">
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">An internal technical screen — observational only, not investment advice, a
+      recommendation or a solicitation. "Conviction" is a cross-strategy confluence score (how many of
+      the technical strategies agree &times; how strongly), not a probability or a price forecast;
+      "objective"/"invalidation" levels are the measured-move and stop levels from the flagging
+      pattern, not price targets. Fixed income is screened on benchmark yields. Source data is subject
+      to your market-data licence terms; verify redistribution rights before external use.</div>
+    </div>
+    {% endmacro %}
+
+    {% if pick_pages %}
+    {# One flex box per page. Every page but the last is a `.pick-page` that distributes its charts
+       down the full page height (so the slack sits BETWEEN charts, not pooled at the foot); the last
+       page is a `.report-footer` whose charts sit above the disclaimer, which pins to the very
+       bottom. `_paginate` sized the groups so nothing overflows and the disclaimer always has room. #}
+    {% for page in pick_pages %}
+    {%- if loop.last %}
+    <div class="report-footer">
+      <div class="footer-picks">{% for p in page %}{{ pick_block(p) }}{% endfor %}</div>
+      {{ disclaimer_block() }}
+    </div>
+    {%- else %}
+    <div class="pick-page">{% for p in page %}{{ pick_block(p) }}{% endfor %}</div>
+    {%- endif %}
+    {% endfor %}
+    {% else %}
+    <div class="report-footer">
+      <div class="footer-picks">
+        {# wrapped in one .section so the banner + note stay together (space-between would otherwise
+           fling them to opposite ends of the page) and centre via the :only-child rule #}
+        <div class="section">
+          <div class="banner">Nothing clears the bar this week</div>
+          <p class="summary">{% if mode == 'threshold' %}<b>No setup currently meets the quality bar</b>
+            (conviction &ge; <b>{{ '%g'|format(min_conviction) }}</b> and |score| &ge;
+            <b>{{ '%g'|format(min_score) }}</b>) across the {{ total }}-strategy confluence set. That is
+            the screen working as intended &mdash; where nothing is genuinely corroborated, nothing is
+            put forward. The leaderboard above still shows where the book stands.{% else %}
+            No setups currently clear the confluence bar (two or more agreeing strategies).
+            Lower the strategy triggers or re-run after the next snapshot.{% endif %}</p>
+        </div>
+      </div>
+      {{ disclaimer_block() }}
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

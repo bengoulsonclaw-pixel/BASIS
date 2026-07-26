@@ -299,18 +299,26 @@ SPECS = {
         "metric_label": "momentum score",
         "hi": ("Bullish momentum", 1), "lo": ("Bearish momentum", -1),
         "trigger": lambda t: (f"|momentum score| ≥ {t:g} — a bullish (long) or bearish (short) setup from "
-                              "RSI extremes, a fresh MACD cross, and (the headline) RSI divergence."),
+                              "a fresh MACD cross or (the headline) a live RSI divergence."),
         "math": (
             "**Momentum — RSI + MACD, divergence-led.**\n\n"
             "- **RSI** — Wilder's 14-period; > 70 overbought, < 30 oversold.\n"
             "- **MACD** — 12/26 EMA difference, 9-EMA signal, histogram; the line crossing **above** the "
             "signal is bullish, **below** bearish (a cross within ~3 bars is *fresh*).\n"
             "- **RSI divergence** (the headline) — price **higher-high while RSI lower-high** is bearish; "
-            "price **lower-low while RSI higher-low** is bullish, read off the two most recent swings.\n\n"
-            "Direction = **bullish** if a bullish divergence OR oversold RSI OR a fresh bullish cross "
-            "(bearish the mirror). The **momentum score** = `2·|RSI − 50|` + a divergence bonus + a "
-            "fresh-cross bonus, signed by direction and clipped to ±100. Flag when **|score| ≥ trigger**. "
-            "Close-only."
+            "price **lower-low while RSI higher-low** is bullish, read off the two most recent swings. It "
+            "counts only while **live**: the confirming swing must be within **10 bars** and the RSI gap "
+            "at least **3 points**, so a divergence that has already resolved into the rally it called — "
+            "or one resting on a 1–2 point gap that flips with the choice of swing bars — is not "
+            "re-reported as a fresh setup.\n\n"
+            "Direction is set by an **event** — a live divergence or a fresh MACD cross — never by an RSI "
+            "extreme alone (*“RSI > 70, therefore sell”* is the classic false signal in a trend). "
+            "Extension instead acts as a **veto**, blocking a signal that points further into the move "
+            "already made; a bullish divergence arriving into overbought RSI therefore reads **flat**, "
+            "not bullish. The **momentum score** = `2 · max(0, room)` — where *room* is how far RSI sits "
+            "the **favourable** side of 50 for that direction, so an extended market scores nothing for "
+            "being extended — plus a divergence bonus and a fresh-cross bonus where each agrees with the "
+            "direction, clipped to ±100. Flag when **|score| ≥ trigger**. Close-only."
         ),
     },
     "Bollinger Squeeze": {
@@ -328,6 +336,123 @@ SPECS = {
             "year), signed by the lean — **+** for an upside break / upper-half coil, **−** for a "
             "downside one. A close **outside** the band (%B > 1 or < 0), especially fresh out of a "
             "squeeze, is the **breakout**. Close-only."
+        ),
+    },
+    "Elliott Wave": {
+        # Rich phase labels ("Wave 3 underway ▲", "Five waves complete ▼") are set in the
+        # strategy — a generic ±relabel would lose the phase — so no symmetric trigger input;
+        # the flag bar (wave fit ≥ 55) lives in the strategy module.
+        "default": None,
+        "metric_label": "wave fit (0-100)",
+        "math": (
+            "**Elliott Wave — a rules-based impulse count (the deterministic version).**\n\n"
+            "Classic Elliott counting is subjective; this page removes the judgement calls. Swing "
+            "pivots come from an **adaptive ZigZag** (the reversal threshold scales with each "
+            "market's own volatility — ≈ 2.2× its weekly σ, floored at 2.5% and capped at 12%), and "
+            "the most recent pivots are tested against the **three hard impulse rules**:\n\n"
+            "1. **Wave 2** never retraces past the start of wave 1;\n"
+            "2. **Wave 3** pushes beyond wave 1's top and is never the shortest of waves 1/3/5;\n"
+            "3. **Wave 4** never overlaps wave 1's price territory.\n\n"
+            "A market is flagged at one of three junctures: a completed **wave-2 pullback → wave 3 "
+            "underway** (with the impulse — the strongest setup), a completed **wave-4 pullback → "
+            "wave 5 underway** (with the impulse, maturing), or **five waves complete → corrective "
+            "phase likely** (against the impulse).\n\n"
+            "The headline **wave fit** 0–100 scores how *textbook* the count is: wave-2 retrace "
+            "peaking at **61.8%** (accepted 23.6–88.6%), wave-4 at **38.2%**, wave-3 extension "
+            "toward **1.618× wave 1**, plus an **alternation** bonus when waves 2 and 4 differ in "
+            "depth. Signed by direction (+ constructive / − cautious); flagged when **fit ≥ 55**. "
+            "Each juncture carries the classic projection as an objective — wave 3 ≈ **1.618× wave 1** "
+            "off the wave-2 low, wave 5 ≈ **wave 1** off the wave-4 low, a completed impulse "
+            "correcting toward the **prior wave-4** extreme — with the invalidation at the last "
+            "counted pivot. Close-only; fixed income is counted on **yields**."
+        ),
+    },
+    "Ichimoku Cloud": {
+        # Rich event labels ("Cloud breakout up ▲", "Bullish TK cross ▲") are set in the
+        # strategy; flag gate (a fresh event, score ≥ 58) lives in the module.
+        "default": None,
+        "metric_label": "Ichimoku score (0-100)",
+        "math": (
+            "**Ichimoku Kinko Hyo — the cloud, and confluence.**\n\n"
+            "Ichimoku frames a market with five lines (standard **9 / 26 / 52 / 26**); this suite "
+            "is settlement-based, so the n-period highs/lows use the **rolling max/min of closes** "
+            "(a standard close-based Ichimoku):\n\n"
+            "- **Tenkan-sen** (conversion) = (9-high + 9-low) ÷ 2\n"
+            "- **Kijun-sen** (base) = (26-high + 26-low) ÷ 2\n"
+            "- **Senkou Span A** = (Tenkan + Kijun) ÷ 2, plotted **26 ahead**  ┐ the **cloud** "
+            "(Kumo)\n"
+            "- **Senkou Span B** = (52-high + 52-low) ÷ 2, plotted **26 ahead**  ┘\n"
+            "- **Chikou** (lagging) = the close, plotted **26 behind**.\n\n"
+            "Ichimoku's first rule is **no trade inside the cloud**, so the signal keys off the "
+            "price's position relative to it — **above → constructive, below → cautious** — scored "
+            "by how many of the three other elements confirm: the **Tenkan/Kijun** cross, the "
+            "**future cloud** colour (Span A vs B, 26 ahead), and the **lagging span** vs price 26 "
+            "back. `score = 40 + 16 × (# confirming, 0–3) + a clear-of-cloud bonus`.\n\n"
+            "Only a **fresh event** is flagged (the actionable moment — a persistent trend above "
+            "the cloud is already caught by Trend/MA): a **cloud breakout** (price leaving the "
+            "cloud) or a **Tenkan/Kijun cross** in the last ~6 sessions, in the agreeing direction. "
+            "Signed by direction; flagged at score ≥ 58. The chart draws the cloud (with its "
+            "26-session forward projection), Tenkan, Kijun and the lagging span. Fixed income is "
+            "read on **yields** (above the cloud = yields higher = the future lower). Close-only."
+        ),
+    },
+    "On-Balance Volume": {
+        # Rich condition labels ("Breakout confirmed by volume ▲", "Hidden distribution ▼")
+        # are set in the strategy; a generic ±relabel would lose them. Flag bar (score ≥ 55)
+        # lives in the module.
+        "default": None,
+        "metric_label": "OBV score (0-100)",
+        "math": (
+            "**On-Balance Volume — is volume behind the move?**\n\n"
+            "OBV (Granville) runs a cumulative total of volume **signed by the day's direction** "
+            "(up close +volume, down close −volume; volume = `FUT_AGGTE_VOL`, aggregated across all "
+            "listed contracts). Price says *where* the market went; OBV says whether **participation "
+            "went with it**. Three reads, in priority order:\n\n"
+            "1. **OBV divergence** (the trend-failure warning) — price makes a **higher high while "
+            "OBV makes a lower high** (bearish: the rally is thinning) or a **lower low while OBV "
+            "makes a higher low** (bullish), read off the two most recent ±4-bar swing pivots.\n"
+            "2. **Breakout (un)confirmation** — price at/through a fresh **55-day** extreme with OBV "
+            "at its own extreme → **volume-backed breakout**; with OBV well short of its range top "
+            "→ **breakout lacks volume** (suspect).\n"
+            "3. **Hidden accumulation / distribution** — price flat over 20 days (within ¾ of its "
+            "own 20-day σ) while OBV climbs or slides hard (|z| ≥ 1.2 of its 20-day changes) — "
+            "someone is quietly working orders.\n\n"
+            "Headline **OBV score** 0–100 (signed by direction), flagged at **≥ 55**.\n\n"
+            "**FX futures are excluded**: most FX turnover is OTC (swaps/forwards), so CME FX "
+            "futures volume is a small venue-specific slice — OBV there would read roll cycles and "
+            "listed-market quirks, not the market's true flow. Rates stay in: Treasury/STIR futures "
+            "ARE the volume centre of their markets. Fixed income runs on **yields** (constructive "
+            "= yields higher on volume = sell the bond). Close-only; markets with no volume series "
+            "are skipped."
+        ),
+    },
+    "Money Flow Index": {
+        # Rich condition labels ("Overbought on real flow ▼", "Early distribution ▼") are set
+        # in the strategy; flag bar (score ≥ 55) lives in the module.
+        "default": None,
+        "metric_label": "MFI score (0-100)",
+        "math": (
+            "**Money Flow Index — RSI, but volume-weighted.**\n\n"
+            "MFI rebuilds RSI on **money flow** (price × volume) instead of price alone, over "
+            "**14 sessions**: `MFI = 100 × up-flow ÷ (up-flow + down-flow)`. This suite is "
+            "settlement-based, so the classic typical-price (H+L+C)/3 is replaced by the **close** "
+            "— flow = close × volume, signed by the day's direction. It answers: *is the momentum "
+            "carried by real volume?* Four reads, in priority order:\n\n"
+            "1. **Volume-confirmed extreme** — MFI **≥ 80** = overbought on real flow "
+            "(distribution risk, cautious) / **≤ 20** = oversold (accumulation zone, "
+            "constructive). When RSI agrees (> 70 / < 30) the read **validates the RSI signal** "
+            "(score bonus) — momentum extremes carried by volume are the ones that matter.\n"
+            "2. **RSI unconfirmed by flow** — RSI stretched but MFI nowhere near its extreme: "
+            "price momentum **without volume behind it**, an early warning the move may not carry.\n"
+            "3. **Early distribution / accumulation** — price still trending (|20d| ≥ 2%) while "
+            "MFI sits on the wrong side of 50 **and falling/rising** — flow leaking against the "
+            "trend before price shows it.\n"
+            "4. **Flow shift** — MFI crossing **50** on a steep, agreeing 10-day slope (≥ 15): "
+            "momentum changing hands with volume support.\n\n"
+            "Headline **MFI score** 0–100 (signed), flagged at **≥ 55**. **FX futures are "
+            "excluded** (FX volume is OTC — listed futures flow misleads; same reasoning as OBV); "
+            "rates stay in (futures are the real volume venue). Fixed income runs on **yields**. "
+            "Markets with no volume series are skipped."
         ),
     },
     "Carry": {
@@ -373,14 +498,73 @@ def save_trigger_default(strategy: str, value) -> None:
     TRIGGER_DEFAULTS.write_text(json.dumps(d, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def reflag_rows(view: pd.DataFrame, threshold: float, hi, lo) -> pd.DataFrame:
+# ── Technical Analysis report defaults (data/ta_report_defaults.json) ────────
+# How the report is BUILT, saved once by the desk: which selection rule, how many picks,
+# whether to AI-polish, and (for the quality-bar rule) the floors. The app seeds its
+# controls from here on every launch, and the WEEKLY emailed report runs on it — so
+# "Set as default" in the app is what the scheduled send obeys. (trigger_defaults.json
+# can't hold these: it coerces every value to float, and `mode` is a string.)
+TA_REPORT_FILE = Path(__file__).resolve().parents[1] / "data" / "ta_report_defaults.json"
+TA_REPORT_DEFAULTS = {
+    "mode": "overall",          # per_side | overall | threshold
+    "top_n": 10,                # picks (per side in balanced mode; a CAP in quality-bar mode)
+    "ai_polish": True,          # conversational rewrite of the write-ups
+    "min_conviction": 60.0,     # quality-bar floors
+    "min_score": 150.0,
+}
+
+
+def ta_report_defaults() -> dict:
+    """The saved report build settings, falling back to TA_REPORT_DEFAULTS. Unknown keys in
+    the file are ignored, so an old/partial file can't break the report."""
+    out = dict(TA_REPORT_DEFAULTS)
+    try:
+        saved = json.loads(TA_REPORT_FILE.read_text(encoding="utf-8"))
+        out.update({k: v for k, v in saved.items() if k in TA_REPORT_DEFAULTS})
+    except Exception:
+        pass
+    return out
+
+
+def save_ta_report_defaults(**kw) -> None:
+    """Persist any subset of the report build settings (merged over what's already saved)."""
+    d = ta_report_defaults()
+    d.update({k: v for k, v in kw.items() if k in TA_REPORT_DEFAULTS})
+    TA_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    TA_REPORT_FILE.write_text(json.dumps(d, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def fi_action(signal, direction, ticker) -> str:
+    """Append the FUTURES action to a fixed-income technical signal so the row says BOTH the
+    yield read and what to do to profit. FI runs on yields, so a rising-yield signal
+    (direction > 0) means the bond price falls → **sell** the bond/future; falling yields →
+    **buy** it. Non-FI, or unflagged rows (direction 0 / NaN), are returned unchanged. Only the
+    technical strategies opt in (reflag_rows fi_yield=True / run_daily)."""
+    from .universe import is_fixed_income, is_bond
+    try:
+        d = int(direction)
+    except (TypeError, ValueError):
+        d = 0
+    if d == 0 or not is_fixed_income(str(ticker)):
+        return signal
+    inst = "bond" if is_bond(str(ticker)) else "future"
+    return f"{signal} · {'sell' if d > 0 else 'buy'} the {inst}"
+
+
+def reflag_rows(view: pd.DataFrame, threshold: float, hi, lo, fi_yield: bool = False) -> pd.DataFrame:
     """Re-derive (signal, direction) on the dashboard rows from the cached `metric`
     (the z-score, or the 3-month return for Trend) at a chosen threshold — instant,
-    no recompute. `hi`/`lo` are (signal, direction) for metric >= +t / <= -t."""
+    no recompute. `hi`/`lo` are (signal, direction) for metric >= +t / <= -t.
+
+    fi_yield=True (the technical strategies, which chart fixed income as yields) appends the
+    futures action to FI rows via fi_action, e.g. 'Long · sell the bond'."""
     out = view.copy()
     m = pd.to_numeric(out["metric"], errors="coerce")
     out["signal"] = (pd.Series("—", index=out.index, dtype=object)
                      .mask(m >= threshold, hi[0]).mask(m <= -threshold, lo[0]))
     out["direction"] = (pd.Series(0, index=out.index, dtype="int64")
                         .mask(m >= threshold, hi[1]).mask(m <= -threshold, lo[1]))
+    if fi_yield and "instruments" in out.columns:
+        out["signal"] = [fi_action(s, d, tk) for s, d, tk
+                         in zip(out["signal"], out["direction"], out["instruments"])]
     return out

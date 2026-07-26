@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from reportkit import data_uri, png, color, render_pdf, BLACK
+from reportkit import pretty_date, data_uri, png, color, render_pdf, BLACK
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
@@ -177,7 +177,7 @@ def render_html(df: pd.DataFrame, asof: str, threshold: float = 70.0, hist: pd.D
 
     charts, n_flagged = flag_charts(df, hist)
     return env.get_template("flagreport.html").render(
-        asof=asof,
+        asof=pretty_date(asof),
         bars=readiness_bar_png(df),
         charts=charts, n_shown=len(charts), n_flagged=n_flagged,
         rows=rows, n_markets=len(df), tflag=f"{threshold:g}",

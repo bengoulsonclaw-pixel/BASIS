@@ -15,10 +15,17 @@ Run standalone (the app calls it as a subprocess):
 from __future__ import annotations
 
 import argparse
+import glob
+import hashlib
 import html
+import json
+import os
+import re
+import subprocess
+import tempfile
 from pathlib import Path
 
-from reportkit import data_uri, png, render_pdf, render_png, BLACK, YELLOW
+from reportkit import pretty_date, data_uri, png, render_pdf, render_png, BLACK, YELLOW
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 import numpy as np
@@ -30,6 +37,8 @@ import cotseasonality   # shared positioning-seasonality profile (also imported 
 
 TEMPLATES = Path(__file__).parent.parent / "templates"
 ASSETS = TEMPLATES / "assets"
+ROOT = TEMPLATES.parent
+_COMMENT_CACHE = ROOT / "data" / "signals" / "cot_commentary_cache.json"
 HISTORY_FILE = Path(__file__).resolve().parent.parent / "data" / "signals" / "cot_history.parquet"
 
 LONG_BLUE = "#1F5FA8"    # gross long bars (above zero)
@@ -261,46 +270,182 @@ def _reflag(detail: pd.DataFrame, hi: float, lo: float) -> pd.DataFrame:
     return d
 
 
-def commentary(detail: pd.DataFrame, hi: float, lo: float) -> str:
-    """A single plain-English paragraph summarising the week's outcomes — which markets
-    are crowded long/short, the overall tilt, and the biggest week-on-week shifts.
-    Returns HTML (market names escaped) to be rendered with the |safe filter."""
+def _mc_python() -> str:
+    """The Morning Coffee interpreter (has anthropic + the API key); '' if not found."""
+    for exe in sorted(glob.glob(r"C:\Users\Ben\AppData\Local\Python\pythoncore-*-64\python.exe"),
+                      reverse=True):
+        if Path(exe).exists():
+            return exe
+    import shutil
+    return shutil.which("python") or ""
+
+
+_COT_SYSTEM = (
+    "You are a senior futures strategist writing the opening commentary at the top of a desk's "
+    "weekly CFTC Commitments of Traders positioning report for professional clients. Rewrite the "
+    "terse, stat-packed machine note so it reads like a seasoned analyst talking a client through "
+    "where speculative positioning stands this week — flowing, conversational but professional "
+    "prose (a morning-note voice), not a data read-out.\n"
+    "STRUCTURE — lead with (a) the most notable WEEK-ON-WEEK positioning shifts (already "
+    "size-adjusted for you: these are the genuinely significant moves, NOT the biggest raw "
+    "numbers, so treat them as the headline); then (b) give the MOST CROWDED long and short "
+    "products real prominence. Also state the overall balance. Do NOT explain what the COT "
+    "Index is or how the flags are computed — a methodology box below the commentary covers that.\n"
+    "HARD RULES — never break these:\n"
+    "(1) Keep EVERY number, percentage and product name EXACTLY as given — never invent, drop, "
+    "round or alter a figure — and keep each wrapped in the same **bold** markers. Where a shift "
+    "carries a contract change, a % of open interest AND a 'largest in ...' note, keep all three.\n"
+    "(2) Neutral and observational only: client-safe commentary, NOT advice. Never say buy, sell, "
+    "long/short as an instruction, recommend, 'we like', or imply the reader should act; the "
+    "contrarian point is an observation, not a call.\n"
+    "(3) Plain English, no exclamation marks, no headline, no greeting. 4-7 flowing sentences.\n"
+    "Return ONLY a JSON array with the single rewritten string — nothing else.")
+
+
+def _ai_comment(note: str, system: str) -> str:
+    """`note` rewritten in a natural desk voice via ai_polish.py (Fable 5 chain, custom system
+    prompt run by the Morning Coffee interpreter); the note itself on ANY failure — offline, no
+    key, no access, timeout — so generation never depends on the model being reachable."""
+    try:
+        mc_py = _mc_python()
+        if not mc_py:
+            return note
+        with tempfile.TemporaryDirectory() as td:
+            inp, outp, sysf = Path(td) / "in.json", Path(td) / "out.json", Path(td) / "system.txt"
+            inp.write_text(json.dumps([note], ensure_ascii=False), encoding="utf-8")
+            sysf.write_text(system, encoding="utf-8")
+            r = subprocess.run([mc_py, str(ROOT / "ai_polish.py"), str(inp), str(outp), str(sysf)],
+                               capture_output=True, text=True, timeout=300)
+            if r.returncode == 0 and outp.exists():
+                got = json.loads(outp.read_text(encoding="utf-8"))
+                if isinstance(got, list) and got and isinstance(got[0], str) and got[0].strip():
+                    return got[0]
+    except Exception:
+        pass
+    return note
+
+
+def _cached_polish(note: str) -> str:
+    """Fable-polish `note`, cached by its content hash so a second build in the same run (the
+    email overview after the PDF) reuses the IDENTICAL paragraph — one API call, consistent text.
+    Regenerates whenever the note changes (new data). Only a genuine rewrite is cached, so a
+    transient model failure retries next build rather than sticking."""
+    h = hashlib.md5(note.encode("utf-8")).hexdigest()
+    try:
+        cache = json.loads(_COMMENT_CACHE.read_text(encoding="utf-8"))
+        if cache.get("hash") == h and isinstance(cache.get("text"), str) and cache["text"].strip():
+            return cache["text"]
+    except Exception:
+        pass
+    txt = _ai_comment(note, _COT_SYSTEM)
+    if txt.strip() and txt != note:                     # cache only a real rewrite, not the fallback
+        try:
+            _COMMENT_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            _COMMENT_CACHE.write_text(json.dumps({"hash": h, "text": txt}, ensure_ascii=False),
+                                      encoding="utf-8")
+        except Exception:
+            pass
+    return txt
+
+
+def _md_bold(s: str) -> str:
+    """Escape, then **…** -> <b>…</b>, for safe HTML injection of the polished comment."""
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", html.escape(s))
+
+
+def _rarity_phrase(weeks: int, span: int):
+    """Readable 'largest in …' for a weekly-change lookback; None if too recent to be notable."""
+    if weeks >= span - 1:
+        return f"its largest weekly move in the ~{max(1, span // 52)} years of data we hold"
+    if weeks >= 104:
+        return f"its largest in about {weeks // 52} years"
+    if weeks >= 52:
+        return "its largest in over a year"
+    if weeks >= 13:
+        return f"its largest in about {weeks} weeks"
+    return None
+
+
+def _weekly_shifts(detail: pd.DataFrame, hist: pd.DataFrame,
+                   min_pct_oi: float = 2.0, window: int = 156, top_n: int = 3) -> list:
+    """The week's most NOTABLE positioning shifts, SIZE-NORMALISED. Per market: this week's net
+    change, its z-score vs the market's own ~3y weekly changes, the change as % of open interest,
+    and how long since a move this large. Ranked by |z| among moves that are ALSO material
+    (|change| >= `min_pct_oi`% of OI) — so a huge raw move in a giant market (e.g. 3M SOFR) or a
+    trivial one in a tiny market can't lead on size alone. Falls back to the biggest %-of-OI moves
+    in a week with nothing material."""
+    recs = []
+    for r in detail.itertuples(index=False):
+        g = hist[hist["ticker"] == r.ticker].sort_values("date")
+        dnet = pd.to_numeric(g["net"], errors="coerce").diff().dropna().to_numpy()
+        if len(dnet) < 30:
+            continue
+        cur = float(dnet[-1])
+        if cur == 0:
+            continue
+        sd = float(np.std(dnet[-window:], ddof=1)) if len(dnet[-window:]) > 1 else 0.0
+        oi = float(r.oi) if pd.notna(r.oi) and r.oi > 0 else float("nan")
+        ge = np.where(np.abs(dnet[:-1]) >= abs(cur))[0]
+        recs.append({
+            "market": str(r.market), "chg": cur,
+            "z": (cur / sd) if sd > 0 else 0.0,
+            "pct": (100.0 * cur / oi) if oi == oi else float("nan"),
+            "weeks": int((len(dnet) - 1 - ge[-1]) if len(ge) else (len(dnet) - 1)),
+            "span": len(dnet)})
+    if not recs:
+        return []
+    material = [x for x in recs if x["pct"] == x["pct"] and abs(x["pct"]) >= min_pct_oi]
+    if material:
+        pool, key = material, "z"
+    else:
+        pool, key = [x for x in recs if x["pct"] == x["pct"]], "pct"
+    return sorted(pool, key=lambda x: abs(x[key]), reverse=True)[:top_n]
+
+
+def _commentary_note(detail: pd.DataFrame, hist: pd.DataFrame, hi: float, lo: float) -> str:
+    """The deterministic **bold**-marked note — Fable's raw material AND the no-model fallback.
+    Numbers/names carry **bold** markers the rewrite must keep."""
     d = detail.dropna(subset=["cot_index"]).copy()
     if d.empty:
         return "No CFTC positioning data is available for the current universe."
     longs = d[d["cot_index"] >= hi].sort_values("cot_index", ascending=False)
     shorts = d[d["cot_index"] <= lo].sort_values("cot_index")
     med = float(d["cot_index"].median())
-    tilt = ("tilted net long" if med >= 55 else "tilted net short" if med <= 45 else "broadly balanced")
+    tilt = "tilted net long" if med >= 55 else "tilted net short" if med <= 45 else "broadly balanced"
 
-    def _mk(df):
-        return ", ".join(f"<b>{html.escape(str(m))}</b> ({v:.0f})"
-                         for m, v in zip(df["market"], df["cot_index"]))
+    def _mk(df, n):
+        return ", ".join(f"**{m}** (**{v:.0f}**)"
+                         for m, v in zip(df["market"].head(n), df["cot_index"].head(n)))
 
-    sent = []
-    if len(longs):
-        sent.append(f"speculative money is most crowded <b>long</b> in {_mk(longs.head(3))}")
-    if len(shorts):
-        lead = "and most crowded <b>short</b> in" if sent else "speculative money is most crowded <b>short</b> in"
-        sent.append(f"{lead} {_mk(shorts.head(3))}")
-    joined = "; ".join(sent)
-    extremes = (joined[:1].upper() + joined[1:] + ".") if sent else \
-        "No market currently sits at a 3-year positioning extreme."
+    long_s, short_s = _mk(longs, 5) or "none", _mk(shorts, 5) or "none"
 
-    sw = d.reindex(d["chg_net"].abs().sort_values(ascending=False).index)
-    sw = sw[sw["chg_net"].abs() > 0].head(2)
-    swing = ""
-    if len(sw):
-        bits = ", ".join(
-            f"<b>{html.escape(str(r.market))}</b> (net {'buying' if r.chg_net > 0 else 'selling'}, {r.chg_net:+,.0f})"
-            for r in sw.itertuples(index=False))
-        swing = f" The biggest week-on-week shifts came in {bits}."
+    bits = []
+    for s in _weekly_shifts(detail, hist):
+        side = "buying" if s["chg"] > 0 else "selling"
+        pct = f"**{s['pct']:+.1f}%** of open interest" if s["pct"] == s["pct"] else "an unknown share of OI"
+        rar = _rarity_phrase(s["weeks"], s["span"])
+        bits.append(f"**{s['market']}** (net {side} of **{s['chg']:+,.0f}** contracts, {pct}"
+                    + (f", {rar}" if rar else "") + ")")
+    shifts = (" The most notable week-on-week positioning shifts — judged against each market's own "
+              "history rather than raw contract size — were " + "; ".join(bits) + ".") if bits else ""
 
-    return (f"Across <b>{len(d)}</b> markets with CFTC data, <b>{len(longs)}</b> sit at a 3-year "
-            f"<b>long</b> extreme (COT Index &ge; {hi:g}) and <b>{len(shorts)}</b> at a <b>short</b> "
-            f"extreme (&le; {lo:g}); positioning is {tilt} overall (median index {med:.0f}). "
-            f"{extremes}{swing} Extremes are frequently read as contrarian — a crowded long can "
-            f"struggle to find new buyers, a crowded short new sellers.")
+    # Findings only — the COT-Index mechanics and the contrarian gloss live in the
+    # template's yellow "How the screen works" box, not in this narrative.
+    return (
+        f"Across **{len(d)}** markets with CFTC data, **{len(longs)}** sit at a 3-year long extreme "
+        f"(COT Index at or above {hi:g}) and **{len(shorts)}** at a short extreme (at or below {lo:g}); "
+        f"positioning is {tilt} overall (median index **{med:.0f}**). Most crowded long: {long_s}. "
+        f"Most crowded short: {short_s}.{shifts}")
+
+
+def commentary(detail: pd.DataFrame, hist: pd.DataFrame, hi: float, lo: float, ai: bool = True) -> str:
+    """The report's opening paragraph. Deterministic template by default; when `ai` (and the model
+    is reachable, and COT_AI_POLISH != '0') it is rewritten in a conversational desk voice by Fable
+    via ai_polish.py, cached by data-hash so the PDF and the email overview share ONE identical
+    paragraph from a single API call. Returns HTML for the |safe filter."""
+    note = _commentary_note(detail, hist, hi, lo)
+    use_ai = ai and os.environ.get("COT_AI_POLISH", "1") != "0"
+    return _md_bold(_cached_polish(note) if use_ai else note)
 
 
 def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str, cutoff: float = DEFAULT_CUTOFF,
@@ -309,7 +454,7 @@ def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str, cutoff: flo
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     detail = _reflag(detail, hi, lo)
     try:                                            # header shows the DATE only (drop any time)
-        asof = pd.to_datetime(asof).strftime("%d %b %Y") if str(asof).strip() else asof
+        asof = pretty_date(asof) if str(asof).strip() else asof
     except Exception:
         asof = str(asof).split(" ")[0]
     try:                                            # latest CFTC report as-of date in the data
@@ -385,7 +530,7 @@ def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str, cutoff: flo
     study_end = _pdates.max().strftime("%b %Y") if len(_pdates) else "—"
 
     return env.get_template("cotreport.html").render(
-        asof=asof, report_date=report_date, commentary=commentary(detail, hi, lo),
+        asof=asof, report_date=report_date, commentary=commentary(detail, hist, hi, lo),
         heatmap=_png(heatmap_fig(hist, detail)),
         rank=_png(rank_fig(detail)), products=products, rows=rows, fwd_rows=fwd_rows,
         study_weeks=study_weeks, study_years=study_years,
@@ -447,7 +592,7 @@ def build_email_image(detail: pd.DataFrame, hist: pd.DataFrame, asof: str, cutof
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     html = env.get_template("cotreport_email.html").render(
-        report_date=report_date, commentary=commentary(detail, hi, lo),
+        report_date=report_date, commentary=commentary(detail, hist, hi, lo),
         heatmap=_png(heatmap_fig(hist, detail)), rank=_png(rank_fig(detail)),
         crowded=crowded, fwd=fwd, logo=data_uri(ASSETS / "logo.png"))
     return render_png(html, out_png, width=640)

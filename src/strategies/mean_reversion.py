@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ..datafeed import get_history
+from ..datafeed import get_history_ta as get_history   # fixed income legs → yields (yield spreads)
 from ..universe import PAIRS, name
 from .base import frame
 

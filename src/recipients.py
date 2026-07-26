@@ -19,11 +19,14 @@ _MC_MAIN = Path(os.getenv("BASIS_MC_DIR", r"C:\Users\Ben\OneDrive\Personal\AI\Fu
 REPORTS = {
     "morning_coffee": "Morning Coffee report",
     "cot": "COT Positioning report",
+    "convreport": "Technical Analysis Report",
     "digest": "Daily signal digest",
     "opec": "OPEC MOMR synopsis",
     "usda_reaction": "USDA Reaction (Acreage & Grain Stocks)",
     "wasde": "USDA WASDE report",
     "sectorcorr": "Product Correlations alert",
+    "precious_metals": "Precious Metals Fundamentals monitor",
+    "pm_releases": "Precious Metals release synopses (WGC / WPIC)",
 }
 
 
@@ -47,7 +50,10 @@ def _defaults() -> dict:
     desk = _desk_default()
     return {"morning_coffee": list(desk), "cot": list(desk), "digest": [desk[0]],
             "opec": list(desk), "usda_reaction": list(desk),
-            "wasde": list(desk), "sectorcorr": [desk[0]]}
+            "wasde": list(desk), "sectorcorr": [desk[0]],
+            # proofread flow: the monitor goes to the desk only; Ben forwards
+            # the checked copy to clients himself.
+            "precious_metals": [desk[0]], "pm_releases": [desk[0]]}
 
 
 def load_all() -> dict:
@@ -61,7 +67,10 @@ def load_all() -> dict:
     out = {}
     for k in REPORTS:
         lst = data.get(k)
-        out[k] = [e.strip() for e in lst if e and e.strip()] if isinstance(lst, list) else defaults[k]
+        # .get with a desk fallback: a REPORTS key absent from _defaults() (e.g.
+        # convreport) must not KeyError the whole Recipients page.
+        out[k] = ([e.strip() for e in lst if e and e.strip()] if isinstance(lst, list)
+                  else defaults.get(k, _desk_default()))
     return out
 
 
