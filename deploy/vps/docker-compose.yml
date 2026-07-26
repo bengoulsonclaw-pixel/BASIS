@@ -9,7 +9,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.basis.entrypoints=websecure
-      - traefik.http.routers.basis.rule=Host(`basis.srv1608260.hstgr.cloud`)
+      - traefik.http.routers.basis.rule=Host(`basisterminal.com`) || Host(`www.basisterminal.com`) || Host(`basis.srv1608260.hstgr.cloud`)
       - traefik.http.routers.basis.tls.certresolver=letsencrypt
       - traefik.http.routers.basis.middlewares=basis-rate,basis-auth
       - traefik.http.middlewares.basis-auth.basicauth.users=Ben:$$apr1$$G/ke85dp$$c0vEIsMPGUCJEJda0fV58.
