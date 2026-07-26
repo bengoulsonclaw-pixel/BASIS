@@ -30,8 +30,9 @@ _ASSETS = Path(__file__).resolve().parent.parent / "assets" / "brand"
 ICON_PNG = _ASSETS / "basis-icon-512.png"          # st.set_page_config(page_icon=...)
 _PREF_FILE = Path(__file__).resolve().parent.parent / "data" / "ui_prefs.json"  # remembers theme
 
-_FONT = ("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
+_FONT = ("'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
          "'Helvetica Neue', Arial, sans-serif")
+_MONO = "'IBM Plex Mono', Consolas, 'SF Mono', Menlo, monospace"
 
 # --- palettes --------------------------------------------------------------
 # `word` = the BASIS wordmark gradient stops (left→right). Dark theme runs
@@ -43,29 +44,36 @@ _FONT = ("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
 # Both palettes are LAYERED rather than flat: the canvas sits a clear step away from the
 # card surfaces and the sidebar, so pages read as zones instead of one solid black/white
 # sheet. Dark = slate greys lifted off pure black; light = a grey canvas with white cards.
+# 2026-07 "terminal" redesign (Claude Design handoff, design_kit/handoff/README.md):
+# darker canvas, hairline separations, radius 0, no shadows. Key mapping vs the
+# handoff tokens: border=--line, border_soft=--hair, btn_border/faint=--line2/--faint,
+# gold_soft=--goldWash, label_ring=--goldLine. On LIGHT, gold text/borders darken to
+# #A87A0C (raw #F5C518 fails contrast on white); washes keep the raw gold.
 DARK = dict(
     name="dark",
-    canvas="#1C2026", glass="rgba(28,32,38,.78)", surface="#272D36", surface2="#303743",
-    border="#414957", border_soft="rgba(255,255,255,.12)",
-    btn="#454D5A", btn_border="#57606E", btn_hover="#525B69",
-    btn_gold="#5E5330", btn_gold_hover="#6F6238", label_ring="rgba(245,197,24,.55)",
-    text="#ECEEF1", text_dim="#CBD0D7", caption="#D2D7DD",
-    sidebar="#14171C",
-    gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.14)",
-    bracket="#8A8F96", tagline="#8A8F96",
-    word=(("0", "#EEF0F3"), ("0.5", "#C0C5CC"), ("0.72", "#CBA53C"), ("1", "#F4CC3A")),
+    canvas="#0F1216", glass="rgba(22,26,32,.85)", surface="#161A20", surface2="#1C212A",
+    border="#232935", border_soft="rgba(255,255,255,.05)",
+    btn="transparent", btn_border="#333B49", btn_hover="#1C212A",
+    btn_gold="rgba(245,197,24,.10)", btn_gold_hover="rgba(245,197,24,.16)",
+    label_ring="rgba(245,197,24,.34)",
+    text="#E7EAEE", text_dim="#98A1AD", caption="#98A1AD", faint="#626C7A",
+    sidebar="#0A0C10",
+    gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.10)",
+    bracket="#626C7A", tagline="#626C7A",
+    word=(("0", "#EEF0F3"), ("0.46", "#C0C5CC"), ("0.70", "#CBA53C"), ("1", "#F4CC3A")),
 )
 LIGHT = dict(
     name="light",
-    canvas="#E3E6EB", glass="rgba(227,230,235,.8)", surface="#FFFFFF", surface2="#EFF1F5",
-    border="#C3C9D2", border_soft="#D5DAE1",
-    btn="#FFFFFF", btn_border="#C4C4C4", btn_hover="#EEF0F4",
-    btn_gold="#FBF3D0", btn_gold_hover="#F6E9A8", label_ring="rgba(200,144,26,.6)",
-    text="#1A1A1A", text_dim="#3A3D42", caption="#42454A",
-    sidebar="#D7DBE2",
-    gold="#F5C518", gold_deep="#C8901A", gold_soft="rgba(245,197,24,.16)",
-    bracket="#9A9A9A", tagline="#6A6A6A",
-    word=(("0", "#1A1A1A"), ("0.58", "#1A1A1A"), ("0.73", "#C8901A"), ("1", "#E0A81C")),
+    canvas="#EDF0F3", glass="rgba(255,255,255,.85)", surface="#FFFFFF", surface2="#F4F6F9",
+    border="#D2D7DE", border_soft="rgba(0,0,0,.07)",
+    btn="transparent", btn_border="#BEC5CE", btn_hover="#F4F6F9",
+    btn_gold="rgba(245,197,24,.16)", btn_gold_hover="rgba(245,197,24,.24)",
+    label_ring="rgba(168,122,12,.38)",
+    text="#12161B", text_dim="#57606B", caption="#57606B", faint="#7D8792",
+    sidebar="#E4E8EC",
+    gold="#A87A0C", gold_deep="#8A6208", gold_soft="rgba(245,197,24,.16)",
+    bracket="#7D8792", tagline="#7D8792",
+    word=(("0", "#12161B"), ("0.58", "#12161B"), ("0.73", "#8A6208"), ("1", "#A87A0C")),
 )
 PALETTES = {"dark": DARK, "light": LIGHT}
 
@@ -191,15 +199,39 @@ def header_svg(pal: dict, height: int = 34, tagline: bool = False) -> str:
 # --- theme css -------------------------------------------------------------
 _CSS = Template("""
 <style>
-:root { --basis-gold:$gold; --basis-gold-deep:$gold_deep; }
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+:root { --basis-gold:$gold; --basis-gold-deep:$gold_deep;
+        --basis-mono:'IBM Plex Mono', Consolas, 'SF Mono', Menlo, monospace; }
+
+/* terminal geometry: sharp corners everywhere — separation comes from borders and
+   surface steps, never radius or shadows (design_kit/handoff/README.md). */
+*, *::before, *::after { border-radius:0 !important; }
 
 html, body, .stApp, [data-testid="stAppViewContainer"],
 [data-testid="stMain"], [data-testid="stBottom"] {
     background:$canvas !important; color:$text;
 }
+html { font-size:14px; }               /* rem base: the whole app steps down to terminal density */
 .stApp, .stMarkdown, p, li, label, span,
-div[data-testid="stMarkdownContainer"] { color:$text; }
-h1, h2, h3, h4, h5, h6 { color:$text; font-weight:700; letter-spacing:.2px; }
+div[data-testid="stMarkdownContainer"] {
+    color:$text;
+    font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+body { font-variant-numeric:tabular-nums; }
+/* heading ladder (handoff): page title 15px .02em; section = 11px 600 .18em uppercase
+   micro-title — the single strongest "institutional" move after mono numerals.
+   !important + the container selector outranks Streamlit's own heading classes. */
+[data-testid="stMarkdownContainer"] h1, .stApp h1 {
+    color:$text; font-size:1.30rem !important; font-weight:600; letter-spacing:.02em;
+}
+[data-testid="stMarkdownContainer"] h2, .stApp h2 {
+    color:$text; font-size:1.07rem !important; font-weight:600; letter-spacing:.02em;
+}
+[data-testid="stMarkdownContainer"] h3, [data-testid="stMarkdownContainer"] h4,
+[data-testid="stMarkdownContainer"] h5, .stApp h3, .stApp h4, .stApp h5 {
+    color:$text; font-size:.86rem !important; font-weight:600;
+    letter-spacing:.16em; text-transform:uppercase;
+}
 /* frosted translucent header: content scrolling beneath shows through a blur instead of
    being hard-amputated by an opaque bar (the "cut-off button" effect). */
 [data-testid="stHeader"] {
@@ -226,6 +258,9 @@ hr { border-color:$border; }
 div.st-key-basis_scroll_top,
 [data-testid="stLayoutWrapper"]:has(> .st-key-basis_scroll_top) { display:none; }
 .block-container { padding-top:2.9rem; }   /* clears the fixed header with margin to spare */
+/* full-bleed terminal width: content uses the whole viewport minus the page padding
+   (the old centered ~46rem column read as a website, not a terminal). */
+.block-container { max-width:100% !important; padding-left:1.6rem; padding-right:1.6rem; }
 
 /* sidebar */
 [data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border; }
@@ -249,49 +284,68 @@ div.st-key-basis_scroll_top,
     position:sticky; top:0; z-index:20;
     background:$sidebar; padding-bottom:.3rem;
 }
+/* sidebar nav rows (handoff): flat text rows, not buttons. Normal case, left-aligned;
+   hover = surface step; ACTIVE (Streamlit type=primary) = surface2 fill + inset 2px
+   gold left rule. Overrides the global uppercase/bordered button treatment. */
+[data-testid="stSidebar"] .stButton>button {
+    background:transparent !important; border:none !important; color:$text_dim !important;
+    text-transform:none !important; letter-spacing:0 !important;
+    font-weight:400; justify-content:flex-start; box-shadow:none !important;
+}
+[data-testid="stSidebar"] .stButton>button p {
+    font-size:.9rem !important; text-transform:none !important; letter-spacing:0 !important;
+}
+[data-testid="stSidebar"] .stButton>button:hover {
+    background:$surface !important; color:$text !important;
+}
+[data-testid="stSidebar"] button[kind="primary"],
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] {
+    background:$surface2 !important; box-shadow:inset 2px 0 0 $gold !important;
+    color:$text !important; font-weight:500;
+}
+[data-testid="stSidebar"] button[kind="primary"] *,
+[data-testid="stSidebar"] button[data-testid="stBaseButton-primary"] * { color:$text !important; }
 
-/* buttons — secondary: gold ring + gold-TINTED FILL, so a button is the most obviously
-   clickable thing on the page. The visual ladder: label = thin gold ring only (no fill),
-   button = gold ring + gold-tinted fill, primary/active = solid gold tile. */
-.stButton>button, .stDownloadButton>button { border-radius:9px; font-weight:600; }
+/* buttons — terminal treatment (handoff): transparent fills, 1px borders, uppercase
+   labels, no shadows, no transitions. Gold-bordered = the important action;
+   grey-bordered = everything else. */
+.stButton>button, .stDownloadButton>button {
+    font-weight:600; font-size:.74rem !important;
+    letter-spacing:.04em; text-transform:uppercase;
+    box-shadow:none !important; transition:none !important;
+}
+.stButton>button p, .stDownloadButton>button p {
+    font-size:.74rem !important; line-height:1.3 !important;
+}
 button[kind="secondary"], button[data-testid="stBaseButton-secondary"], .stDownloadButton>button {
-    background:$btn_gold !important; color:$text !important; border:1px solid $gold !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.28);
-    transition: background .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease;
+    background:transparent !important; color:$text_dim !important;
+    border:1px solid $btn_border !important;
 }
 button[kind="secondary"]:hover, button[data-testid="stBaseButton-secondary"]:hover,
 .stDownloadButton>button:hover {
-    background:$btn_gold_hover !important; border-color:$gold !important; color:$gold !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.35);
+    background:$btn_hover !important; border-color:$text_dim !important; color:$text !important;
 }
-/* sidebar nav: keep the clear fill+border (visible/clickable) but FLAT — no raised shadow — so the
-   stacked nav list stays clean; the raised look is reserved for main-content action buttons. */
-[data-testid="stSidebar"] .stButton>button { box-shadow:none !important; }
-/* buttons — primary (gold tile, dark label in both themes) */
+/* buttons — primary: the gold-bordered terminal action (transparent fill, gold label;
+   hover fills with the gold wash). */
 button[kind="primary"], button[data-testid="stBaseButton-primary"] {
-    background:$gold !important; border:1px solid $gold !important;
-    color:#0A0A0A !important; font-weight:700;
+    background:transparent !important; border:1px solid $label_ring !important;
+    color:$gold !important; font-weight:600;
 }
 button[kind="primary"]:hover, button[kind="primary"]:active, button[kind="primary"]:focus,
 button[data-testid="stBaseButton-primary"]:hover,
 button[data-testid="stBaseButton-primary"]:active,
 button[data-testid="stBaseButton-primary"]:focus {
-    background:$gold_deep !important; border-color:$gold_deep !important; color:#000 !important;
+    background:$btn_gold !important; border-color:$gold !important; color:$gold !important;
 }
-/* the label is an inner <p>/<span> Streamlit colours light — force it dark on the gold tile */
-button[kind="primary"] *, button[data-testid="stBaseButton-primary"] * { color:#0A0A0A !important; }
+button[kind="primary"] *, button[data-testid="stBaseButton-primary"] * { color:$gold !important; }
 
-/* widget labels: a thin gold RING (no fill) so labels stand out — one rung below buttons
-   on the ladder (buttons carry ring + gold fill; a ring alone means "this names a control,
-   it isn't the control"). width:fit-content keeps the ring hugging the text. */
-[data-testid="stWidgetLabel"] {
-    border:1px solid $label_ring; border-radius:7px;
-    padding:.12rem .55rem; width:fit-content; max-width:100%;
-    margin-bottom:.3rem; background:transparent;
+/* widget labels: micro-labels — mono, uppercase, faint (the ring treatment is retired;
+   labels identify controls typographically now). */
+[data-testid="stWidgetLabel"] { margin-bottom:.2rem; background:transparent; border:none; }
+[data-testid="stWidgetLabel"] p {
+    color:$faint !important; font-family:var(--basis-mono);
+    font-size:.70rem !important; letter-spacing:.16em; text-transform:uppercase;
 }
-[data-testid="stWidgetLabel"] p { color:$text_dim; }
-/* checkbox/toggle labels sit BESIDE the control, not above it — a ring there boxes the
-   whole row awkwardly, so leave those unringed. */
 [data-testid="stCheckbox"] [data-testid="stWidgetLabel"],
 [data-testid="stToggle"] [data-testid="stWidgetLabel"] {
     border:none; padding:0; margin-bottom:0;
@@ -305,59 +359,70 @@ input, textarea,
 }
 /* SELECT dropdowns (selectbox / multiselect) get the same gold left-accent as the expander
    dropdowns — so every "open me" control reads the same way. */
-[data-baseweb="select"]>div { border-left:4px solid $gold !important; }
+[data-baseweb="select"]>div { border-left:2px solid $label_ring !important; }
 [data-baseweb="popover"] [role="listbox"], [data-baseweb="menu"], [role="option"] {
     background:$surface !important; color:$text !important;
 }
-/* multiselect chips (Send-to recipients, sector filters): force DARK text on the gold
-   tag so it stays legible — same treatment as the gold primary button. */
-[data-baseweb="tag"] { background:$gold !important; border-color:$gold !important; max-width:none !important; flex-shrink:0 !important; padding-left:12px !important; overflow:visible !important; }
-[data-baseweb="tag"], [data-baseweb="tag"] span, [data-baseweb="tag"] * { color:#0A0A0A !important; }
+/* multiselect chips (Send-to recipients, sector filters): terminal chip — gold wash,
+   gold border, gold text (the handoff's selected-chip pattern; no solid fills). */
+[data-baseweb="tag"] { background:$btn_gold !important; border:1px solid $label_ring !important; max-width:none !important; flex-shrink:0 !important; padding-left:12px !important; overflow:visible !important; }
+[data-baseweb="tag"], [data-baseweb="tag"] span, [data-baseweb="tag"] * { color:$gold !important; }
 /* show the WHOLE recipient — no width cap and NEVER shrink, so the text can't clip; chips wrap instead */
 [data-baseweb="tag"] span, [data-baseweb="tag"] div {
     max-width:none !important; flex-shrink:0 !important; overflow:visible !important; text-overflow:clip !important; }
-[data-baseweb="tag"] svg { fill:#0A0A0A !important; color:#0A0A0A !important; }
+[data-baseweb="tag"] svg { fill:$gold !important; color:$gold !important; }
 /* Higher-specificity twin of the above — BaseWeb's component CSS loads AFTER this theme and
    was re-clipping the chip's first character; this selector ([select] [tag] = 0,2,x) outranks
    BaseWeb's class rules so the full recipient shows. */
 [data-baseweb="select"] [data-baseweb="tag"] {
     overflow:visible !important; max-width:none !important; flex-shrink:0 !important;
-    padding-left:14px !important; background:$gold !important;
+    padding-left:14px !important; background:$btn_gold !important;
     /* real margin off the field's left edge: when BaseWeb's runtime CSS drags the chip box
        left (the first-character clip, above), padding only saves the TEXT — the box's left
        corner still gets cut. A margin keeps the whole box inside the field either way. */
     margin-left:8px !important; }
 [data-baseweb="select"] [data-baseweb="tag"] span, [data-baseweb="select"] [data-baseweb="tag"] div {
     overflow:visible !important; text-overflow:clip !important; max-width:none !important;
-    flex-shrink:0 !important; background:transparent !important; color:#0A0A0A !important; }
+    flex-shrink:0 !important; background:transparent !important; color:$gold !important; }
 
 /* expander / containers / metric */
-/* dropdowns (expanders): a gold-tinted header, gold left-accent and gold chevron so they clearly
-   read as openable dropdowns — visibly different from the grey action buttons. */
-[data-testid="stExpander"] { background:$surface; border:1px solid $btn_border; border-radius:10px; }
+/* expanders as terminal panels: surface + 1px line border; the summary is a
+   surface2 header strip with an uppercase micro-title and a gold chevron. */
+[data-testid="stExpander"] { background:$surface; border:1px solid $border; }
 [data-testid="stExpander"] summary {
-    background:linear-gradient(90deg, $gold_soft, $btn 62%) !important;
-    border-left:4px solid $gold !important; border-radius:8px;
-    font-weight:700; padding:.5rem .8rem !important;
+    background:$surface2 !important;
+    font-weight:600; padding:.5rem .9rem !important;
+    letter-spacing:.14em; text-transform:uppercase; font-size:.8rem;
 }
+[data-testid="stExpander"] summary p { font-size:.8rem !important; letter-spacing:.14em; }
 [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { color:$text; }
-[data-testid="stExpander"] summary:hover { background:$btn_hover !important; }
 [data-testid="stExpander"] summary:hover, [data-testid="stExpander"] summary:hover * { color:$gold !important; }
 [data-testid="stExpander"] summary svg,
 [data-testid="stExpander"] [data-testid="stExpanderToggleIcon"],
 [data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
     fill:$gold !important; color:$gold !important;
 }
-/* metric / label cards: a clear NEUTRAL (grey) ring so they stand out as info boxes — distinct from
-   the GOLD interactive elements (buttons get a gold ring + fill; dropdowns a gold accent). */
-[data-testid="stMetric"] { background:$surface; border:1.5px solid $btn_border; border-radius:11px; padding:.6rem .9rem; }
-[data-testid="stMetricValue"] { color:$text; }
-[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * { color:$text_dim; }
+/* metric cells: flat panel, mono value, faint mono micro-label — the handoff KPI cell. */
+[data-testid="stMetric"] { background:$surface; border:1px solid $border; padding:.6rem .9rem; }
+[data-testid="stMetricValue"] { color:$text; font-family:var(--basis-mono); font-size:1.15rem; }
+[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {
+    color:$faint !important; font-family:var(--basis-mono);
+    font-size:.70rem !important; letter-spacing:.14em; text-transform:uppercase;
+}
+[data-testid="stMetricDelta"] { font-family:var(--basis-mono); }
 
 /* dataframe / editor / table */
 [data-testid="stDataFrame"], [data-testid="stDataEditor"], [data-testid="stTable"] {
-    background:$surface; border:1px solid $border; border-radius:10px;
+    background:$surface; border:1px solid $border;
 }
+/* markdown/html tables (report previews, small boards) follow the handoff table spec */
+[data-testid="stMarkdownContainer"] table { border-collapse:collapse; }
+[data-testid="stMarkdownContainer"] th {
+    background:$surface2; color:$faint; font-family:var(--basis-mono);
+    font-size:.70rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase;
+    border-bottom:1px solid $border; text-align:left;
+}
+[data-testid="stMarkdownContainer"] td { border-bottom:1px solid $border_soft; }
 
 /* tabs */
 [data-baseweb="tab-list"] { border-bottom:1px solid $border; gap:.25rem; }
@@ -378,13 +443,12 @@ code, pre, kbd { background:$surface2; color:$text; }
 .basis-tag { color:$tagline; font-size:.66rem; letter-spacing:.34em; font-weight:600;
              text-transform:uppercase; white-space:nowrap; }
 /* the stacked BASIS+tagline lockup is rendered inline in header_svg(tagline=True) */
-.basis-rule { height:1px; border:0; margin:.5rem 0 1.15rem;
-              background:linear-gradient(90deg, $gold 0%, $border 34%, transparent 100%); }
+.basis-rule { height:1px; border:0; margin:.5rem 0 1.05rem; background:$border; }
 
-/* sun/moon toggle pill (Streamlit tags the container .st-key-<key>) */
+/* theme toggle: 30px square terminal control */
 .st-key-basis_theme_toggle button {
-    background:$surface; color:$text; border:1px solid $border; border-radius:999px;
-    padding:.3rem .85rem; min-height:0; line-height:1.1; font-weight:600;
+    background:transparent; color:$text_dim; border:1px solid $btn_border;
+    padding:.3rem .7rem; min-height:0; line-height:1.1; font-weight:600;
 }
 .st-key-basis_theme_toggle button:hover { border-color:$gold; color:$gold; }
 .st-key-basis_theme_toggle button p { font-size:.82rem; }
@@ -410,7 +474,7 @@ def sidebar_logo() -> None:
     """BASIS lockup at the top of the sidebar (replaces the old title)."""
     pal = palette()
     st.markdown(
-        f'<div style="padding:.15rem 0 .35rem">{header_svg(pal, height=84)}'
+        f'<div style="padding:.15rem 0 .35rem">{header_svg(pal, height=64)}'
         # Negative top margin pulls the tag up into the svg box's empty bottom band; the
         # bottom margin pushes the FICC/Equities row down the same amount — leaving the tag
         # at the OPTICAL midpoint between the drawn wordmark and the buttons (~12px each).
@@ -428,7 +492,7 @@ def masthead() -> None:
     left, right = st.columns([0.82, 0.18], vertical_alignment="center")
     with left:
         logo = (f'<div style="padding:.15rem 0 .3rem">'
-                f'{header_svg(pal, height=84, tagline=True)}</div>')
+                f'{header_svg(pal, height=58, tagline=True)}</div>')
         st.markdown(logo, unsafe_allow_html=True)
     with right:
         dark = theme() == "dark"
