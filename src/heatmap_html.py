@@ -21,6 +21,23 @@ import html as _html
 
 from .eqheatmap import _grid_slices, _heat_color, _heat_color_sigma, _slice
 
+# Desaturated ON-SCREEN z-score scale (terminal redesign handoff) — deliberately
+# muted vs the report PNGs (eqheatmap keeps its own colours) so a wall of tiles
+# stays readable. Stops interpolate linearly between the handoff anchors.
+_TERM_STOPS = [(-2.0, (0x8E, 0x2F, 0x26)), (-1.5, (0x7A, 0x2D, 0x26)),
+               (-1.0, (0x6B, 0x36, 0x30)), (-0.4, (0x4A, 0x3A, 0x38)),
+               (0.0, (0x2C, 0x37, 0x42)), (0.8, (0x24, 0x5C, 0x43)),
+               (1.5, (0x17, 0x73, 0x4A)), (2.0, (0x0F, 0x5C, 0x36))]
+
+
+def _terminal_sigma_color(sigma):
+    s = max(-2.0, min(2.0, 0.0 if sigma is None or sigma != sigma else float(sigma)))
+    for (a, ca), (b, cb) in zip(_TERM_STOPS, _TERM_STOPS[1:]):
+        if a <= s <= b:
+            t = 0.0 if b == a else (s - a) / (b - a)
+            return tuple(int(ca[i] + (cb[i] - ca[i]) * t) for i in range(3))
+    return _TERM_STOPS[-1][1]
+
 _CAP, _FLOOR, _FALLBACK = 4.0, 0.5, 1.0     # tile size ∝ |σ|, clamped — identical to eqheatmap
 _V = 1000.0                                  # virtual canvas; rects are converted to % of this
 _W_NOM = 1120.0                              # assumed on-screen width (px) — for text-fit gating only
@@ -113,7 +130,8 @@ def render_html(sections_in, height_px, sub_headers: bool = True) -> str:
 
     def tile(x, y, w, h, nm, pct, sig):
         rh, rw = h / _V * H, w / _V * _W_NOM
-        col = _heat_color_sigma(sig) if (sig is not None and sig == sig) else _heat_color(pct)
+        col = (_terminal_sigma_color(sig) if (sig is not None and sig == sig)
+               else _heat_color(pct))
         has = sig is not None and sig == sig
         vlab = f"{pct:+.2f}%  ·  {sig:+.1f}σ" if has else f"{pct:+.2f}%"
         body = ""
