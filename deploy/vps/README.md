@@ -1,8 +1,12 @@
 # BASIS on the Hostinger VPS
 
-Live at **https://basis.srv1608260.hstgr.cloud** (HTTP basic auth, user `ben`;
-the password sits on the dev laptop in `~\.ssh\basis_site_password.txt` — it is
-NOT in git; the compose file carries only its apr1 hash). Set up 2026-07-25.
+Live at **https://basisterminal.com** (also www.basisterminal.com and
+basis.srv1608260.hstgr.cloud). HTTP basic auth, user `Ben`; the password sits on
+the dev laptop in `~\.ssh\basis_site_password.txt` — it is NOT in git; the
+compose file carries only its apr1 hash. Set up 2026-07-25.
+
+DNS: basisterminal.com is registered at Hostinger (3-yr term from 2026-07-25);
+its zone has A `@` -> 2.24.221.3 and CNAME `www` -> basisterminal.com.
 
 **View-only by design.** No Bloomberg exists on the VPS, so the app runs on the
 data stores committed to git — the "DEMO MODE" badge in the sidebar is expected.
