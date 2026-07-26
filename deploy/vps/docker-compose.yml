@@ -11,6 +11,10 @@ services:
       - traefik.http.routers.basis.entrypoints=websecure
       - traefik.http.routers.basis.rule=Host(`basis.srv1608260.hstgr.cloud`)
       - traefik.http.routers.basis.tls.certresolver=letsencrypt
-      - traefik.http.routers.basis.middlewares=basis-auth
-      - traefik.http.middlewares.basis-auth.basicauth.users=ben:$$apr1$$rUl9PLtA$$AWUuDFj.Irr5XrOG3O9Jk.
+      - traefik.http.routers.basis.middlewares=basis-rate,basis-auth
+      - traefik.http.middlewares.basis-auth.basicauth.users=Ben:$$apr1$$G/ke85dp$$c0vEIsMPGUCJEJda0fV58.
+      # Rate limit (per source IP) slows password brute-forcing without
+      # bothering a real user's page loads.
+      - traefik.http.middlewares.basis-rate.ratelimit.average=25
+      - traefik.http.middlewares.basis-rate.ratelimit.burst=50
       - traefik.http.services.basis.loadbalancer.server.port=8501
