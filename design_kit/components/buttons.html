@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" -->
+<!doctype html><html><head><meta charset="utf-8"><title>Buttons & badges</title><style>
+body{margin:0;background:#1C2026;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;padding:24px;color:#ECEEF1}
+.lbl{font-size:11px;color:#8A8F96;letter-spacing:.12em;text-transform:uppercase;margin:18px 0 8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{font-size:13.5px;border-radius:8px;padding:8px 16px;cursor:pointer;border:1px solid #57606E;background:#454D5A;color:#ECEEF1}
+.btn:hover{background:#525B69}
+.btn.gold{background:#5E5330;border-color:rgba(245,197,24,.55)}
+.btn.gold:hover{background:#6F6238}
+.btn.primary{background:#F5C518;border-color:#D9971C;color:#1A1A1A;font-weight:650}
+.chip{font-size:12.5px;border-radius:18px;padding:5px 13px;border:1px solid #414957;background:#272D36;color:#CBD0D7;cursor:pointer}
+.chip.on{background:rgba(245,197,24,.14);border-color:rgba(245,197,24,.55);color:#F5C518;font-weight:600}
+.badge{font-size:11px;font-weight:700;border-radius:5px;padding:2px 8px}
+.demo{background:rgba(245,197,24,.14);color:#F5C518;border:1px solid rgba(245,197,24,.4)}
+.live{background:rgba(70,197,138,.16);color:#46C58A;border:1px solid rgba(70,197,138,.4)}
+.stale{background:rgba(236,106,87,.16);color:#EC6A57;border:1px solid rgba(236,106,87,.4)}
+.new{background:rgba(245,197,24,.2);color:#F5C518}
+</style></head><body>
+<div class="lbl">Buttons</div>
+<div class="row"><button class="btn">🔁 Re-run signals</button><button class="btn gold">📥 Pull Bloomberg Snapshot</button><button class="btn primary">Generate report</button><button class="btn">⬇️ Export to Excel</button></div>
+<div class="lbl">Sector filter chips (Home)</div>
+<div class="row"><span class="chip on">Fixed income 18/18</span><span class="chip on">Indices 20/20</span><span class="chip on">Commodities 32/32</span><span class="chip">FX 0/18</span><span class="chip">All</span><span class="chip">None</span></div>
+<div class="lbl">Status badges</div>
+<div class="row"><span class="badge demo">⚠️ DEMO MODE — synthetic</span><span class="badge live">LIVE — Bloomberg</span><span class="badge stale">STALE SURFACE</span><span class="badge new">NEW THIS WEEK</span></div>
+</body></html>

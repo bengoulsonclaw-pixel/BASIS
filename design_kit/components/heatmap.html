@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" -->
+<!doctype html><html><head><meta charset="utf-8"><title>Market heatmap</title><style>
+body{margin:0;background:#1C2026;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;padding:24px;color:#ECEEF1}
+.card{background:#272D36;border:1px solid #414957;border-radius:12px;padding:16px 18px}
+h3{margin:0 0 4px;font-size:15px}.cap{font-size:12px;color:#D2D7DD;margin:0 0 12px}
+.sect{font-size:11px;color:#8A8F96;text-transform:uppercase;letter-spacing:.1em;margin:10px 0 6px}
+.grid{display:flex;gap:5px;flex-wrap:wrap}
+.tile{border-radius:6px;color:#fff;display:flex;flex-direction:column;justify-content:center;padding:8px;font-weight:600}
+.tile .t{font-size:12px}.tile .v{font-size:11px;font-weight:500;opacity:.9;font-family:Consolas,monospace}
+</style></head><body>
+<div class="card"><h3>Market heatmap</h3><p class="cap">Tile size = |σ| of the overnight move vs the contract's own 1-month vol · green up / red down</p>
+<div class="sect">Commodities</div>
+<div class="grid">
+<div class="tile" style="background:#1F7A44;width:150px;height:74px"><span class="t">Gold</span><span class="v">+1.24% · +2.1σ</span></div>
+<div class="tile" style="background:#2E9457;width:110px;height:74px"><span class="t">Silver</span><span class="v">+1.58% · +1.6σ</span></div>
+<div class="tile" style="background:#C62828;width:126px;height:74px"><span class="t">WTI Crude</span><span class="v">−1.72% · −1.8σ</span></div>
+<div class="tile" style="background:#8f3a32;width:84px;height:74px"><span class="t">Copper</span><span class="v">−0.6σ</span></div>
+<div class="tile" style="background:#3d6b4f;width:74px;height:74px"><span class="t">Corn</span><span class="v">+0.4σ</span></div>
+</div>
+<div class="sect">Fixed income (yield)</div>
+<div class="grid">
+<div class="tile" style="background:#54a06d;width:132px;height:64px"><span class="t">US 10Y yield</span><span class="v">+4.2bp · +0.9σ</span></div>
+<div class="tile" style="background:#a34a40;width:110px;height:64px"><span class="t">Bund yield</span><span class="v">−2.1bp · −0.5σ</span></div>
+</div></div>
+</body></html>

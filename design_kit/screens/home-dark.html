@@ -1,0 +1,57 @@
+<!-- @dsCard group="Screens" -->
+<!doctype html><html><head><meta charset="utf-8"><title>Home (dark) composite</title><style>
+body{margin:0;background:#1C2026;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#ECEEF1;display:flex}
+.sb{width:216px;flex:none;background:#14171C;padding:16px 12px;font-size:13px}
+.sb .word{font-weight:800;font-size:19px;background:linear-gradient(90deg,#EEF0F3,#C0C5CC 50%,#CBA53C 72%,#F4CC3A);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sb .sub{font-size:8px;color:#8A8F96;letter-spacing:.3em;text-transform:uppercase;margin:2px 0 12px}
+.sb a{display:block;color:#CBD0D7;text-decoration:none;padding:5px 8px;border-radius:6px;margin:1px 0}
+.sb a.on{background:#272D36;color:#ECEEF1;box-shadow:inset 2px 0 0 #F5C518}
+.main{flex:1;padding:20px 26px}
+.mast{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #414957;padding-bottom:12px;margin-bottom:16px}
+.mast .word{font-weight:800;font-size:24px;background:linear-gradient(90deg,#EEF0F3,#C0C5CC 50%,#CBA53C 72%,#F4CC3A);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mast .tag{font-size:8px;color:#8A8F96;letter-spacing:.34em;text-transform:uppercase}
+.btn{font-size:12.5px;border-radius:8px;padding:7px 13px;border:1px solid #57606E;background:#454D5A;color:#ECEEF1}
+.btn.gold{background:#5E5330;border-color:rgba(245,197,24,.55)}
+.card{background:#272D36;border:1px solid #414957;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h3{margin:0 0 8px;font-size:14px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:2px}
+.chip{font-size:11.5px;border-radius:16px;padding:4px 11px;border:1px solid rgba(245,197,24,.55);background:rgba(245,197,24,.14);color:#F5C518}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-size:10.5px;color:#8A8F96;text-transform:uppercase;letter-spacing:.07em;text-align:left;padding:5px 8px;border-bottom:1px solid #414957}
+td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.06);color:#CBD0D7}
+.num{font-family:Consolas,monospace;text-align:right}th.num{text-align:right}
+.g{color:#46C58A}.r{color:#EC6A57}
+.tiles{display:flex;gap:5px}
+.tile{border-radius:6px;color:#fff;padding:7px;font-weight:600;font-size:11px}
+.row2{display:flex;gap:14px}
+.row2 .card{flex:1}
+</style></head><body>
+<div class="sb"><div class="word">BASIS</div><div class="sub">Research Monitor</div>
+<a class="on" href="#">🏠 Home</a><a href="#">📊 FICC</a><a href="#">📈 Equities</a>
+<a href="#">🗂️ Market Information</a><a href="#">🔗 Correlations</a><a href="#">🔬 Technical Analysis</a><a href="#">🌊 Volatility</a><a href="#">📊 Positioning &amp; Flow</a><a href="#">🌍 Fundamentals</a><a href="#">⚗️ Trade Testing</a></div>
+<div class="main">
+<div class="mast"><div><div class="word">BASIS</div><div class="tag">Analysis · Strategy · Indicators</div></div>
+<div style="display:flex;gap:9px"><button class="btn gold">📥 Pull Bloomberg Snapshot</button><button class="btn">🔁 Re-run signals</button><button class="btn">☀️</button></div></div>
+<div class="card"><h3>🗂️ Sectors &amp; products — 88/88 on</h3><div class="chips"><span class="chip">Fixed income 18/18</span><span class="chip">Indices 20/20</span><span class="chip">Commodities 32/32</span><span class="chip">FX 18/18</span></div></div>
+<div class="row2">
+<div class="card"><h3>Overnight moves</h3><table>
+<tr><th>Market</th><th class="num">%</th><th class="num">σ (1m)</th></tr>
+<tr><td>Silver</td><td class="num g">+1.58</td><td class="num g">+1.6</td></tr>
+<tr><td>Gold</td><td class="num g">+1.24</td><td class="num g">+2.1</td></tr>
+<tr><td>WTI Crude</td><td class="num r">−1.72</td><td class="num r">−1.8</td></tr>
+<tr><td>Nasdaq 100</td><td class="num r">−0.84</td><td class="num r">−1.1</td></tr>
+</table></div>
+<div class="card"><h3>Market heatmap</h3><div class="tiles">
+<div class="tile" style="background:#1F7A44;width:96px;height:58px">Gold<br><span style="font-weight:500;opacity:.85">+2.1σ</span></div>
+<div class="tile" style="background:#2E9457;width:74px;height:58px">Silver<br><span style="font-weight:500;opacity:.85">+1.6σ</span></div>
+<div class="tile" style="background:#C62828;width:84px;height:58px">WTI<br><span style="font-weight:500;opacity:.85">−1.8σ</span></div>
+<div class="tile" style="background:#8f3a32;width:58px;height:58px">NQ</div>
+</div></div>
+</div>
+<div class="card"><h3>🔬 Top technical opportunities</h3><table>
+<tr><th>Market</th><th>Strategy</th><th>Signal</th><th class="num">Level</th><th class="num">Objective</th><th class="num">Conviction</th></tr>
+<tr><td style="color:#ECEEF1;font-weight:600">Gold</td><td>MA crossover</td><td class="g">Long</td><td class="num">2412.60</td><td class="num">2488.00</td><td class="num">82</td></tr>
+<tr><td style="color:#ECEEF1;font-weight:600">US 10Y Note (yield)</td><td>Trend</td><td class="r">Short · sell the bond</td><td class="num">4.235</td><td class="num">4.480</td><td class="num">77</td></tr>
+</table></div>
+</div>
+</body></html>
