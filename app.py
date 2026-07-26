@@ -35,6 +35,7 @@ from src import recipients
 from src import automation
 from src import alerts
 from src import econ
+from src import gitbackup
 from src import fedpath
 from src import volbt
 from src import sectorcorr
@@ -1594,6 +1595,7 @@ def render_home() -> None:
         else:
             run_daily.run(); load_signals.clear()
             _regen_mc_heatmap()          # refresh the Morning Coffee heatmap on Home
+            gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
             st.session_state.pop("ficc_pull_confirm", None)
             st.success("Snapshot pulled + signals refreshed."); st.rerun()
 
@@ -1819,6 +1821,7 @@ def render_equities_home() -> None:
         else:
             _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
             _eqf_frame.clear()
+            gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
             st.success("Equities data refreshed."); st.rerun()
     if c2.button("🔄 Recompute view", use_container_width=True, key="eq_refresh",
                  help="Rebuild the movers table and heatmap from the CACHED quotes (instant, no "
