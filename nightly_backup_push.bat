@@ -20,8 +20,9 @@ git add -A >> "%LOG%" 2>&1
 git diff --cached --quiet
 if errorlevel 1 (
     git commit -m "Nightly auto-backup" >> "%LOG%" 2>&1
-    git push >> "%LOG%" 2>&1
 ) else (
     echo no changes >> "%LOG%"
 )
+rem Push even with no new commit — retries anything a previous night failed to push.
+git push >> "%LOG%" 2>&1
 exit /b 0
