@@ -15,7 +15,8 @@ Last verified by an actual clone-and-rebuild test: **2026-07-25**.
 | BASIS code + full history + data stores | GitHub `bengoulsonclaw-pixel/BASIS` (private) | includes non-regenerable history: `data/snapshot/own30_history.parquet`, `stir_curve_history.parquet`, `data/equities/fundamentals.parquet` |
 | OPEC report, ag-fundamentals, Futures_Movements stub | GitHub `bengoulsonclaw-pixel/basis-aux` (private) | |
 | Secrets, user settings, generated PDFs | OneDrive only (never in git) | see the secrets list below |
-| Live Morning Coffee (Gmail OAuth + main.py) | `OneDrive\Personal\AI\Futures_Movements` | OneDrive only — outside both repos |
+| Live Morning Coffee code + briefing archive | GitHub `bengoulsonclaw-pixel/morning-coffee` (private) | working copy: `OneDrive\Personal\AI\Futures_Movements` |
+| Morning Coffee Gmail OAuth (`credentials.json`, `token.json`) + its `.env` | OneDrive only (`OneDrive\Personal\AI\Futures_Movements`) | never in git |
 
 ## Rebuild steps
 
@@ -55,8 +56,10 @@ Last verified by an actual clone-and-rebuild test: **2026-07-25**.
    ```
    schtasks /create /tn "OPEC MOMR Synopsis" /xml "scheduled_tasks\OPEC_MOMR_Synopsis.xml"
    ```
-   …and likewise for the other five (COT, PM Release Synopses, Precious Metals Monitor,
-   USDA Reaction, WASDE). **The XMLs hard-code paths under
+   …and likewise for the others (COT, PM Release Synopses, Precious Metals Monitor,
+   USDA Reaction, WASDE, and **BASIS Nightly Backup Push** — the 22:00 job that
+   auto-commits and pushes all three repos via `nightly_backup_push.bat`, so the daily
+   data pulls reach GitHub without anyone touching git). **The XMLs hard-code paths under
    `C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard`** — edit them first if the new
    machine uses a different user name or folder.
 
