@@ -916,30 +916,21 @@ def _overnight_moves(snap) -> None:
     if _mv.empty:
         st.caption("No overnight quote available.")
         return
-    _mv = (_mv.rename(columns={"pct": "% (settle→pull)", "last": "Last", "sigma": "σ (1m)"})
-              [["Market", "Sector", "% (settle→pull)", "Last", "σ (1m)"]])
     _asof = (snap or {}).get("live_as_of") or (snap or {}).get("created", "")
     st.caption("Move from the previous trading day's **settlement** to the snapshot pull"
                + (f" · prices as of **{_to_et(_asof)}**" if _asof else "")
                + ". Sorted by **σ (1m)** = the move in standard deviations of the contract's "
                  "own ~1-month daily moves. STIRs excluded (price vol ≈ 0 → σ is noise).")
-    _fmt = {"% (settle→pull)": lambda v: f"{v:+.2f}%",
-            "Last": lambda v: f"{v:g}",
-            "σ (1m)": lambda v: f"{v:+.1f}σ" if v == v else "—"}
-
-    def _color_move(col):
-        out = []
-        for v in col:
-            if v != v or v == 0:
-                out.append("color:#888")
-            elif v > 0:
-                out.append("color:#137333;font-weight:700")
-            else:
-                out.append("color:#c5221f;font-weight:700")
-        return out
-    brand.themed_dataframe(_mv, _fmt,
-                           colorers=[(["% (settle→pull)", "σ (1m)"], _color_move)],
-                           height=360)
+    _rows = _mv.head(14).copy()
+    _rows["last_fmt"] = _rows["last"].map(lambda v: f"{v:g}")
+    brand.terminal_table(
+        _rows.to_dict("records"),
+        [{"key": "Market",   "label": "Market"},
+         {"key": "Sector",   "label": "Sector"},
+         {"key": "last_fmt", "label": "Last",  "align": "right"},
+         {"key": "pct",      "label": "Chg %", "color": True, "fmt": "{:+.2f}"},
+         {"key": "sigma",    "label": "σ 1M",  "color": True, "fmt": "{:+.1f}"},
+         {"key": "sigma",    "label": "Z-range", "zbar": True}])
 
 
 def _mc_heatmap_path() -> Path:
@@ -957,91 +948,37 @@ def _load_city_photos(key):
 
 
 def _world_clocks() -> None:
-    """Live world-clock strip across the top of Home: a 24h HH:MM clock per city
-    (ticking client-side via JS) + current weather. Each card's background reflects
-    the city's local day/night + weather — a real Unsplash photo when a key is set,
-    otherwise a generated sky scene (sun/moon/stars/clouds + rain/snow overlay)."""
+    """World-clock rail: flat terminal cells — mono city label over a ticking HH:MM:SS.
+    (The photographic weather cards retired with the 2026-07 terminal redesign; the
+    weather/photo loaders above are kept for the Morning Coffee report.)"""
     import streamlit.components.v1 as components
     pal = brand.palette()
-    wx = _load_weather()
-    photos = _load_city_photos(worldclock.load_key())
-    cards = []
-    for c, w in zip(worldclock.CITIES, wx):
-        temp = (str(w["temp"]) + "°") if w["temp"] is not None else "—"
-        text = ('<div class="city">' + c["name"].upper() + '</div>'
-                '<div class="time" data-tz="' + c["tz"] + '">--:--</div>'
-                '<div class="wx">' + w["icon"] + '<span>' + temp + '</span></div>')
-        pset = photos.get(c["name"]) or {}
-        img = (pset.get("day") if w["is_day"] else pset.get("night")) or pset.get("day") or pset.get("night")
-        if img:
-            style = ("background-image:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.72)),"
-                     "url('" + img + "');background-size:cover;background-position:center;")
-            cls = ("clk photo " + w["effect"]).strip()
-            inner = text
-        else:
-            sky = ("day" if w["is_day"] else "night") + " " + ("cloud" if w["clouds"] else "clear")
-            layers = '<div class="orb"></div>'
-            if not w["is_day"] and not w["clouds"]:
-                layers += '<div class="stars"></div>'
-            if w["clouds"]:
-                layers += '<div class="cl c1"></div><div class="cl c2"></div>'
-            layers += '<div class="scrim"></div>'
-            style = ""
-            cls = ("clk scene " + sky + " " + w["effect"]).strip()
-            inner = layers + text
-        cards.append('<div class="' + cls + '" style="' + style + '">' + inner + '</div>')
-    css = (
+    faint = pal.get("faint", pal["text_dim"])
+    mono = "'IBM Plex Mono',Consolas,'SF Mono',Menlo,monospace"
+    cells = "".join(
+        '<div class="c"><div class="city">' + c["name"].upper() + '</div>'
+        '<div class="time" data-tz="' + c["tz"] + '">--:--:--</div></div>'
+        for c in worldclock.CITIES)
+    html = (
+        "<meta charset='utf-8'><style>"
         "*{box-sizing:border-box;margin:0;padding:0}"
-        "body{background:" + pal["canvas"] + ";font-family:-apple-system,BlinkMacSystemFont,"
-        "'Segoe UI',Roboto,Arial,sans-serif}"
-        ".row{display:flex;gap:10px}"
-        ".clk{flex:1;background:" + pal["surface"] + ";border:1px solid " + pal["border"] +
-        ";border-radius:10px;padding:9px 4px 11px;text-align:center;position:relative;overflow:hidden}"
-        ".city{position:relative;z-index:5;color:" + pal["text"] + ";font-size:15px;letter-spacing:.06em;font-weight:800;margin-bottom:2px}"
-        ".time{position:relative;z-index:5;color:" + pal["text"] + ";font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;margin:3px 0 2px}"
-        ".wx{position:relative;z-index:5;color:" + pal["text_dim"] + ";font-size:14px;"
-        "display:flex;align-items:center;justify-content:center;gap:5px}"
-        ".wx svg{flex:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}"
-        ".photo .city,.photo .time,.scene .city,.scene .time{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.85)}"
-        ".photo .wx,.scene .wx{color:#f0f0f0;text-shadow:0 1px 4px rgba(0,0,0,.85)}"
-        ".scene{border-color:rgba(255,255,255,.12)}"
-        ".scene.day.clear{background:linear-gradient(180deg,#4f93d4,#82b4e4)}"
-        ".scene.day.cloud{background:linear-gradient(180deg,#6a7886,#97a3af)}"
-        ".scene.night.clear{background:linear-gradient(180deg,#070b1c,#18213f)}"
-        ".scene.night.cloud{background:linear-gradient(180deg,#14171d,#282c35)}"
-        ".orb{position:absolute;top:9px;right:13px;width:24px;height:24px;border-radius:50%;z-index:1}"
-        ".scene.day .orb{background:radial-gradient(circle,#fff8cc,#ffd23b);box-shadow:0 0 18px 6px rgba(255,210,60,.6)}"
-        ".scene.night .orb{background:radial-gradient(circle,#eef1f6,#c2cad8);box-shadow:0 0 12px 3px rgba(220,230,255,.4)}"
-        ".scene.cloud .orb{opacity:.45}"
-        ".stars{position:absolute;inset:0;z-index:1;opacity:.85;background:"
-        "radial-gradient(1px 1px at 14px 12px,#fff,transparent),"
-        "radial-gradient(1px 1px at 44px 24px,#fff,transparent),"
-        "radial-gradient(1px 1px at 74px 15px,#fff,transparent),"
-        "radial-gradient(1px 1px at 104px 28px,#fff,transparent),"
-        "radial-gradient(1px 1px at 132px 19px,#fff,transparent)}"
-        ".cl{position:absolute;z-index:2;border-radius:50%;filter:blur(1px);background:rgba(255,255,255,.72)}"
-        ".scene.night .cl{background:rgba(200,206,216,.32)}"
-        ".c1{width:44px;height:15px;top:15px;left:8px}"
-        ".c2{width:32px;height:12px;top:30px;right:6px}"
-        ".scrim{position:absolute;inset:0;z-index:3;pointer-events:none;"
-        "background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.55))}"
-        "@keyframes rn{to{background-position:0 80px}}"
-        ".rain::before{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;"
-        "background-image:url(\"" + worldclock.RAIN_URI + "\");"
-        "background-size:60px 80px;animation:rn 1s linear infinite}"
-        "@keyframes sn{to{background-position:9px 18px}}"
-        ".snow::before{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;opacity:.8;"
-        "background:radial-gradient(1.6px 1.6px at 6px 8px,#fff 99%,transparent),"
-        "radial-gradient(1.6px 1.6px at 18px 15px,#fff 99%,transparent);background-size:24px 24px;"
-        "animation:sn 1.3s linear infinite}"
-    )
-    js = ("function t(){document.querySelectorAll('.time').forEach(function(e){"
-          "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
-          "hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date());});}"
-          "t();setInterval(t,1000);")
-    html = ("<meta charset='utf-8'><style>" + css + "</style><div class='row'>"
-            + "".join(cards) + "</div><script>" + js + "</script>")
-    components.html(html, height=118)
+        "body{background:transparent;font-family:" + mono + "}"
+        ".row{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));"
+        "background:" + pal["surface2"] + ";border:1px solid " + pal["border"] + "}"
+        ".c{padding:7px 12px;min-width:0;border-right:1px solid " + pal["border"] + "}"
+        ".c:last-child{border-right:none}"
+        ".city{font-size:9.5px;letter-spacing:.14em;color:" + faint + ";white-space:nowrap;"
+        "overflow:hidden;text-overflow:ellipsis}"
+        ".time{font-size:17px;font-weight:500;color:" + pal["text"] +
+        ";font-variant-numeric:tabular-nums}"
+        "</style><div class='row'>" + cells + "</div>"
+        "<script>function t(){document.querySelectorAll('.time').forEach(function(e){"
+        "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
+        "hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());});}"
+        "t();setInterval(t,1000);</script>")
+    components.html(html, height=56)
+
+
 
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -6014,60 +5951,94 @@ with st.sidebar:
             brand.sidebar_logo()
             st.button("Home", key="basis_logo_home_btn", on_click=_go, args=(_home_dest,),
                       use_container_width=True)
-        # FICC / Equities — the two sides of BASIS, toggled directly under the logo.
-        _sc1, _sc2 = st.columns(2)
-        _sc1.button("📊  FICC", key="side_ficc", use_container_width=True,
+        # TERMINAL: the cross-asset home, above the desk split (handoff §sidebar).
+        st.markdown('<div class="bt-sect">Terminal</div>', unsafe_allow_html=True)
+        _nav_button("00 · Overview", _home_dest)
+        # DESK: FICC | EQUITIES segmented control.
+        st.markdown('<div class="bt-sect">Desk</div>', unsafe_allow_html=True)
+        _sc1, _sc2 = st.columns(2, gap="small")
+        _sc1.button("FICC", key="side_ficc", use_container_width=True,
                     type="primary" if _side == "FICC" else "secondary", on_click=_set_side, args=("FICC",))
-        _sc2.button("📈  Equities", key="side_equities", use_container_width=True,
+        _sc2.button("Equities", key="side_equities", use_container_width=True,
                     type="primary" if _side == "Equities" else "secondary", on_click=_set_side, args=("Equities",))
     snap = _load_snap()
     _data_badge(snap)
     df, meta = load_signals()
+    try:        # desk scope row: markets on / live signals (handoff: under the segments)
+        _n_mkts = len(universe.enabled_tickers())
+        _n_sigs = len(df) if df is not None else 0
+        st.markdown(f'<div class="bt-sect" style="margin-top:.15rem">'
+                    f'{_n_mkts} markets · {_n_sigs} signals</div>', unsafe_allow_html=True)
+    except Exception:
+        pass
     if _side == "FICC":
-        st.caption(f"Signals as of: **{_to_et(meta.get('as_of', 'n/a'))}**")
-    st.divider()
-    if _side == "FICC":
-        st.caption("**MODULES**")
+        st.markdown('<div class="bt-sect">FICC modules</div>', unsafe_allow_html=True)
         # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield) collapses
         # to one entry; Trade Testing (Fed Path + Vol Backtester) sits below the groups. Both
-        # carry the tab-row switcher (_render_group_tabs). Correlations and Strategy Builder are
-        # their own single-page modules (no tab row); Morning Coffee is reached from the Home
-        # page's Data row.
-        _nav_button("🗂️  Market Information", "Release Calendar")
-        _nav_button("🧰  Strategy Builder", "Strategy Builder")
-        _nav_button("🔗  Correlations", "Product Correlations")
-        _nav_button("🎯  Confluence", "Confluence")
+        # carry the tab-row switcher (_render_group_tabs). Morning Coffee is reached from the
+        # Home page's Data row.
+        _nav_button("01 · Market Information", "Release Calendar")
+        _nav_button("02 · Confluence", "Confluence")
+        _n_mod = 2
         for _group, _strats in NAV_GROUPS.items():
             # Each strategy group collapses to ONE sidebar entry; its members are reached from within
             # that page — the TA overview's "By strategy" drill-down grid, or the tab-row switcher
             # (_render_group_tabs) for Volatility / Positioning & Flow / Fundamentals.
+            _n_mod += 1
             if _group == "Technical Analysis":
-                _nav_button("🔬  Technical Analysis", "Technical Analysis")
+                _nav_button(f"{_n_mod:02d} · Technical Analysis", "Technical Analysis")
             elif _group == "Volatility":
-                _nav_button("🌊  Volatility", "Volatility")
+                _nav_button(f"{_n_mod:02d} · Volatility", "Volatility")
             elif _group == "Positioning & Flow":
-                _nav_button("📊  Positioning & Flow", "COT Reports")
+                _nav_button(f"{_n_mod:02d} · Positioning & Flow", "COT Reports")
             elif _group == "Fundamentals":
-                _nav_button("🌍  Fundamentals", "AG Fundamentals")
+                _nav_button(f"{_n_mod:02d} · Fundamentals", "AG Fundamentals")
             else:                                   # any future group: caption + its individual buttons
                 st.caption(_group)
                 for _s in _strats:
                     _nav_button(_s, _s)
-        _nav_button("⚗️  Trade Testing", "Fed Path")      # trade-idea tools, sits below the strategies
-        st.divider()
-        _nav_button("🩺  Data health", "Data health")
-        _nav_button("🔔  Alert Settings", "Recipients")
-        _nav_button("⚙️  Universe", "Universe")
+        st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
+        _nav_button("C1 · Correlations", "Product Correlations")
+        _nav_button("C2 · Strategy Builder", "Strategy Builder")
+        _nav_button("C3 · Trade Testing", "Fed Path")
+        _nav_button("C4 · Data Health", "Data health")
+        st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
+        _nav_button("Alert Settings", "Recipients")
+        _nav_button("Universe", "Universe")
     else:
-        st.caption("**EQUITIES**  ·  US + European indices")
-        # No "Equities Home" entry — the 📈 Equities side button (and the logo) already land there.
-        _nav_button("🏢  Company Fundamentals", "eq:Fundamentals")
-        _nav_button("📅  Earnings Calendar", "eq:Earnings")
-        _nav_button("🔗  Single Stock Correlations", "eq:Correlations")
-        _nav_button("🎯  Index Dispersion", "eq:Dispersion")
+        st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
+                    unsafe_allow_html=True)
+        # No "Equities Home" entry — the Equities desk segment (and the logo) already land there.
+        _nav_button("01 · Company Fundamentals", "eq:Fundamentals")
+        _nav_button("02 · Earnings Calendar", "eq:Earnings")
+        _nav_button("03 · Single Stock Correlations", "eq:Correlations")
+        _nav_button("04 · Index Dispersion", "eq:Dispersion")
+    # footer status rows (handoff): SIGNALS · FEED · DATA
+    _feed = {"bloomberg": ("BBG live", "#46C58A"),
+             "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
+    brand.sidebar_footer([
+        ("signals", _to_et(meta.get("as_of", "n/a")), ""),
+        ("feed", _feed[0], _feed[1]),
+        ("data", str((snap or {}).get("as_of", "—")), ""),
+    ])
 
-# ----- BASIS masthead (the full lockup, same size on every page) -----------
-brand.masthead()
+# ----- BASIS masthead (terminal bar + ticker rail, same on every page) -----
+_active_dest = st.session_state.get("active", "Home")
+if _active_dest in ("Home", "eq:Home"):
+    _crumb = None                                      # Overview: the tagline
+else:
+    _crumb = f"{_side} desk · {_active_dest.removeprefix('eq:')}"
+brand.masthead(_crumb)
+try:      # quote rail: the day's biggest movers from the same frame as Overnight moves
+    _rail = _ficc_moves_frame()
+    if not _rail.empty:
+        _rail = _rail.reindex(_rail["sigma"].abs().sort_values(ascending=False).index).head(8)
+        brand.ticker_rail([
+            {"sym": r["Market"], "last": f"{r['last']:g}",
+             "chg": f"{r['pct']:+.2f}%", "up": r["pct"] >= 0}
+            for _, r in _rail.iterrows()])
+except Exception:
+    pass
 
 # Nav clicks flag a scroll reset — the destination page should open at the top (Streamlit
 # otherwise keeps the previous page's scroll position across the rerun). A TIME WINDOW, not

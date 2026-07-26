@@ -294,7 +294,9 @@ div.st-key-basis_scroll_top,
 }
 [data-testid="stSidebar"] .stButton>button p {
     font-size:.9rem !important; text-transform:none !important; letter-spacing:0 !important;
+    text-align:left; width:100%;
 }
+[data-testid="stSidebar"] .stButton>button > div { width:100%; justify-content:flex-start; }
 [data-testid="stSidebar"] .stButton>button:hover {
     background:$surface !important; color:$text !important;
 }
@@ -456,6 +458,103 @@ code, pre, kbd { background:$surface2; color:$text; }
 /* hover tooltips (portal-rendered) — match the palette in both themes */
 div:has(> .stTooltipContent), .stTooltipContent { background:$surface2 !important; }
 .stTooltipContent, .stTooltipContent * { color:$text !important; }
+
+/* ── terminal shell (handoff) ─────────────────────────────────────────── */
+/* masthead bar */
+[data-testid="stLayoutWrapper"]:has(> .st-key-basis_masthead),
+.st-key-basis_masthead {
+    background:$surface; border-bottom:1px solid $border;
+}
+.st-key-basis_masthead { padding:.45rem 1.2rem .4rem; }
+.bt-mast { display:flex; align-items:center; gap:14px; min-height:34px; }
+.bt-word {
+    font-weight:700; font-size:1.35rem; letter-spacing:.11em;
+    background:linear-gradient(96deg,#EEF0F3,#C0C5CC 46%,#CBA53C 70%,#F4CC3A);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.bt-div { width:1px; height:22px; background:$btn_border; }
+.bt-crumb {
+    font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.24em;
+    text-transform:uppercase; color:$faint;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;
+}
+.bt-clock { font-family:var(--basis-mono); font-size:.75rem; color:$faint; white-space:nowrap; }
+.st-key-basis_masthead .stButton>button { min-height:30px; padding:.15rem .5rem; }
+
+/* ticker rail */
+.bt-rail {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr));
+    background:$surface2; border-bottom:1px solid $border; margin:0 -1.6rem;
+}
+.bt-cell { padding:8px 12px; min-width:0; border-right:1px solid $border_soft;
+           border-bottom:1px solid $border_soft; }
+.bt-sym { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.14em;
+          color:$faint; text-transform:uppercase; white-space:nowrap;
+          overflow:hidden; text-overflow:ellipsis; }
+.bt-px { font-family:var(--basis-mono); font-size:.93rem; font-weight:500; color:$text;
+         display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+.bt-px span { font-size:.75rem; }
+
+/* page bar */
+.bt-pagebar { display:flex; align-items:baseline; gap:14px;
+              border-bottom:1px solid $border; padding:.35rem 0 .5rem; margin-bottom:.9rem; }
+.bt-pb-title { font-size:1.07rem; font-weight:600; letter-spacing:.02em; color:$text; }
+.bt-pb-kicker { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.14em;
+                color:$faint; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bt-pb-right { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.14em; color:$text_dim; }
+
+/* panel header strip */
+.bt-panelhead { display:flex; justify-content:space-between; align-items:center;
+                background:$surface; border:1px solid $border; border-bottom:none;
+                padding:9px 14px; margin-top:.35rem; }
+.bt-panelhead > span:first-child { font-size:.8rem; font-weight:600; letter-spacing:.18em; color:$text; }
+.bt-ph-right { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.12em; color:$gold; }
+
+/* terminal table */
+.bt-tablewrap { border:1px solid $border; background:$surface; overflow-x:auto; margin-bottom:.9rem; }
+.bt-table { width:100%; border-collapse:collapse; font-size:.89rem; }
+.bt-table th { background:$surface2; color:$faint; font-family:var(--basis-mono);
+               font-size:.68rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase;
+               text-align:left; padding:6px 10px; border-bottom:1px solid $border; white-space:nowrap; }
+.bt-table th.num { text-align:right; }
+.bt-table td { padding:7px 10px; border-bottom:1px solid $border_soft; color:$text_dim; }
+.bt-table td:first-child { color:$text; font-weight:500; padding-left:14px; }
+.bt-table td.num { font-family:var(--basis-mono); text-align:right; white-space:nowrap; }
+.bt-table tr:hover td { background:$surface2; }
+.bt-table td.zcell { min-width:86px; }
+.zbar { position:relative; height:4px; background:transparent; }
+.ztick { position:absolute; left:50%; top:-2px; width:1px; height:8px; background:$faint; }
+.zfill { position:absolute; top:0; height:4px; }
+
+/* sidebar: desk segmented control (the FICC / Equities columns) */
+[data-testid="stSidebar"] .st-key-side_ficc button,
+[data-testid="stSidebar"] .st-key-side_equities button {
+    border:1px solid $border !important; background:transparent !important;
+    font-family:var(--basis-mono) !important; font-weight:600;
+    letter-spacing:.16em !important; text-transform:uppercase !important;
+    justify-content:center; box-shadow:none !important; color:$text_dim !important;
+}
+[data-testid="stSidebar"] .st-key-side_ficc button p,
+[data-testid="stSidebar"] .st-key-side_equities button p {
+    font-size:.72rem !important; letter-spacing:.16em !important; text-transform:uppercase !important;
+}
+[data-testid="stSidebar"] .st-key-side_ficc button[kind="primary"],
+[data-testid="stSidebar"] .st-key-side_equities button[kind="primary"] {
+    background:$gold_soft !important; box-shadow:inset 0 -2px 0 $gold !important;
+    color:$gold !important;
+}
+[data-testid="stSidebar"] .st-key-side_ficc button[kind="primary"] *,
+[data-testid="stSidebar"] .st-key-side_equities button[kind="primary"] * { color:$gold !important; }
+
+/* sidebar micro section labels + footer */
+.bt-sect { font-family:var(--basis-mono); font-size:.66rem; letter-spacing:.16em;
+           text-transform:uppercase; color:$faint; margin:.9rem 0 .25rem .35rem; }
+.bt-sbfoot { border-top:1px solid $border; margin-top:1rem; padding:.6rem .35rem 0; }
+.bt-sbfoot div { display:flex; justify-content:space-between; align-items:center;
+                 font-family:var(--basis-mono); font-size:.68rem; color:$faint;
+                 letter-spacing:.08em; padding:.14rem 0; }
+.bt-sbfoot div span:last-child { color:$text_dim; }
+.bt-sbfoot .dot { display:inline-block; width:6px; height:6px; margin-right:6px; }
 </style>
 """)
 
@@ -479,34 +578,126 @@ def sidebar_logo() -> None:
         # bottom margin pushes the FICC/Equities row down the same amount — leaving the tag
         # at the OPTICAL midpoint between the drawn wordmark and the buttons (~12px each).
         f'<div class="basis-tag" style="margin-top:-.5rem;margin-bottom:.4rem;'
-        f'text-align:center">Research Monitor</div></div>',
+        f'text-align:center">Research Terminal</div></div>',
         unsafe_allow_html=True,
     )
 
 
-def masthead() -> None:
-    """Main-column masthead: the full BASIS lockup (wordmark + tagline) on the left,
-    sun/moon toggle on the right, closed with a gold hairline rule. The same size on
-    every page — Home and inner pages alike."""
+def masthead(breadcrumb: str | None = None) -> None:
+    """Terminal masthead bar (handoff): gradient wordmark · divider · mono breadcrumb
+    on the left, ET clock + theme toggle on the right, on a surface strip with a
+    bottom border. Same bar on every page; the breadcrumb carries the location."""
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo as _ZI
     pal = palette()
-    left, right = st.columns([0.82, 0.18], vertical_alignment="center")
-    with left:
-        logo = (f'<div style="padding:.15rem 0 .3rem">'
-                f'{header_svg(pal, height=58, tagline=True)}</div>')
-        st.markdown(logo, unsafe_allow_html=True)
-    with right:
-        dark = theme() == "dark"
-        label = "☀️  Light" if dark else "🌙  Dark"
-        nxt = "light" if dark else "dark"
-        clicked = st.button(
-            label, key="basis_theme_toggle", use_container_width=True,
-            help=f"Switch to {nxt} mode",
-        )
-        if clicked:
-            st.session_state["basis_theme"] = nxt
-            _save_pref(nxt)
-            st.rerun()
-    st.markdown('<hr class="basis-rule">', unsafe_allow_html=True)
+    crumb = (breadcrumb or "ANALYSIS · STRATEGY · INDICATORS").upper()
+    now_et = _dt.now(_ZI("America/New_York")).strftime("%H:%M:%S")
+    with st.container(key="basis_masthead"):
+        left, right = st.columns([0.86, 0.14], vertical_alignment="center")
+        with left:
+            st.markdown(
+                f'<div class="bt-mast">'
+                f'<span class="bt-word">BASIS</span>'
+                f'<span class="bt-div"></span>'
+                f'<span class="bt-crumb">{crumb}</span>'
+                f'<span class="bt-clock">{now_et} ET</span>'
+                f'</div>', unsafe_allow_html=True)
+        with right:
+            dark = theme() == "dark"
+            label = "☀" if dark else "☾"
+            nxt = "light" if dark else "dark"
+            clicked = st.button(
+                label, key="basis_theme_toggle", use_container_width=True,
+                help=f"Switch to {nxt} mode",
+            )
+            if clicked:
+                st.session_state["basis_theme"] = nxt
+                _save_pref(nxt)
+                st.rerun()
+
+
+def ticker_rail(cells: list[dict]) -> None:
+    """Quote rail under the masthead (handoff): auto-fit mono cells — symbol line,
+    price + coloured change. cells = [{sym, name, last, chg, up}] (chg preformatted)."""
+    if not cells:
+        return
+    pal = palette()
+    up, down = ("#46C58A", "#EC6A57") if pal["name"] == "dark" else ("#0F7A45", "#C0392B")
+    html = ['<div class="bt-rail">']
+    for c in cells:
+        col = up if c.get("up") else down
+        html.append(
+            f'<div class="bt-cell"><div class="bt-sym">{c["sym"]}</div>'
+            f'<div class="bt-px">{c["last"]}'
+            f'<span style="color:{col}">{c["chg"]}</span></div></div>')
+    html.append('</div>')
+    st.markdown("".join(html), unsafe_allow_html=True)
+
+
+def page_bar(title: str, kicker: str = "", right: str = "") -> None:
+    """Bottom-bordered page-title row: h2-weight title + mono kicker left, mono count right."""
+    st.markdown(
+        f'<div class="bt-pagebar"><span class="bt-pb-title">{title}</span>'
+        f'<span class="bt-pb-kicker">{kicker.upper()}</span>'
+        f'<span class="bt-pb-right">{right.upper()}</span></div>', unsafe_allow_html=True)
+
+
+def panel_header(title: str, right: str = "") -> None:
+    """Terminal panel header strip (uppercase micro-title + mono right meta)."""
+    st.markdown(
+        f'<div class="bt-panelhead"><span>{title.upper()}</span>'
+        f'<span class="bt-ph-right">{right.upper()}</span></div>', unsafe_allow_html=True)
+
+
+def terminal_table(rows: list[dict], columns: list[dict]) -> None:
+    """Handoff-spec HTML table. columns = [{key, label, align?, color?, zbar?}]:
+    color=True paints +green/−red from the raw value; zbar=True renders the
+    centered z-range bar (value in σ, clamped at ±2)."""
+    pal = palette()
+    up, down = ("#46C58A", "#EC6A57") if pal["name"] == "dark" else ("#0F7A45", "#C0392B")
+    out = ['<div class="bt-tablewrap"><table class="bt-table"><thead><tr>']
+    for c in columns:
+        cls = ' class="num"' if c.get("align") == "right" or c.get("color") else ""
+        out.append(f'<th{cls}>{c["label"].upper()}</th>')
+    out.append('</tr></thead><tbody>')
+    for r in rows:
+        out.append('<tr>')
+        for c in columns:
+            v = r.get(c["key"])
+            if c.get("zbar"):
+                z = 0.0 if v is None or v != v else max(-2.0, min(2.0, float(v)))
+                w = abs(z) / 2 * 50                      # half-width %, centre tick at 50%
+                side = ("left:50%;background:" + up) if z >= 0 else \
+                       (f"left:{50 - w:.0f}%;background:" + down)
+                out.append(f'<td class="zcell"><div class="zbar">'
+                           f'<div class="ztick"></div>'
+                           f'<div class="zfill" style="{side};width:{w:.0f}%"></div></div></td>')
+                continue
+            txt = "—" if v is None or (isinstance(v, float) and v != v) else str(v)
+            style = ""
+            if c.get("color") and isinstance(v, (int, float)) and v == v:
+                style = f' style="color:{up if v > 0 else down};font-weight:600"'
+                txt = c.get("fmt", "{:+.2f}").format(v)
+            elif c.get("fmt") and isinstance(v, (int, float)) and v == v:
+                txt = c["fmt"].format(v)
+            cls = ' class="num"' if c.get("align") == "right" or c.get("color") else ""
+            if cls and style:
+                out.append(f'<td class="num"{style}>{txt}</td>')
+            else:
+                out.append(f'<td{cls}{style}>{txt}</td>')
+        out.append('</tr>')
+    out.append('</tbody></table></div>')
+    st.markdown("".join(out), unsafe_allow_html=True)
+
+
+def sidebar_footer(rows: list[tuple[str, str, str]]) -> None:
+    """Mono status rows for the sidebar foot: (label, value, dot_color_or_empty)."""
+    out = ['<div class="bt-sbfoot">']
+    for label, value, dot in rows:
+        d = f'<span class="dot" style="background:{dot}"></span>' if dot else ""
+        out.append(f'<div><span>{label.upper()}</span><span>{d}{value}</span></div>')
+    out.append('</div>')
+    st.markdown("".join(out), unsafe_allow_html=True)
 
 
 # --- data tables -----------------------------------------------------------
