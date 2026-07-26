@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --canvas:#0F1216; --surface:#161A20; --surface2:#1C212A; --sidebar:#0A0C10;
+  --line:#232935; --line2:#333B49; --hair:rgba(255,255,255,.05);
+  --text:#E7EAEE; --dim:#98A1AD; --faint:#626C7A;
+  --gold:#F5C518; --goldDeep:#D9971C; --goldWash:rgba(245,197,24,.10); --goldLine:rgba(245,197,24,.34);
+  --up:#46C58A; --down:#EC6A57; --blue:#5B9BF0;
+  --rowpad:7px; --rowfs:12.5px; --hpad:22px;
+}
+[data-theme="light"]{
+  --canvas:#EDF0F3; --surface:#FFFFFF; --surface2:#F4F6F9; --sidebar:#E4E8EC;
+  --line:#D2D7DE; --line2:#BEC5CE; --hair:rgba(0,0,0,.07);
+  --text:#12161B; --dim:#57606B; --faint:#7D8792;
+  --gold:#A87A0C; --goldDeep:#8A6208; --goldWash:rgba(245,197,24,.16); --goldLine:rgba(168,122,12,.38);
+  --up:#0F7A45; --down:#C0392B; --blue:#1F5FA8;
+}
+[data-density="compact"]{ --rowpad:4.5px; --rowfs:12px; --hpad:16px; }
+body{margin:0;background:var(--canvas);font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+a{color:var(--gold);text-decoration:none}
+a:hover{color:var(--goldDeep)}
+::selection{background:rgba(245,197,24,.28)}
+*{box-sizing:border-box}
+[data-on="true"]{background:var(--surface2);color:var(--text);font-weight:500;box-shadow:inset 2px 0 0 var(--gold)}
+[data-on="true"] [data-idx]{color:var(--gold)}
+[data-seg="true"]{background:var(--goldWash);color:var(--gold);box-shadow:inset 0 -2px 0 var(--gold)}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" data-density="{{ density }}" style="display:flex;min-height:100vh;background:var(--canvas);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside style="width:236px;flex:none;background:var(--sidebar);border-right:1px solid var(--line);display:flex;flex-direction:column">
+    <div style="padding:16px 14px 14px;border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 100 100" aria-hidden="true"><path d="M20 20 L58 50 L20 80" fill="none" stroke="#E9B416" stroke-width="11" stroke-linecap="square" stroke-linejoin="miter"></path><path d="M92 20 L54 50 L92 80" fill="none" stroke="#8B939E" stroke-width="11" stroke-linecap="square" stroke-linejoin="miter"></path></svg>
+        <span style="font-weight:700;font-size:18px;letter-spacing:.10em;background:linear-gradient(96deg,#EEF0F3,#C0C5CC 46%,#CBA53C 70%,#F4CC3A);-webkit-background-clip:text;background-clip:text;color:transparent">BASIS</span>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:var(--faint);letter-spacing:.30em;text-transform:uppercase;margin:5px 0 0 26px">Research Terminal</div>
+    </div>
+
+    <div style="padding:10px 14px 0">
+      <div style="display:flex;align-items:center;gap:7px;border:1px solid var(--goldLine);background:var(--goldWash);padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase">
+        <span style="width:5px;height:5px;background:var(--gold);flex:none"></span>Demo mode · synthetic
+      </div>
+    </div>
+
+    <nav style="padding:14px 8px 0;display:flex;flex-direction:column;gap:1px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.22em;text-transform:uppercase;padding:0 6px 6px">Terminal</div>
+      <a href="#" onClick="{{ goHome }}" data-on="{{ isHome }}" style="display:grid;grid-template-columns:22px 1fr auto;align-items:center;color:var(--dim);font-size:12.5px;padding:6px 6px;cursor:pointer" style-hover="background:var(--surface);color:var(--text)"><span data-idx="1" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint)">00</span><span>Overview</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint)">⌘0</span></a>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.22em;text-transform:uppercase;padding:16px 6px 6px">Desk</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin:0 6px 2px">
+        <a href="#" onClick="{{ goFicc }}" data-seg="{{ deskFicc }}" style="display:block;text-align:center;padding:7px 4px;background:var(--sidebar);color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.16em;cursor:pointer" style-hover="color:var(--text)">FICC</a>
+        <a href="#" onClick="{{ goEq }}" data-seg="{{ deskEq }}" style="display:block;text-align:center;padding:7px 4px;background:var(--sidebar);color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.16em;cursor:pointer" style-hover="color:var(--text)">EQUITIES</a>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 8px 8px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;text-transform:uppercase;color:var(--faint)"><span>{{ deskScope }}</span><span>{{ deskSignals }}</span></div>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.22em;text-transform:uppercase;padding:6px 6px 6px">{{ deskModulesLabel }}</div>
+      <sc-for list="{{ modules }}" as="m" hint-placeholder-count="9">
+      <a href="#" onClick="{{ m.click }}" data-on="{{ m.on }}" style="display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:0;color:var(--dim);font-size:12.5px;padding:6px 6px;cursor:pointer" style-hover="background:var(--surface);color:var(--text)"><span data-idx="1" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint)">{{ m.n }}</span><span>{{ m.label }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint)">{{ m.tag }}</span></a>
+      </sc-for>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.22em;text-transform:uppercase;padding:16px 6px 6px">Cross-asset</div>
+      <sc-for list="{{ shared }}" as="m" hint-placeholder-count="4">
+      <a href="#" onClick="{{ m.click }}" data-on="{{ m.on }}" style="display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:0;color:var(--dim);font-size:12.5px;padding:6px 6px;cursor:pointer" style-hover="background:var(--surface);color:var(--text)"><span data-idx="1" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint)">{{ m.n }}</span><span>{{ m.label }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint)">{{ m.tag }}</span></a>
+      </sc-for>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.22em;text-transform:uppercase;padding:16px 6px 6px">System</div>
+      <a href="#" style="display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:12.5px;padding:6px 6px 6px 28px" style-hover="background:var(--surface);color:var(--text)"><span>Data Health</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--up)">OK</span></a>
+      <a href="#" style="display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:12.5px;padding:6px 6px 6px 28px" style-hover="background:var(--surface);color:var(--text)"><span>Alert Settings</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--gold)">3</span></a>
+      <a href="#" style="display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:12.5px;padding:6px 6px 6px 28px" style-hover="background:var(--surface);color:var(--text)"><span>Universe</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint)">88</span></a>
+    </nav>
+
+    <div style="margin-top:auto;border-top:1px solid var(--line);padding:11px 14px;display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase"><span>Signals</span><span style="color:var(--dim)">21:47:02 ET</span></div>
+      <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase"><span>Feed</span><span style="color:var(--up)">● BBG live · 42ms</span></div>
+      <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase"><span>Build</span><span style="color:var(--dim)">v4.2.1</span></div>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+    <!-- masthead -->
+    <header style="display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:58px;padding:0 var(--hpad);background:var(--surface);border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:center;gap:14px;min-width:0">
+        <span style="font-weight:700;font-size:20px;letter-spacing:.12em;background:linear-gradient(96deg,#EEF0F3,#C0C5CC 46%,#CBA53C 70%,#F4CC3A);-webkit-background-clip:text;background-clip:text;color:transparent">BASIS</span>
+        <span style="width:1px;height:22px;background:var(--line2)"></span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ breadcrumb }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);letter-spacing:.08em;padding-right:4px">{{ clock }}</span>
+        <button type="button" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;background:transparent;border:1px solid var(--goldLine);color:var(--gold);font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;white-space:nowrap;cursor:pointer" style-hover="background:var(--goldWash)">Pull snapshot<span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;opacity:.6;font-weight:400">⌘P</span></button>
+        <button type="button" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;background:transparent;border:1px solid var(--line2);color:var(--dim);font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;white-space:nowrap;cursor:pointer" style-hover="color:var(--text);border-color:var(--dim)">Re-run signals<span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;opacity:.6;font-weight:400">⌘R</span></button>
+        <button type="button" onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer" style-hover="color:var(--gold);border-color:var(--goldLine)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ticker strip -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));background:var(--surface2);border-bottom:1px solid var(--line)">
+      <div style="padding:8px 12px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">GC · GOLD</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">2412.60</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--up)">+1.24%</span></span></div>
+      <div style="padding:8px 12px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">SI · SILVER</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">31.482</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--up)">+1.58%</span></span></div>
+      <div style="padding:8px 12px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">CL · WTI</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">79.14</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--down)">−1.72%</span></span></div>
+      <div style="padding:8px 12px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">NQ · NASDAQ</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">20418.25</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--down)">−0.84%</span></span></div>
+      <div style="padding:8px 12px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">ES · S&amp;P 500</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">5612.50</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--down)">−0.31%</span></span></div>
+      <div style="padding:8px 12px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">TY · US 10Y</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">4.235</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--up)">+3.2bp</span></span></div>
+      <div style="padding:8px 12px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">DX · DOLLAR</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">104.62</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--up)">+0.18%</span></span></div>
+      <div style="padding:8px 12px;border-bottom:1px solid var(--hair);min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--faint)">VX · VIX</span><span style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;min-width:0"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)">14.28</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--up)">+2.90%</span></span></div>
+    </div>
+
+    <div style="padding:var(--hpad);display:flex;flex-direction:column;gap:14px">
+
+      <!-- page bar -->
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:-3px">
+        <div style="display:flex;align-items:baseline;gap:11px;min-width:0">
+          <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:.02em;color:var(--text);white-space:nowrap">{{ pageTitle }}</h2>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ pageKicker }}</span>
+        </div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);white-space:nowrap">{{ pageCount }}</span>
+      </div>
+
+      <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+      <!-- coverage block -->
+      <section style="background:var(--surface);border:1px solid var(--line)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+          <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Universe coverage</h3>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--gold)">88 / 88 ACTIVE</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr))">
+          <div style="padding:11px 14px;border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12px;color:var(--dim)">Fixed income</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">18/18</span></div>
+            <div style="height:3px;background:var(--line);position:relative"><div style="position:absolute;inset:0;width:100%;background:var(--gold)"></div></div>
+          </div>
+          <div style="padding:11px 14px;border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12px;color:var(--dim)">Indices</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">20/20</span></div>
+            <div style="height:3px;background:var(--line);position:relative"><div style="position:absolute;inset:0;width:100%;background:var(--gold)"></div></div>
+          </div>
+          <div style="padding:11px 14px;border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12px;color:var(--dim)">Commodities</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">32/32</span></div>
+            <div style="height:3px;background:var(--line);position:relative"><div style="position:absolute;inset:0;width:100%;background:var(--gold)"></div></div>
+          </div>
+          <div style="padding:11px 14px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12px;color:var(--dim)">FX</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">18/18</span></div>
+            <div style="height:3px;background:var(--line);position:relative"><div style="position:absolute;inset:0;width:100%;background:var(--gold)"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- two-up: overnight moves + heatmap -->
+      <div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px">
+
+        <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;overflow-x:auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Overnight moves</h3>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">21:00 → 09:30 ET</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px;border-bottom:1px solid var(--line);background:var(--surface2)">Market</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Last</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Chg %</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">σ 1M</th>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px 7px 10px;border-bottom:1px solid var(--line);background:var(--surface2);width:92px">Z-range</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">Silver</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">31.482</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.58</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.6</td>
+                <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:50%;top:0;bottom:0;width:40%;background:var(--up)"></div><div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></div></div></td>
+              </tr>
+              <tr>
+                <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">Gold</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">2412.60</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.24</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+2.1</td>
+                <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:50%;top:0;bottom:0;width:50%;background:var(--up)"></div><div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></div></div></td>
+              </tr>
+              <tr>
+                <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">WTI Crude</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">79.14</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.72</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.8</td>
+                <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;right:50%;top:0;bottom:0;width:45%;background:var(--down)"></div><div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></div></div></td>
+              </tr>
+              <tr>
+                <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">Nasdaq 100</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">20418.25</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.84</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.1</td>
+                <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;right:50%;top:0;bottom:0;width:28%;background:var(--down)"></div><div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></div></div></td>
+              </tr>
+              <tr>
+                <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">US 10Y Note</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">4.235</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.76</td>
+                <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.9</td>
+                <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:50%;top:0;bottom:0;width:22%;background:var(--up)"></div><div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></div></div></td>
+              </tr>
+              <tr>
+                <td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:500;color:var(--text)">EUR/USD</td>
+                <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.0842</td>
+                <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.19</td>
+                <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.4</td>
+                <td style="padding:var(--rowpad) 14px var(--rowpad) 10px"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;right:50%;top:0;bottom:0;width:10%;background:var(--down)"></div><div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></div></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Cross-asset heatmap</h3>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">Z-SCORE · 1M</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;padding:1px;background:var(--line);flex:1">
+            <div style="background:#0F5C36;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">GC</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+2.1</span></div>
+            <div style="background:#17734A;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">SI</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+1.6</span></div>
+            <div style="background:#245C43;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">HG</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+0.9</span></div>
+            <div style="background:#2C3742;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.72)">ZW</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">+0.1</span></div>
+            <div style="background:#8E2F26;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">CL</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.8</span></div>
+            <div style="background:#7A2D26;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">CO</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.5</span></div>
+            <div style="background:#6B3630;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">NQ</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.1</span></div>
+            <div style="background:#4A3A38;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.78)">ES</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">−0.4</span></div>
+            <div style="background:#1F5340;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">TY</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+0.9</span></div>
+            <div style="background:#2C3742;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.72)">FV</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">+0.2</span></div>
+            <div style="background:#3E3B3A;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.76)">EC</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">−0.4</span></div>
+            <div style="background:#17734A;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">JY</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+1.5</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--line)">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint)">−2σ</span>
+            <div style="flex:1;height:4px;background:linear-gradient(90deg,#8E2F26,#4A3A38,#2C3742,#245C43,#0F5C36)"></div>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint)">+2σ</span>
+          </div>
+        </section>
+      </div>
+
+      <!-- signals table -->
+      <section style="background:var(--surface);border:1px solid var(--line);overflow-x:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+          <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Top technical opportunities</h3>
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">RANKED BY CONVICTION</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--gold)">4 OF 27</span>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px;border-bottom:1px solid var(--line);background:var(--surface2)">Market</th>
+              <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Strategy</th>
+              <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Signal</th>
+              <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Level</th>
+              <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Objective</th>
+              <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Invalidation</th>
+              <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Risk</th>
+              <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">R:R</th>
+              <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px 7px 10px;border-bottom:1px solid var(--line);background:var(--surface2);width:132px">Conviction</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style-hover="background:var(--surface2)">
+              <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text);box-shadow:inset 2px 0 0 var(--up)">Gold</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);color:var(--dim)">MA crossover</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="display:inline-flex;align-items:center;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(70,197,138,.13);border:1px solid rgba(70,197,138,.42);color:var(--up)">LONG</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.12em;padding:2px 6px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold)">NEW</span></span></td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">2412.60</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">2488.00</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">2369.40</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.8%</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.7</td>
+              <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:4px;background:var(--line);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:82%;background:var(--gold);display:block"></span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);width:20px;text-align:right">82</span></span></td>
+            </tr>
+            <tr style-hover="background:var(--surface2)">
+              <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text);box-shadow:inset 2px 0 0 var(--down)">US 10Y Note</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);color:var(--dim)">Trend</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="display:inline-flex;align-items:center;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(236,106,87,.13);border:1px solid rgba(236,106,87,.42);color:var(--down)">SHORT</span><span style="font-size:11.5px;color:var(--faint)">sell the bond</span></span></td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4.235</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">4.480</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">4.118</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.9%</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">2.1</td>
+              <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:4px;background:var(--line);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:77%;background:var(--gold);display:block"></span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);width:20px;text-align:right">77</span></span></td>
+            </tr>
+            <tr style-hover="background:var(--surface2)">
+              <td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text);box-shadow:inset 2px 0 0 var(--up)">Brent Crude</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);color:var(--dim)">Breakout retest</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(70,197,138,.13);border:1px solid rgba(70,197,138,.42);color:var(--up)">LONG</span></td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">84.15</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">88.60</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">82.20</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−2.3%</td>
+              <td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">2.3</td>
+              <td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:4px;background:var(--line);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:71%;background:var(--gold);display:block"></span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);width:20px;text-align:right">71</span></span></td>
+            </tr>
+            <tr style-hover="background:var(--surface2)">
+              <td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:600;color:var(--text);box-shadow:inset 2px 0 0 var(--down)">3M SOFR</td>
+              <td style="padding:var(--rowpad) 10px;font-size:var(--rowfs);color:var(--dim)">Bollinger</td>
+              <td style="padding:var(--rowpad) 10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(236,106,87,.13);border:1px solid rgba(236,106,87,.42);color:var(--down)">SHORT</span></td>
+              <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4.690</td>
+              <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">4.905</td>
+              <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">4.615</td>
+              <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.6%</td>
+              <td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">2.9</td>
+              <td style="padding:var(--rowpad) 14px var(--rowpad) 10px"><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:4px;background:var(--line);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:64%;background:var(--goldDeep);display:block"></span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);width:20px;text-align:right">64</span></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- conviction detail -->
+      <section style="background:var(--surface);border:1px solid var(--line)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Signal detail</h3>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--faint)">GC · GOLD · LONG</span>
+          </div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">GENERATED 21:47:02 ET</span>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)">
+          <div style="border-right:1px solid var(--line)">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:14px 16px 8px">
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font-size:16px;font-weight:600;letter-spacing:.01em;color:var(--text)">Gold — Long</span>
+                <span style="font-size:11.5px;color:var(--dim)">MA crossover · confirmed by momentum, Ichimoku, OBV · no conflicts</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Conviction</span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--gold)">82</span>
+              </div>
+            </div>
+            <div style="height:150px;margin:0 16px 14px;border:1px solid var(--line);background:var(--surface2);position:relative;overflow:hidden">
+              <svg viewBox="0 0 600 150" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+                <line x1="0" y1="37.5" x2="600" y2="37.5" stroke="rgba(255,255,255,.05)" stroke-width="1"></line>
+                <line x1="0" y1="75" x2="600" y2="75" stroke="rgba(255,255,255,.05)" stroke-width="1"></line>
+                <line x1="0" y1="112.5" x2="600" y2="112.5" stroke="rgba(255,255,255,.05)" stroke-width="1"></line>
+                <polyline points="0,112 60,104 120,108 180,88 240,93 300,72 360,78 420,58 480,65 540,42 600,34" fill="none" stroke="#F5C518" stroke-width="1.75"></polyline>
+                <polyline points="0,118 60,113 120,114 180,104 240,104 300,93 360,93 420,80 480,80 540,64 600,57" fill="none" stroke="#8B939E" stroke-width="1.25" stroke-dasharray="3 3"></polyline>
+                <line x1="0" y1="24" x2="600" y2="24" stroke="rgba(70,197,138,.55)" stroke-width="1" stroke-dasharray="5 4"></line>
+                <line x1="0" y1="132" x2="600" y2="132" stroke="rgba(236,106,87,.55)" stroke-width="1" stroke-dasharray="5 4"></line>
+              </svg>
+              <span style="position:absolute;right:6px;top:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;color:var(--up)">OBJ 2488.00</span>
+              <span style="position:absolute;right:6px;bottom:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;color:var(--down)">INV 2369.40</span>
+              <span style="position:absolute;left:6px;top:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;color:var(--faint)">GC1 · DAILY · 6M</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:grid;grid-template-columns:1fr 1fr">
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Level</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text)">2412.60</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Objective</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-variant-numeric:tabular-nums;color:var(--up)">2488.00</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Invalidation</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-variant-numeric:tabular-nums;color:var(--down)">2369.40</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Risk to stop</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text)">−1.8% · $4,320</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Reward : risk</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text)">1.74 : 1</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Horizon</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text)">10–15 SESS</span></div>
+            </div>
+            <div style="padding:12px 14px;flex:1">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:6px">Analyst note</div>
+              <p style="margin:0;font-size:12.5px;line-height:1.6;color:var(--dim);text-wrap:pretty;border-left:2px solid var(--goldLine);padding-left:11px">Price has pushed back above the 50-day average with the shorter average turning up beneath it — a pattern that has tended to precede continuation in this contract. The move may be worth a closer look while 2,369 holds.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      </div>
+      </sc-if>
+
+      <!-- ═══ FICC ═══ -->
+      <sc-if value="{{ isFiccOverview }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px">
+          <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">US Treasury curve</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">TODAY VS 1W AGO</span>
+            </div>
+            <div style="flex:1;min-height:186px;margin:14px;border:1px solid var(--line);background:var(--surface2);position:relative;overflow:hidden">
+              <svg viewBox="0 0 600 190" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+                <line x1="0" y1="47" x2="600" y2="47" stroke="rgba(128,140,160,.14)" stroke-width="1"></line>
+                <line x1="0" y1="95" x2="600" y2="95" stroke="rgba(128,140,160,.14)" stroke-width="1"></line>
+                <line x1="0" y1="143" x2="600" y2="143" stroke="rgba(128,140,160,.14)" stroke-width="1"></line>
+                <polyline points="20,58 110,72 200,96 290,112 380,120 470,110 580,96" fill="none" stroke="#8B939E" stroke-width="1.25" stroke-dasharray="3 3"></polyline>
+                <polyline points="20,50 110,66 200,92 290,110 380,116 470,102 580,86" fill="none" stroke="#F5C518" stroke-width="1.75"></polyline>
+                <circle cx="20" cy="50" r="2.5" fill="#F5C518"></circle><circle cx="110" cy="66" r="2.5" fill="#F5C518"></circle><circle cx="200" cy="92" r="2.5" fill="#F5C518"></circle><circle cx="290" cy="110" r="2.5" fill="#F5C518"></circle><circle cx="380" cy="116" r="2.5" fill="#F5C518"></circle><circle cx="470" cy="102" r="2.5" fill="#F5C518"></circle><circle cx="580" cy="86" r="2.5" fill="#F5C518"></circle>
+              </svg>
+              <span style="position:absolute;left:8px;top:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;color:var(--faint)">YIELD % · PAR CURVE</span>
+              <div style="position:absolute;left:0;right:0;bottom:4px;display:flex;justify-content:space-between;padding:0 10px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.10em;color:var(--faint)"><span>3M</span><span>2Y</span><span>5Y</span><span>7Y</span><span>10Y</span><span>20Y</span><span>30Y</span></div>
+            </div>
+          </section>
+
+          <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;overflow-x:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Rates board</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">CASH · BP CHANGE</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px;border-bottom:1px solid var(--line);background:var(--surface2)">Tenor</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Yield</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">1D bp</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">1W bp</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">σ 3M</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px 7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Pctl 1Y</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">3M Bill</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">5.212</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.2</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−3.5</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">−0.4</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">88th</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">2Y Note</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4.612</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+2.4</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+7.1</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+0.8</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">64th</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">5Y Note</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4.318</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+3.1</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+9.4</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+1.1</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">71st</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">10Y Note</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4.235</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+3.2</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+11.8</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+0.9</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">76th</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">20Y Bond</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4.508</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+3.8</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+13.2</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+1.3</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">81st</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:500;color:var(--text)">30Y Bond</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4.396</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+4.1</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+14.6</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+1.4</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">84th</td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <section style="background:var(--surface);border:1px solid var(--line);overflow-x:auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Spreads &amp; credit</h3>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">CURVE · BASIS · CREDIT</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px;border-bottom:1px solid var(--line);background:var(--surface2)">Spread</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Level</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">1D</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">1M</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">σ 1M</th>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Regime</th>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px 7px 10px;border-bottom:1px solid var(--line);background:var(--surface2);width:132px">1Y range</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">2s10s</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">−37.7 bp</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.8</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+12.4</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.6</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(70,197,138,.13);border:1px solid rgba(70,197,138,.42);color:var(--up)">STEEPENING</span></td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:72%;background:var(--goldDeep)"></div></div></td></tr>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">5s30s</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">+7.8 bp</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.0</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+9.1</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.2</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(70,197,138,.13);border:1px solid rgba(70,197,138,.42);color:var(--up)">STEEPENING</span></td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:58%;background:var(--goldDeep)"></div></div></td></tr>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">10Y breakeven</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">2.312 %</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.4</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+4.2</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+0.3</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:var(--surface2);border:1px solid var(--line2);color:var(--dim)">RANGE</span></td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:46%;background:var(--line2)"></div></div></td></tr>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">IG OAS</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">92 bp</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">−0.5</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">−6.0</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.7</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold)">TIGHT · 8TH PCTL</span></td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:8%;background:var(--gold)"></div></div></td></tr>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:600;color:var(--text)">HY OAS</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">318 bp</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">+2.0</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">−14.0</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.2</td><td style="padding:var(--rowpad) 10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold)">TIGHT · 14TH PCTL</span></td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:14%;background:var(--gold)"></div></div></td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px">
+          <section style="background:var(--surface);border:1px solid var(--line);overflow-x:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">FX majors</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">SPOT · VS USD</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px;border-bottom:1px solid var(--line);background:var(--surface2)">Pair</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Spot</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Chg %</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">1M IV</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px 7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">σ 1M</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">EUR/USD</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.0842</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.19</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">6.82</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.4</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">USD/JPY</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">154.28</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.42</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">9.94</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.9</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">GBP/USD</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.2718</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.24</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">7.41</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.6</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">AUD/USD</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">0.6684</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.41</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">9.12</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.1</td></tr>
+                <tr><td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:500;color:var(--text)">USD/CAD</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.3612</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.12</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">5.86</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+0.2</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Sovereign 10Y</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">Z-SCORE · 1M</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;padding:1px;background:var(--line);flex:1">
+              <div style="background:#17734A;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">US</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+0.9</span></div>
+              <div style="background:#245C43;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">DE</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+0.6</span></div>
+              <div style="background:#2C3742;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.72)">FR</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">+0.2</span></div>
+              <div style="background:#0F5C36;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">IT</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+2.0</span></div>
+              <div style="background:#4A3A38;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.78)">GB</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">−0.4</span></div>
+              <div style="background:#8E2F26;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">JP</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.8</span></div>
+              <div style="background:#245C43;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">CA</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+0.7</span></div>
+              <div style="background:#6B3630;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:56px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.10em;color:rgba(255,255,255,.82)">AU</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.0</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--line)">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint)">−2σ</span>
+              <div style="flex:1;height:4px;background:linear-gradient(90deg,#8E2F26,#4A3A38,#2C3742,#245C43,#0F5C36)"></div>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint)">+2σ</span>
+            </div>
+          </section>
+        </div>
+      </div>
+      </sc-if>
+
+
+      <!-- ═══ FICC · CURVE & SPREADS ═══ -->
+      <sc-if value="{{ isFiccCurve }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <section style="background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:10px 14px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Curve</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">UST</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">BUND</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">GILT</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">JGB</span></div></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Basis</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">PAR YIELD</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">ZERO</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">FORWARD</span></div></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Compare</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">1D</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">1W</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">1M</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">3M</span></div></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Fit</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">SPLINE</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">NSS</span></div></div>
+        </section>
+
+        <section style="background:var(--surface);border:1px solid var(--line)">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">UST par curve</h3>
+            <div style="display:flex;align-items:center;gap:16px">
+              <span style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)"><span style="width:14px;height:2px;background:var(--gold);display:block"></span>TODAY</span>
+              <span style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)"><span style="width:14px;height:0;border-top:2px dashed var(--dim);display:block"></span>1W AGO</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">21:47 ET</span>
+            </div>
+          </div>
+          <div style="height:232px;margin:14px;border:1px solid var(--line);background:var(--surface2);position:relative;overflow:hidden">
+            <svg viewBox="0 0 600 232" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+              <line x1="0" y1="46" x2="600" y2="46" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+              <line x1="0" y1="92" x2="600" y2="92" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+              <line x1="0" y1="138" x2="600" y2="138" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+              <line x1="0" y1="184" x2="600" y2="184" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+              <polyline points="24,72 110,98 196,132 282,156 368,168 454,150 576,128" fill="none" stroke="#8B939E" stroke-width="1.25" stroke-dasharray="4 3"></polyline>
+              <polyline points="24,60 110,86 196,124 282,152 368,160 454,136 576,112" fill="none" stroke="#F5C518" stroke-width="1.75"></polyline>
+              <circle cx="24" cy="60" r="3" fill="#F5C518"></circle><circle cx="110" cy="86" r="3" fill="#F5C518"></circle><circle cx="196" cy="124" r="3" fill="#F5C518"></circle><circle cx="282" cy="152" r="3" fill="#F5C518"></circle><circle cx="368" cy="160" r="3" fill="#F5C518"></circle><circle cx="454" cy="136" r="3" fill="#F5C518"></circle><circle cx="576" cy="112" r="3" fill="#F5C518"></circle>
+            </svg>
+            <div style="position:absolute;left:8px;top:6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">YIELD % · 3M → 30Y</div>
+            <div style="position:absolute;left:8px;top:24px;display:flex;flex-direction:column;gap:31px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)"><span>5.40</span><span>4.90</span><span>4.40</span><span>3.90</span></div>
+            <div style="position:absolute;left:0;right:0;bottom:5px;display:flex;justify-content:space-between;padding:0 14px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)"><span>3M</span><span>2Y</span><span>5Y</span><span>7Y</span><span>10Y</span><span>20Y</span><span>30Y</span></div>
+          </div>
+        </section>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px">
+          <section style="background:var(--surface);border:1px solid var(--line);overflow-x:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Spread &amp; fly monitor</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">BP · 1Y PERCENTILE BAR</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Structure</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Level</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">1D</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">1M</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">σ 3M</th>
+                  <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2);width:118px">1Y pctl</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">2s10s</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">−37.7</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.8</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+12.4</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.6</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:72%;background:var(--goldDeep)"></div></div></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">5s30s</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">+7.8</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.0</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+9.1</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.2</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:58%;background:var(--goldDeep)"></div></div></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">3M10Y</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">−97.7</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+4.4</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+15.3</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.9</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:86%;background:var(--gold)"></div></div></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">2s5s10s fly</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">−8.4</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.6</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−2.1</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.7</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:34%;background:var(--line2)"></div></div></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">5s10s30s fly</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">+4.1</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.3</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.8</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">+0.4</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:47%;background:var(--line2)"></div></div></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:500;color:var(--text)">10Y swap spread</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">−42.6</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.1</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−4.8</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.4</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px"><div style="height:4px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:18%;background:var(--line2)"></div></div></td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Curve read</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">MODEL · SPLINE</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr">
+              <div style="padding:11px 14px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Slope regime</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--up)">Steepening</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Level shift 1W</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--text)">+11.4 bp</span></div>
+              <div style="padding:11px 14px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Inversion</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--text)">3M–10Y only</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Richest point</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--gold)">7Y</span></div>
+            </div>
+            <div style="padding:12px 14px;flex:1">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:6px">Analyst note</div>
+              <p style="margin:0;font-size:12.5px;line-height:1.6;color:var(--dim);text-wrap:pretty;border-left:2px solid var(--goldLine);padding-left:11px">The belly has cheapened against the wings over the past week, with 2s5s10s at the low end of its one-year range. Bear-steepening from the long end is doing most of the work; front-end pricing is unchanged.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ═══ EQUITIES ═══ -->
+      <sc-if value="{{ isEqOverview }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px">
+          <section style="background:var(--surface);border:1px solid var(--line);overflow-x:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Index board</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">FRONT FUTURES</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px;border-bottom:1px solid var(--line);background:var(--surface2)">Contract</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Last</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Chg %</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">ATR %</th>
+                  <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Vs 50D</th>
+                  <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 14px 7px 10px;border-bottom:1px solid var(--line);background:var(--surface2);width:112px">Trend 20D</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">ES · S&amp;P 500</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">5612.50</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.31</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">0.72</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+2.4%</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width:100%;height:16px;display:block" aria-hidden="true"><polyline points="0,16 14,13 28,14 42,10 56,11 70,6 84,8 100,4" fill="none" stroke="#46C58A" stroke-width="1.5"></polyline></svg></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">NQ · Nasdaq 100</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">20418.25</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.84</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.08</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+1.1%</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width:100%;height:16px;display:block" aria-hidden="true"><polyline points="0,8 14,5 28,7 42,4 56,8 70,11 84,9 100,13" fill="none" stroke="#EC6A57" stroke-width="1.5"></polyline></svg></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">RTY · Russell 2000</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">2214.80</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.94</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.34</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+4.8%</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width:100%;height:16px;display:block" aria-hidden="true"><polyline points="0,17 14,15 28,12 42,13 56,9 70,7 84,5 100,3" fill="none" stroke="#46C58A" stroke-width="1.5"></polyline></svg></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:600;color:var(--text)">FESX · Euro Stoxx 50</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">4948.00</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.22</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">0.81</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.6%</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width:100%;height:16px;display:block" aria-hidden="true"><polyline points="0,9 14,10 28,8 42,11 56,10 70,12 84,11 100,12" fill="none" stroke="#8B939E" stroke-width="1.5"></polyline></svg></td></tr>
+                <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:600;color:var(--text)">NKD · Nikkei 225</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">39120.00</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−1.18</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--dim)">1.26</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−2.9%</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px"><svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width:100%;height:16px;display:block" aria-hidden="true"><polyline points="0,5 14,7 28,6 42,9 56,12 70,11 84,14 100,16" fill="none" stroke="#EC6A57" stroke-width="1.5"></polyline></svg></td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Volatility structure</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">VIX COMPLEX</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr">
+              <div style="padding:11px 14px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">VIX spot</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--text)">14.28</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Term slope</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--up)">+8.4 %</span></div>
+              <div style="padding:11px 14px;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">25Δ skew</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--text)">6.1 vol</span></div>
+              <div style="padding:11px 14px;border-bottom:1px solid var(--hair);display:flex;flex-direction:column;gap:3px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">IV − RV 20D</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums;color:var(--gold)">+3.2</span></div>
+            </div>
+            <div style="padding:12px 14px;flex:1;display:flex;flex-direction:column;gap:7px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Futures curve</div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--dim)">M1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">14.85</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--dim)">M2</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">16.10</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--dim)">M3</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">17.02</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--dim)">M4</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text)">17.64</span></div>
+              <div style="margin-top:auto;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;text-transform:uppercase;color:var(--up)">Contango · carry favours short vol</div>
+            </div>
+          </section>
+        </div>
+
+        <section style="background:var(--surface);border:1px solid var(--line)">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Sector breadth</h3>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">S&amp;P GICS · Z-SCORE 1M</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:1px;padding:1px;background:var(--line)">
+            <div style="background:#0F5C36;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.82)">ENERGY</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+1.9</span></div>
+            <div style="background:#17734A;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.82)">MATERIALS</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+1.4</span></div>
+            <div style="background:#245C43;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.82)">FINANCIALS</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+0.8</span></div>
+            <div style="background:#245C43;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.82)">UTILITIES</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">+0.7</span></div>
+            <div style="background:#2C3742;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.72)">STAPLES</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">+0.2</span></div>
+            <div style="background:#2C3742;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.72)">HEALTHCARE</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">−0.1</span></div>
+            <div style="background:#4A3A38;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.78)">INDUSTRIALS</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">−0.4</span></div>
+            <div style="background:#6B3630;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.82)">DISCRETIONARY</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.0</span></div>
+            <div style="background:#7A2D26;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.82)">TECH</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.5</span></div>
+            <div style="background:#8E2F26;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.82)">COMM SVCS</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#fff">−1.8</span></div>
+            <div style="background:#4A3A38;padding:9px 10px;display:flex;flex-direction:column;justify-content:space-between;min-height:58px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.10em;color:rgba(255,255,255,.78)">REAL ESTATE</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">−0.5</span></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 14px;border-top:1px solid var(--line)">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)">Advancers 4 / 11 · rotation into cyclicals ex-tech</span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint)">−2σ</span><span style="width:120px;height:4px;background:linear-gradient(90deg,#8E2F26,#4A3A38,#2C3742,#245C43,#0F5C36);display:block"></span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint)">+2σ</span></span>
+          </div>
+        </section>
+      </div>
+      </sc-if>
+
+
+      <!-- ═══ EQUITIES · VOLATILITY & SKEW ═══ -->
+      <sc-if value="{{ isEqVol }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <section style="background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:10px 14px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Underlying</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">ES</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">NQ</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">RTY</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">FESX</span></div></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Tenor</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">1W</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">1M</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">3M</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">6M</span></div></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Measure</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">IV</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">IV − RV</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">SKEW</span></div></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)">Lookback</span><div style="display:flex;gap:1px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">1M</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:var(--goldWash);border:1px solid var(--goldLine);color:var(--gold);cursor:pointer">1Y</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;padding:4px 10px;background:transparent;border:1px solid var(--line2);color:var(--dim);cursor:pointer">5Y</span></div></div>
+        </section>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px">
+          <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Term structure</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">VIX FUTURES · CONTANGO</span>
+            </div>
+            <div style="height:186px;margin:14px;border:1px solid var(--line);background:var(--surface2);position:relative;overflow:hidden">
+              <svg viewBox="0 0 600 186" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+                <line x1="0" y1="46" x2="600" y2="46" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+                <line x1="0" y1="93" x2="600" y2="93" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+                <line x1="0" y1="140" x2="600" y2="140" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+                <polyline points="30,150 150,124 270,104 390,92 510,84 576,80" fill="none" stroke="#8B939E" stroke-width="1.25" stroke-dasharray="4 3"></polyline>
+                <polyline points="30,138 150,110 270,90 390,76 510,66 576,62" fill="none" stroke="#F5C518" stroke-width="1.75"></polyline>
+                <circle cx="30" cy="138" r="3" fill="#F5C518"></circle><circle cx="150" cy="110" r="3" fill="#F5C518"></circle><circle cx="270" cy="90" r="3" fill="#F5C518"></circle><circle cx="390" cy="76" r="3" fill="#F5C518"></circle><circle cx="510" cy="66" r="3" fill="#F5C518"></circle>
+              </svg>
+              <div style="position:absolute;left:8px;top:6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">IMPLIED VOL %</div>
+              <div style="position:absolute;left:0;right:0;bottom:5px;display:flex;justify-content:space-between;padding:0 18px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)"><span>SPOT</span><span>M1</span><span>M2</span><span>M3</span><span>M4</span></div>
+            </div>
+          </section>
+
+          <section style="background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+              <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Skew · 1M</h3>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">IV BY DELTA</span>
+            </div>
+            <div style="height:186px;margin:14px;border:1px solid var(--line);background:var(--surface2);position:relative;overflow:hidden">
+              <svg viewBox="0 0 600 186" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+                <line x1="0" y1="46" x2="600" y2="46" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+                <line x1="0" y1="93" x2="600" y2="93" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+                <line x1="0" y1="140" x2="600" y2="140" stroke="rgba(128,140,160,.13)" stroke-width="1"></line>
+                <line x1="300" y1="0" x2="300" y2="186" stroke="rgba(128,140,160,.20)" stroke-width="1"></line>
+                <polyline points="24,44 120,66 216,96 300,116 384,132 480,140 576,146" fill="none" stroke="#F5C518" stroke-width="1.75"></polyline>
+                <circle cx="300" cy="116" r="3.5" fill="none" stroke="#F5C518" stroke-width="1.5"></circle>
+              </svg>
+              <div style="position:absolute;left:8px;top:6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">PUT SKEW STEEP · 25Δ 6.1 VOL</div>
+              <div style="position:absolute;left:0;right:0;bottom:5px;display:flex;justify-content:space-between;padding:0 14px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)"><span>10ΔP</span><span>25ΔP</span><span>ATM</span><span>25ΔC</span><span>10ΔC</span></div>
+            </div>
+          </section>
+        </div>
+
+        <section style="background:var(--surface);border:1px solid var(--line)">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Implied vol surface</h3>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">ES · IV % BY TENOR × DELTA</span>
+          </div>
+          <div style="display:grid;grid-template-columns:78px repeat(5,minmax(0,1fr));gap:1px;padding:1px;background:var(--line)">
+            <div style="background:var(--surface2);padding:7px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)"></div><div style="background:var(--surface2);padding:7px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">10Δ put</div><div style="background:var(--surface2);padding:7px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">25Δ put</div><div style="background:var(--surface2);padding:7px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">ATM</div><div style="background:var(--surface2);padding:7px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">25Δ call</div><div style="background:var(--surface2);padding:7px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)">10Δ call</div>
+            <div style="background:var(--surface2);padding:9px 10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.10em;color:var(--dim)">1W</div><div style="background:#7A2D26;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">18.4</div><div style="background:#6B3630;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">15.2</div><div style="background:#4A3A38;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">12.6</div><div style="background:#2C3742;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">11.4</div><div style="background:#2C3742;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">11.8</div>
+            <div style="background:var(--surface2);padding:9px 10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.10em;color:var(--dim)">1M</div><div style="background:#8E2F26;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">20.1</div><div style="background:#7A2D26;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">16.8</div><div style="background:#4A3A38;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">14.3</div><div style="background:#2C3742;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.9)">12.9</div><div style="background:#4A3A38;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">13.4</div>
+            <div style="background:var(--surface2);padding:9px 10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.10em;color:var(--dim)">3M</div><div style="background:#8E2F26;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">21.6</div><div style="background:#7A2D26;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">18.2</div><div style="background:#6B3630;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">16.0</div><div style="background:#4A3A38;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">14.6</div><div style="background:#4A3A38;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.92)">15.1</div>
+            <div style="background:var(--surface2);padding:9px 10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.10em;color:var(--dim)">6M</div><div style="background:#8E2F26;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">22.8</div><div style="background:#7A2D26;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">19.4</div><div style="background:#6B3630;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">17.2</div><div style="background:#6B3630;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">16.0</div><div style="background:#6B3630;padding:9px 6px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-variant-numeric:tabular-nums;color:#fff">16.6</div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 14px;border-top:1px solid var(--line)">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint);text-transform:uppercase">Surface in contango · put wing bid across all tenors</span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">10</span><span style="width:120px;height:4px;background:linear-gradient(90deg,#2C3742,#4A3A38,#6B3630,#8E2F26);display:block"></span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">24</span></span>
+          </div>
+        </section>
+
+        <section style="background:var(--surface);border:1px solid var(--line);overflow-x:auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)">
+            <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text)">Volatility signals</h3>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:var(--faint)">3 LIVE · EQUITIES DESK</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Structure</th>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Signal</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Entry</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Carry / day</th>
+                <th style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2)">Max loss</th>
+                <th style="text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);padding:7px 10px;border-bottom:1px solid var(--line);background:var(--surface2);width:132px">Conviction</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">ES 1M 25Δ put spread</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(236,106,87,.13);border:1px solid rgba(236,106,87,.42);color:var(--down)">SELL SKEW</span></td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">6.10 vol</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.08</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−$2,850</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:4px;background:var(--line);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:79%;background:var(--gold);display:block"></span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);width:20px;text-align:right">79</span></span></td></tr>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;border-bottom:1px solid var(--hair);font-size:var(--rowfs);font-weight:500;color:var(--text)">VIX M1/M2 calendar</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(70,197,138,.13);border:1px solid rgba(70,197,138,.42);color:var(--up)">LONG ROLL</span></td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">−1.25</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--up)">+0.04</td><td style="padding:var(--rowpad) 10px;border-bottom:1px solid var(--hair);text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−$1,200</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px;border-bottom:1px solid var(--hair)"><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:4px;background:var(--line);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:74%;background:var(--gold);display:block"></span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);width:20px;text-align:right">74</span></span></td></tr>
+              <tr style-hover="background:var(--surface2)"><td style="padding:var(--rowpad) 14px;font-size:var(--rowfs);font-weight:500;color:var(--text)">NQ/ES 1M vol spread</td><td style="padding:var(--rowpad) 10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:2px 7px;background:rgba(70,197,138,.13);border:1px solid rgba(70,197,138,.42);color:var(--up)">LONG DISPERSION</span></td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--text)">+4.20 vol</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−0.02</td><td style="padding:var(--rowpad) 10px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:var(--rowfs);font-variant-numeric:tabular-nums;color:var(--down)">−$3,400</td><td style="padding:var(--rowpad) 14px var(--rowpad) 10px"><span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:4px;background:var(--line);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:66%;background:var(--goldDeep);display:block"></span></span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);width:20px;text-align:right">66</span></span></td></tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+      </sc-if>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0 6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)">
+        <span>BASIS Research Terminal · Synthetic demo data · Not investment advice</span>
+        <span>Bloomberg / internal composite · 25 Jul 2026</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;page&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;ficc&quot;,&quot;equities&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;'home'|'ficc'|'equities'&quot;,&quot;section&quot;:&quot;Content&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comfortable&quot;,&quot;compact&quot;],&quot;default&quot;:&quot;comfortable&quot;,&quot;tsType&quot;:&quot;'comfortable'|'compact'&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, clock: "", page: null, desk: "ficc", mod: "overview" };
+
+  DESKS = {
+    ficc: {
+      name: "FICC", scope: "36 markets", signals: "11 signals",
+      modules: [
+        ["overview", "Desk Overview", ""],
+        ["curve", "Curve & Spreads", ""],
+        ["rates", "Rates Signals", "4"],
+        ["credit", "Credit", "2"],
+        ["fx", "FX Majors", "3"],
+        ["carry", "Carry & Roll", ""],
+        ["cftc", "CFTC Positioning", ""],
+        ["auction", "Auction Calendar", ""],
+        ["macro", "Macro Fundamentals", ""]
+      ]
+    },
+    equities: {
+      name: "Equities", scope: "20 markets", signals: "8 signals",
+      modules: [
+        ["overview", "Desk Overview", ""],
+        ["board", "Index Board", ""],
+        ["breadth", "Sector Breadth", ""],
+        ["vol", "Volatility & Skew", "3"],
+        ["dispersion", "Dispersion", "2"],
+        ["gamma", "Gamma & Flow", ""],
+        ["earnings", "Earnings Calendar", ""],
+        ["factor", "Factor Rotation", "3"],
+        ["single", "Single-name Screen", ""]
+      ]
+    }
+  };
+
+  SHARED = [
+    ["correlations", "Correlations", ""],
+    ["builder", "Strategy Builder", ""],
+    ["testing", "Trade Testing", ""],
+    ["health", "Data Health", "OK"]
+  ];
+
+  go(page) { return (e) => { if (e) e.preventDefault(); this.setState(page === "home" ? { page } : { page, desk: page, mod: "overview" }); }; }
+  pick(mod, desk) { return (e) => { if (e) e.preventDefault(); this.setState(desk ? { mod, desk, page: desk } : { mod, page: this.state.desk }); }; }
+
+  componentDidMount() {
+    this.tick();
+    this._t = setInterval(() => this.tick(), 1000);
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  tick() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    this.setState({ clock: `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} ET` });
+  }
+
+  renderVals() {
+    const theme = this.state.theme ?? this.props.theme ?? "dark";
+    const page = this.state.page ?? this.props.page ?? "home";
+    const deskId = page === "home" ? this.state.desk : page;
+    const desk = this.DESKS[deskId] || this.DESKS.ficc;
+    const mod = this.state.mod;
+    const num = (i) => String(i + 1).padStart(2, "0");
+    const modules = desk.modules.map(([id, label, tag], i) => ({
+      n: num(i), label, tag, on: page === deskId && mod === id, click: this.pick(id, deskId)
+    }));
+    const shared = this.SHARED.map(([id, label, tag], i) => ({
+      n: "C" + (i + 1), label, tag, on: mod === id, click: this.pick(id)
+    }));
+    const activeMod = desk.modules.find((m) => m[0] === mod);
+    const modLabel = activeMod ? activeMod[1] : "Desk Overview";
+    const meta = page === "home"
+      ? { title: "Terminal overview", kicker: "Cross-asset · both desks", count: "88 MARKETS · 27 LIVE SIGNALS" }
+      : { title: desk.name + " desk", kicker: modLabel + " · " + desk.scope, count: desk.scope.toUpperCase() + " · " + desk.signals.toUpperCase() };
+    return {
+      modules,
+      shared,
+      deskFicc: deskId === "ficc",
+      deskEq: deskId === "equities",
+      deskScope: desk.scope,
+      deskSignals: desk.signals,
+      deskModulesLabel: desk.name + " modules",
+      breadcrumb: page === "home"
+        ? "Analysis · Strategy · Indicators"
+        : "BASIS · " + desk.name + " desk · " + modLabel,
+      theme,
+      density: this.props.density ?? "comfortable",
+      clock: this.state.clock,
+      isHome: page === "home",
+      isFicc: page === "ficc",
+      isEq: page === "equities",
+      isFiccOverview: page === "ficc" && mod !== "curve",
+      isFiccCurve: page === "ficc" && mod === "curve",
+      isEqOverview: page === "equities" && mod !== "vol",
+      isEqVol: page === "equities" && mod === "vol",
+      goHome: this.go("home"),
+      goFicc: this.go("ficc"),
+      goEq: this.go("equities"),
+      pageTitle: meta.title,
+      pageKicker: meta.kicker,
+      pageCount: meta.count,
+      toggleTheme: () => this.setState({ theme: theme === "dark" ? "light" : "dark" })
+    };
+  }
+}
+</script>
+</body>
+</html>
