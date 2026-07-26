@@ -1,0 +1,16 @@
+services:
+  basis:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./app:/app
+    environment:
+      - TZ=Europe/London
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.basis.entrypoints=websecure
+      - traefik.http.routers.basis.rule=Host(`basis.srv1608260.hstgr.cloud`)
+      - traefik.http.routers.basis.tls.certresolver=letsencrypt
+      - traefik.http.routers.basis.middlewares=basis-auth
+      - traefik.http.middlewares.basis-auth.basicauth.users=ben:$$apr1$$rUl9PLtA$$AWUuDFj.Irr5XrOG3O9Jk.
+      - traefik.http.services.basis.loadbalancer.server.port=8501
