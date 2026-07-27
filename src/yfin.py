@@ -60,6 +60,7 @@ _INFO_WORKERS = 6                  # parallel Ticker.info pulls — modest, Yaho
 # Names whose Yahoo symbol isn't the mechanical root+suffix ('ROOT EXCH' -> symbol).
 _SPECIAL = {
     "STM FP": "STMPA.PA",          # STMicro Paris — Yahoo uses STMPA, STM is the NYSE line
+    "NDA FH": "NDA-FI.HE",         # Nordea Helsinki — Yahoo keeps the FI country tag
 }
 
 

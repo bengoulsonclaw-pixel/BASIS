@@ -107,10 +107,11 @@ def run_oi() -> int:
 # ── Equities pull switches ──────────────────────────────────────────────────────────────────
 # These were turned OFF (2026-07-24) when per-stock prices + the ~70k-hit weekly fundamentals
 # re-pull kept re-tripping Bloomberg's -4002 workflow-review block. Re-enabled 2026-07-26: the
-# Equities side now pulls quotes / history / fundamentals FREE from Yahoo Finance (src/yfin.py,
-# BASIS_EQ_SOURCE=yfinance default), so the only Bloomberg leg left is INDX_MEMBERS membership —
-# a light pull that only runs Terminal-up and falls back to the cached constituents.json
-# otherwise. Set BASIS_EQ_SOURCE=bloomberg to restore the old Terminal-first behaviour.
+# Equities side pulls quotes / history / fundamentals FREE from Yahoo Finance (src/yfin.py)
+# and, since 2026-07-27, index membership FREE from the tracker ETFs' published holdings
+# files (src/etfmembers.py — IVV/IWM/QQQ/DIA/ISF/EUE/EXS1) — so a normal equities pull
+# costs ZERO Bloomberg hits. Bloomberg INDX_MEMBERS remains only a last-resort membership
+# fallback. Set BASIS_EQ_SOURCE=bloomberg to restore the old Terminal-first behaviour.
 PULL_EQUITY_CONSTITUENTS = True    # membership (Bloomberg/cache) + quotes/history (Yahoo)
 PULL_FUNDAMENTALS        = True    # Company Fundamentals DB refresh (Yahoo)
 
@@ -162,8 +163,8 @@ def run_equities() -> dict:
     # only the membership meta pull (name/sector per constituent) touches the Terminal.
     from src import equities as _eq
     if _eq._use_yf():
-        print("  Bloomberg hits this pull: membership meta only (~2 per constituent, "
-              "Terminal-up) — quotes/history/fundamentals came free from Yahoo Finance.")
+        print("  Bloomberg hits this pull: ZERO — membership from the free ETF holdings "
+              "files, quotes/history/fundamentals from Yahoo Finance.")
     else:
         est = int(eq.get("n_unique", 0) or 0) * 3 + int(fr.get("n_tickers", 0) or 0) * 30
         if est:

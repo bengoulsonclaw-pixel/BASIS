@@ -25,13 +25,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src import datafeed  # for MODE + (on the work PC) its Bloomberg session
-from src import yfin      # free Yahoo Finance pulls — the preferred equity source
+from src import datafeed     # for MODE + (on the work PC) its Bloomberg session
+from src import yfin         # free Yahoo Finance pulls — the preferred equity source
+from src import etfmembers   # free index membership from tracker-ETF holdings files
 
 # Preferred data source for the Equities side. 'yfinance' (default) pulls quotes,
-# history and fundamentals free from Yahoo — Bloomberg then only supplies what
-# Yahoo can't (INDX_MEMBERS index membership) and is the fallback when Yahoo is
-# unreachable. Set BASIS_EQ_SOURCE=bloomberg to restore the old Terminal-first pulls.
+# history and fundamentals free from Yahoo, and membership comes free from the
+# tracker ETFs' published holdings (etfmembers) — so the Equities side normally
+# costs ZERO Bloomberg hits. Bloomberg INDX_MEMBERS is only the last-resort
+# membership fallback. Set BASIS_EQ_SOURCE=bloomberg for the old Terminal-first pulls.
 EQ_SOURCE = os.getenv("BASIS_EQ_SOURCE", "yfinance").strip().lower()
 
 
@@ -421,29 +423,44 @@ def _read_parquet(path: Path):
 
 # ── public seams (mode-branched) ──────────────────────────────────────────────
 def load_universe() -> dict:
-    """{index_key: [{ticker,name,sector,region,index}, ...]} for every index in INDICES."""
-    if datafeed.MODE == "bloomberg":
-        try:
-            uni = _bloomberg_constituents()
-            if uni:
-                _write_cache(uni)
-                return uni
-        except Exception:
-            pass
-    # Off-Terminal: the last written membership (constituents.json rides the repo, so the
-    # real index membership is available at home too); curated mock only when none exists.
+    """{index_key: [{ticker,name,sector,region,index}, ...]} for every index in INDICES.
+    Reads the CACHED membership (fast — this runs on every page hit); an explicit pull
+    (refresh_constituents, via the Pull-equities button / snapshot --equities) is what
+    refreshes it. Only when no cache exists at all does this fetch one (ETF route, a few
+    seconds, once), then fall back to the curated mock."""
     cached = _read_cache()
     if cached:
         return cached
-    return _mock_universe()
+    try:
+        uni = refresh_constituents()
+    except Exception:
+        uni = {}
+    return uni or _mock_universe()
 
 
 def refresh_constituents() -> dict:
-    """Force a live Bloomberg membership pull (work PC) and cache it. Returns the universe."""
-    uni = _bloomberg_constituents()
-    if uni:
+    """Refresh index membership from the FREE tracker-ETF holdings files (etfmembers) —
+    zero Bloomberg hits. Per-index: any index the ETF route can't serve (CAC 40, or a
+    provider outage) keeps its previously cached rows, so a partial fetch never loses an
+    index. Falls back to a live Bloomberg INDX_MEMBERS pull only when the ETF route
+    returns nothing at all AND the Terminal is up. Writes the merged cache."""
+    fresh = {}
+    try:
+        fresh = etfmembers.fetch_all(INDICES)
+    except Exception:
+        fresh = {}
+    if fresh:
+        cached = _read_cache() or {}
+        uni = {k: (fresh.get(k) or cached.get(k) or []) for k in INDICES}
+        uni = {k: v for k, v in uni.items() if v}
         _write_cache(uni)
-    return uni
+        return uni
+    if datafeed.MODE == "bloomberg":
+        uni = _bloomberg_constituents()
+        if uni:
+            _write_cache(uni)
+        return uni
+    return _read_cache() or {}
 
 
 def cached_universe() -> dict:
@@ -548,10 +565,15 @@ def build_snapshot() -> dict:
     mode and cache them to data/equities/ so the Equities pages run all day off the morning snapshot,
     Terminal-closed — the same pattern snapshot.py uses for the futures inputs. Live in bloomberg
     mode, synthetic in mock mode (an offline pipeline test). Never wipes the cache on a dead/empty
-    pull. Returns a status dict."""
-    uni = load_universe()
+    pull. Returns a status dict. An explicit pull REFRESHES membership (ETF holdings
+    route, free) rather than just re-reading the cache."""
+    try:
+        uni = refresh_constituents()
+    except Exception:
+        uni = {}
+    uni = uni or load_universe()
     if not uni or not any(uni.values()):
-        return {"ok": False, "reason": "no constituents pulled (Terminal/API down?)"}
+        return {"ok": False, "reason": "no constituents pulled (network down?)"}
     tickers = sorted({c["ticker"] for rows in uni.values() for c in rows})
     q = get_quotes(tickers)
     if q is None or q.empty or int(pd.to_numeric(q.get("pct"), errors="coerce").notna().sum()) == 0:
@@ -584,9 +606,8 @@ def _read_manifest() -> dict:
 def data_status() -> str:
     """Short 'where the equities data comes from' label for the Home caption."""
     if _use_yf():
-        member = ("live Bloomberg membership" if datafeed.MODE == "bloomberg"
-                  else "cached membership" if _read_cache() else "built-in membership")
-        return f"live Yahoo Finance (free) · {member}"
+        member = ("ETF-holdings membership" if _read_cache() else "built-in membership")
+        return f"live Yahoo Finance (free) · {member} (free)"
     if datafeed.MODE == "bloomberg":
         return "live Bloomberg"
     if datafeed.MODE == "snapshot" and _QUOTES_FILE.exists() and _CONSTITUENTS_FILE.exists():

@@ -27,15 +27,16 @@ _UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 _TIMEOUT = 30
 
 # index key -> (holdings URL, kind, default Bloomberg exchange code or None=per-row)
-_ISHARES_US = "https://www.ishares.com/us/products/{pid}/{slug}/1467271812596.ajax?fileType=csv&fileName={fn}&dataType=fund"
+# iShares US products expose a stable /latest-holdings.csv; UK UCITS products use the
+# per-site ajax id (shared across products). CAC 40 has no fetchable free holdings file
+# yet — it is deliberately ABSENT, so the cached (Bloomberg-era) membership is kept.
 _ISHARES_UK = "https://www.ishares.com/uk/individual/en/products/{pid}/{slug}/1506575576011.ajax?fileType=csv&fileName={fn}&dataType=fund"
 SOURCES = {
-    "S&P 500": (_ISHARES_US.format(pid="239726", slug="ishares-core-sp-500-etf",
-                                   fn="IVV_holdings"), "ishares", "US"),
-    "Russell 2000": (_ISHARES_US.format(pid="239710", slug="ishares-russell-2000-etf",
-                                        fn="IWM_holdings"), "ishares", "US"),
-    "Nasdaq 100": ("https://www.invesco.com/us/financial-products/etfs/holdings/main/holdings/0"
-                   "?audienceType=Investor&action=download&ticker=QQQ", "invesco", "US"),
+    "S&P 500": ("https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf/"
+                "latest-holdings.csv", "ishares", "US"),
+    "Russell 2000": ("https://www.ishares.com/us/products/239710/ishares-russell-2000-etf/"
+                     "latest-holdings.csv", "ishares", "US"),
+    "Nasdaq 100": ("https://api.nasdaq.com/api/quote/list-type/nasdaq100", "nasdaqapi", "US"),
     "Dow Jones 30": ("https://www.ssga.com/us/en/intermediary/etfs/library-content/products/"
                      "fund-data/etfs/us/holdings-daily-us-en-dia.xlsx", "ssga", "US"),
     "FTSE 100": (_ISHARES_UK.format(pid="251795", slug="ishares-ftse-100-ucits-etf-inc-fund",
@@ -44,8 +45,6 @@ SOURCES = {
                                          fn="EUE_holdings"), "ishares", None),
     "DAX 40": (_ISHARES_UK.format(pid="251464", slug="ishares-dax-ucits-etf-de-fund",
                                   fn="EXS1_holdings"), "ishares", "GY"),
-    "CAC 40": ("https://www.amundietf.co.uk/en/professional/products/equity/"
-               "amundi-cac-40-ucits-etf-dist/fr0007052782", "amundi", "FP"),
 }
 
 # holdings-file exchange names -> Bloomberg exchange code (Euro Stoxx spans venues)
@@ -59,7 +58,7 @@ _EXCH_CODE = {
     "bolsa de madrid": "SM", "madrid": "SM",
     "euronext brussels": "BB", "nyse euronext - euronext brussels": "BB",
     "irish stock exchange": "ID", "euronext dublin": "ID",
-    "nasdaq omx helsinki": "FH", "helsinki": "FH",
+    "nasdaq omx helsinki": "FH", "nasdaq omx helsinki ltd.": "FH", "helsinki": "FH",
     "euronext lisbon": "PL", "six swiss exchange": "SW",
 }
 
@@ -71,8 +70,8 @@ def _fetch(url: str) -> bytes:
 
 def _bbg_root(raw: str) -> str:
     """Holdings-file ticker -> Bloomberg root: 'BRK.B'->'BRK/B', 'BT.A'->'BT/A',
-    'BP.'->'BP'. Spaces (rare share-class forms) collapse."""
-    r = str(raw).strip().replace(" ", "")
+    'BP.'->'BP', 'NDA FI'->'NDA' (iShares UCITS files suffix a country code)."""
+    r = str(raw).strip().split()[0] if str(raw).strip() else ""
     return r.replace(".", "/").rstrip("/")
 
 
@@ -102,9 +101,11 @@ def _rows_from_frame(df: pd.DataFrame, cols: dict, index_key: str, region: str,
             continue
         seen.add(tick)
         name = str(r.get(cols["name"], "") or root).strip().title() or root
-        sec = str(r.get(cols["sector"], "") or "").strip() or "Other"
-        if sec.lower() in ("cash and/or derivatives", "cash", "-", "—", "nan"):
-            continue
+        sec = str(r.get(cols["sector"], "") or "").strip()
+        if sec.lower() in ("cash and/or derivatives", "cash"):
+            continue                              # cash/derivative sleeve, not a member
+        if sec.lower() in ("", "-", "—", "nan", "none"):
+            sec = "Other"                         # e.g. SSGA's DIA file has no sectors
         out.append({"ticker": tick, "name": name, "sector": sec,
                     "region": region, "index": index_key})
     return out
@@ -129,16 +130,24 @@ def _parse_ishares(blob: bytes, index_key: str, region: str, default_exch) -> li
     }, index_key, region, default_exch)
 
 
-def _parse_invesco(blob: bytes, index_key: str, region: str, default_exch) -> list:
-    df = pd.read_csv(io.BytesIO(blob), dtype=str, on_bad_lines="skip")
-    df.columns = [c.strip() for c in df.columns]
-    tick = next((c for c in df.columns if c.lower() in ("holding ticker", "holdingsticker", "ticker")), None)
-    name = next((c for c in df.columns if c.lower() == "name"), None)
-    sec = next((c for c in df.columns if c.lower() == "sector"), None)
-    if not tick or not name:
-        return []
-    return _rows_from_frame(df, {"ticker": tick, "name": name, "sector": sec or name},
-                            index_key, region, default_exch)
+def _parse_nasdaq_api(blob: bytes, index_key: str, region: str, default_exch) -> list:
+    """api.nasdaq.com list-type/nasdaq100 → rows. The feed has symbol + company name
+    but NO sector — fetch_all backfills sectors from the sibling index files."""
+    payload = json.loads(blob.decode("utf-8", errors="replace"))
+    rows_in = (((payload.get("data") or {}).get("data") or {}).get("rows")) or []
+    out, seen = [], set()
+    for r in rows_in:
+        raw = str(r.get("symbol", "") or "").strip()
+        if not raw:
+            continue
+        tick = f"{_bbg_root(raw)} {default_exch} Equity"
+        if tick in seen:
+            continue
+        seen.add(tick)
+        nm = str(r.get("companyName", "") or raw).strip().title() or raw
+        out.append({"ticker": tick, "name": nm, "sector": "Other",
+                    "region": region, "index": index_key})
+    return out
 
 
 def _parse_ssga(blob: bytes, index_key: str, region: str, default_exch) -> list:
@@ -157,7 +166,7 @@ def _parse_ssga(blob: bytes, index_key: str, region: str, default_exch) -> list:
     }, index_key, region, default_exch)
 
 
-_PARSERS = {"ishares": _parse_ishares, "invesco": _parse_invesco, "ssga": _parse_ssga}
+_PARSERS = {"ishares": _parse_ishares, "nasdaqapi": _parse_nasdaq_api, "ssga": _parse_ssga}
 
 
 def fetch_index(index_key: str, region: str) -> list:
@@ -180,10 +189,18 @@ def fetch_index(index_key: str, region: str) -> list:
 def fetch_all(indices: dict) -> dict:
     """{index_key: rows} for every index that fetched + parsed cleanly; failed or
     unsupported indices are simply ABSENT (caller keeps its previous membership).
-    `indices` is equities.INDICES ({key: (display, bbg_ticker, region)})."""
+    `indices` is equities.INDICES ({key: (display, bbg_ticker, region)}). Sectors the
+    source file doesn't carry (SSGA's DIA, the Nasdaq API) are backfilled from the
+    sibling files by ticker root — most large caps also sit in the S&P 500 file."""
     out = {}
     for key, (_disp, _idx, region) in indices.items():
         rows = fetch_index(key, region)
         if rows:
             out[key] = rows
+    sec_of = {r["ticker"].split()[0]: r["sector"]
+              for rows in out.values() for r in rows if r["sector"] != "Other"}
+    for rows in out.values():
+        for r in rows:
+            if r["sector"] == "Other":
+                r["sector"] = sec_of.get(r["ticker"].split()[0], "Other")
     return out
