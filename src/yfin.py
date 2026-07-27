@@ -100,16 +100,32 @@ def _symbol_map(tickers) -> dict:
     return out
 
 
+_CHUNK = 250        # symbols per yf.download — one giant batch (2000+) quietly returns
+                    # near-nothing; ~250-symbol chunks download reliably
+
+
 def _close_frame(symbols: list, **kwargs) -> pd.DataFrame:
-    """Batched yf.download -> date x yahoo-symbol close frame (tz-naive index)."""
+    """Chunked yf.download -> date x yahoo-symbol close frame (tz-naive index). A failed
+    chunk contributes nothing rather than killing the whole pull."""
     import yfinance as yf
-    px = yf.download(symbols, progress=False, auto_adjust=False, threads=True, **kwargs)
-    if px is None or px.empty:
+    frames = []
+    for i in range(0, len(symbols), _CHUNK):
+        chunk = symbols[i:i + _CHUNK]
+        try:
+            px = yf.download(chunk, progress=False, auto_adjust=False, threads=True, **kwargs)
+        except Exception:
+            continue
+        if px is None or px.empty:
+            continue
+        if isinstance(px.columns, pd.MultiIndex):
+            close = px["Close"]
+        else:                                      # single symbol: flat columns
+            close = px[["Close"]].rename(columns={"Close": chunk[0]})
+        frames.append(close)
+    if not frames:
         return pd.DataFrame()
-    if isinstance(px.columns, pd.MultiIndex):
-        close = px["Close"]
-    else:                                          # single symbol: flat columns
-        close = px[["Close"]].rename(columns={"Close": symbols[0]})
+    close = pd.concat(frames, axis=1)
+    close = close.loc[:, ~close.columns.duplicated()]
     close.index = pd.to_datetime(close.index)
     if getattr(close.index, "tz", None) is not None:
         close.index = close.index.tz_localize(None)

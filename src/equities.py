@@ -478,6 +478,14 @@ def get_quotes(tickers) -> pd.DataFrame:
     if not tickers:
         return pd.DataFrame(columns=["last", "pct"])
     if _use_yf():
+        # TODAY'S snapshot first (see get_history) — instant read of the morning pull's
+        # full-universe quotes; live Yahoo only when there's no same-day snapshot.
+        if _file_is_todays(_QUOTES_FILE):
+            q = _read_parquet(_QUOTES_FILE)
+            if q is not None and not q.empty:
+                cov = q.reindex(tickers)
+                if int(cov["pct"].notna().sum()) >= max(3, len(tickers) // 4):
+                    return cov
         try:
             q = yfin.get_quotes(tickers)
             if q["last"].notna().any():
@@ -496,12 +504,30 @@ def get_quotes(tickers) -> pd.DataFrame:
     return _mock_quotes(tickers)
 
 
+def _file_is_todays(path: Path) -> bool:
+    """True when `path` was written today (machine-local) — i.e. this morning's pull."""
+    try:
+        import datetime as _dt
+        return _dt.date.fromtimestamp(path.stat().st_mtime) == _dt.date.today()
+    except Exception:
+        return False
+
+
 def get_history(tickers) -> pd.DataFrame:
     """DataFrame date x ticker (PX_LAST) — used for the 21-day realized vol behind σ."""
     tickers = list(dict.fromkeys(tickers))
     if not tickers:
         return pd.DataFrame()
     if _use_yf():
+        # TODAY'S snapshot first: the equities pull caches history for the whole universe,
+        # so page renders are an instant parquet read — a live ~860-name Yahoo pull here
+        # took ~100s and froze the Home page every time the cache lapsed.
+        if _file_is_todays(_HISTORY_FILE):
+            h = _read_parquet(_HISTORY_FILE)
+            if h is not None and not h.empty:
+                cov = h.reindex(columns=tickers)
+                if int(cov.notna().any().sum()) >= max(3, len(tickers) // 4):
+                    return cov
         try:
             h = yfin.get_history(tickers, sessions=31)   # enough for the trailing-21 σ
             if h is not None and not h.empty:
@@ -575,15 +601,27 @@ def build_snapshot() -> dict:
     if not uni or not any(uni.values()):
         return {"ok": False, "reason": "no constituents pulled (network down?)"}
     tickers = sorted({c["ticker"] for rows in uni.values() for c in rows})
-    q = get_quotes(tickers)
+    # The PULL goes LIVE explicitly — get_quotes/get_history prefer the same-day snapshot
+    # (the page fast path), which is exactly what a pull must not read.
+    if _use_yf():
+        q = yfin.get_quotes(tickers)
+        h = yfin.get_history(tickers, sessions=31)
+    else:
+        q = get_quotes(tickers)
+        h = get_history(tickers)
     if q is None or q.empty or int(pd.to_numeric(q.get("pct"), errors="coerce").notna().sum()) == 0:
         return {"ok": False, "reason": "no overnight quotes pulled"}
-    h = get_history(tickers)
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     _write_cache(uni)                                            # constituents.json
     q.rename_axis("ticker").to_parquet(_QUOTES_FILE)            # ticker-indexed [last, pct]
     if h is not None and not h.empty:
-        h.rename_axis("date").to_parquet(_HISTORY_FILE)        # date x ticker
+        # never replace a healthy history with a gutted one (a bad Yahoo batch once wrote
+        # a 34-of-2673-column file, silently freezing the pages onto slow live pulls)
+        new_cov = int(h.notna().any().sum())
+        old = _read_parquet(_HISTORY_FILE)
+        old_cov = int(old.notna().any().sum()) if old is not None else 0
+        if new_cov >= max(10, old_cov // 2):
+            h.rename_axis("date").to_parquet(_HISTORY_FILE)    # date x ticker
     manifest = {
         "created": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
         "source": "yfinance" if _use_yf() else datafeed.MODE,
