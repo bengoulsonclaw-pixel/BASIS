@@ -980,8 +980,8 @@ def _world_clocks() -> None:
         ".city{display:flex;align-items:center;gap:5px;font-size:9.5px;"
         "letter-spacing:.14em;color:" + faint + "}"
         ".city .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
-        ".wi{display:flex;flex:0 0 auto}.wi svg{width:12px;height:12px}"
-        ".tmp{margin-left:auto;flex:0 0 auto;letter-spacing:0;"
+        ".wi{display:flex;flex:0 0 auto}.wi svg{width:17px;height:17px}"
+        ".tmp{margin-left:auto;flex:0 0 auto;letter-spacing:0;font-size:11.5px;"
         "font-variant-numeric:tabular-nums;color:" + faint + "}"
         ".time{font-size:17px;font-weight:500;color:" + pal["text"] +
         ";font-variant-numeric:tabular-nums}"
@@ -990,7 +990,7 @@ def _world_clocks() -> None:
         "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
         "hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());});}"
         "t();setInterval(t,1000);</script>")
-    components.html(html, height=60)
+    components.html(html, height=64)
 
 
 
