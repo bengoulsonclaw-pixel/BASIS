@@ -87,7 +87,7 @@
       <tbody>
         {% for r in rows %}
         <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
-          <td class="market">{{ r.market }} <span style="color:#999">· {{ r.asset }}</span></td>
+          <td class="market">{{ r.market }}{% if r.div %} <span title="our curve vs vendor 1M: {{ r.div }} vols" style="color:#8A94A6;font-weight:700">&dagger;</span>{% endif %} <span style="color:#999">· {{ r.asset }}</span></td>
           <td>{{ r.ticker }}</td>
           <td class="center sig">{{ r.signal }}{% if r.direction > 0 %} &#9650;{% elif r.direction < 0 %} &#9660;{% endif %}</td>
           <td class="center">{{ r.iv_1m }}{% if r.iv_1m_sd %}<span class="sd">(&plusmn;{{ r.iv_1m_sd }})</span>{% endif %}</td>
@@ -101,6 +101,11 @@
         {% endfor %}
       </tbody>
     </table>
+    {% if own_div %}
+    <p class="histlegend">&dagger; our curve prints 3+ vols away from the vendor&rsquo;s 1M &mdash;
+      {% for m, g in own_div %}<b>{{ m }}</b> {{ g }}{% if not loop.last %} &nbsp;&middot;&nbsp; {% endif %}{% endfor %}.
+      The table shows our numbers, taken from listed settlements.</p>
+    {% endif %}
     {% endif %}
 
     {% if history %}
@@ -138,10 +143,15 @@
 
       <div class="fine">
         <b>Sources &amp; timing.</b> ATM implied vols at constant <b>1M / 3M / 6M / 12M</b> maturities are
-        taken from Bloomberg's listed-option surfaces (FX: Bloomberg OTC tenor vols). The realized
-        comparisons behind VRP-by-tenor are our own calculation from Bloomberg settlement prices over the
-        matched windows (21 / 63 / 126 / 252 days).{% if src.settle %} Figures are as of the
-        <b>{{ src.settle }}</b> close{% if src.pulled %}, pulled from Bloomberg on {{ src.pulled }}{% endif %}.{% endif %}
+        <b>our own construction</b>{% if n_own %} for {{ n_own }} of the {{ n_markets }} markets{% endif %}:
+        the same settlement-built curve behind the Volatility Report (ATM call/put settlements of every
+        listed expiry, Black-76-inverted, fitted per product), read at each maturity and emitted only where
+        the listed expiries genuinely reach it &mdash; longer tenors fall back to the vendor surface where
+        they don't, as do FX (OTC tenor vols) and equity cash indices. &dagger; marks markets where our 1M
+        and the vendor's disagree by 3+ vols. The realized comparisons behind VRP-by-tenor are our own
+        calculation from settlement prices over the matched windows (21 / 63 / 126 / 252
+        days).{% if src.settle %} Figures are as of the <b>{{ src.settle }}</b> close{% if src.pulled %},
+        pulled {{ src.pulled }}{% endif %}.{% endif %}
       </div>
 
       <div class="fine">

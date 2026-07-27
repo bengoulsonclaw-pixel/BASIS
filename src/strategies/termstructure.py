@@ -7,6 +7,13 @@ calendar-spread opportunity (fade the slope). We also carry each tenor's
 implied-vs-realized premium (1M↔21d, 3M↔63d, 6M↔126d, 12M↔252d). Bonds are kept
 (ATM curve is fine); STIRs and non-US indices are excluded as elsewhere. The visual
 client report is src/termreport.py.
+
+Since 2026-07-27 the tenors are OUR OWN curve wherever it exists (_own_term_overlay:
+src/owncurve.py evaluated at 30/91/182/365d off the same settlement-built fit as the
+vol book, coverage-gated per tenor), with the vendor surface as per-date fallback —
+built after the vendor's tenor family started publishing hours late. The slope z's
+history is effectively vendor until own_term_history deepens (accrues daily; no
+backfill yet). volbt deliberately stays on vendor frames for backtest depth.
 """
 from __future__ import annotations
 
@@ -31,7 +38,53 @@ DETAIL_COLUMNS = (["market", "ticker", "asset", "region"]
                   + ["slope", "ratio", "z", "pctl", "signal", "direction"]
                   + [f"rv_{l.lower()}" for l in _LABS]
                   + [f"vrp_{l.lower()}" for l in _LABS]
-                  + [f"iv_sd_{l.lower()}" for l in _LABS] + ["px_dec"])   # daily 1σ move + native dp
+                  + [f"iv_sd_{l.lower()}" for l in _LABS] + ["px_dec"]   # daily 1σ move + native dp
+                  + ["src", "vs_bbg"])                     # tenor source (own/bbg/otc) + 1M gap
+
+OWN_TERM_FILE = Path(__file__).resolve().parents[2] / "data" / "snapshot" / "own_term_history.parquet"
+
+
+def _own_term_overlay(ts: dict):
+    """Run the term book on OUR curve where it exists. Overlay the settle-dated
+    per-tenor values from src/owncurve.py (own_term_history: date/ticker/tenor/vol)
+    onto the vendor tenor frames — own-first, vendor-fallback, per date. Own term
+    history accrues from 2026-07-27 (no per-tenor backfill yet), so the slope z's
+    252-day window stays effectively vendor-based today and converges to ours as the
+    file deepens — the same splice semantics the 30d vol book launched with. Returns
+    the blended frames + per-ticker {last own date, vendor gap per tenor} metadata."""
+    meta: dict = {}
+    try:
+        h = pd.read_parquet(OWN_TERM_FILE)
+    except Exception:
+        return ts, meta
+    if h.empty:
+        return ts, meta
+    h = h.assign(date=pd.to_datetime(h["date"]))
+    out = {}
+    for lab, vend in ts.items():
+        sub = h[h["tenor"] == lab]
+        if sub.empty:
+            out[lab] = vend
+            continue
+        piv = sub.pivot_table(index="date", columns="ticker", values="vol", aggfunc="last")
+        f2 = vend.reindex(vend.index.union(piv.index)).sort_index()
+        for t in piv.columns:
+            s = piv[t].dropna()
+            if s.empty:
+                continue
+            if t not in f2.columns:
+                f2[t] = np.nan
+            gap = float("nan")
+            if t in vend.columns:
+                v_same = vend[t].get(s.index[-1])
+                if pd.notna(v_same):
+                    gap = float(s.iloc[-1] - v_same)
+            f2.loc[s.index, t] = s
+            m = meta.setdefault(t, {"last": s.index[-1], "gaps": {}})
+            m["last"] = max(m["last"], s.index[-1])
+            m["gaps"][lab] = gap
+        out[lab] = f2
+    return out, meta
 
 
 def _persist_term_history(ts, px, window: int = 252):
@@ -62,6 +115,7 @@ def compute_termstructure_table() -> pd.DataFrame:
     z-score/percentile, and each tenor's implied-vs-realized premium. Sorted by |z|."""
     tickers = list(INSTRUMENTS)
     ts = get_term_structure(tickers)                       # {label: date×ticker df}
+    ts, own_meta = _own_term_overlay(ts)                   # own-first, vendor-fallback
     px = get_history(tickers)                               # underlying settlement — SD + realized
     try:
         _persist_term_history(ts, px)                      # 1y slope + underlying for the report
@@ -71,8 +125,8 @@ def compute_termstructure_table() -> pd.DataFrame:
     rvw = {win: logret.rolling(win).std() * np.sqrt(252) * 100.0
            for _, _, _, win in TENORS}                     # realized at each matched window
 
-    stale = stale_iv_reasons(ts["1M"])               # gate on the 1M ATM leg
-    recs, skipped_stale = [], []
+    stale = stale_iv_reasons(ts["1M"])               # gate on the (overlaid) 1M ATM leg
+    recs, skipped_stale, own_stale = [], [], []
     for t in tickers:
         if _excluded(t):
             continue
@@ -107,12 +161,28 @@ def compute_termstructure_table() -> pd.DataFrame:
         S = float(ps.iloc[-1]) if not ps.empty else float("nan")
         dec = price_decimals(ps, asset(t)) if not ps.empty else 1
 
+        # which construction produced today's tenor values (mirrors the vol book):
+        # ours where the own curve covers today's 1M leg, OTC for FX, vendor else
+        meta = own_meta.get(t)
+        one_m = ts["1M"][t].dropna()
+        if asset(t) == "FX":
+            src = "otc"
+        elif meta is not None and len(one_m) and meta["last"] >= one_m.index[-1]:
+            src = "own"
+        else:
+            src = "bbg"
+            if meta is not None:
+                own_stale.append(name(t))
+        vs_bbg = meta["gaps"].get("1M", float("nan")) if (src == "own" and meta) else float("nan")
+
         rec = {"market": name(t), "ticker": t, "asset": asset(t), "region": region(t),
                "slope": round(slope_now, 2),
                "ratio": round(ratio, 2) if np.isfinite(ratio) else np.nan,
                "z": round(z, 2) if np.isfinite(z) else np.nan,
                "pctl": round(pctl) if np.isfinite(pctl) else np.nan,
-               "signal": signal, "direction": direction, "px_dec": dec}
+               "signal": signal, "direction": direction, "px_dec": dec,
+               "src": src,
+               "vs_bbg": round(vs_bbg, 1) if np.isfinite(vs_bbg) else np.nan}
         for l in _LABS:
             rec[f"iv_{l.lower()}"] = round(iv[l], 1)
             rec[f"iv_sd_{l.lower()}"] = round(S * iv[l] / 100.0 / _SQRT252, dec) if np.isfinite(S) else np.nan
@@ -121,6 +191,7 @@ def compute_termstructure_table() -> pd.DataFrame:
         recs.append(rec)
 
     warn_stale("Vol Term Structure", [f"{name(t)} ({stale[t]})" for t in skipped_stale])
+    warn_stale("Own term curve", [f"{m} (fell back to vendor tenors)" for m in own_stale])
     df = pd.DataFrame(recs, columns=DETAIL_COLUMNS)
     if not df.empty:
         order = df["z"].abs().sort_values(ascending=False, na_position="last").index

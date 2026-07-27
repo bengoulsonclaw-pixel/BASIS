@@ -364,6 +364,9 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
 
     px = get_history(tickers, start=start_hist, end=end_ts)
     iv1m = get_implied_vol_history(tickers, start=start_hist, end=end_ts).reindex(columns=tickers)
+    # Deliberately VENDOR term frames (not the own-curve overlay the Term strategy
+    # uses): backtests need a deep, uniform tenor history and own_term_history only
+    # accrues from 2026-07-27 — revisit once it's a year deep or backfilled.
     term = get_term_structure(tickers, start=start_hist, end=end_ts)
     skew = get_skew_components(tickers, start=start_hist, end=end_ts)
     for t in tickers:

@@ -268,6 +268,13 @@ def product_pillars(generic: str, log=print):
     return sorted(pillars)
 
 
+# Vendor-matching term tenors, evaluated off the SAME fitted curve as ours30/ours90.
+# A tenor is only emitted when the longest pillar covers most of it — sig(365) read
+# off 140-day pillars is extrapolation, not a curve value, and stays NaN.
+OWN_TENORS = [("1M", 30), ("3M", 91), ("6M", 182), ("12M", 365)]
+TENOR_COVERAGE = 0.75
+
+
 def build_book(tickers=None, log=print) -> pd.DataFrame:
     """Our fitted 30d + 90d ATM vol for every listed-futures product; long frame."""
     from .universe import INSTRUMENTS, asset, name
@@ -299,14 +306,27 @@ def build_book(tickers=None, log=print) -> pd.DataFrame:
         method = "fit" if sig else "interp"
         ours30 = sig(30.0) if sig else interp_variance(trip, 30.0)
         ours90 = sig(90.0) if sig else interp_variance(trip, 90.0)
+        # term tenors off the same curve, gated on actual pillar coverage
+        max_d = trip[-1][0]
+        tenors = {}
+        for lab, days in OWN_TENORS:
+            v = None
+            if max_d >= TENOR_COVERAGE * days:
+                v = sig(float(days)) if sig else interp_variance(trip, float(days))
+            tenors[lab] = round(v, 2) if v is not None else np.nan
         detail = "; ".join(
             f"{r}@{d}d {v:.1f} (oi {int(w) if math.isfinite(w) else 0})" for d, v, w, r in pil)
+        tstr = " ".join(f"{lab} {tenors[lab]:.1f}" for lab, _ in OWN_TENORS
+                        if pd.notna(tenors[lab]) and lab not in ("1M",))
         log(f"  {name(t):24s} {len(pil)} pillars [{method}]  30d {ours30:6.2f}  90d {ours90:6.2f}"
+            + (f"  | {tstr}" if tstr else "")
             + (f"  | BBG30 {bbg30[t]:6.2f}  diff {ours30 - bbg30[t]:+.2f}" if t in bbg30 else ""))
-        recs.append({"ticker": t, "market": name(t), "n_pillars": len(pil), "method": method,
-                     "ours30": round(ours30, 2), "ours90": round(ours90, 2),
-                     "bbg30": round(bbg30[t], 2) if t in bbg30 else np.nan,
-                     "pillars": detail})
+        rec = {"ticker": t, "market": name(t), "n_pillars": len(pil), "method": method,
+               "ours30": round(ours30, 2), "ours90": round(ours90, 2),
+               "bbg30": round(bbg30[t], 2) if t in bbg30 else np.nan,
+               "pillars": detail}
+        rec.update({f"own_{lab.lower()}": tenors[lab] for lab, _ in OWN_TENORS})
+        recs.append(rec)
     df = pd.DataFrame(recs)
     if len(df):
         OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -539,10 +559,16 @@ def _settle_date() -> pd.Timestamp:
         return pd.Timestamp.today().normalize()
 
 
+TERM_HISTORY_FILE = ROOT / "data" / "snapshot" / "own_term_history.parquet"
+
+
 def append_today(log=print) -> None:
     """Daily accumulation (called from the snapshot pull): rebuild the book and
     upsert the settle-dated ours30/ours90/bbg30 per product into the history — the
-    report's implied source (spliced with the surface's history) + validation trail."""
+    report's implied source (spliced with the surface's history) + validation trail.
+    The per-tenor term values accrue the same way into own_term_history (long:
+    date/ticker/tenor/vol) — the term book's own leg. History starts 2026-07-27;
+    a per-tenor settlement backfill is a separate Bloomberg-budget decision."""
     df = build_book(log=log)
     if df.empty:
         return
@@ -555,3 +581,18 @@ def append_today(log=print) -> None:
     except Exception:
         pass
     rows.sort_values(["ticker", "date"]).to_parquet(HISTORY_FILE, index=False)
+
+    tcols = [c for c in df.columns if c.startswith("own_")]
+    if not tcols:
+        return
+    long = df.melt(id_vars=["ticker"], value_vars=tcols,
+                   var_name="tenor", value_name="vol").dropna(subset=["vol"])
+    long["tenor"] = long["tenor"].str.replace("own_", "", regex=False).str.upper()
+    long["date"] = stamp
+    try:
+        old = pd.read_parquet(TERM_HISTORY_FILE)
+        old["date"] = pd.to_datetime(old["date"])
+        long = pd.concat([old[old["date"] != stamp], long], ignore_index=True)
+    except Exception:
+        pass
+    long.sort_values(["ticker", "tenor", "date"]).to_parquet(TERM_HISTORY_FILE, index=False)

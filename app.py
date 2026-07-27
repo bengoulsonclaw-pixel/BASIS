@@ -738,9 +738,13 @@ def _term_charts(threshold):
     cc = brand.chart_colors()
     color = alt.Color("flag:N", scale=alt.Scale(domain=["Steep — front cheap", "Inverted — front rich", "Neutral"],
                       range=[cc["long"], cc["short"], cc["muted"]]), legend=alt.Legend(title=None, orient="top"))
+    _srclbl = {"own": "our curve", "bbg": "vendor surface", "otc": "OTC tenor vols"}
+    d["src_lbl"] = (d["src"].map(_srclbl).fillna("vendor surface")
+                    if "src" in d.columns else "vendor surface")
     tip = [alt.Tooltip("market:N", title="Market"), alt.Tooltip("iv_1m_lbl:N", title="1M"),
            alt.Tooltip("iv_3m_lbl:N", title="3M"), alt.Tooltip("slope:Q", title="3M−1M", format="+.1f"),
-           alt.Tooltip("z:Q", title="z (1y)", format="+.2f")]
+           alt.Tooltip("z:Q", title="z (1y)", format="+.2f"),
+           alt.Tooltip("src_lbl:N", title="Tenor source")]
     hi = float(max(d["iv_1m"].max(), d["iv_3m"].max())) * 1.05
     fair = alt.Chart(pd.DataFrame({"v": [0, hi]})).mark_line(strokeDash=[4, 3], color=cc["muted"], opacity=0.7).encode(x="v:Q", y="v:Q")
     pts = alt.Chart(d).mark_circle(stroke="white", strokeWidth=0.5).encode(
@@ -752,6 +756,12 @@ def _term_charts(threshold):
     brand.show_chart((fair + pts).properties(height=400))
     st.markdown(f"**All markets ranked by 3M−1M slope z-score** &nbsp;·&nbsp; flagged in colour; dashed = trigger (±{thr:g}).")
     _diverging_bars(d, color, thr, "3M − 1M slope · z-score vs 1-yr")
+    st.caption("Tenor vols are **our own curve** (the same settlement-built fit as the Volatility page, "
+               "read at 1M/3M/6M/12M and emitted only where the listed expiries genuinely reach the "
+               "tenor) — the vendor surface backstops longer tenors, FX (OTC tenor vols), cash indices "
+               "and any market our build misses on the day (hover a point for the source). The slope "
+               "z-score's one-year history is still largely the vendor's while our own term history "
+               "accrues (started 27 Jul 2026).")
 
     fl = d[d["flag"] != "Neutral"].reindex(d.loc[d["flag"] != "Neutral", "z"].abs().sort_values(ascending=False).index)
     st.markdown(f"#### Flagged — {len(fl)} opportunit{'y' if len(fl) == 1 else 'ies'} at |z| ≥ {thr:g}")

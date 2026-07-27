@@ -257,7 +257,12 @@ def render_html(df: pd.DataFrame, asof: str, threshold: float = Z_FLAG, hist: pd
         "z": f"{r.z:+.2f}" if pd.notna(r.z) else "—",
         "pctl": f"{int(r.pctl)}" if pd.notna(r.pctl) else "—",
         "signal": r.signal, "direction": int(r.direction),
+        "div": (f"{float(r.vs_bbg):+.1f}"
+                if getattr(r, "src", "") == "own" and pd.notna(getattr(r, "vs_bbg", float("nan")))
+                and abs(float(r.vs_bbg)) >= 3.0 else ""),
     } for r in flagged(df).itertuples(index=False)]
+    own_div = [(r["market"], r["div"]) for r in rows if r["div"]]
+    n_own = int((df.get("src", pd.Series(dtype=str)) == "own").sum())
     return env.get_template("termreport.html").render(
         asof=pretty_date(asof), src=snapshot_stamp(),
         synopsis=build_synopsis(df),
@@ -266,6 +271,7 @@ def render_html(df: pd.DataFrame, asof: str, threshold: float = Z_FLAG, hist: pd
         bars=bar_png(df, value_col="slope", value_fmt="{:+.1f}", n=None,
                      xlabel="3M − 1M slope,  z-score vs 1-yr   (label = slope, vol pts)"),
         curves=curves_png(df), vrp=vrp_png(df), rows=rows,
+        own_div=own_div, n_own=n_own,
         n_markets=len(df), zflag=f"{threshold:g}",
         n_steep=int((df["direction"] > 0).sum()), n_inv=int((df["direction"] < 0).sum()),
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
