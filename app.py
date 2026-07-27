@@ -948,17 +948,27 @@ def _load_city_photos(key):
 
 
 def _world_clocks() -> None:
-    """World-clock rail: flat terminal cells — mono city label over a ticking HH:MM:SS.
-    (The photographic weather cards retired with the 2026-07 terminal redesign; the
-    weather/photo loaders above are kept for the Morning Coffee report.)"""
+    """World-clock rail: flat terminal cells — mono city label with a small weather glyph
+    beside it and the current °C right-aligned, over a ticking HH:MM:SS. Weather is
+    Open-Meteo via _load_weather (free, cached 30 min — zero Bloomberg hits); on any
+    fetch failure the rail renders without icons/temps rather than blocking."""
     import streamlit.components.v1 as components
     pal = brand.palette()
     faint = pal.get("faint", pal["text_dim"])
     mono = "'IBM Plex Mono',Consolas,'SF Mono',Menlo,monospace"
+    try:
+        wx = _load_weather()
+    except Exception:
+        wx = []
+    wx = (wx + [{"temp": None, "icon": ""}] * len(worldclock.CITIES))[:len(worldclock.CITIES)]
     cells = "".join(
-        '<div class="c"><div class="city">' + c["name"].upper() + '</div>'
-        '<div class="time" data-tz="' + c["tz"] + '">--:--:--</div></div>'
-        for c in worldclock.CITIES)
+        '<div class="c"><div class="city">'
+        '<span class="wi">' + (w.get("icon") or "") + '</span>'
+        '<span class="nm">' + c["name"].upper() + '</span>'
+        + ('<span class="tmp">' + str(w["temp"]) + '&#176;</span>'
+           if w.get("temp") is not None else "")
+        + '</div><div class="time" data-tz="' + c["tz"] + '">--:--:--</div></div>'
+        for c, w in zip(worldclock.CITIES, wx))
     html = (
         "<meta charset='utf-8'><style>"
         "*{box-sizing:border-box;margin:0;padding:0}"
@@ -967,8 +977,12 @@ def _world_clocks() -> None:
         "background:" + pal["surface2"] + ";border:1px solid " + pal["border"] + "}"
         ".c{padding:7px 12px;min-width:0;border-right:1px solid " + pal["border"] + "}"
         ".c:last-child{border-right:none}"
-        ".city{font-size:9.5px;letter-spacing:.14em;color:" + faint + ";white-space:nowrap;"
-        "overflow:hidden;text-overflow:ellipsis}"
+        ".city{display:flex;align-items:center;gap:5px;font-size:9.5px;"
+        "letter-spacing:.14em;color:" + faint + "}"
+        ".city .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+        ".wi{display:flex;flex:0 0 auto}.wi svg{width:12px;height:12px}"
+        ".tmp{margin-left:auto;flex:0 0 auto;letter-spacing:0;"
+        "font-variant-numeric:tabular-nums;color:" + faint + "}"
         ".time{font-size:17px;font-weight:500;color:" + pal["text"] +
         ";font-variant-numeric:tabular-nums}"
         "</style><div class='row'>" + cells + "</div>"
@@ -976,7 +990,7 @@ def _world_clocks() -> None:
         "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
         "hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());});}"
         "t();setInterval(t,1000);</script>")
-    components.html(html, height=56)
+    components.html(html, height=60)
 
 
 
