@@ -56,10 +56,10 @@ DARK = dict(
     btn="transparent", btn_border="#333B49", btn_hover="#1C212A",
     btn_gold="rgba(245,197,24,.10)", btn_gold_hover="rgba(245,197,24,.16)",
     label_ring="rgba(245,197,24,.34)",
-    text="#E7EAEE", text_dim="#98A1AD", caption="#98A1AD", faint="#626C7A",
+    text="#E7EAEE", text_dim="#C3CAD3", caption="#C3CAD3", faint="#9AA4B0",
     sidebar="#0A0C10",
     gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.10)",
-    bracket="#626C7A", tagline="#626C7A",
+    bracket="#8A94A1", tagline="#8A94A1",
     word=(("0", "#EEF0F3"), ("0.46", "#C0C5CC"), ("0.70", "#CBA53C"), ("1", "#F4CC3A")),
 )
 LIGHT = dict(
@@ -69,10 +69,10 @@ LIGHT = dict(
     btn="transparent", btn_border="#BEC5CE", btn_hover="#F4F6F9",
     btn_gold="rgba(245,197,24,.16)", btn_gold_hover="rgba(245,197,24,.24)",
     label_ring="rgba(168,122,12,.38)",
-    text="#12161B", text_dim="#57606B", caption="#57606B", faint="#7D8792",
+    text="#12161B", text_dim="#3F4854", caption="#3F4854", faint="#5B6570",
     sidebar="#E4E8EC",
     gold="#A87A0C", gold_deep="#8A6208", gold_soft="rgba(245,197,24,.16)",
-    bracket="#7D8792", tagline="#7D8792",
+    bracket="#6A737E", tagline="#6A737E",
     word=(("0", "#12161B"), ("0.58", "#12161B"), ("0.73", "#8A6208"), ("1", "#A87A0C")),
 )
 PALETTES = {"dark": DARK, "light": LIGHT}
