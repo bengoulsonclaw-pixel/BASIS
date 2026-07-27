@@ -837,10 +837,18 @@ def _render_group_tabs(active_page: str) -> None:
                    type="primary" if dest == active_page else "secondary")
 
 
-def _data_badge(snap) -> None:
+def _data_badge(snap, side: str = "FICC") -> None:
     """Compact, always-visible data-source status for the sidebar. Healthy states render as
     a subtle caption (same voice as "Signals as of" below); only problem states — demo /
-    missing data — keep the loud warning box."""
+    missing data — keep the loud warning box. On the Equities desk the badge shows the
+    EQUITIES pull stamp (manifest `equities_pulled`), not the FICC snapshot's."""
+    if side == "Equities":
+        eqp = (snap or {}).get("equities_pulled", "")
+        if eqp:
+            st.caption(f"📦 Equities: pulled **{_to_et(eqp)}**")
+        else:
+            st.caption("📦 Equities: no pull recorded yet — pages run on the last cached data")
+        return
     if MODE == "bloomberg":
         st.caption("🟢 Live Bloomberg")
     elif MODE == "snapshot" and snap and snap.get("source") == "bloomberg":
@@ -5983,7 +5991,7 @@ with st.sidebar:
         _sc2.button("Equities", key="side_equities", use_container_width=True,
                     type="primary" if _side == "Equities" else "secondary", on_click=_set_side, args=("Equities",))
     snap = _load_snap()
-    _data_badge(snap)
+    _data_badge(snap, _side)
     df, meta = load_signals()
     try:        # desk scope row: markets on / live signals (handoff: under the segments)
         _n_mkts = len(universe.enabled_tickers())
