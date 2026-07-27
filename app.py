@@ -1003,7 +1003,8 @@ def _world_clocks() -> None:
         # sidebar's live width into --basis-topbar-left on the parent document
         "function sb(){try{var d=window.parent.document;"
         "var s=d.querySelector('section[data-testid=\"stSidebar\"]');"
-        "var w=s?Math.round(s.getBoundingClientRect().width):0;"
+        # collapsed sidebar: leave 48px so the expand arrow stays visible/clickable
+        "var w=s?Math.round(s.getBoundingClientRect().width):48;"
         "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');}catch(e){}}"
         "sb();setInterval(sb,500);</script>")
     components.html(html, height=64)
