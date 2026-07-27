@@ -183,7 +183,31 @@ def run(include_equities: bool = False) -> dict:
     """Pull the DAILY FICC inputs (LIVE if DATAFEED_MODE=bloomberg) and cache to data/snapshot/.
     Option OI chains are NOT pulled here — they're a separate weekly job (run_oi / --oi).
     The Equities side has its OWN pull (run_equities / --equities); pass include_equities=True
-    (CLI --with-equities) to chain both in one run."""
+    (CLI --with-equities) to chain both in one run.
+    Concurrency-locked: a second run started while one is in flight exits immediately
+    (two pulls racing on the same files double-spends Bloomberg and risks bad writes)."""
+    lock = SNAP / ".pull.lock"
+    try:
+        if lock.exists():
+            age_min = (pd.Timestamp.now() - pd.Timestamp(lock.stat().st_mtime, unit="s")).total_seconds() / 60
+            if age_min < 45:                      # a live pull; stale locks self-expire
+                print(f"Another snapshot pull is already running (lock is {age_min:.0f} min old) "
+                      "— this one is exiting. Wait for it to finish.")
+                return _existing_manifest()
+        SNAP.mkdir(parents=True, exist_ok=True)
+        lock.write_text(pd.Timestamp.now().isoformat())
+    except Exception:
+        pass
+    try:
+        return _run_locked(include_equities)
+    finally:
+        try:
+            lock.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _run_locked(include_equities: bool = False) -> dict:
     tickers = list(INSTRUMENTS)
     # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit): the FICC
     # pull touches ~20 fields per contract across prices/yields/vols/skew/term/put-call/live.

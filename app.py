@@ -1563,8 +1563,9 @@ def render_home() -> None:
     # with the old row faded beneath it for the whole computation.
     if c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
                  help="Pulls every FICC input the reports need into data/snapshot/ and recomputes "
-                      "all signals. Needs the Terminal logged in (~1–3 min). Equities have "
-                      "their own pull on the Equities home page."):
+                      "all signals. Needs the Terminal logged in. Takes ~10–20 min — the data "
+                      "legs finish in ~1 min; the own-vol-curve build is the long stage. "
+                      "Equities have their own pull on the Equities home page."):
         # Same-day guard: a re-pull re-spends thousands of Bloomberg hits (the daily-capacity
         # budget) for near-identical data, so it asks first.
         _today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
