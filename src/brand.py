@@ -265,8 +265,11 @@ div.st-key-basis_scroll_top,
 .block-container { max-width:100% !important; padding-left:1.6rem; padding-right:1.6rem; }
 
 /* sidebar */
+/* Below the FIXED top bar: sit UNDER it in stacking order (else the sidebar covers the
+   bar's left end — Chicago/NY clocks + the wordmark vanished), and pad only enough that
+   the sidebar's own header + logo start right at the bar's bottom edge. */
 [data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border;
-                            padding-top:112px; }   /* start below the fixed top bar */
+                            z-index:999988 !important; padding-top:64px; }
 [data-testid="stSidebar"] * { color:$text; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:$caption !important; }
 /* pull the logo block up: shrink the near-empty header strip (it only holds the collapse
