@@ -507,6 +507,8 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 }
 .bt-clock { font-family:var(--basis-mono); font-size:.75rem; color:$faint; white-space:nowrap; }
 .st-key-basis_masthead .stButton>button { min-height:30px; padding:.15rem .5rem; }
+/* the theme toggle (on the top bar's clocks row) */
+.st-key-basis_theme_toggle button { min-height:30px; padding:.15rem .55rem; }
 
 /* ticker rail */
 .bt-rail {
@@ -610,37 +612,39 @@ def sidebar_logo() -> None:
     )
 
 
-def masthead(breadcrumb: str | None = None) -> None:
-    """Terminal masthead bar (handoff): gradient wordmark · divider · mono breadcrumb
-    on the left, ET clock + theme toggle on the right, on a surface strip with a
-    bottom border. Same bar on every page; the breadcrumb carries the location."""
-    from datetime import datetime as _dt
-    from zoneinfo import ZoneInfo as _ZI
-    pal = palette()
+def theme_toggle() -> None:
+    """The dark/light toggle (☀/☾) — its own element so the top bar can place it
+    wherever fits (currently on the clocks row, filling the right-hand space)."""
+    dark = theme() == "dark"
+    label = "☀" if dark else "☾"
+    nxt = "light" if dark else "dark"
+    if st.button(label, key="basis_theme_toggle", use_container_width=True,
+                 help=f"Switch to {nxt} mode"):
+        st.session_state["basis_theme"] = nxt
+        _save_pref(nxt)
+        st.rerun()
+
+
+def masthead(breadcrumb: str | None = None, toggle: bool = True) -> None:
+    """Terminal masthead bar (handoff): gradient wordmark · divider · mono breadcrumb,
+    on a surface strip with a bottom border. Same bar on every page; the breadcrumb
+    carries the location. toggle=True keeps the theme toggle in-row (legacy layout);
+    the fixed top bar renders the toggle on the clocks row instead and passes False."""
     crumb = (breadcrumb or "ANALYSIS · STRATEGY · INDICATORS").upper()
-    now_et = _dt.now(_ZI("America/New_York")).strftime("%H:%M:%S")
     with st.container(key="basis_masthead"):
-        left, right = st.columns([0.86, 0.14], vertical_alignment="center")
-        with left:
-            st.markdown(
-                f'<div class="bt-mast">'
+        mast = (f'<div class="bt-mast">'
                 f'<span class="bt-word">BASIS</span>'
                 f'<span class="bt-div"></span>'
                 f'<span class="bt-crumb">{crumb}</span>'
-                f'<span class="bt-clock">{now_et} ET</span>'
-                f'</div>', unsafe_allow_html=True)
-        with right:
-            dark = theme() == "dark"
-            label = "☀" if dark else "☾"
-            nxt = "light" if dark else "dark"
-            clicked = st.button(
-                label, key="basis_theme_toggle", use_container_width=True,
-                help=f"Switch to {nxt} mode",
-            )
-            if clicked:
-                st.session_state["basis_theme"] = nxt
-                _save_pref(nxt)
-                st.rerun()
+                f'</div>')
+        if toggle:
+            left, right = st.columns([0.86, 0.14], vertical_alignment="center")
+            with left:
+                st.markdown(mast, unsafe_allow_html=True)
+            with right:
+                theme_toggle()
+        else:
+            st.markdown(mast, unsafe_allow_html=True)
 
 
 def ticker_rail(cells: list[dict]) -> None:

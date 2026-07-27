@@ -6160,8 +6160,12 @@ if _active_dest in ("Home", "eq:Home"):
 else:
     _crumb = f"{_side} desk · {_active_dest.removeprefix('eq:')}"
 with st.container(key="basis_topbar"):
-    _world_clocks()
-    brand.masthead(_crumb)
+    _tb_cl, _tb_tg = st.columns([0.94, 0.06], vertical_alignment="center")
+    with _tb_cl:
+        _world_clocks()
+    with _tb_tg:
+        brand.theme_toggle()           # fills the space right of the clocks
+    brand.masthead(_crumb, toggle=False)
 try:      # quote rail: the day's biggest movers from the same frame as Overnight moves
     _rail = _ficc_moves_frame()
     if not _rail.empty:
