@@ -986,8 +986,8 @@ def _world_clocks() -> None:
         "background:" + pal["surface2"] + ";border:1px solid " + pal["border"] + "}"
         ".c{padding:7px 12px;min-width:0;border-right:1px solid " + pal["border"] + "}"
         ".c:last-child{border-right:none}"
-        ".city{display:flex;align-items:center;gap:5px;font-size:9.5px;"
-        "letter-spacing:.14em;color:" + faint + "}"
+        ".city{display:flex;align-items:center;gap:5px;font-size:12px;"
+        "letter-spacing:.12em;color:" + faint + "}"
         ".city .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
         ".wi{display:flex;flex:0 0 auto}.wi svg{width:17px;height:17px}"
         ".tmp{margin-left:auto;flex:0 0 auto;letter-spacing:0;font-size:11.5px;"
@@ -1009,7 +1009,7 @@ def _world_clocks() -> None:
         "if(w<48)w=48;"
         "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');}catch(e){}}"
         "sb();setInterval(sb,500);</script>")
-    components.html(html, height=64)
+    components.html(html, height=68)
 
 
 
