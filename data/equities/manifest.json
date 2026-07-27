@@ -1,17 +1,17 @@
 {
-  "created": "2026-07-26 19:45:25",
+  "created": "2026-07-27 07:27:35",
   "source": "yfinance",
-  "as_of": "2026-07-24",
+  "as_of": "2026-07-27",
   "indices": {
-    "S&P 500": 77,
-    "Nasdaq 100": 50,
+    "S&P 500": 504,
+    "Nasdaq 100": 103,
     "Dow Jones 30": 30,
-    "Euro Stoxx 50": 43,
-    "FTSE 100": 29,
-    "DAX 40": 35,
+    "Euro Stoxx 50": 50,
+    "FTSE 100": 100,
+    "DAX 40": 40,
     "CAC 40": 32,
-    "Russell 2000": 46
+    "Russell 2000": 1964
   },
-  "n_memberships": 342,
-  "n_unique": 264
+  "n_memberships": 2823,
+  "n_unique": 2673
 }
