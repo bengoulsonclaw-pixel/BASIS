@@ -234,9 +234,11 @@ body { font-variant-numeric:tabular-nums; }
 }
 /* frosted translucent header: content scrolling beneath shows through a blur instead of
    being hard-amputated by an opaque bar (the "cut-off button" effect). */
+/* the FIXED top bar (clocks + masthead) now covers the viewport top, so the Streamlit
+   header goes fully transparent — only its floating buttons (menu) remain visible. */
 [data-testid="stHeader"] {
-    background:$glass;
-    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    background:transparent;
+    backdrop-filter:none; -webkit-backdrop-filter:none;
 }
 [data-testid="stToolbar"], [data-testid="stDecoration"] { background:transparent; color:$text_dim; }
 [data-testid="stAppDeployButton"] { display:none; }   /* hide Streamlit "Deploy" */
@@ -257,13 +259,14 @@ hr { border-color:$border; }
    their scripts. (Hide both the keyed block and, on newer Streamlit, its layout wrapper.) */
 div.st-key-basis_scroll_top,
 [data-testid="stLayoutWrapper"]:has(> .st-key-basis_scroll_top) { display:none; }
-.block-container { padding-top:2.9rem; }   /* clears the fixed header with margin to spare */
+.block-container { padding-top:132px; }   /* clears the FIXED top bar (clocks + masthead) */
 /* full-bleed terminal width: content uses the whole viewport minus the page padding
    (the old centered ~46rem column read as a website, not a terminal). */
 .block-container { max-width:100% !important; padding-left:1.6rem; padding-right:1.6rem; }
 
 /* sidebar */
-[data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border; }
+[data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border;
+                            padding-top:112px; }   /* start below the fixed top bar */
 [data-testid="stSidebar"] * { color:$text; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:$caption !important; }
 /* pull the logo block up: shrink the near-empty header strip (it only holds the collapse
@@ -460,6 +463,16 @@ div:has(> .stTooltipContent), .stTooltipContent { background:$surface2 !importan
 .stTooltipContent, .stTooltipContent * { color:$text !important; }
 
 /* ── terminal shell (handoff) ─────────────────────────────────────────── */
+/* fixed top bar: the world-clock rail over the masthead row, pinned to the viewport
+   top on EVERY page (stays put while scrolling). The wrapper is the fixed element;
+   .block-container and the sidebar are padded down to clear it. */
+[data-testid="stLayoutWrapper"]:has(> .st-key-basis_topbar) {
+    position:fixed; top:0; left:0; right:0; z-index:999989;
+    background:$canvas; border-bottom:1px solid $border;
+}
+div.st-key-basis_topbar { gap:0 !important; }
+div.st-key-basis_topbar [data-testid="stElementContainer"] { margin-bottom:0; }
+
 /* masthead bar */
 [data-testid="stLayoutWrapper"]:has(> .st-key-basis_masthead),
 .st-key-basis_masthead {

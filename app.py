@@ -1537,7 +1537,7 @@ def render_home() -> None:
     render_report_banner()
     snap = _load_snap()
 
-    _world_clocks()
+    # (world clocks moved to the fixed top bar — rendered on every page)
     render_sector_filter()
     st.subheader("Data")
     c1, c2, c3, c4 = st.columns(4)
@@ -1725,7 +1725,7 @@ def _equities_heatmap(index_keys) -> None:
 
 def render_equities_home() -> None:
     snap = _load_snap()
-    _world_clocks()
+    # (world clocks moved to the fixed top bar — rendered on every page)
     _keys = list(equities.INDICES.keys())
     sel = st.multiselect("Indices to show", _keys, default=list(equities.DEFAULT_INDICES),
                          key="eq_idx_filter",
@@ -6140,13 +6140,17 @@ with st.sidebar:
         ("data", str((snap or {}).get("as_of", "—")), ""),
     ])
 
-# ----- BASIS masthead (terminal bar + ticker rail, same on every page) -----
+# ----- fixed top bar (same on every page, stays while scrolling): world clocks
+# over the masthead row (logo left · module breadcrumb · ET clock · theme toggle).
+# Pinned by brand CSS (.st-key-basis_topbar wrapper -> position:fixed).
 _active_dest = st.session_state.get("active", "Home")
 if _active_dest in ("Home", "eq:Home"):
     _crumb = None                                      # Overview: the tagline
 else:
     _crumb = f"{_side} desk · {_active_dest.removeprefix('eq:')}"
-brand.masthead(_crumb)
+with st.container(key="basis_topbar"):
+    _world_clocks()
+    brand.masthead(_crumb)
 try:      # quote rail: the day's biggest movers from the same frame as Overnight moves
     _rail = _ficc_moves_frame()
     if not _rail.empty:
