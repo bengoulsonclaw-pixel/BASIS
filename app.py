@@ -5993,11 +5993,17 @@ with st.sidebar:
     snap = _load_snap()
     _data_badge(snap, _side)
     df, meta = load_signals()
-    try:        # desk scope row: markets on / live signals (handoff: under the segments)
-        _n_mkts = len(universe.enabled_tickers())
-        _n_sigs = len(df) if df is not None else 0
-        st.markdown(f'<div class="bt-sect" style="margin-top:.15rem">'
-                    f'{_n_mkts} markets · {_n_sigs} signals</div>', unsafe_allow_html=True)
+    try:        # desk scope row (desk-aware): FICC = markets/signals, Equities = stocks/indices
+        if _side == "Equities":
+            _uni = equities.cached_universe()
+            _n_stk = len({c["ticker"] for rows in _uni.values() for c in rows})
+            st.markdown(f'<div class="bt-sect" style="margin-top:.15rem">'
+                        f'{_n_stk} stocks · {len(_uni)} indices</div>', unsafe_allow_html=True)
+        else:
+            _n_mkts = len(universe.enabled_tickers())
+            _n_sigs = len(df) if df is not None else 0
+            st.markdown(f'<div class="bt-sect" style="margin-top:.15rem">'
+                        f'{_n_mkts} markets · {_n_sigs} signals</div>', unsafe_allow_html=True)
     except Exception:
         pass
     if _side == "FICC":
