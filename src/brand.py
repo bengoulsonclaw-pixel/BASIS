@@ -507,7 +507,9 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 }
 .bt-clock { font-family:var(--basis-mono); font-size:.75rem; color:$faint; white-space:nowrap; }
 .st-key-basis_masthead .stButton>button { min-height:30px; padding:.15rem .5rem; }
-/* the theme toggle (on the top bar's clocks row) */
+/* the theme toggle (on the top bar's clocks row) — right padding keeps it clear of
+   Streamlit's floating ⋮ menu button in the corner */
+.st-key-basis_theme_toggle { padding-right:48px; }
 .st-key-basis_theme_toggle button { min-height:30px; padding:.15rem .55rem; }
 
 /* ticker rail */
