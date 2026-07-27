@@ -470,10 +470,22 @@ div:has(> .stTooltipContent), .stTooltipContent { background:$surface2 !importan
    script every 500ms (the sidebar is drag-resizable, so CSS alone can't know it). */
 [data-testid="stLayoutWrapper"]:has(> .st-key-basis_topbar) {
     position:fixed; top:0; left:var(--basis-topbar-left, 0px); right:0; z-index:999989;
+    width:auto !important; max-width:none !important;   /* honour left+right, not the stamped px width */
     background:$canvas; border-bottom:1px solid $border;
 }
 div.st-key-basis_topbar { gap:0 !important; }
 div.st-key-basis_topbar [data-testid="stElementContainer"] { margin-bottom:0; }
+/* Streamlit stamps explicit PIXEL widths on blocks (computed for the bar's original
+   in-flow position) — once the bar is fixed and shifted right of the sidebar, those
+   stale widths overflow the viewport and push the ET clock + theme toggle off screen.
+   Everything inside the bar must be fluid. */
+div.st-key-basis_topbar,
+div.st-key-basis_topbar [data-testid="stVerticalBlock"],
+div.st-key-basis_topbar [data-testid="stHorizontalBlock"],
+div.st-key-basis_topbar [data-testid="stLayoutWrapper"],
+div.st-key-basis_topbar [data-testid="stElementContainer"] {
+    width:100% !important; max-width:100% !important;
+}
 
 /* masthead bar */
 [data-testid="stLayoutWrapper"]:has(> .st-key-basis_masthead),
