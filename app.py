@@ -2174,6 +2174,87 @@ def render_eq_earnings() -> None:
             }), {}, height=520)
 
 
+# ── Client ETFs (Equities) ────────────────────────────────────────────────────
+@st.cache_data(ttl=300, show_spinner=False)
+def _eqetf_movers():
+    from src import eqetf
+    return eqetf.movers_frame()
+
+
+def render_eq_etfs() -> None:
+    """The desk's curated client-ETF watchlist: overnight movers + σ heatmap by group,
+    and a fund tearsheet (AUM / expense / yield / beta) — all free Yahoo data."""
+    from src import eqetf, heatmap_html
+    st.subheader("🧺 Client ETFs")
+    st.caption("The funds the desk's clients trade — overnight moves sized in σ of each "
+               "fund's own ~1-month daily vol, plus the fund tearsheet. All data rides "
+               "**free Yahoo Finance** (zero Bloomberg hits).")
+    if st.button("🔄 Refresh ETF data", key="eqetf_refresh",
+                 help="Re-pull quotes and the fund tearsheet from Yahoo (free)."):
+        st.session_state["eqetf_go"] = True
+    if st.session_state.pop("eqetf_go", False):
+        with st.spinner("Refreshing ETF data from Yahoo…"):
+            _eqetf_movers.clear()
+            eqetf.fund_info(force=True)
+        st.rerun()
+
+    f = _eqetf_movers()
+    if f.empty:
+        st.caption("No ETF quotes available — Yahoo unreachable. Try **Refresh ETF data**.")
+        return
+
+    # ---- overnight movers, grouped, biggest |σ| first within each group ------
+    disp = f.copy()
+    disp["_abs"] = disp["sigma"].abs()
+    disp = (disp.sort_values(["Group", "_abs"], ascending=[True, False])
+                .drop(columns="_abs")
+                .rename(columns={"last": "Last", "pct": "%", "sigma": "σ (1m)"}))
+    _pcol = ["color:#2E9E63" if (v == v and v >= 0) else "color:#D85A4A" for v in disp["%"]]
+    brand.themed_dataframe(
+        disp[["ETF", "Name", "Group", "Last", "%", "σ (1m)"]],
+        {"Last": lambda v: f"{v:,.2f}" if v == v else "—",
+         "%": lambda v: f"{v:+.2f}%" if v == v else "—",
+         "σ (1m)": lambda v: f"{v:+.2f}" if v == v else "—"},
+        colorers=[(["%"], lambda col: _pcol)],
+        height=int(38 + 35 * len(disp)))
+
+    # ---- σ heatmap by group (same renderer as the FICC / index heatmaps) -----
+    sections = []
+    for g in eqetf.GROUPS:
+        dg = f[f["Group"] == g].dropna(subset=["pct"])
+        items = [(r["ETF"], float(r["pct"]),
+                  float(r["sigma"]) if r["sigma"] == r["sigma"] else None)
+                 for _, r in dg.iterrows()]
+        if items:
+            sections.append((g, [(g, items)]))
+    if sections:
+        height = int(min(560, max(280, 110 + 82 * len(sections))))
+        components.html(heatmap_html.render_html(sections, height, sub_headers=False),
+                        height=height + 6, scrolling=False)
+
+    # ---- fund tearsheet ------------------------------------------------------
+    st.subheader("Fund tearsheet")
+    info = eqetf.fund_info()
+    rows = []
+    for root, name, group in eqetf.ETFS:
+        i = info.get(root, {})
+        rows.append({
+            "ETF": root, "Fund": i.get("name") or name, "Category": i.get("category") or group,
+            "AUM": eqetf.fmt_aum(i.get("aum")),
+            "Expense": (f"{i['expense_pct']:.2f}%" if isinstance(i.get("expense_pct"), (int, float)) else "—"),
+            "Yield": (f"{i['yield_pct']:.2f}%" if isinstance(i.get("yield_pct"), (int, float)) else "—"),
+            "Beta 3Y": (f"{i['beta_3y']:.2f}" if isinstance(i.get("beta_3y"), (int, float)) else "—"),
+            "3Y ann.": (f"{i['ret_3y'] * 100:+.1f}%" if isinstance(i.get("ret_3y"), (int, float)) else "—"),
+            "Hldgs P/E": (f"{i['pe']:.1f}" if isinstance(i.get("pe"), (int, float)) else "—"),
+        })
+    brand.themed_dataframe(pd.DataFrame(rows), {}, height=int(38 + 35 * len(rows)))
+    _age = eqetf.info_age_days()
+    st.caption("Fund metrics from Yahoo Ticker.info"
+               + (f" · pulled **{_age}d ago**" if _age is not None else " · not pulled yet")
+               + " (auto-refreshes weekly; the button forces it). Bond-fund yields are "
+                 "distribution yields; equity-fund P/E is holdings-weighted.")
+
+
 # ── Single Stock Correlations (Equities) ──────────────────────────────────────
 _EQC_MAX_MAP = 60          # heatmap name cap — melted matrices must stay under Altair's 5k-row limit
 
@@ -6048,6 +6129,7 @@ with st.sidebar:
         _nav_button("02 · Earnings Calendar", "eq:Earnings")
         _nav_button("03 · Single Stock Correlations", "eq:Correlations")
         _nav_button("04 · Index Dispersion", "eq:Dispersion")
+        _nav_button("05 · Client ETFs", "eq:ETFs")
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
@@ -6211,6 +6293,8 @@ if side == "Equities":
         render_eq_earnings()
     elif active == "eq:Correlations":
         render_eq_correlations()
+    elif active == "eq:ETFs":
+        render_eq_etfs()
     elif active == "eq:Dispersion":
         render_eq_dispersion()
     else:

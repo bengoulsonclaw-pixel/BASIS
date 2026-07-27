@@ -1,0 +1,146 @@
+{
+ "QQQ": {
+  "name": "Invesco QQQ Trust",
+  "category": "Large Growth",
+  "aum": 490103177216,
+  "nav": 684.24,
+  "yield_pct": 0.41,
+  "expense_pct": 0.18,
+  "beta_3y": 1.24,
+  "ret_3y": 0.2276662,
+  "pe": 30.362904
+ },
+ "XLF": {
+  "name": "State Street Financial Select Sector SPDR ETF",
+  "category": "Financial",
+  "aum": 51353821184,
+  "nav": 56.32691,
+  "yield_pct": 1.51,
+  "expense_pct": 0.08,
+  "beta_3y": 0.75,
+  "ret_3y": 0.18358351,
+  "pe": 17.832176
+ },
+ "SPY": {
+  "name": "State Street SPDR S&P 500 ETF Trust",
+  "category": "Large Blend",
+  "aum": 781188857856,
+  "nav": 738.807,
+  "yield_pct": 1.01,
+  "expense_pct": 0.0945,
+  "beta_3y": 1.0,
+  "ret_3y": 0.190838,
+  "pe": 26.579433
+ },
+ "SMH": {
+  "name": "VanEck Semiconductor ETF",
+  "category": "Technology",
+  "aum": 77198270464,
+  "nav": 561.09,
+  "yield_pct": 0.17,
+  "expense_pct": 0.35,
+  "beta_3y": 1.98,
+  "ret_3y": 0.5459829,
+  "pe": 36.329536
+ },
+ "XLU": {
+  "name": "State Street Utilities Select Sector SPDR ETF",
+  "category": "Utilities",
+  "aum": 23111417856,
+  "nav": 46.27537,
+  "yield_pct": 2.64,
+  "expense_pct": 0.08,
+  "beta_3y": 0.49,
+  "ret_3y": 0.1404193,
+  "pe": 21.37069
+ },
+ "MAGS": {
+  "name": "Roundhill Magnificent Seven ETF",
+  "category": "Technology",
+  "aum": 3602203392,
+  "nav": 63.1891,
+  "yield_pct": 1.52,
+  "expense_pct": 0.3,
+  "beta_3y": 1.33,
+  "ret_3y": 0.2870978,
+  "pe": null
+ },
+ "ARKK": {
+  "name": "ARK Innovation ETF",
+  "category": "Technology",
+  "aum": 6534055424,
+  "nav": 71.88,
+  "yield_pct": 0.0,
+  "expense_pct": 0.75,
+  "beta_3y": 2.46,
+  "ret_3y": 0.1488575,
+  "pe": 42.37768
+ },
+ "EWZ": {
+  "name": "iShares MSCI Brazil ETF",
+  "category": "Focused Region",
+  "aum": 9067350016,
+  "nav": 35.75242,
+  "yield_pct": 4.24,
+  "expense_pct": 0.59,
+  "beta_3y": 0.92,
+  "ret_3y": 0.0810942,
+  "pe": 11.441109
+ },
+ "BIL": {
+  "name": "State Street SPDR Bloomberg 1-3 Month T-Bill ETF",
+  "category": "Ultrashort Bond",
+  "aum": 47077847040,
+  "nav": 91.60769,
+  "yield_pct": 3.85,
+  "expense_pct": 0.1353,
+  "beta_3y": 0.0,
+  "ret_3y": 0.0457689,
+  "pe": null
+ },
+ "HYG": {
+  "name": "iShares iBoxx $ High Yield Corporate Bond ETF",
+  "category": "High Yield Bond",
+  "aum": 17626118144,
+  "nav": 79.18521,
+  "yield_pct": 5.9,
+  "expense_pct": 0.49,
+  "beta_3y": 0.66,
+  "ret_3y": 0.0792527,
+  "pe": 10.894216
+ },
+ "ECH": {
+  "name": "iShares MSCI Chile ETF",
+  "category": "Focused Region",
+  "aum": 1033418432,
+  "nav": 38.67574,
+  "yield_pct": 1.97,
+  "expense_pct": 0.59,
+  "beta_3y": 1.03,
+  "ret_3y": 0.1012686,
+  "pe": 12.192269
+ },
+ "TLT": {
+  "name": "iShares 20+ Year Treasury Bond ETF",
+  "category": "Long Government",
+  "aum": 41099935744,
+  "nav": 83.21193,
+  "yield_pct": 4.53,
+  "expense_pct": 0.15,
+  "beta_3y": 2.4,
+  "ret_3y": -0.0237041,
+  "pe": null
+ },
+ "LQD": {
+  "name": "iShares iBoxx $ Investment Grade Corporate Bond ETF",
+  "category": "Corporate Bond",
+  "aum": 33113137152,
+  "nav": 106.23987,
+  "yield_pct": 4.55,
+  "expense_pct": 0.14,
+  "beta_3y": 1.34,
+  "ret_3y": 0.0401356,
+  "pe": 32.122772
+ },
+ "_pulled": "2026-07-27"
+}
