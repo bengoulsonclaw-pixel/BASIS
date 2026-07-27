@@ -267,11 +267,20 @@ def compute_table() -> pd.DataFrame:
                 rv_state = "heat"
 
         # which construction produced today's implied: our own curve, the vendor
-        # surface (cash indices + own-curve gaps), or OTC pair vols (FX)
+        # surface (cash indices + own-curve gaps), or OTC pair vols (FX).
+        # Freshness is SETTLE-to-SETTLE: our curve rows are stamped by settle date,
+        # but a morning vendor surface can carry a partial row dated TODAY — comparing
+        # against that flagged the whole book stale (vendor fallback) on any such
+        # morning. A today-dated vendor row is ignored for the comparison.
         meta = own_meta.get(t)
+        _iv_last_settle = iv_s.index[-1]
+        if (len(iv_s.index) > 1
+                and pd.Timestamp(_iv_last_settle).normalize()
+                >= pd.Timestamp.now().normalize()):
+            _iv_last_settle = iv_s.index[-2]
         if asset(t) == "FX":
             src = "otc"
-        elif meta is not None and meta["last"] >= iv_s.index[-1]:
+        elif meta is not None and meta["last"] >= _iv_last_settle:
             src = "own"
         else:
             src = "bbg"
