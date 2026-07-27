@@ -265,11 +265,7 @@ div.st-key-basis_scroll_top,
 .block-container { max-width:100% !important; padding-left:1.6rem; padding-right:1.6rem; }
 
 /* sidebar */
-/* Below the FIXED top bar: sit UNDER it in stacking order (else the sidebar covers the
-   bar's left end — Chicago/NY clocks + the wordmark vanished), and pad only enough that
-   the sidebar's own header + logo start right at the bar's bottom edge. */
-[data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border;
-                            z-index:999988 !important; padding-top:64px; }
+[data-testid="stSidebar"] { background:$sidebar; border-right:1px solid $border; }
 [data-testid="stSidebar"] * { color:$text; }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * { color:$caption !important; }
 /* pull the logo block up: shrink the near-empty header strip (it only holds the collapse
@@ -469,8 +465,11 @@ div:has(> .stTooltipContent), .stTooltipContent { background:$surface2 !importan
 /* fixed top bar: the world-clock rail over the masthead row, pinned to the viewport
    top on EVERY page (stays put while scrolling). The wrapper is the fixed element;
    .block-container and the sidebar are padded down to clear it. */
+/* The bar starts AFTER the sidebar (which stays on top, full height, logo at the very
+   top): --basis-topbar-left tracks the sidebar's live width, synced by the clock
+   script every 500ms (the sidebar is drag-resizable, so CSS alone can't know it). */
 [data-testid="stLayoutWrapper"]:has(> .st-key-basis_topbar) {
-    position:fixed; top:0; left:0; right:0; z-index:999989;
+    position:fixed; top:0; left:var(--basis-topbar-left, 0px); right:0; z-index:999989;
     background:$canvas; border-bottom:1px solid $border;
 }
 div.st-key-basis_topbar { gap:0 !important; }

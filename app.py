@@ -998,7 +998,14 @@ def _world_clocks() -> None:
         "<script>function t(){document.querySelectorAll('.time').forEach(function(e){"
         "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
         "hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());});}"
-        "t();setInterval(t,1000);</script>")
+        "t();setInterval(t,1000);"
+        # keep the fixed top bar clear of the (drag-resizable) sidebar: mirror the
+        # sidebar's live width into --basis-topbar-left on the parent document
+        "function sb(){try{var d=window.parent.document;"
+        "var s=d.querySelector('section[data-testid=\"stSidebar\"]');"
+        "var w=s?Math.round(s.getBoundingClientRect().width):0;"
+        "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');}catch(e){}}"
+        "sb();setInterval(sb,500);</script>")
     components.html(html, height=64)
 
 
