@@ -29,6 +29,7 @@ import pandas as pd
 
 from src import datafeed  # for MODE + the shared xbbg normalisers
 from src import equities
+from src import yfin
 from src.equities import _seed
 
 _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "equities"
@@ -271,12 +272,20 @@ def refresh(tickers=None) -> dict:
     dict; never wipes the DB on a dead pull."""
     tickers = list(tickers) if tickers else _universe_tickers()
     asof = pd.Timestamp.today().strftime("%Y-%m-%d")
-    if datafeed.MODE == "bloomberg":
-        long_df = _bloomberg_long(tickers, asof)
-        source = "bloomberg"
-    else:
-        long_df = _mock_long(tickers, asof)
-        source = datafeed.MODE
+    long_df, source = pd.DataFrame(), ""
+    if equities._use_yf():                   # free Yahoo pull first (no Terminal, no hit limit)
+        try:
+            long_df = yfin.fundamentals_long(tickers, asof, _PULL_FIELDS)
+            source = "yfinance"
+        except Exception:
+            long_df = pd.DataFrame()
+    if long_df.empty or int(long_df["value"].notna().sum()) == 0:
+        if datafeed.MODE == "bloomberg":
+            long_df = _bloomberg_long(tickers, asof)
+            source = "bloomberg"
+        else:
+            long_df = _mock_long(tickers, asof)
+            source = datafeed.MODE
     n_vals = int(long_df["value"].notna().sum())
     if long_df.empty or n_vals == 0:
         return {"ok": False, "reason": "no fundamentals returned (Terminal/API down?)"}

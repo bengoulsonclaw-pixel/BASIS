@@ -19,12 +19,24 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from src import datafeed  # for MODE + (on the work PC) its Bloomberg session
+from src import yfin      # free Yahoo Finance pulls — the preferred equity source
+
+# Preferred data source for the Equities side. 'yfinance' (default) pulls quotes,
+# history and fundamentals free from Yahoo — Bloomberg then only supplies what
+# Yahoo can't (INDX_MEMBERS index membership) and is the fallback when Yahoo is
+# unreachable. Set BASIS_EQ_SOURCE=bloomberg to restore the old Terminal-first pulls.
+EQ_SOURCE = os.getenv("BASIS_EQ_SOURCE", "yfinance").strip().lower()
+
+
+def _use_yf() -> bool:
+    return EQ_SOURCE == "yfinance" and yfin.available()
 
 _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "equities"
 _CONSTITUENTS_FILE = _DATA_DIR / "constituents.json"   # bloomberg-refreshed cache (snapshot mode reads it)
@@ -418,10 +430,11 @@ def load_universe() -> dict:
                 return uni
         except Exception:
             pass
-    if datafeed.MODE == "snapshot":
-        cached = _read_cache()
-        if cached:
-            return cached
+    # Off-Terminal: the last written membership (constituents.json rides the repo, so the
+    # real index membership is available at home too); curated mock only when none exists.
+    cached = _read_cache()
+    if cached:
+        return cached
     return _mock_universe()
 
 
@@ -447,6 +460,13 @@ def get_quotes(tickers) -> pd.DataFrame:
     tickers = list(dict.fromkeys(tickers))
     if not tickers:
         return pd.DataFrame(columns=["last", "pct"])
+    if _use_yf():
+        try:
+            q = yfin.get_quotes(tickers)
+            if q["last"].notna().any():
+                return q
+        except Exception:
+            pass                                   # offline / Yahoo down -> old chain
     if datafeed.MODE == "bloomberg":
         try:
             return _bloomberg_quotes(tickers)
@@ -464,6 +484,13 @@ def get_history(tickers) -> pd.DataFrame:
     tickers = list(dict.fromkeys(tickers))
     if not tickers:
         return pd.DataFrame()
+    if _use_yf():
+        try:
+            h = yfin.get_history(tickers, sessions=31)   # enough for the trailing-21 σ
+            if h is not None and not h.empty:
+                return h
+        except Exception:
+            pass
     if datafeed.MODE == "bloomberg":
         try:
             return _bloomberg_history(tickers)
@@ -537,7 +564,7 @@ def build_snapshot() -> dict:
         h.rename_axis("date").to_parquet(_HISTORY_FILE)        # date x ticker
     manifest = {
         "created": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "source": datafeed.MODE,
+        "source": "yfinance" if _use_yf() else datafeed.MODE,
         "as_of": str(h.index.max().date()) if (h is not None and not h.empty) else "",
         "indices": {k: len(v) for k, v in uni.items()},
         "n_memberships": sum(len(v) for v in uni.values()),
@@ -556,6 +583,10 @@ def _read_manifest() -> dict:
 
 def data_status() -> str:
     """Short 'where the equities data comes from' label for the Home caption."""
+    if _use_yf():
+        member = ("live Bloomberg membership" if datafeed.MODE == "bloomberg"
+                  else "cached membership" if _read_cache() else "built-in membership")
+        return f"live Yahoo Finance (free) · {member}"
     if datafeed.MODE == "bloomberg":
         return "live Bloomberg"
     if datafeed.MODE == "snapshot" and _QUOTES_FILE.exists() and _CONSTITUENTS_FILE.exists():

@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src import datafeed, equities
+from src import datafeed, equities, yfin
 
 # label -> trailing sessions (21 per month, 252 per year — same convention as sectorcorr)
 PERIODS = {"1 month": 21, "3 months": 63, "6 months": 126, "1 year": 252, "5 years": 1260}
@@ -117,8 +117,17 @@ def _merge_cache(new: pd.DataFrame) -> None:
 
 def price_history(tickers: list, sectors: dict, sessions: int) -> tuple:
     """(prices date x ticker, source label) covering ~`sessions` trading days back.
-    bloomberg -> live pull (topping up the cache); snapshot -> the cache when it
-    covers enough of the window; otherwise deterministic demo prices."""
+    Yahoo Finance first (free, deep history — also tops up the cache), then live
+    Bloomberg, then the cache when it covers enough of the window; otherwise
+    deterministic demo prices."""
+    if equities._use_yf():
+        try:
+            px = yfin.get_history(tickers, sessions=sessions)
+            if px is not None and not px.empty:
+                _merge_cache(px)
+                return px, "live Yahoo Finance"
+        except Exception:
+            pass
     if datafeed.MODE == "bloomberg":
         try:
             px = _bloomberg_history(tickers, sessions)
@@ -127,16 +136,16 @@ def price_history(tickers: list, sectors: dict, sessions: int) -> tuple:
                 return px, "live Bloomberg"
         except Exception:
             pass
-    if datafeed.MODE == "snapshot":
-        try:
-            cached = pd.read_parquet(_HIST_FILE) if _HIST_FILE.exists() else None
-        except Exception:
-            cached = None
-        if cached is not None and len(cached) >= _min_obs(sessions):
-            have = [t for t in tickers if t in cached.columns]
-            if len(have) >= max(2, len(tickers) // 2):
-                px = cached[have].sort_index()
-                return px, f"cached Bloomberg pull · to {px.index.max():%Y-%m-%d}"
+    # offline: whatever the last live pull (Yahoo or Bloomberg) left in the cache
+    try:
+        cached = pd.read_parquet(_HIST_FILE) if _HIST_FILE.exists() else None
+    except Exception:
+        cached = None
+    if cached is not None and len(cached) >= _min_obs(sessions):
+        have = [t for t in tickers if t in cached.columns]
+        if len(have) >= max(2, len(tickers) // 2):
+            px = cached[have].sort_index()
+            return px, f"cached pull · to {px.index.max():%Y-%m-%d}"
     return _mock_history(list(tickers), sectors, sessions), "demo (synthetic) data"
 
 

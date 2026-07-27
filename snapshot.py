@@ -105,21 +105,21 @@ def run_oi() -> int:
 
 
 # ── Equities pull switches ──────────────────────────────────────────────────────────────────
-# Individual-stock (index constituent) prices and Company Fundamentals are turned OFF at the
-# user's request (2026-07-24) to keep the Bloomberg pull light: they were the bulk of the daily
-# hits (~264 constituent names + a ~70k-hit weekly fundamentals re-pull) and kept re-tripping the
-# -4002 workflow-review block. Nothing index-level is lost — the equity INDEX numbers the desk
-# needs are already in the FICC pull (asset class "Indices": index futures + cash levels like
-# SX5E/DAX/UKX/CAC/NKY/KOSPI2). Flip a flag back to True to restore that part of the pull.
-PULL_EQUITY_CONSTITUENTS = False   # per-stock index membership + overnight quotes/history
-PULL_FUNDAMENTALS        = False   # Company Fundamentals DB refresh
+# These were turned OFF (2026-07-24) when per-stock prices + the ~70k-hit weekly fundamentals
+# re-pull kept re-tripping Bloomberg's -4002 workflow-review block. Re-enabled 2026-07-26: the
+# Equities side now pulls quotes / history / fundamentals FREE from Yahoo Finance (src/yfin.py,
+# BASIS_EQ_SOURCE=yfinance default), so the only Bloomberg leg left is INDX_MEMBERS membership —
+# a light pull that only runs Terminal-up and falls back to the cached constituents.json
+# otherwise. Set BASIS_EQ_SOURCE=bloomberg to restore the old Terminal-first behaviour.
+PULL_EQUITY_CONSTITUENTS = True    # membership (Bloomberg/cache) + quotes/history (Yahoo)
+PULL_FUNDAMENTALS        = True    # Company Fundamentals DB refresh (Yahoo)
 
 
 def run_equities() -> dict:
     """The EQUITIES pull — index membership + overnight quotes/short history, plus the
-    weekly-guarded Company Fundamentals refresh. Both are gated behind PULL_EQUITY_CONSTITUENTS /
-    PULL_FUNDAMENTALS (currently OFF — see the note above); with both off this is a no-op that
-    leaves the equity INDEX numbers to the FICC pull and the existing equities caches untouched.
+    weekly-guarded Company Fundamentals refresh. Quotes/history/fundamentals ride Yahoo
+    Finance (free) by default; Bloomberg only refreshes membership when the Terminal is up.
+    Gated behind PULL_EQUITY_CONSTITUENTS / PULL_FUNDAMENTALS.
     Its own job (CLI --equities, and the 'Pull equities data' button on the Equities home).
     Guarded like the futures pull: a dead pull never wipes the caches."""
     if not PULL_EQUITY_CONSTITUENTS and not PULL_FUNDAMENTALS:
@@ -157,11 +157,17 @@ def run_equities() -> dict:
         except Exception as e:
             print(f"  (Fundamentals pull skipped: {e})")
 
-    # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit):
-    # ~3 per name for quotes/history + ~30 per name actually re-pulled by fundamentals.
-    est = int(eq.get("n_unique", 0) or 0) * 3 + int(fr.get("n_tickers", 0) or 0) * 30
-    if est:
-        print(f"  Estimated Bloomberg hits this pull: ~{est:,} (security x field, rough)")
+    # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit).
+    # On the Yahoo source the quotes/history/fundamentals legs cost ZERO Bloomberg hits —
+    # only the membership meta pull (name/sector per constituent) touches the Terminal.
+    from src import equities as _eq
+    if _eq._use_yf():
+        print("  Bloomberg hits this pull: membership meta only (~2 per constituent, "
+              "Terminal-up) — quotes/history/fundamentals came free from Yahoo Finance.")
+    else:
+        est = int(eq.get("n_unique", 0) or 0) * 3 + int(fr.get("n_tickers", 0) or 0) * 30
+        if est:
+            print(f"  Estimated Bloomberg hits this pull: ~{est:,} (security x field, rough)")
 
     if eq.get("ok"):                       # record the pull in the shared manifest
         SNAP.mkdir(parents=True, exist_ok=True)

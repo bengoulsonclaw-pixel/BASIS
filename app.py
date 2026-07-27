@@ -1718,9 +1718,10 @@ def render_equities_home() -> None:
     _eq_pull_on = bool(_EQ_ON or _EQF_ON)
     if c1.button("📥 Pull equities data", use_container_width=True, key="eq_pull",
                  disabled=not _eq_pull_on,
-                 help=("The Equities side's own Bloomberg pull — index membership, overnight "
-                       "quotes/history and the (weekly-guarded) fundamentals refresh. Separate "
-                       "from the FICC snapshot pull. Needs the Terminal.") if _eq_pull_on else
+                 help=("The Equities side's own data pull — overnight quotes/history and the "
+                       "(weekly-guarded) fundamentals refresh come FREE from Yahoo Finance; "
+                       "Bloomberg only refreshes index membership when the Terminal is up "
+                       "(cached membership otherwise).") if _eq_pull_on else
                       ("OFF — individual-stock & Company-Fundamentals pulling is disabled to keep "
                        "the Bloomberg pull light. Equity INDEX numbers come from the FICC snapshot.")):
         # No app-mode gate: the app itself runs in snapshot mode all day — the pull SUBPROCESS
@@ -1739,8 +1740,9 @@ def render_equities_home() -> None:
                    "(`PULL_EQUITY_CONSTITUENTS` / `PULL_FUNDAMENTALS`) for per-stock data.")
     if st.session_state.get("eq_pull_confirm"):
         st.warning(f"⚡ Equities **already pulled today** "
-                   f"({_to_et((snap or {}).get('equities_pulled', ''))}). Pulling again re-spends "
-                   "the day's Bloomberg data allowance on near-identical data.")
+                   f"({_to_et((snap or {}).get('equities_pulled', ''))}). Quotes and fundamentals "
+                   "re-pull free from Yahoo; only the Bloomberg membership refresh re-spends "
+                   "Terminal hits.")
         _g1, _g2, _ = st.columns([1.4, 1, 3.6])
         if _g1.button("Pull again anyway", key="eq_pull_anyway"):
             st.session_state.pop("eq_pull_confirm", None)
@@ -1748,7 +1750,8 @@ def render_equities_home() -> None:
         if _g2.button("Cancel", key="eq_pull_cancel"):
             st.session_state.pop("eq_pull_confirm", None); st.rerun()
     if st.session_state.pop("eq_pull_go", False):
-        with st.spinner("Pulling equities from Bloomberg… (membership + quotes + fundamentals)"):
+        with st.spinner("Pulling equities… (Yahoo quotes + fundamentals; Bloomberg membership "
+                        "when the Terminal is up)"):
             res = subprocess.run([sys.executable, str(SNAPSHOT_CLI), "--equities"],
                                  cwd=str(ROOT), capture_output=True, text=True,
                                  env={**os.environ, "DATAFEED_MODE": "bloomberg",
@@ -1760,21 +1763,19 @@ def render_equities_home() -> None:
             _eqf_frame.clear()
             gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
             st.success("Equities data refreshed."); st.rerun()
-    if c2.button("🔄 Recompute view", use_container_width=True, key="eq_refresh",
-                 help="Rebuild the movers table and heatmap from the CACHED quotes (instant, no "
-                      "Bloomberg). Quotes themselves only change when 📥 Pull equities data runs."):
+    if c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
+                 help="Re-pull the latest closes from Yahoo Finance (free) and rebuild the "
+                      "movers table and heatmap. Falls back to the cached quotes offline."):
         _eq_movers.clear(); _eq_heatmap_sections.clear()
         st.session_state["eq_refresh_note"] = True
         st.rerun()
     if st.session_state.pop("eq_refresh_note", False):
-        # Say what actually happened — in snapshot mode this recomputes the SAME cached
-        # quotes, which used to look like the button "did nothing".
-        st.info("View recomputed from the **cached** quotes. For fresh prices run "
-                "**📥 Pull equities data** (uses the Bloomberg data budget).")
+        st.info("Quotes refreshed — live Yahoo Finance when reachable, otherwise the cached "
+                "pull (see the source caption).")
     _n = sum(len(v) for v in _eq_universe().values())
     c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
-               + equities.data_status() + ". Equities data refreshes **only** via this pull "
-               "(separate from the FICC snapshot, to respect Bloomberg's daily data capacity).")
+               + equities.data_status() + ". Quotes, history and fundamentals ride Yahoo "
+               "Finance free of charge; Bloomberg only refreshes index membership.")
     st.divider()
     _equities_overnight_moves(sel, snap)
     _econ_figures()
@@ -1811,8 +1812,9 @@ def _eqf_frame(index_keys: tuple):
 
 
 def _eqf_pull_note() -> None:
-    """Data-budget note for the fundamentals-driven pages: pulls are minimised to respect
-    Bloomberg's daily capacity, so each tier's data can lag by up to its cycle length."""
+    """Pull-cadence note for the fundamentals-driven pages: fundamentals move slowly, so
+    each tier refreshes on a cycle and its data can lag by up to that cycle length.
+    (On the Yahoo source the cycle is about pull time / rate limits, not Bloomberg hits.)"""
     s = eqfunda.staleness()
     core = (f"core indices last pulled **{s['last_pull']}** ({s['core_age']}d ago)"
             if s["last_pull"] else "core indices **never pulled**")
@@ -1821,10 +1823,12 @@ def _eqf_pull_note() -> None:
         heavy = ("; Russell 2000 last pulled **" + s["last_heavy_pull"] + "** "
                  f"({s['heavy_age']}d ago)" if s["last_heavy_pull"]
                  else "; Russell 2000 **never pulled**")
-    st.caption(f"ℹ️ **Data-budget note** — to respect Bloomberg's daily data capacity, "
-               f"fundamentals refresh on a cycle: core indices **weekly**, Russell 2000 "
-               f"**monthly**. {core}{heavy}. Figures and expected report dates can lag by up "
-               f"to their cycle; **Pull equities data** (Equities home) forces a refresh.")
+    src_note = ("free Yahoo Finance pulls" if equities._use_yf()
+                else "to respect Bloomberg's daily data capacity, pulls are minimised")
+    st.caption(f"ℹ️ **Pull-cadence note** — {src_note}; fundamentals refresh on a cycle: "
+               f"core indices **weekly**, Russell 2000 **monthly**. {core}{heavy}. Figures "
+               f"and expected report dates can lag by up to their cycle; **Pull equities "
+               f"data** (Equities home) forces a refresh.")
 
 
 def _eqf_styles(sub: pd.DataFrame, field: str) -> list:
@@ -2048,7 +2052,10 @@ def render_eq_fundamentals() -> None:
         if _g2.button("Cancel", key="eqf_pull_cancel"):
             st.session_state.pop("eqf_pull_confirm", None); st.rerun()
     c2.caption(f"**Database:** {eqfunda.data_status()}."
-               + ("" if MODE == "bloomberg"
+               + ("  ·  _Pulls come free from Yahoo Finance — no Terminal needed. A few "
+                  "Bloomberg-only fields (ROIC, interest cover, 3Y-avg revenue growth) show "
+                  "'—' on Yahoo pulls._" if equities._use_yf()
+                  else "" if MODE == "bloomberg"
                   else "  ·  _Off-Terminal a pull writes synthetic demo rows — live values need "
                        "Bloomberg mode on the work PC._"))
     _keys = list(equities.INDICES.keys())

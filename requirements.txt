@@ -16,6 +16,7 @@ openpyxl==3.1.5
 playwright==1.60.0
 pypdfium2==5.9.0      # in-app PDF preview — rasterises report pages; add its wheel to wheels\ for the offline work-PC install
 tzdata               # zoneinfo timezone DB (needed on Windows for the Market Hours timeline + COT scheduler)
+yfinance==1.5.2      # free Yahoo Finance pulls for the Equities side (quotes/history/fundamentals) — src/yfin.py
 
 # --- Bloomberg live data ---------------------------------------------------------------
 # Included in the offline wheels\ bundle, so the install line above picks them up too.
