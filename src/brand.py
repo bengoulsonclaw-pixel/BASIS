@@ -235,11 +235,15 @@ body { font-variant-numeric:tabular-nums; }
 /* frosted translucent header: content scrolling beneath shows through a blur instead of
    being hard-amputated by an opaque bar (the "cut-off button" effect). */
 /* the FIXED top bar (clocks + masthead) now covers the viewport top, so the Streamlit
-   header goes fully transparent — only its floating buttons (menu) remain visible. */
+   header goes fully transparent — only its floating buttons (menu) remain visible.
+   pointer-events: the invisible header still sits ABOVE the bar and was swallowing real
+   mouse clicks on the theme toggle — clicks now pass through except on its buttons. */
 [data-testid="stHeader"] {
     background:transparent;
     backdrop-filter:none; -webkit-backdrop-filter:none;
+    pointer-events:none;
 }
+[data-testid="stHeader"] button { pointer-events:auto; }
 [data-testid="stToolbar"], [data-testid="stDecoration"] { background:transparent; color:$text_dim; }
 [data-testid="stAppDeployButton"] { display:none; }   /* hide Streamlit "Deploy" */
 /* hide the run-status / "Stop" toolbar pill (long jobs already show st.spinner). */
