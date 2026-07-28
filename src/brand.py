@@ -243,7 +243,15 @@ body { font-variant-numeric:tabular-nums; }
     backdrop-filter:none; -webkit-backdrop-filter:none;
     pointer-events:none;
 }
-[data-testid="stHeader"] button { pointer-events:auto; }
+/* Streamlit's own CSS re-enables pointer-events on the toolbar (the ⋮ strip), and its
+   container DIV stretches LEFT over the theme toggle — eating the click even though the
+   header itself is click-transparent. Kill events on the whole toolbar subtree and
+   re-enable only on actual clickables (the ⋮ menu button). */
+[data-testid="stHeader"] [data-testid="stToolbar"],
+[data-testid="stHeader"] [data-testid="stToolbar"] * { pointer-events:none; }
+[data-testid="stHeader"] button,
+[data-testid="stHeader"] [data-testid="stToolbar"] button,
+[data-testid="stHeader"] [data-testid="stToolbar"] a { pointer-events:auto; }
 [data-testid="stToolbar"], [data-testid="stDecoration"] { background:transparent; color:$text_dim; }
 [data-testid="stAppDeployButton"] { display:none; }   /* hide Streamlit "Deploy" */
 /* hide the run-status / "Stop" toolbar pill (long jobs already show st.spinner). */
@@ -739,7 +747,7 @@ def sidebar_footer(rows: list[tuple[str, str, str]]) -> None:
 
 # --- data tables -----------------------------------------------------------
 def themed_dataframe(df, fmt, colorers=None, *, na_rep=None, height=None,
-                     pal: dict | None = None) -> None:
+                     pal: dict | None = None, column_config: dict | None = None) -> None:
     """st.dataframe whose cells follow the active palette.
 
     Streamlit's data grid is canvas-rendered and ignores the app's CSS, so it
@@ -754,6 +762,8 @@ def themed_dataframe(df, fmt, colorers=None, *, na_rep=None, height=None,
     kw = {"use_container_width": True, "hide_index": True}
     if height is not None:                  # Streamlit rejects height=None
         kw["height"] = height
+    if column_config is not None:           # per-column width/label control (keeps narrow cols narrow)
+        kw["column_config"] = column_config
     try:
         sty = df.style.format(fmt, na_rep=na_rep) if na_rep is not None else df.style.format(fmt)
         sty = sty.set_properties(**{"background-color": pal["surface"], "color": pal["text"]})
