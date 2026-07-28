@@ -220,16 +220,32 @@ SKEW_WINGS = (0.90, 1.10)      # vendor-matching moneyness: put wing / call wing
 WING_TOL = 0.03                # nearest listed strike must sit within 3 moneyness pts
 
 
-def product_pillars(generic: str, log=print):
-    """(atm_pillars, skew_pillars) across the front option expiries.
+def _bdp_many(tickers, fields) -> dict:
+    """ONE batched bdp over many securities -> {ticker: {FIELD: value}}. The whole
+    reason the Terminal-connected window shrank: the serial one-security _bdp calls
+    were thousands of round-trips (10-20 min); batches take seconds."""
+    from xbbg import blp
+    from .datafeed import _bdp_rows, _coerce_pd
+    if not tickers:
+        return {}
+    try:
+        return _bdp_rows(_coerce_pd(blp.bdp(list(tickers), list(fields)))) or {}
+    except Exception:
+        return {}
 
-    atm_pillars: [(dte, atm_mid_vol%, oi_weight, series_root)] — the vol/term book.
-    skew_pillars: [(dte, put90_vol, call110_vol, atm_mid_vol%)] — the OTM put settle
-    inverted at the strike nearest 0.90×F and the OTM call at 1.10×F (the vendor
-    surface's moneyness convention; metric downstream = (put−call)/atm). A wing only
-    exists where a listed strike sits within WING_TOL of the target AND its settle
-    inverts above the floor — low-vol products (bonds) will legitimately be sparse,
-    which is honest: the vendor's wings there are model extrapolation."""
+
+def _field(rowmap: dict, ticker: str, field: str):
+    v = (rowmap.get(ticker) or {}).get(field.upper())
+    return None if v is None or (isinstance(v, float) and pd.isna(v)) else v
+
+
+def fetch_product_marks(generic: str, log=print) -> dict:
+    """The BLOOMBERG HALF of the pillar build for one product: walk the chains,
+    choose the ATM + wing candidate tickers locally, and pull their fields in TWO
+    batched requests. Returns a JSON-able marks record — everything the (pure-math)
+    assembly needs, so the Terminal can be closed before any curve is fitted.
+    Series are stored in the legacy traversal order (futures-chain order, series
+    roots sorted) so assembly reproduces the serial path's output exactly."""
     futs = []
     for r in _bds(generic, "FUT_CHAIN"):
         tk = _first(r)
@@ -237,35 +253,15 @@ def product_pillars(generic: str, log=print):
             futs.append(tk if tk.split()[-1] in ("Comdty", "Index") else tk + " Comdty")
         if len(futs) >= MAX_FUTS:
             break
-    today = pd.Timestamp.today().normalize()
-    pillars, skews, seen_exp = [], [], set()
-
-    def _wing(strikes, scale, F, dte, target, leg):
-        """Invert the OTM settle at the listed strike nearest target×F, or None."""
-        side = 0 if leg == "call" else 1                 # (call_tk, put_tk) tuple slot
-        cands = {k: v[side] for k, v in strikes.items() if v[side]}
-        if not cands:
-            return None
-        k = sorted(cands, key=lambda x: abs(x * scale - target * F))[0]
-        if abs(k * scale / F - target) > WING_TOL:
-            return None
-        px = _bdp(cands[k], "PX_SETTLE")
-        if px is None or pd.isna(px):
-            return None
-        iv = implied_vol_price(float(px) * scale, F, k * scale, dte, leg == "call")
-        return iv if iv is not None and iv > 0.5 else None
-
+    fmap = _bdp_many(futs, ["PX_SETTLE", "PX_LAST"])
+    series_recs, atm_tks, wing_tks = [], [], []
     for fut in futs:
-        if len(pillars) >= N_EXPIRIES:
-            break
-        F = _bdp(fut, "PX_SETTLE")
-        F = _bdp(fut, "PX_LAST") if F is None else F
+        F = _field(fmap, fut, "PX_SETTLE")
+        F = _field(fmap, fut, "PX_LAST") if F is None else F
         if F is None:
             continue
         F = float(F)
         for root, strikes in sorted(_parse_chain(fut).items()):
-            if len(pillars) >= N_EXPIRIES:
-                break
             both = {k: v for k, v in strikes.items() if v[0] and v[1]}
             if not both:
                 continue
@@ -274,31 +270,85 @@ def product_pillars(generic: str, log=print):
             if abs(atm * scale - F) / F > 0.25:        # nothing near the money — skip series
                 continue
             call_tk, put_tk = both[atm]
-            exp = _bdp(call_tk, "OPT_EXPIRE_DT")
-            if exp is None:
-                continue
-            dte = (pd.Timestamp(exp) - today).days
-            if dte < MIN_DTE or dte in seen_exp:
-                continue
-            c_px, p_px = _bdp(call_tk, "PX_SETTLE"), _bdp(put_tk, "PX_SETTLE")
-            ivs = [v for v in (
-                implied_vol_price(float(c_px) * scale, F, atm * scale, dte, True)
-                if c_px is not None and pd.notna(c_px) else None,
-                implied_vol_price(float(p_px) * scale, F, atm * scale, dte, False)
-                if p_px is not None and pd.notna(p_px) else None,
-            ) if v is not None and v > 0.5]            # floor-vol prints are dead marks, not vol
-            if not ivs:
-                continue
-            oi = sum(float(x) for x in (_bdp(call_tk, "OPEN_INT"), _bdp(put_tk, "OPEN_INT"))
-                     if x is not None and pd.notna(x))
-            seen_exp.add(dte)
-            atm_mid = float(np.mean(ivs))
-            pillars.append((dte, atm_mid, oi, root))
-            pw = _wing(strikes, scale, F, dte, SKEW_WINGS[0], "put")
-            cw = _wing(strikes, scale, F, dte, SKEW_WINGS[1], "call")
-            if pw is not None and cw is not None:
-                skews.append((dte, pw, cw, atm_mid))
+            rec = {"root": root, "F": F, "scale": scale, "atm_k": float(atm),
+                   "call_tk": call_tk, "put_tk": put_tk}
+            for target, leg, kk, tt in ((SKEW_WINGS[0], "put", "wp_k", "wp_tk"),
+                                        (SKEW_WINGS[1], "call", "wc_k", "wc_tk")):
+                side = 0 if leg == "call" else 1
+                cands = {k: v[side] for k, v in strikes.items() if v[side]}
+                if cands:
+                    k = sorted(cands, key=lambda x: abs(x * scale - target * F))[0]
+                    if abs(k * scale / F - target) <= WING_TOL:
+                        rec[kk], rec[tt] = float(k), cands[k]
+            series_recs.append(rec)
+            atm_tks += [call_tk, put_tk]
+            wing_tks += [t for t in (rec.get("wp_tk"), rec.get("wc_tk")) if t]
+    amap = _bdp_many(atm_tks, ["PX_SETTLE", "OPT_EXPIRE_DT", "OPEN_INT"])
+    wmap = _bdp_many(wing_tks, ["PX_SETTLE"])
+    if atm_tks and not amap:                           # batch failed -> serial fallback
+        log(f"  ({generic}: batched bdp empty — falling back to serial field pulls)")
+        amap = {t: {"PX_SETTLE": _bdp(t, "PX_SETTLE"), "OPT_EXPIRE_DT": _bdp(t, "OPT_EXPIRE_DT"),
+                    "OPEN_INT": _bdp(t, "OPEN_INT")} for t in atm_tks}
+        wmap = {t: {"PX_SETTLE": _bdp(t, "PX_SETTLE")} for t in wing_tks}
+    for rec in series_recs:                            # resolve fields into pure data
+        exp = _field(amap, rec["call_tk"], "OPT_EXPIRE_DT")
+        rec["exp"] = str(pd.Timestamp(exp).date()) if exp is not None else None
+        for key, tk_key, mp in (("c_px", "call_tk", amap), ("p_px", "put_tk", amap),
+                                ("wp_px", "wp_tk", wmap), ("wc_px", "wc_tk", wmap)):
+            tk = rec.get(tk_key)
+            v = _field(mp, tk, "PX_SETTLE") if tk else None
+            rec[key] = float(v) if v is not None else None
+        oi = [(_field(amap, rec[k], "OPEN_INT")) for k in ("call_tk", "put_tk")]
+        rec["oi"] = float(sum(float(x) for x in oi if x is not None))
+    return {"asof": str(pd.Timestamp.today().date()), "series": series_recs}
+
+
+def assemble_pillars(marks: dict):
+    """The PURE-MATH half: marks record -> (atm_pillars, skew_pillars), replicating
+    the legacy serial path's gating (MIN_DTE, expiry de-dup, N_EXPIRIES cap, dead-mark
+    floors, wing tolerance) exactly. No Bloomberg — runs Terminal-closed.
+
+    atm_pillars: [(dte, atm_mid_vol%, oi_weight, series_root)] — the vol/term book.
+    skew_pillars: [(dte, put90_vol, call110_vol, atm_mid_vol%)] — the OTM put settle
+    inverted at the strike nearest 0.90×F and the OTM call at 1.10×F (the vendor
+    surface's moneyness convention; metric downstream = (put−call)/atm)."""
+    today = pd.Timestamp.today().normalize()
+    pillars, skews, seen_exp = [], [], set()
+    for rec in (marks or {}).get("series", []):
+        if len(pillars) >= N_EXPIRIES:
+            break
+        if not rec.get("exp"):
+            continue
+        F, scale, atm = rec["F"], rec["scale"], rec["atm_k"]
+        dte = (pd.Timestamp(rec["exp"]) - today).days
+        if dte < MIN_DTE or dte in seen_exp:
+            continue
+        ivs = [v for v in (
+            implied_vol_price(rec["c_px"] * scale, F, atm * scale, dte, True)
+            if rec.get("c_px") is not None else None,
+            implied_vol_price(rec["p_px"] * scale, F, atm * scale, dte, False)
+            if rec.get("p_px") is not None else None,
+        ) if v is not None and v > 0.5]                # floor-vol prints are dead marks, not vol
+        if not ivs:
+            continue
+        seen_exp.add(dte)
+        atm_mid = float(np.mean(ivs))
+        pillars.append((dte, atm_mid, rec.get("oi", 0.0), rec["root"]))
+        wings = {}
+        for leg, kk, pk in (("put", "wp_k", "wp_px"), ("call", "wc_k", "wc_px")):
+            if rec.get(kk) is not None and rec.get(pk) is not None:
+                iv = implied_vol_price(rec[pk] * scale, F, rec[kk] * scale, dte, leg == "call")
+                if iv is not None and iv > 0.5:
+                    wings[leg] = iv
+        if "put" in wings and "call" in wings:
+            skews.append((dte, wings["put"], wings["call"], atm_mid))
     return sorted(pillars), sorted(skews)
+
+
+def product_pillars(generic: str, log=print):
+    """Legacy one-call path (fetch + assemble in one go) — kept for the backfill and
+    any caller that wants the old behaviour with a Terminal up."""
+    return assemble_pillars(fetch_product_marks(generic, log=log))
 
 
 # Vendor-matching term tenors, evaluated off the SAME fitted curve as ours30/ours90.
@@ -308,13 +358,65 @@ OWN_TENORS = [("1M", 30), ("3M", 91), ("6M", 182), ("12M", 365)]
 TENOR_COVERAGE = 0.75
 
 
-def build_book(tickers=None, log=print) -> pd.DataFrame:
-    """Our fitted 30d + 90d ATM vol for every listed-futures product; long frame."""
-    from .universe import INSTRUMENTS, asset, name
+MARKS_FILE = ROOT / "data" / "snapshot" / "owncurve_marks.json"
+
+
+def _book_tickers():
+    from .universe import INSTRUMENTS, asset
+    return [t for t in INSTRUMENTS
+            if asset(t) not in EXCLUDE_ASSETS and not t.endswith("Index")
+            or t in ("ESA Index", "NQA Index", "RTYA Index", "DMA Index", "XPA Index")]
+
+
+def fetch_marks(tickers=None, log=print) -> dict:
+    """The BLOOMBERG PHASE for the whole book: batched marks for every product,
+    cached to owncurve_marks.json. Once this returns, the Terminal can be CLOSED —
+    build_book(use_marks=True) / append_today(use_marks=True) fit the curves from
+    the cache without any Bloomberg."""
+    import json as _json
+    from .universe import name
+    out = {}
+    for t in (tickers or _book_tickers()):
+        try:
+            m = fetch_product_marks(t, log=log)
+            if m.get("series"):
+                out[t] = m
+                log(f"  {name(t):24s} marks: {len(m['series'])} series fetched")
+            else:
+                log(f"  {name(t):24s} no option series found")
+        except Exception as e:
+            log(f"  {name(t):24s} marks FAILED {type(e).__name__}: {e}")
+    payload = {"asof": str(pd.Timestamp.today().date()), "products": out}
+    MARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    MARKS_FILE.write_text(_json.dumps(payload), encoding="utf-8")
+    log(f"  marks cached for {len(out)} products -> {MARKS_FILE.name}")
+    return payload
+
+
+def load_marks(max_age_days: int = 1) -> dict | None:
+    """The cached marks when fresh enough (default: today/yesterday), else None."""
+    import json as _json
+    try:
+        payload = _json.loads(MARKS_FILE.read_text(encoding="utf-8"))
+        age = (pd.Timestamp.today().normalize() - pd.Timestamp(payload["asof"])).days
+        return payload if age <= max_age_days else None
+    except Exception:
+        return None
+
+
+def build_book(tickers=None, log=print, use_marks: bool = False) -> pd.DataFrame:
+    """Our fitted 30d + 90d ATM vol for every listed-futures product; long frame.
+    use_marks=True fits from the cached marks (fetch_marks) — NO Bloomberg needed."""
+    from .universe import name
     if tickers is None:
-        tickers = [t for t in INSTRUMENTS
-                   if asset(t) not in EXCLUDE_ASSETS and not t.endswith("Index")
-                   or t in ("ESA Index", "NQA Index", "RTYA Index", "DMA Index", "XPA Index")]
+        tickers = _book_tickers()
+    marks_products = None
+    if use_marks:
+        payload = load_marks()
+        if payload is None:
+            log("  no fresh marks cache (run the fetch phase first) — nothing to fit")
+            return pd.DataFrame()
+        marks_products = payload["products"]
     bbg30 = {}
     try:
         iv = pd.read_parquet(ROOT / "data" / "snapshot" / "implied_vol.parquet").set_index("date")
@@ -327,7 +429,14 @@ def build_book(tickers=None, log=print) -> pd.DataFrame:
     recs = []
     for t in tickers:
         try:
-            pil, skw = product_pillars(t, log=log)
+            if marks_products is not None:
+                m = marks_products.get(t)
+                if not m:
+                    log(f"  {name(t):24s} no marks in cache")
+                    continue
+                pil, skw = assemble_pillars(m)
+            else:
+                pil, skw = product_pillars(t, log=log)
         except Exception as e:
             log(f"  {name(t):24s} ERROR {type(e).__name__}: {e}")
             continue
@@ -610,7 +719,7 @@ TERM_HISTORY_FILE = ROOT / "data" / "snapshot" / "own_term_history.parquet"
 SKEW_HISTORY_FILE = ROOT / "data" / "snapshot" / "own_skew_history.parquet"
 
 
-def append_today(log=print) -> None:
+def append_today(log=print, use_marks: bool = False) -> None:
     """Daily accumulation (called from the snapshot pull): rebuild the book and
     upsert the settle-dated ours30/ours90/bbg30 per product into the history — the
     report's implied source (spliced with the surface's history) + validation trail.
@@ -618,8 +727,9 @@ def append_today(log=print) -> None:
     date/ticker/tenor/vol) — the term book's own leg (history from 2026-07-27) —
     and the 30d wing/skew values into own_skew_history (recording-only from
     2026-07-28: the Skew page stays vendor until this is backfilled/deep enough).
-    Any settlement backfill is a separate Bloomberg-budget decision."""
-    df = build_book(log=log)
+    Any settlement backfill is a separate Bloomberg-budget decision.
+    use_marks=True fits from the cached marks (fetch_marks) — Terminal-closed."""
+    df = build_book(log=log, use_marks=use_marks)
     if df.empty:
         return
     stamp = _settle_date()

@@ -8,6 +8,11 @@
      but only a touch: at 7pt it was the least legible thing in the report. */
   table.lead { font-size: 8.5pt; }
   table.lead td, table.lead th { padding: 2.5pt 4pt; }
+  /* "Ones to watch" rows: muted so they read as secondary to the picks above, but still legible. */
+  table.lead tr.watch-sep td { background: #ECECEC; color: #555; font-style: italic;
+                               font-weight: 700; font-size: 7pt; letter-spacing: .2px; padding-top: 3.5pt; }
+  table.lead tr.watch td { background: #F6F6F6; color: #777; }
+  table.lead tr.watch td.market { color: #555; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -51,11 +56,32 @@
       partially, so one signal cannot vote twice{% endif %}.
     </div>
 
+    {# near-misses: clean directional reads a notch below the cut — secondary, never written up.
+       `sep` prints the in-table separator (used when they sit beneath the picks); the empty-week
+       branch drops it because the banner already says what they are. #}
+    {% macro watch_rows(sep) %}
+    {% if sep %}
+    <tr class="watch-sep"><td colspan="7">&#10230;&nbsp; Ones to watch &mdash;
+      {% if mode == 'threshold' %}clean setups just short of the bar this week{% else %}the
+      strongest clean setups just outside the cut{% endif %}</td></tr>
+    {% endif %}
+    {% for w in watch %}
+    <tr class="watch">
+      <td class="market">{{ w.market }}</td><td>{{ w.sector }}</td>
+      <td class="center">{{ w.n }}</td><td class="center">{{ w.net_txt }}</td>
+      <td class="center">{{ '%.0f'|format(w.conviction) }}</td>
+      <td class="center">{{ '%.0f'|format(w.score|abs) }}</td>
+      <td>{{ w.flagged_by }}</td></tr>
+    {% endfor %}
+    {% endmacro %}
+    {% set lead_head %}<thead><tr><th>Market</th><th>Sector</th><th class="center">#</th>
+      <th class="center">Net</th><th class="center">Conviction</th><th class="center">Score</th>
+      <th>Flagged by</th></tr></thead>{% endset %}
+
     {% if table %}
     <div class="banner">Summary &mdash; every pick, ranked by conviction</div>
     <table class="lead">
-      <thead><tr><th>Market</th><th>Sector</th><th class="center">#</th><th class="center">Net</th>
-        <th class="center">Conviction</th><th class="center">Score</th><th>Flagged by</th></tr></thead>
+      {{ lead_head }}
       <tbody>
         {% for p in table %}
         <tr class="{% if p.net_dir > 0 %}long{% else %}short{% endif %}">
@@ -65,7 +91,15 @@
           <td class="center">{{ '%.0f'|format(p.score|abs) }}</td>
           <td>{{ p.flagged_by }}</td></tr>
         {% endfor %}
+        {% if watch %}{{ watch_rows(true) }}{% endif %}
       </tbody>
+    </table>
+    {% elif watch %}
+    {# nothing cleared the quality bar — still surface the closest few so the client sees the near-misses #}
+    <div class="banner">Ones to watch &mdash; closest to the bar; nothing cleared this week</div>
+    <table class="lead">
+      {{ lead_head }}
+      <tbody>{{ watch_rows(false) }}</tbody>
     </table>
     {% endif %}
 
@@ -142,7 +176,9 @@
             (conviction &ge; <b>{{ '%g'|format(min_conviction) }}</b> and |score| &ge;
             <b>{{ '%g'|format(min_score) }}</b>) across the {{ total }}-strategy confluence set. That is
             the screen working as intended &mdash; where nothing is genuinely corroborated, nothing is
-            put forward. The leaderboard above still shows where the book stands.{% else %}
+            put forward, rather than padding the page with weak setups.{% if watch %} The
+            <b>{{ watch|length }}</b> that came closest are flagged as <b>ones to watch</b> on the first
+            page.{% endif %}{% else %}
             No setups currently clear the confluence bar (two or more agreeing strategies).
             Lower the strategy triggers or re-run after the next snapshot.{% endif %}</p>
         </div>

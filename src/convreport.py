@@ -576,31 +576,50 @@ def _chart_png(tk: str, gathered: dict, net_dir: int, pf=None, lv=None) -> str:
     return png(fig)
 
 
-def _leaderboard_png(rows) -> str:
+_LEAD_MUTED = {CHEAP: "#A5D6A7", RICH: "#EF9A9A"}   # green/red → light tints for the watch bars
+
+
+def _leaderboard_png(rows, watch=None, min_score=0.0) -> str:
     """Diverging horizontal bar of cross-strategy conviction (Σ signed strength) per product —
-    long (green, right) vs short (red, left), labelled with the number of flagging strategies.
+    long (green, right) vs short (red, left), labelled with the number of flagging strategies. The
+    report's PICKS are drawn solid; the 'ones to watch' (clean near-misses) are appended below in a
+    faded tint, with a dashed line at the ±score bar so it reads as 'just short of the cut'.
     (Ported from the retired standalone TA report; the merged Technical Analysis report opens with it.)"""
     rows = list(rows)
-    if not rows:
+    watch = list(watch or [])
+    if not rows and not watch:
         return ""
-    rows = rows[::-1]                              # barh draws bottom-up → strongest on top
-    # compact per-row height so the leaderboard clears page 1 even with the full 14-strategy book
-    fig, ax = plt.subplots(figsize=(6.6, max(2.4, 0.205 * len(rows))))
-    ypos = list(range(len(rows)))
-    scores = [r["score"] for r in rows]
-    ax.barh(ypos, scores, color=[CHEAP if r["net_dir"] > 0 else RICH for r in rows],
-            edgecolor="white", linewidth=0.4, zorder=3)
+    allrows = rows + watch                         # picks (strong) first, watch (weaker) beneath them
+    faded = [False] * len(rows) + [True] * len(watch)
+    allrows, faded = allrows[::-1], faded[::-1]    # barh draws bottom-up → strongest on top
+    # compact per-row height so the leaderboard clears page 1 even with a full pick list + watch
+    fig, ax = plt.subplots(figsize=(6.6, max(2.4, 0.205 * len(allrows))))
+    ypos = list(range(len(allrows)))
+    scores = [r["score"] for r in allrows]
+    colors = [(_LEAD_MUTED.get(CHEAP if r["net_dir"] > 0 else RICH) if f
+               else (CHEAP if r["net_dir"] > 0 else RICH)) for r, f in zip(allrows, faded)]
+    ax.barh(ypos, scores, color=colors, edgecolor="white", linewidth=0.4, zorder=3)
     ax.axvline(0, color="#0A0A0A", lw=0.9, zorder=4)
+    if min_score:                                  # the score half of the quality bar the watch names missed
+        for x in (min_score, -min_score):
+            ax.axvline(x, color="#9AA0A6", ls=(0, (4, 3)), lw=0.8, zorder=2)
     ax.set_yticks(ypos)
-    ax.set_yticklabels([r["market"] for r in rows], fontsize=7)
+    ax.set_yticklabels([r["market"] for r in allrows], fontsize=7)
+    for tick, f in zip(ax.get_yticklabels(), faded):
+        tick.set_color("#9AA0A6" if f else "#333")     # grey out the watch names
     span = max((abs(s) for s in scores), default=1.0) or 1.0
-    for i, r in enumerate(rows):
+    for i, (r, f) in enumerate(zip(allrows, faded)):
         s = r["score"]
         ax.text(s + (span * 0.015 if s >= 0 else -span * 0.015), i, f"{r['n']}×",
-                va="center", ha="left" if s >= 0 else "right", fontsize=6, color="#333")
+                va="center", ha="left" if s >= 0 else "right", fontsize=6,
+                color="#9AA0A6" if f else "#333")
     ax.set_xlim(-span * 1.22, span * 1.22)
-    ax.set_xlabel("cross-strategy conviction (Σ signed strength)      ← short      long →      "
-                  "(label = # strategies)", fontsize=6.5)
+    # keep the legend on a SECOND line — appended inline it overran the axes and clipped at the column edge
+    xlab = ("cross-strategy conviction (Σ signed strength)      ← short      long →      "
+            "(label = # strategies)")
+    if watch:
+        xlab += "\nfaded = ones to watch" + ("      ·      dashed = quality bar (score)" if min_score else "")
+    ax.set_xlabel(xlab, fontsize=6.5)
     ax.set_title("Conviction leaderboard")
     ax.grid(True, axis="x", color="#ECECEC", lw=0.6, zorder=0)
     ax.set_axisbelow(True)
@@ -609,7 +628,14 @@ def _leaderboard_png(rows) -> str:
     return png(fig)
 
 
-# ── selection: strongest constructive + cautious, plus the conflict watchlist ─
+# ── selection: strongest constructive + cautious, plus the "ones to watch" near-misses ─
+# Watch = non-conflicted markets that missed the quality bar but came close. Tunable: how many, and
+# how close (within this many conviction points of the floor, and this fraction of the score floor).
+_WATCH_MAX = 3
+_WATCH_CONV_GAP = 15.0
+_WATCH_SCORE_FRAC = 0.70
+
+
 def select(sig_df: pd.DataFrame, top_n: int = 5, min_strats: int = 2, mode: str = "per_side",
            strategies=None, picks=None, exclude=None,
            min_conviction: float = 0.0, min_score: float = 0.0) -> dict:
@@ -633,8 +659,8 @@ def select(sig_df: pd.DataFrame, top_n: int = 5, min_strats: int = 2, mode: str 
     if drop and not prod.empty:                            # client doesn't trade these — whole report
         prod = prod[~prod["instruments"].isin(drop)]
     if prod.empty:
-        return {"constructive": [], "cautious": [], "conflicts": [], "leaderboard": [],
-                "total": total, "scored": scored}
+        return {"constructive": [], "cautious": [], "conflicts": [], "watch": [],
+                "leaderboard": [], "total": total, "scored": scored}
     prod = prod[prod["n"] >= min_strats]
 
     def _rows(sub):
@@ -665,10 +691,31 @@ def select(sig_df: pd.DataFrame, top_n: int = 5, min_strats: int = 2, mode: str 
         constructive = _rows(clean[clean["net_dir"] > 0].head(top_n))
         cautious = _rows(clean[clean["net_dir"] < 0].head(top_n))
     conflicts = _rows(prod[prod["conflict"]].head(6))
-    lead = [{"market": r.market, "score": float(r.score), "net_dir": int(r.net_dir), "n": int(r.n)}
-            for r in prod.head(16).itertuples(index=False)]      # top 2+-flagged set, for the page-1 leaderboard
+
+    # "Ones to watch": CLEAN (non-conflicted) directional reads that came close to the quality bar
+    # but fell short — surfaced on page 1 (summary table + leaderboard) as secondary, never written
+    # up. NOT the conflict watchlist that was cut: these are single-minded setups a notch below the
+    # cut, not markets the strategies disagree on. In the top-N modes (min_* = 0) the filter is inert
+    # and this is simply the next few by |score| just outside the picks.
+    pick_tks = {p["instruments"] for p in constructive + cautious}
+    near = clean[(~clean["instruments"].isin(pick_tks))
+                 & (clean["conviction"] >= float(min_conviction) - _WATCH_CONV_GAP)
+                 & (clean["score"].abs() >= float(min_score) * _WATCH_SCORE_FRAC)]
+    watch = _rows(near.head(_WATCH_MAX))                 # clean is |score|-sorted → the closest misses
+    for w in watch:
+        w["flagged_by"] = ", ".join(_TAG.get(s, s) + (" ▲" if d > 0 else " ▼" if d < 0 else "")
+                                    for s, d, _st in w["tags"])
+        w["net_txt"] = "▲ constructive" if w["net_dir"] > 0 else "▼ cautious"
+
+    # Leaderboard = EXACTLY the report's picks, ranked by |score| (constructive+cautious splits by
+    # side, so re-sort), with the watch names appended beneath. The page-1 chart can no longer show
+    # more or other products than the summary table + write-ups. (It used to be a hardcoded whole-book
+    # top-16 that ignored the quality bar AND top_n and even included conflicted names — so a "top 10"
+    # request drew 16 bars against 8 picks, several of them conflicted. Changed 2026-07-21.)
+    lead = [{"market": p["market"], "score": p["score"], "net_dir": p["net_dir"], "n": p["n"]}
+            for p in sorted(constructive + cautious, key=lambda p: -abs(p["score"]))]
     return {"constructive": constructive, "cautious": cautious, "conflicts": conflicts,
-            "leaderboard": lead, "total": total, "scored": scored}
+            "watch": watch, "leaderboard": lead, "total": total, "scored": scored}
 
 
 # Compact strategy tags for the summary table's "Flagged by" column (matches the app).
@@ -792,10 +839,18 @@ def render_html(sig_df, asof, top_n=5, min_strats=2, update_baseline=False, ai_p
     # under real content. The RANKING is never reordered: _paginate only chooses how many
     # consecutive picks share a page.
     pick_pages = _paginate(table)
-    leaderboard_img = _leaderboard_png(sel.get("leaderboard", []))
+    watch = sel.get("watch", [])
+    # The dashed "quality bar" line only means something in threshold mode; in the top-N modes the
+    # watch names are just the next few outside the cut, with no bar to draw.
+    leaderboard_img = _leaderboard_png(
+        sel.get("leaderboard", []),
+        watch=[{"market": w["market"], "score": w["score"], "net_dir": w["net_dir"], "n": w["n"]}
+               for w in watch],
+        min_score=min_score if mode == "threshold" else 0.0)
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     return env.get_template("convreport.html").render(
         asof=pretty_date(asof), constructive=constructive, cautious=cautious, table=table,
+        watch=watch,             # "ones to watch" — near-misses shown under the summary table
         pick_pages=pick_pages,   # per-page groups; template distributes charts + closes with disclaimer
         leaderboard_img=leaderboard_img,
         n_con=len(constructive), n_cau=len(cautious), n_new=n_new, total=sel["total"], mode=mode,
