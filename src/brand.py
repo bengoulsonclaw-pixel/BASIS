@@ -380,8 +380,12 @@ input, textarea,
     background:$surface !important; color:$text !important;
 }
 /* multiselect chips (Send-to recipients, sector filters): terminal chip — gold wash,
-   gold border, gold text (the handoff's selected-chip pattern; no solid fills). */
-[data-baseweb="tag"] { background:$btn_gold !important; border:1px solid $label_ring !important; max-width:none !important; flex-shrink:0 !important; padding-left:12px !important; overflow:visible !important; }
+   gold border, gold text (the handoff's selected-chip pattern; no solid fills).
+   border 2px, NOT 1px: Chrome FLOORS border widths to whole device pixels (1px and
+   1.5px both become exactly 1 device px at 125% Windows scale), and a 1-device-px
+   border whose edge lands on a fractional position anti-aliases to near-invisible —
+   chips randomly "lost" their left border. 2px always paints >=1 solid device px. */
+[data-baseweb="tag"] { background:$btn_gold !important; border:2px solid $label_ring !important; max-width:none !important; flex-shrink:0 !important; padding-left:12px !important; overflow:visible !important; }
 [data-baseweb="tag"], [data-baseweb="tag"] span, [data-baseweb="tag"] * { color:$gold !important; }
 /* show the WHOLE recipient — no width cap and NEVER shrink, so the text can't clip; chips wrap instead */
 [data-baseweb="tag"] span, [data-baseweb="tag"] div {
@@ -604,9 +608,14 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 
 def apply() -> None:
     """Initialise the theme and inject its CSS. Call once, right after
-    st.set_page_config(). The theme defaults to the user's last saved choice."""
-    if "basis_theme" not in st.session_state:
-        st.session_state["basis_theme"] = _load_pref() or "dark"
+    st.set_page_config(). The PREF FILE is the single source of truth — every
+    session (laptop tab, VPS view, a second browser) re-reads it each run, so
+    all tabs follow the same theme. This matters because the NATIVE Streamlit
+    theme (_sync_native_theme) is process-global: two sessions on different
+    themes would fight over it, leaving e.g. a dark tab with light table chrome
+    (white borders) after a light tab reran. One shared pref removes the fight."""
+    st.session_state["basis_theme"] = _load_pref() or st.session_state.get(
+        "basis_theme", "dark")
     _sync_native_theme()
     st.markdown(_CSS.safe_substitute(palette()), unsafe_allow_html=True)
     _apply_altair_theme()
@@ -618,7 +627,8 @@ def _sync_native_theme() -> None:
     header fill and grid borders come from the Streamlit theme, so on the light
     palette they stayed config.toml-dark (black borders on white tables). The
     theme is re-sent to the frontend on each rerun, so the toggle's st.rerun()
-    re-skins the grids too. Process-global (fine: single-user app, one pref)."""
+    re-skins the grids too. Process-global — safe only because apply() pins
+    every session to the shared pref file."""
     from streamlit import config as _st_config
     pal = palette()
     opts = {
