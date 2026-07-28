@@ -1572,40 +1572,59 @@ def render_home() -> None:
               on_click=_go, args=("Morning Coffee",),
               help="The morning report — overnight moves, levels and the day ahead.")
     def _run_ficc_pull():
-        # live elapsed timer instead of a static spinner — the honest cost is ~10-20 min
-        # (data legs ~1 min; the own-vol-curve build is the long stage)
-        _ph = st.empty()
-        _t0 = time.time()
-        proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI)], cwd=str(ROOT),
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                env={**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"})
-        while proc.poll() is None:
-            _el = (time.time() - _t0) / 60
-            _ph.info(f"⏳ Pulling all FICC inputs from Bloomberg — **{_el:.1f} min elapsed** "
-                     "(typically 10–20 min: the data legs finish in ~1 min, the "
-                     "own-vol-curve build is the long stage).")
-            time.sleep(5)
-        _out, _err = proc.communicate()
-        _ph.empty()
-        if proc.returncode != 0:
-            st.error("Snapshot failed:\n\n" + (_err or _out or "no output"))
-        else:
-            run_daily.run(); load_signals.clear()
-            _regen_mc_heatmap()          # refresh the Morning Coffee heatmap on Home
-            gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
-            st.session_state.pop("ficc_pull_confirm", None)
-            st.success(f"Snapshot pulled + signals refreshed "
-                       f"({(time.time() - _t0) / 60:.1f} min).")
-            st.rerun()
+        # TWO PHASES so the Terminal only needs to be open for the short one:
+        # fetch (Bloomberg, ~3-5 min) -> banner flips to "close the Terminal" ->
+        # compute (fits + signals, Terminal-closed). Live elapsed timers on both.
+        def _phase(args, msg):
+            ph = st.empty()
+            t0 = time.time()
+            proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI), *args], cwd=str(ROOT),
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                    env={**os.environ, "DATAFEED_MODE": "bloomberg",
+                                         "PYTHONUTF8": "1"})
+            while proc.poll() is None:
+                ph.info(msg.format(el=(time.time() - t0) / 60))
+                time.sleep(5)
+            out, err = proc.communicate()
+            ph.empty()
+            return proc.returncode, out, err, (time.time() - t0) / 60
+
+        _t_all = time.time()
+        rc, _out, _err, _m1 = _phase(
+            ["--fetch"],
+            "⏳ **Bloomberg phase** — {el:.1f} min elapsed (typically 3–5 min). "
+            "The Terminal must stay open for THIS phase only.")
+        if rc != 0:
+            st.error("Snapshot fetch failed:\n\n" + (_err or _out or "no output"))
+            return
+        _done = st.empty()
+        _done.success(f"✅ **Bloomberg finished ({_m1:.1f} min) — you can CLOSE THE "
+                      "TERMINAL now.** Crunching the maths…")
+        rc, _out, _err, _m2 = _phase(
+            ["--compute"],
+            "🧮 **Compute phase** (Terminal-closed) — {el:.1f} min elapsed: COT signals, "
+            "own-vol-curve fits, manifest.")
+        if rc != 0:
+            st.error("Snapshot compute failed (the fetched data is safe on disk — "
+                     "'Re-run signals' or retry):\n\n" + (_err or _out or "no output"))
+            return
+        run_daily.run(); load_signals.clear()
+        _regen_mc_heatmap()          # refresh the Morning Coffee heatmap on Home
+        gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
+        st.session_state.pop("ficc_pull_confirm", None)
+        _done.empty()
+        st.success(f"Snapshot complete — Bloomberg needed {_m1:.1f} min, maths "
+                   f"{_m2:.1f} min, total {(time.time() - _t_all) / 60:.1f} min.")
+        st.rerun()
 
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
     # with the old row faded beneath it for the whole computation.
     if c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
-                 help="Pulls every FICC input the reports need into data/snapshot/ and recomputes "
-                      "all signals. Needs the Terminal logged in. Takes ~10–20 min — the data "
-                      "legs finish in ~1 min; the own-vol-curve build is the long stage. "
-                      "Equities have their own pull on the Equities home page."):
+                 help="Two phases: the Terminal is only needed for the FETCH (~3–5 min) — "
+                      "the banner tells you when you can close it — then the maths (own-vol "
+                      "curve, COT, signals) runs Terminal-free. Equities have their own pull "
+                      "on the Equities home page."):
         # Same-day guard: a re-pull re-spends thousands of Bloomberg hits (the daily-capacity
         # budget) for near-identical data, so it asks first.
         _today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")

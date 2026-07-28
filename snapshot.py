@@ -179,11 +179,19 @@ def run_equities() -> dict:
     return eq
 
 
-def run(include_equities: bool = False) -> dict:
+def run(include_equities: bool = False, fetch_only: bool = False,
+        compute_only: bool = False) -> dict:
     """Pull the DAILY FICC inputs (LIVE if DATAFEED_MODE=bloomberg) and cache to data/snapshot/.
     Option OI chains are NOT pulled here — they're a separate weekly job (run_oi / --oi).
     The Equities side has its OWN pull (run_equities / --equities); pass include_equities=True
     (CLI --with-equities) to chain both in one run.
+
+    TWO PHASES so the Terminal only needs to be open for the short one:
+      FETCH  (--fetch, needs Bloomberg, ~3-5 min): every raw pull — data legs, COT price
+             store, STIR curve top-up, and the own-curve option MARKS (batched).
+      COMPUTE (--compute, Terminal-CLOSED): COT signal rebuild, own-curve fits from the
+             cached marks, the equities chain when asked, and the manifest.
+    A plain run does fetch then compute (same result as the old single pass).
     Concurrency-locked: a second run started while one is in flight exits immediately
     (two pulls racing on the same files double-spends Bloomberg and risks bad writes)."""
     lock = SNAP / ".pull.lock"
@@ -199,7 +207,13 @@ def run(include_equities: bool = False) -> dict:
     except Exception:
         pass
     try:
-        return _run_locked(include_equities)
+        if not compute_only:
+            fetched = _fetch_phase()
+            if fetched is None:                   # guard-bail: empty Bloomberg pull
+                return _existing_manifest()
+            if fetch_only:
+                return fetched
+        return _compute_phase(include_equities)
     finally:
         try:
             lock.unlink(missing_ok=True)
@@ -207,7 +221,9 @@ def run(include_equities: bool = False) -> dict:
             pass
 
 
-def _run_locked(include_equities: bool = False) -> dict:
+def _fetch_phase() -> dict | None:
+    """Everything that TOUCHES BLOOMBERG, and nothing else — once this returns, the
+    Terminal can be closed. Returns None when the guard bails (no price data)."""
     tickers = list(INSTRUMENTS)
     # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit): the FICC
     # pull touches ~20 fields per contract across prices/yields/vols/skew/term/put-call/live.
@@ -225,7 +241,7 @@ def _run_locked(include_equities: bool = False) -> dict:
         (SNAP / "manifest.json").write_text(json.dumps(prev, indent=2))
         print("Snapshot pull returned NO price data (is the Bloomberg Terminal open + logged "
               "in?) — KEPT the existing snapshot; nothing was overwritten.")
-        return prev
+        return None
     ylds = get_yield_history(tickers)                 # benchmark yields for bond futures (FI TA)
     volume = get_volume_history(tickers)              # daily contract volume (flag confirmation)
     iv = get_implied_vol_history(tickers)
@@ -248,18 +264,16 @@ def _run_locked(include_equities: bool = False) -> dict:
         _save(pc[k], f"putcall_{k}")
     SNAP.mkdir(parents=True, exist_ok=True)
     # Option OI chains are a SEPARATE weekly job (run_oi / --oi); the daily snapshot leaves the
-    # last capture in place and carries its count + date forward into the manifest below.
-    prev = _existing_manifest()
+    # last capture in place — the compute phase's manifest carries its count + date forward.
     live.rename_axis("ticker").reset_index().to_parquet(SNAP / "live.parquet", index=False)  # ticker-indexed
 
     # Extend the persistent ~10y COT price DB (incremental: only the new dates). This is
-    # the Bloomberg-connected moment, so it's where the DB grows; it's a no-op off-Bloomberg.
+    # the Bloomberg-connected moment, so it's where the DB grows; the signal REBUILD off
+    # it is pure math and runs in the compute phase.
     try:
         from src import cotdata
         store = cotdata.update_price_store(list(cotdata.COT_MAP))
         print(f"  COT price DB: {store.shape[0]} dates x {store.shape[1]} markets")
-        cotdata.compute(force=True)     # rebuild COT history/signals so they ingest the fresh deep prices
-        print("  COT signals rebuilt from the price DB")
     except Exception as e:
         print(f"  (COT price DB update skipped: {e})")
 
@@ -272,36 +286,76 @@ def _run_locked(include_equities: bool = False) -> dict:
     except Exception as e:
         print(f"  (STIR curve update skipped: {e})")
 
-    # Our own 30d/90d ATM curve for the whole listed-futures book (src/owncurve.py) —
-    # THE VOL BOOK'S IMPLIED SOURCE since 2026-07-22 (backfilled 13 months): the vol
-    # cross-section overlays this history onto the vendor frame, so this append must
-    # stay AHEAD of any signals rebuild. bbg30 rides along as the standing cross-check.
+    # Own-curve option MARKS (batched Bloomberg) — the raw ATM/wing settles, expiries and
+    # OI for the whole book, cached to disk. The FITTING happens in the compute phase off
+    # this cache, so the Terminal is NOT needed once this line completes.
     try:
         from src import owncurve
-        owncurve.append_today(log=lambda *a: None)
-        print("  Own-curve 30d/90d book rebuilt + history appended")
+        payload = owncurve.fetch_marks(log=lambda *a: None)
+        print(f"  Own-curve marks fetched for {len(payload.get('products', {}))} products (batched)")
+    except Exception as e:
+        print(f"  (own-curve marks fetch skipped: {e})")
+
+    print(">>> BLOOMBERG PHASE COMPLETE — the Terminal can be closed now. <<<")
+    return {"phase": "fetched", "fetched_at": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "n_tickers": len(tickers)}
+
+
+def _compute_phase(include_equities: bool = False) -> dict:
+    """Everything AFTER Bloomberg — pure math + free (Yahoo/ETF) pulls, run with the
+    Terminal closed. Reads the fetch phase's parquets/caches from disk."""
+    # COT signals off the freshly-extended price store
+    try:
+        from src import cotdata
+        cotdata.compute(force=True)
+        print("  COT signals rebuilt from the price DB")
+    except Exception as e:
+        print(f"  (COT signal rebuild skipped: {e})")
+
+    # Own-curve fits from the cached marks — THE VOL BOOK'S IMPLIED SOURCE since
+    # 2026-07-22: this append must stay AHEAD of any signals rebuild.
+    try:
+        from src import owncurve
+        if owncurve.load_marks() is None:
+            print("  (own-curve: no fresh marks cache — book left as-is; run --fetch first)")
+        else:
+            owncurve.append_today(log=lambda *a: None, use_marks=True)
+            print("  Own-curve 30d/90d book fitted from cached marks + history appended")
     except Exception as e:
         print(f"  (own-curve book update skipped: {e})")
 
     # Equities are a SEPARATE pull (run_equities / --equities, wired to the Equities home
-    # page) so the FICC morning pull stays fast — chain both with include_equities=True.
+    # page); it rides Yahoo + ETF files (no Terminal), so it belongs to the compute phase.
     eq = {}
     if include_equities:
         eq = run_equities()
 
+    # Manifest from the ON-DISK snapshot (the fetch phase's files) — works whether the
+    # compute phase runs seconds or hours after the fetch. `created` = the pull moment
+    # (live.parquet's write time), not when the math happened to run.
+    prev = _existing_manifest()
+    prices = pd.read_parquet(SNAP / "prices.parquet")
+    iv = pd.read_parquet(SNAP / "implied_vol.parquet")
+    live = pd.read_parquet(SNAP / "live.parquet")
+    pulled_at = pd.Timestamp((SNAP / "live.parquet").stat().st_mtime, unit="s"
+                             ).strftime("%Y-%m-%d %H:%M:%S")
+    _dc = [c for c in prices.columns if str(c).lower() in ("date", "index")]
+    _idx = pd.to_datetime(prices[_dc[0]]) if _dc else pd.to_datetime(prices.index)
     manifest = {
-        "created": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "as_of": str(prices.index.max().date()) if len(prices) else "",
+        "created": pulled_at,
+        "as_of": str(_idx.max().date()) if len(prices) else "",
         "source": MODE,                       # "bloomberg" for a real morning pull
-        "n_tickers": len(tickers),
+        "n_tickers": len(list(INSTRUMENTS)),
         "price_rows": int(len(prices)),
         "iv_markets": int(iv.notna().any().sum()),
         "oi_markets": _oi_markets_cached(),    # from the last weekly OI capture (run_oi / --oi)
         "oi_as_of": prev.get("oi_as_of", ""),  # when that weekly OI capture last ran
-        "live_as_of": live_as_of,             # when the prior-settle->now quote was pulled
+        "live_as_of": pulled_at,              # when the prior-settle->now quote was pulled
         "live_n": int(live["pct"].notna().sum()) if "pct" in live.columns else 0,
         # futures-only pulls carry the LAST equities pull's record forward, not blank it
         "equities": eq.get("indices", {}) if eq.get("ok") else prev.get("equities", {}),
+        "equities_pulled": (pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+                            if eq.get("ok") else prev.get("equities_pulled", "")),
     }
     SNAP.mkdir(parents=True, exist_ok=True)
     (SNAP / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -332,6 +386,12 @@ def main():
                     help="run ONLY the Equities pull (membership + quotes + fundamentals)")
     ap.add_argument("--with-equities", action="store_true",
                     help="chain the Equities pull onto the FICC snapshot (old combined behaviour)")
+    ap.add_argument("--fetch", action="store_true",
+                    help="BLOOMBERG phase only (~3-5 min): all raw pulls + own-curve marks; "
+                         "the Terminal can close when this exits")
+    ap.add_argument("--compute", action="store_true",
+                    help="Terminal-CLOSED phase: COT signals, own-curve fits from cached "
+                         "marks, manifest (run after --fetch)")
     args = ap.parse_args()
     if args.excel:
         export_excel(args.excel)
@@ -346,9 +406,13 @@ def main():
         # nonzero on a dead pull so the app's button shows the failure instead of "refreshed";
         # a DELIBERATELY-disabled pull ("disabled") is not a failure, so it exits 0.
         raise SystemExit(0 if (eq.get("ok") or eq.get("disabled")) else 1)
-    m = run(include_equities=args.with_equities)
-    print("Snapshot written to", SNAP)
+    m = run(include_equities=args.with_equities,
+            fetch_only=args.fetch, compute_only=args.compute)
+    print("Snapshot written to" if not args.fetch else "Fetch phase done —", SNAP)
     print(json.dumps(m, indent=2))
+    if args.fetch:
+        # nonzero when the guard bailed (no data) so the app can tell success from failure
+        raise SystemExit(0 if m.get("phase") == "fetched" else 1)
 
 
 if __name__ == "__main__":
