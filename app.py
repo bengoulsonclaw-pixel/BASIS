@@ -41,6 +41,7 @@ from src import volbt
 from src import sectorcorr
 from src import worldclock
 from src import prodsearch
+from src import expiries
 from src import tascore
 from src import markethours
 from src import blocksizes
@@ -3066,9 +3067,11 @@ def _ta_gallery_data(tk, strset_key, as_of):
     flagging strategies' levels) so it isn't recomputed on every rerun — only when the product
     or the signals change. The heavy `*_chart_data` calls live here, behind the cache."""
     from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
-                                breakout_retest as _br, momentum as _mom, fibonacci as _fbn)
+                                breakout_retest as _br, momentum as _mom, fibonacci as _fbn,
+                                elliott_wave as _ew, ichimoku as _ich, obv as _obv, mfi as _mfi)
     strset = set(strset_key)
-    out = {"pf": None, "flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None, "mom": None}
+    out = {"pf": None, "flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None,
+           "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None}
     try:
         out["pf"] = get_history_ta([tk])[tk].dropna()
     except Exception:
@@ -3103,6 +3106,36 @@ def _ta_gallery_data(tk, strset_key, as_of):
             _mcd, _mi = _mom.momentum_chart_data(tk)
             if _mcd is not None and not _mcd.empty:
                 out["mom"] = _mcd[["date", "rsi"]].dropna()
+        except Exception:
+            pass
+    if "Elliott Wave" in strset and out["pf"] is not None:
+        try:
+            # analyse the SAME series the chart draws (get_history_ta → yields for FI), so the pivots
+            # land on the chart's y-scale — passing price history would blow up the shared scale on FI.
+            _, _ewi = _ew.elliott_chart_data(tk, history=pd.DataFrame({tk: out["pf"]}))
+            if _ewi and _ewi.get("pivots"):
+                out["elliott"] = _ewi["pivots"]     # [{date, price, label 0..5, kind H/L}]
+        except Exception:
+            pass
+    if "Ichimoku Cloud" in strset and out["pf"] is not None:
+        try:                                        # price-axis overlay → same series as the chart
+            _, _ici = _ich.ichimoku_chart_data(tk, history=pd.DataFrame({tk: out["pf"]}))
+            if _ici and _ici.get("cloud"):
+                out["ichimoku"] = _ici              # tenkan/kijun record lists + cloud [{date,a,b}]
+        except Exception:
+            pass
+    if "On-Balance Volume" in strset:               # own panel + own (volume) history → don't pass pf
+        try:
+            _od, _oi = _obv.obv_chart_data(tk)
+            if _od is not None and not _od.empty:
+                out["obv"] = _od[["date", "obv"]].dropna()
+        except Exception:
+            pass
+    if "Money Flow Index" in strset:                # own 0–100 panel + own (volume) history
+        try:
+            _md, _mi2 = _mfi.mfi_chart_data(tk)
+            if _md is not None and not _md.empty:
+                out["mfi"] = _md[["date", "mfi"]].dropna()
         except Exception:
             pass
     return out
@@ -3148,8 +3181,9 @@ def render_ta_overview() -> None:
             "**Trend, Momentum (RSI/MACD), OBV, Support & Resistance and Flag Breakout**, one per axis "
             "(direction / momentum / volume / location / pattern) — so agreement is real corroboration, "
             "not the same read echoed. Edit it under **🎯 Confluence set** above; every other strategy "
-            "keeps its page and chart overlays but stays out of the score. If you add more than one "
-            "*trend* read, they're de-duplicated (strongest full, the next at **½**, **⅓**, …).\n\n"
+            "keeps its page and chart overlays but stays out of the score. If you tick more than one "
+            "method in the **same axis**, they're de-duplicated (strongest full, the next at **½**, "
+            "**⅓**, …), so a single dimension can't vote twice.\n\n"
             "**Worked example.** Three strategies flag a product **Long** at strengths 90 / 80 / 70 and one "
             "flags it **Short** at 60 → Conviction = (90+80+70+60) ÷ 4 = **75**; "
             "Score = |＋90＋80＋70－60| = **180** (the short partly cancels); Net = **▲ long**. If instead all "
@@ -3170,15 +3204,23 @@ def render_ta_overview() -> None:
                 st.session_state.pop(_s[3], None)        # clear stale empty pills so they re-seed on
             st.rerun()
         return
-    with st.expander("🎯 Confluence set — which strategies feed the score", expanded=False):
-        _conf = st.multiselect(
-            "Scored strategies (independent reads → genuine confluence)",
-            options=list(tascore.TA_STRATEGIES), default=tascore.confluence_set(), key="conf_set",
-            help="Only these feed the conviction score, leaderboard and report; the rest keep their "
-                 "pages and chart overlays but stay out of the score. Pick independent reads — one per "
-                 "axis (trend / momentum / volume / location / pattern) — so agreement is real "
-                 "corroboration, not the same signal echoed. Default: Trend, Momentum, OBV, "
-                 "Support & Resistance, Flag Breakout.")
+    with st.expander("🎯 Confluence set — which methods feed the score, by axis", expanded=True):
+        st.caption("The five independent **axes** of technical analysis. Tick the method(s) that feed "
+                   "the conviction score within each — agreement **across** axes is genuine "
+                   "corroboration, while several methods in one axis are de-duplicated (strongest "
+                   "counts full, the next ½, then ⅓…) so a single dimension can't vote twice. Anything "
+                   "not ticked keeps its own page and chart overlays; it's simply out of the score.")
+        _saved = set(tascore.confluence_set())
+        _conf = []
+        _acols = st.columns(len(tascore.TA_AXES))          # one column per axis → side by side
+        for _col, (_ax, _methods) in zip(_acols, tascore.TA_AXES.items()):
+            _picked = _col.multiselect(
+                _ax, options=_methods, default=[m for m in _methods if m in _saved],
+                key=f"conf_ax::{_ax}",
+                help=f"The {_ax.lower()} axis — {len(_methods)} method(s) available. "
+                     "Blank = this dimension sits out of the score.")
+            _conf.extend(_picked)
+        st.session_state["conf_set"] = _conf          # the union — the report-generate handler reads this
         _cs1, _cs2 = st.columns([1, 2.4])
         if _cs1.button("💾 Save as default", key="conf_save",
                        help="Persist this set — used by the weekly report and on every launch."):
@@ -3202,10 +3244,6 @@ def render_ta_overview() -> None:
     m[1].metric("Long / Short", f"{n_long} / {n_short}")
     m[2].metric("Products", int(prod.shape[0]))
     m[3].metric("Flagged by 2+", n_multi, help="Products flagged by more than one technical strategy.")
-
-    # Report generation, isolated in a fragment: a Generate click reruns ONLY that block, so the
-    # heavy leaderboard/gallery below don't re-render — no more mid-page ghosting while the PDF builds.
-    _ta_reports(meta, prod)
 
     def _arrow(d):
         return " ▲" if d > 0 else " ▼" if d < 0 else ""
@@ -3255,7 +3293,13 @@ def render_ta_overview() -> None:
                "Long": int(((flagged["strategy"] == s) & (flagged["dir"] > 0)).sum()),
                "Short": int(((flagged["strategy"] == s) & (flagged["dir"] < 0)).sum())}
               for s in tascore.TA_STRATEGIES]
-    brand.themed_dataframe(pd.DataFrame(counts), {})
+    brand.themed_dataframe(pd.DataFrame(counts), {}, column_config={
+        # pin the three integer columns narrow so they don't over-expand and clip "Short" off the
+        # right edge; the wide "Strategy" text column then absorbs the remaining container width.
+        "Flagged": st.column_config.NumberColumn(width="small"),
+        "Long": st.column_config.NumberColumn(width="small"),
+        "Short": st.column_config.NumberColumn(width="small"),
+    })
 
     # --- charts for the SELECTED stacked product (default: the top row), drawing the
     #     indicators that flagged it. Driven by the table selection above. ---
@@ -3265,9 +3309,11 @@ def render_ta_overview() -> None:
         st.markdown(f"##### Charts — {_sel_name}")
         st.caption("Charts for the **selected** stacked product (click another row above to switch). Each "
                    "chart draws **what triggered the flags**: Bollinger bands, the moving averages "
-                   "(MA crossover 50/200 · swing 20/50 · trend 20/100), the flag channel, and the "
-                   "support/resistance, broken and flag-breakout levels. RSI is shown below when momentum "
-                   "flags it. (Mean Reversion is a pair spread, so it's noted but not overlaid here.)")
+                   "(MA crossover 50/200 · swing 20/50 · trend 20/100), the flag channel, the **Ichimoku "
+                   "cloud + Tenkan/Kijun**, the **Elliott wave count (purple, 0–5)**, and the "
+                   "support/resistance, broken and flag-breakout levels. Sub-panels below carry **RSI / MFI** "
+                   "(when momentum or money-flow flag) and **OBV** (when volume flags). (Mean Reversion is a "
+                   "pair spread, so it's noted but not overlaid here.)")
         _cc = brand.chart_colors()
         for r in gallery.itertuples(index=False):
             tk = r.instruments
@@ -3336,17 +3382,72 @@ def render_ta_overview() -> None:
                 if np.isfinite(pv):
                     layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
                         color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
-            brand.show_chart(alt.layer(*layers).resolve_scale(y="shared").properties(height=300))
+            # Elliott wave count: the labelled 0..5 pivots as a purple markered line over the price
+            # (clipped to the shown window), matching the report chart. Drawn last → sits on top.
+            if _g.get("elliott"):
+                _piv = pd.DataFrame([p for p in _g["elliott"] if p["date"] >= win.index[0]])
+                if len(_piv) >= 2:
+                    layers.append(alt.Chart(_piv).mark_line(
+                        color="#9575CD", strokeWidth=1.8, opacity=0.9,
+                        point=alt.OverlayMarkDef(color="#9575CD", size=42)).encode(
+                        x="date:T", y=alt.Y("price:Q", scale=alt.Scale(zero=False)),
+                        tooltip=[alt.Tooltip("label:N", title="Wave"),
+                                 alt.Tooltip("price:Q", title=_yax, format=",.2f")]))
+                    layers.append(alt.Chart(_piv).mark_text(
+                        dy=-12, fontSize=12, fontWeight="bold", color="#B39DDB").encode(
+                        x="date:T", y="price:Q", text="label:N"))
+            # Ichimoku Kumo (cloud) + Tenkan/Kijun — PREPENDED so the translucent cloud sits behind
+            # the price (like the report); green where span-A ≥ span-B, red where below. The cloud
+            # carries a 26-session forward projection, so it extends the x-axis to the right.
+            _ich_layers = []
+            _ich = _g.get("ichimoku")
+            if _ich and _ich.get("cloud"):
+                _cl = pd.DataFrame([c for c in _ich["cloud"] if c["date"] >= win.index[0]]).dropna(
+                    subset=["a", "b"])
+                if not _cl.empty:
+                    _cl["bull"] = _cl["a"] >= _cl["b"]
+                    for _fl, _col in ((True, _cc["long"]), (False, _cc["short"])):
+                        _seg = _cl.copy()
+                        _seg.loc[_cl["bull"] != _fl, ["a", "b"]] = None
+                        _ich_layers.append(alt.Chart(_seg).mark_area(opacity=0.32).encode(
+                            x="date:T", y=alt.Y("a:Q", scale=alt.Scale(zero=False)), y2="b:Q",
+                            color=alt.value(_col)))
+                    for _k, _c2 in (("tenkan", "#26A69A"), ("kijun", "#EC407A")):
+                        _ln = pd.DataFrame([r for r in (_ich.get(_k) or []) if r["date"] >= win.index[0]]
+                                           ).dropna(subset=["val"])
+                        if not _ln.empty:
+                            _ich_layers.append(alt.Chart(_ln).mark_line(
+                                color=_c2, strokeWidth=1.2, opacity=0.85).encode(
+                                x="date:T", y=alt.Y("val:Q", scale=alt.Scale(zero=False))))
+            brand.show_chart(alt.layer(*(_ich_layers + layers)).resolve_scale(y="shared").properties(height=300))
 
-            # RSI subpanel when momentum is one of the flaggers (oscillator → its own panel).
+            # Oscillator sub-panel (0–100): RSI when momentum flags, MFI when money-flow flags — they
+            # share one panel like the report (RSI 70/30 guides, MFI 80/20).
+            _osc, _guides = [], []
             if _g["mom"] is not None:
-                _rb = alt.Chart(_g["mom"].tail(180)).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)))
-                _rsi = _rb.mark_line(color="#7E57C2", strokeWidth=2).encode(
-                    y=alt.Y("rsi:Q", title="RSI", scale=alt.Scale(domain=[0, 100]),
-                            axis=alt.Axis(values=[0, 30, 50, 70, 100], labelFontSize=11)))
-                _ob = alt.Chart(pd.DataFrame({"y": [70]})).mark_rule(color=_cc["short"], strokeDash=[4, 3]).encode(y="y:Q")
-                _os = alt.Chart(pd.DataFrame({"y": [30]})).mark_rule(color=_cc["long"], strokeDash=[4, 3]).encode(y="y:Q")
-                brand.show_chart((_rsi + _ob + _os).properties(height=130, title="RSI (14) — 70 / 30 guides"))
+                _osc.append(("rsi", _g["mom"].tail(180), "#7E57C2", "RSI"))
+                _guides += [(70, _cc["short"]), (30, _cc["long"])]
+            if _g["mfi"] is not None:
+                _osc.append(("mfi", _g["mfi"].tail(180), "#00897B", "MFI"))
+                _guides += [(80, _cc["short"]), (20, _cc["long"])]
+            if _osc:
+                _olays = [alt.Chart(_df).mark_line(color=_c, strokeWidth=2).encode(
+                    x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
+                    y=alt.Y(f"{_col_name}:Q", title="RSI / MFI", scale=alt.Scale(domain=[0, 100]),
+                            axis=alt.Axis(values=[0, 20, 30, 50, 70, 80, 100], labelFontSize=11)))
+                    for _col_name, _df, _c, _ in _osc]
+                _olays += [alt.Chart(pd.DataFrame({"y": [_y]})).mark_rule(
+                    color=_c, strokeDash=[4, 3]).encode(y="y:Q") for _y, _c in _guides]
+                brand.show_chart(alt.layer(*_olays).resolve_scale(y="shared").properties(
+                    height=130, title=" / ".join(t for _, _, _, t in _osc) + " (14)"))
+
+            # OBV sub-panel — cumulative volume; its trend vs price (confirmation / divergence) is the read.
+            if _g["obv"] is not None:
+                brand.show_chart(alt.Chart(_g["obv"].tail(180)).mark_line(
+                    color="#26A69A", strokeWidth=1.8).encode(
+                    x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
+                    y=alt.Y("obv:Q", title="OBV", scale=alt.Scale(zero=False),
+                            axis=alt.Axis(labelFontSize=10))).properties(height=110, title="On-Balance Volume"))
 
     # --- full flagged leaderboard, ranked by product conviction score ---
     st.markdown("##### All flagged signals")
@@ -3382,6 +3483,12 @@ def render_ta_overview() -> None:
     st.caption("**Conviction** = this signal's strength 0–100 (on its strategy's scale); **Score** = the "
                "product's cross-strategy conviction (confluence × strength), so a product's rows cluster at "
                "the top when several strategies agree. The **Confluence** page covers the whole book.")
+
+    # Report controls pinned to the FOOT of the page (a consistent "generate + email at the bottom"
+    # layout across the app). Still isolated in a fragment, so a Generate click reruns only this
+    # block — not the leaderboard/gallery above it.
+    st.divider()
+    _ta_reports(meta, prod)
 
 
 def render_data_health() -> None:
@@ -3508,11 +3615,15 @@ def render_market_hours() -> None:
         status = ("open now" if opn else "closed now") + (f' · half-day ({half})' if half else '')
         half_txt = f' · closes early {seg["early_close"]} ({exch_tz_short})' if half else ''
         lcol = markethours.ASSET_LIQUID.get(asset, markethours.ASSET_COLORS.get(asset, "#888"))
+        exp = expiries.describe(t, asset, ref_date)      # indicative next futures / options expiry
+        fut_exp = (f'{exp["fut"]} · {exp["fut_time"]}' if exp["fut"]
+                   else "cash index — options only" if exp["cash"] else "—")
+        opt_exp = f'{exp["opt"]} · {exp["opt_time"]}' if exp["opt"] else "—"
         for a, b in seg["full"]:
             rows.append({"mkt": lbl, "asset": asset, "start": a, "end": b, "kind": "Full session",
                          "lcolor": lcol, "exch": seg["exchange"],
                          "hours": f'{seg["full_local"]} ({exch_tz_short}){half_txt}', "et": f'{seg["full_et"]} ET',
-                         "status": status})
+                         "status": status, "fut_exp": fut_exp, "opt_exp": opt_exp})
         # The liquid window may sit on a different venue (e.g. iron ore → Dalian) — label it.
         diff_venue = seg["liquid_exch"] != seg["exchange"]
         liq_hours = (f'{seg["liquid_local"]} · {seg["liquid_exch"]}' if diff_venue
@@ -3520,7 +3631,8 @@ def render_market_hours() -> None:
         for a, b in seg["liquid"]:
             rows.append({"mkt": lbl, "asset": asset, "start": a, "end": b, "kind": "Liquid window",
                          "lcolor": lcol, "exch": (seg["liquid_exch"] if diff_venue else seg["exchange"]),
-                         "hours": liq_hours, "et": f'{seg["liquid_et"]} ET', "status": status})
+                         "hours": liq_hours, "et": f'{seg["liquid_et"]} ET', "status": status,
+                         "fut_exp": fut_exp, "opt_exp": opt_exp})
         if seg["settle"] is not None:
             settle_rows.append({"mkt": lbl, "settle": seg["settle"],
                                 "settle_txt": f'{seg["settle_local"]} {exch_tz_short} · {seg["settle_et"]} ET'})
@@ -3547,7 +3659,8 @@ def render_market_hours() -> None:
                        range=[markethours.ASSET_COLORS.get(a, "#888") for a in _aorder])
     tip = [alt.Tooltip("mkt:N", title="Product"), alt.Tooltip("exch:N", title="Exchange"),
            alt.Tooltip("kind:N", title="Bar"), alt.Tooltip("hours:N", title="Local (exchange)"),
-           alt.Tooltip("et:N", title="Eastern (ET)"), alt.Tooltip("status:N", title="Status")]
+           alt.Tooltip("et:N", title="Eastern (ET)"), alt.Tooltip("status:N", title="Status"),
+           alt.Tooltip("fut_exp:N", title="Next future exp."), alt.Tooltip("opt_exp:N", title="Next option exp.")]
     base = alt.Chart(df)
     full = base.transform_filter(alt.datum.kind == "Full session").mark_bar(opacity=0.4).encode(
         x=xaxis, x2="end:Q", y=yaxis,
@@ -7205,7 +7318,7 @@ if active == "Ichimoku Cloud":
             cloud_df = pd.DataFrame(info["cloud"])
             _green = _cc.get("long", "#2E7D32")
             _red = _cc.get("short", "#C62828")
-            cloud = alt.Chart(cloud_df).mark_area(opacity=0.22).encode(
+            cloud = alt.Chart(cloud_df).mark_area(opacity=0.34).encode(
                 x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=12)),
                 y=alt.Y("a:Q", title=_ax(_tick[sel]), scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
@@ -7331,43 +7444,10 @@ if active in REPORTS:
         _skew_charts(threshold)
     elif active == "Vol Term Structure":
         _term_charts(threshold)
-    if st.button(cfg["label"], type="primary", disabled=not cfg["detail"].exists()):
-        with st.spinner("Rendering charts…"):
-            with tempfile.TemporaryDirectory() as tmp:
-                out_pdf = Path(tmp) / "report.pdf"
-                result = subprocess.run(
-                    [sys.executable, str(cfg["cli"]), str(cfg["detail"]), str(out_pdf),
-                     "--asof", str(meta.get("as_of", "")),
-                     "--threshold", str(threshold if threshold is not None else 1.5)],
-                    capture_output=True, text=True,
-                )
-                ok = result.returncode == 0 and out_pdf.exists()
-                pdf_bytes = out_pdf.read_bytes() if ok else None
-        if not ok:
-            st.session_state.pop(cfg["key"], None)
-            st.error(f"{active} report failed:\n\n" + (result.stderr or result.stdout or "no output"))
-        else:
-            st.session_state[cfg["key"]] = pdf_bytes
-            st.success(f"{active} report ready.")
-    if st.session_state.get(cfg["key"]):
-        _pdf = st.session_state[cfg["key"]]
-        st.download_button(f"⬇️ Download {active} Report (PDF)", data=_pdf,
-                           file_name=cfg["file"], mime="application/pdf", key=f"{cfg['key']}_dl")
-
-        _asof = str(meta.get("as_of", ""))[:10]
-        email_report_ui(cfg["key"], cfg["key"], _pdf,
-                        subject=f"{active} Report" + (f" — {_asof}" if _asof else ""),
-                        attachment_name=cfg["file"],
-                        intro_html=f"<p>Please find today's {active} report attached.</p>")
-
-        # Inline preview — the actual report pages (charts + table) shown on the page.
-        with st.expander("👁️  Preview the report here", expanded=True):
-            try:
-                for _img in _pdf_page_images(_pdf):
-                    st.image(_img, use_container_width=True)
-            except Exception as _e:
-                st.caption(f"(Inline preview needs pypdfium2 — {_e})")
-    st.caption("The table below is the full cross-section — tick rows for a plain-table PDF instead.")
+    # The visual-report Generate/Email controls live at the FOOT of the page (below the cross-section
+    # table) — see the `if active in REPORTS` block at the very bottom of this script.
+    st.caption("Scroll to the foot of the page to generate the visual report; the table below is the "
+               "full cross-section — tick rows for a plain-table PDF instead.")
     st.divider()
 
 # AG Fundamentals: USDA supply/demand + report-calendar event risk. Refresh pulls the
@@ -7399,101 +7479,9 @@ if active == "AG Fundamentals":
         a_note.caption("Showing USDA **report-calendar event risk**. For NASS stocks-tightness flags, set a "
                        "free key once — `setx NASS_API_KEY <key>` (quickstats.nass.usda.gov/api) — then Refresh.")
 
-    st.divider()
-    _wcal = agdata.report_calendar()
-    _wpast = _wcal[(_wcal["report"] == "WASDE") & (_wcal["date"] <= pd.Timestamp.now().normalize())]
-    _wasof = (_wpast["date"].max().strftime("%d %b %Y") + " WASDE") if not _wpast.empty else ""
-    _t_wasde, _t_rx = st.tabs(["🌍 WASDE — Supply & Demand", "📊 USDA Reaction — Acreage & Grain Stocks"])
-
-    with _t_wasde:
-        st.markdown("**Monthly WASDE balance-sheet note** — US & world supply/demand and stocks-to-use, plus "
-                    "month-over-month ending-stocks revisions and the trade-consensus surprise (when estimates "
-                    "are loaded). Auto-emails on each release when switched on in Alert Settings.")
-        if st.button("🌍 Generate WASDE Report (PDF)", type="primary", key="wasde_gen"):
-            with st.spinner("Building the WASDE note from USDA PS&D…"):
-                with tempfile.TemporaryDirectory() as tmp:
-                    out_pdf = Path(tmp) / "wasde.pdf"
-                    result = subprocess.run(
-                        [sys.executable, str(WASDEREPORT_CLI), str(out_pdf), "--asof", _wasof],
-                        capture_output=True, text=True,
-                    )
-                    ok = result.returncode == 0 and out_pdf.exists()
-                    pdf_bytes = out_pdf.read_bytes() if ok else None
-            if not ok:
-                st.session_state.pop("wasde_pdf", None)
-                st.error("WASDE report failed:\n\n" + (result.stderr or result.stdout or "no output"))
-            else:
-                st.session_state["wasde_pdf"] = pdf_bytes
-                st.success("WASDE report ready.")
-        if st.session_state.get("wasde_pdf"):
-            st.download_button("⬇️ Download WASDE_Report.pdf", data=st.session_state["wasde_pdf"],
-                               file_name="WASDE_Report.pdf", mime="application/pdf")
-            email_report_ui("wasde_pdf", "wasde", st.session_state.get("wasde_pdf"),
-                            subject="USDA WASDE — Supply & Demand", attachment_name="WASDE_Report.pdf")
-
-    with _t_rx:
-        st.markdown("**USDA Reaction note — quarterly Grain Stocks (+ June Acreage).** Stocks total with the "
-                    "on-farm/off-farm split and implied quarterly use; the June release also adds planted area "
-                    "vs the March intentions, wheat by class, and the acreage surprise. It **auto-detects the "
-                    "latest release** and **emails itself on each quarterly print** (the scheduled task is live). "
-                    "Generate or preview it on demand here.")
-        c_gen, c_prev = st.columns(2)
-        if c_gen.button("📊 Generate PDF", type="primary", key="rx_gen"):
-            with st.spinner("Pulling the latest NASS Grain Stocks…"):
-                with tempfile.TemporaryDirectory() as tmp:
-                    out_pdf = Path(tmp) / "rx.pdf"
-                    result = subprocess.run(
-                        [sys.executable, str(USDAREACTION_CLI), str(out_pdf)],
-                        capture_output=True, text=True,
-                    )
-                    ok = result.returncode == 0 and out_pdf.exists()
-                    pdf_bytes = out_pdf.read_bytes() if ok else None
-            if not ok:
-                st.session_state.pop("rx_pdf", None)
-                st.error("USDA Reaction note failed:\n\n" + (result.stderr or result.stdout or "no output"))
-            else:
-                st.session_state["rx_pdf"] = pdf_bytes
-                st.success("USDA Reaction note ready.")
-        if c_prev.button("🔢 Preview the numbers", key="rx_prev"):
-            import json as _json
-            with st.spinner("Pulling the latest NASS Grain Stocks…"):
-                with tempfile.TemporaryDirectory() as tmp:
-                    jp = Path(tmp) / "rx.json"
-                    r = subprocess.run([sys.executable, str(USDAREACTION_CLI), "--json", str(jp)],
-                                       capture_output=True, text=True)
-                    st.session_state["rx_data"] = (_json.loads(jp.read_text(encoding="utf-8"))
-                                                   if (r.returncode == 0 and jp.exists()) else None)
-        _d = st.session_state.get("rx_data")
-        if _d:
-            st.caption(f"Latest report: **{_d.get('label', '')} {_d.get('year', '')}** "
-                       + ("— June: full note with Acreage" if _d.get("full") else "— stocks-only"))
-            if _d.get("pending"):
-                st.info("June Acreage isn't released yet — showing March intentions; the actuals and the "
-                        "surprise fill in on release.")
-            if _d.get("full"):
-                st.markdown("**Planted acreage** — vs March intentions & year-ago")
-                st.dataframe(pd.DataFrame(_d["acre"])[["crop", "actual", "mar", "vs_mar", "vs_yr", "read"]],
-                             hide_index=True, use_container_width=True)
-                st.markdown("**Wheat by class**")
-                st.dataframe(pd.DataFrame(_d["wclass"])[["crop", "actual", "vs_yr", "read"]],
-                             hide_index=True, use_container_width=True)
-            st.markdown(f"**{_d.get('label', '')} stocks** — total, on-farm vs off-farm")
-            st.dataframe(pd.DataFrame(_d["stk"])[["crop", "total", "vs_yr", "on", "off", "read"]],
-                         hide_index=True, use_container_width=True)
-            if _d.get("dis"):
-                st.markdown(f"**Implied {_d.get('quarter', '')} use** (prior-quarter minus this-quarter stocks)")
-                st.dataframe(pd.DataFrame(_d["dis"])[["crop", "use", "vs_yr", "read"]],
-                             hide_index=True, use_container_width=True)
-        if st.session_state.get("rx_pdf"):
-            st.download_button("⬇️ Download USDA_Reaction.pdf", data=st.session_state["rx_pdf"],
-                               file_name="USDA_Reaction.pdf", mime="application/pdf")
-            email_report_ui("rx_pdf", "usda_reaction", st.session_state.get("rx_pdf"),
-                            subject="USDA Grain Stocks — Reaction", attachment_name="USDA_Reaction.pdf")
-        st.caption("Auto-send is **live** (Task Scheduler → `usda_reaction_scheduled_email.py`): it emails the "
-                   "note to the **USDA Reaction** recipients on each quarterly Grain Stocks print "
-                   "(Jan / Mar / Jun / Sep).")
-
-    st.divider()
+    # The WASDE / USDA-Reaction report generators are pinned to the FOOT of the page (below the ag
+    # flags table), so the pulled data shows first — see the `if active == "AG Fundamentals"` block
+    # at the very bottom of this script.
 
 # COT Reports: a dedicated positioning page (charts + ranked bar + extremes table +
 # branded PDF). Self-contained — ends with st.stop() so the generic table is skipped.
@@ -7571,78 +7559,6 @@ if active == "COT Reports":
     brand.show_chart(heat)
     st.caption("Each cell is one market-week. Rows grouped by asset class, most net-long at the top of each "
                "group. The right-most column is the latest report.")
-    st.divider()
-
-    # --- branded PDF (whole-book chartbook) — crisp for screen, or a lighter email copy ---
-    st.markdown("**Daily client report** — the heatmap, ranked positioning bar, crowded-markets + "
-                "forward-return tables, and a chart for every market, on the XP brand.")
-    qc1, qc2 = st.columns(2)
-    _gen = None
-    if qc1.button("📈 Generate — screen (crisp)", type="primary", disabled=not COT_DETAIL_FILE.exists()):
-        _gen = ("screen", "COT_Positioning_Report.pdf")
-    if qc2.button("📧 Generate — email (smaller file)", disabled=not COT_DETAIL_FILE.exists()):
-        _gen = ("email", "COT_Positioning_Report_email.pdf")
-    if _gen:
-        quality, fname = _gen
-        with st.spinner(f"Rendering COT charts… ({quality}, whole book)"):
-            with tempfile.TemporaryDirectory() as tmp:
-                out_pdf = Path(tmp) / "cot.pdf"
-                result = subprocess.run(
-                    [sys.executable, str(COTREPORT_CLI), str(COT_DETAIL_FILE), str(out_pdf),
-                     "--asof", str(meta.get("as_of", "")), "--threshold", str(cutoff),
-                     "--quality", quality],
-                    capture_output=True, text=True,
-                )
-                ok = result.returncode == 0 and out_pdf.exists()
-                pdf_bytes = out_pdf.read_bytes() if ok else None
-        if not ok:
-            st.session_state.pop("cot_pdf", None)
-            st.error("COT report failed:\n\n" + (result.stderr or result.stdout or "no output"))
-        else:
-            st.session_state["cot_pdf"] = pdf_bytes
-            st.session_state["cot_pdf_name"] = fname
-            st.session_state["cot_pdf_mb"] = len(pdf_bytes) / 1024 / 1024
-            st.success(f"{quality.capitalize()} report ready — {st.session_state['cot_pdf_mb']:.1f} MB.")
-    if st.session_state.get("cot_pdf"):
-        st.download_button(
-            f"⬇️ Download {st.session_state.get('cot_pdf_name', 'COT_Positioning_Report.pdf')} "
-            f"({st.session_state.get('cot_pdf_mb', 0):.1f} MB)",
-            data=st.session_state["cot_pdf"],
-            file_name=st.session_state.get("cot_pdf_name", "COT_Positioning_Report.pdf"),
-            mime="application/pdf")
-    st.caption("Screen = crisp 160-dpi charts. Email = lighter 96-dpi for a smaller attachment. "
-               "The buttons above only build a file to download — they don't email anyone.")
-
-    # Email the report on demand — pick recipients (defaults to the desk: Ben + Said, the same
-    # list as the scheduled Friday-release job). Confirm-gated against stray sends.
-    st.markdown("**Email this report**")
-    cot_to = _recipient_picker("cot", "cot")
-    ec1, ec2 = st.columns([1, 4])
-    confirm_send = ec1.checkbox("Confirm", key="cot_email_confirm")
-    if ec2.button("📤 Email report now", disabled=not (confirm_send and cot_to and COT_DETAIL_FILE.exists())):
-        with st.spinner("Building the email report and sending…"):
-            try:
-                import cot_scheduled_email as _cote
-                with tempfile.TemporaryDirectory() as tmp:
-                    out_pdf = Path(tmp) / "cot_desk.pdf"
-                    res = subprocess.run(
-                        [sys.executable, str(COTREPORT_CLI), str(COT_DETAIL_FILE), str(out_pdf),
-                         "--asof", str(meta.get("as_of", "")), "--threshold", str(cutoff), "--quality", "email"],
-                        capture_output=True, text=True)
-                    if res.returncode != 0 or not out_pdf.exists():
-                        raise RuntimeError(res.stderr or res.stdout or "report build failed")
-                    asof = pd.to_datetime(detail["date"]).max().date()
-                    _cote.send_email(out_pdf, asof, dry_run=False, to_override=cot_to)
-                    recipients = cot_to
-                ok, err = True, None
-            except Exception as e:
-                ok, err = False, str(e)
-        if ok:
-            st.success("Emailed to " + ", ".join(recipients) + ".")
-        else:
-            st.error("Email failed:\n\n" + err)
-    st.caption("Sends the report at the current crowded-cutoff to the chosen recipients immediately, using "
-               "the cached CFTC data shown on this page (hit ↻ Refresh first if you want the very latest).")
     st.divider()
 
     # --- per-market interactive chart ---
@@ -7807,6 +7723,79 @@ if active == "COT Reports":
     st.caption("Full cross-section — every market with CFTC COT, most crowded first.")
     brand.themed_dataframe(show, _cot_fmt, colorers=[(["Signal"], _sig_color)],
                            na_rep="—", height=520)
+
+    # --- branded PDF (whole-book chartbook) + on-demand email. Pinned to the FOOT of the page for a
+    #     consistent "generate + email at the bottom" layout across the app. ---
+    st.divider()
+    st.markdown("**Daily client report** — the heatmap, ranked positioning bar, crowded-markets + "
+                "forward-return tables, and a chart for every market, on the XP brand.")
+    qc1, qc2 = st.columns(2)
+    _gen = None
+    if qc1.button("📈 Generate — screen (crisp)", type="primary", disabled=not COT_DETAIL_FILE.exists()):
+        _gen = ("screen", "COT_Positioning_Report.pdf")
+    if qc2.button("📧 Generate — email (smaller file)", disabled=not COT_DETAIL_FILE.exists()):
+        _gen = ("email", "COT_Positioning_Report_email.pdf")
+    if _gen:
+        quality, fname = _gen
+        with st.spinner(f"Rendering COT charts… ({quality}, whole book)"):
+            with tempfile.TemporaryDirectory() as tmp:
+                out_pdf = Path(tmp) / "cot.pdf"
+                result = subprocess.run(
+                    [sys.executable, str(COTREPORT_CLI), str(COT_DETAIL_FILE), str(out_pdf),
+                     "--asof", str(meta.get("as_of", "")), "--threshold", str(cutoff),
+                     "--quality", quality],
+                    capture_output=True, text=True,
+                )
+                ok = result.returncode == 0 and out_pdf.exists()
+                pdf_bytes = out_pdf.read_bytes() if ok else None
+        if not ok:
+            st.session_state.pop("cot_pdf", None)
+            st.error("COT report failed:\n\n" + (result.stderr or result.stdout or "no output"))
+        else:
+            st.session_state["cot_pdf"] = pdf_bytes
+            st.session_state["cot_pdf_name"] = fname
+            st.session_state["cot_pdf_mb"] = len(pdf_bytes) / 1024 / 1024
+            st.success(f"{quality.capitalize()} report ready — {st.session_state['cot_pdf_mb']:.1f} MB.")
+    if st.session_state.get("cot_pdf"):
+        st.download_button(
+            f"⬇️ Download {st.session_state.get('cot_pdf_name', 'COT_Positioning_Report.pdf')} "
+            f"({st.session_state.get('cot_pdf_mb', 0):.1f} MB)",
+            data=st.session_state["cot_pdf"],
+            file_name=st.session_state.get("cot_pdf_name", "COT_Positioning_Report.pdf"),
+            mime="application/pdf")
+    st.caption("Screen = crisp 160-dpi charts. Email = lighter 96-dpi for a smaller attachment. "
+               "The buttons above only build a file to download — they don't email anyone.")
+
+    # Email the report on demand — pick recipients (defaults to the desk: Ben + Said, the same
+    # list as the scheduled Friday-release job). Confirm-gated against stray sends.
+    st.markdown("**Email this report**")
+    cot_to = _recipient_picker("cot", "cot")
+    ec1, ec2 = st.columns([1, 4])
+    confirm_send = ec1.checkbox("Confirm", key="cot_email_confirm")
+    if ec2.button("📤 Email report now", disabled=not (confirm_send and cot_to and COT_DETAIL_FILE.exists())):
+        with st.spinner("Building the email report and sending…"):
+            try:
+                import cot_scheduled_email as _cote
+                with tempfile.TemporaryDirectory() as tmp:
+                    out_pdf = Path(tmp) / "cot_desk.pdf"
+                    res = subprocess.run(
+                        [sys.executable, str(COTREPORT_CLI), str(COT_DETAIL_FILE), str(out_pdf),
+                         "--asof", str(meta.get("as_of", "")), "--threshold", str(cutoff), "--quality", "email"],
+                        capture_output=True, text=True)
+                    if res.returncode != 0 or not out_pdf.exists():
+                        raise RuntimeError(res.stderr or res.stdout or "report build failed")
+                    asof = pd.to_datetime(detail["date"]).max().date()
+                    _cote.send_email(out_pdf, asof, dry_run=False, to_override=cot_to)
+                    recipients = cot_to
+                ok, err = True, None
+            except Exception as e:
+                ok, err = False, str(e)
+        if ok:
+            st.success("Emailed to " + ", ".join(recipients) + ".")
+        else:
+            st.error("Email failed:\n\n" + err)
+    st.caption("Sends the report at the current crowded-cutoff to the chosen recipients immediately, using "
+               "the cached CFTC data shown on this page (hit ↻ Refresh first if you want the very latest).")
     st.stop()
 
 
@@ -7935,50 +7924,6 @@ if active == "Put/Call Ratios":
                    "row for its asset. The right-most column is today. Markets with under ~60 days of put/call "
                    "history (currently parts of the bond complex) are omitted until their history builds.")
         st.divider()
-
-    # --- branded PDF (whole-book chartbook) — crisp for screen, or a lighter email copy ---
-    st.markdown("**Daily client report** — the heatmap, ranked put/call bar, products-of-interest table, "
-                "and a put/call chart for every market, on the XP brand.")
-    qc1, qc2 = st.columns(2)
-    _gen = None
-    if qc1.button("📈 Generate — screen (crisp)", type="primary", disabled=not PC_DETAIL_FILE.exists()):
-        _gen = ("screen", "PutCall_Ratios_Report.pdf")
-    if qc2.button("📧 Generate — email (smaller file)", disabled=not PC_DETAIL_FILE.exists()):
-        _gen = ("email", "PutCall_Ratios_Report_email.pdf")
-    if _gen:
-        quality, fname = _gen
-        with st.spinner(f"Rendering put/call charts… ({quality}, whole book)"):
-            with tempfile.TemporaryDirectory() as tmp:
-                out_pdf = Path(tmp) / "pc.pdf"
-                result = subprocess.run(
-                    [sys.executable, str(PCREPORT_CLI), str(PC_DETAIL_FILE), str(out_pdf),
-                     "--asof", str(meta.get("as_of", "")), "--threshold", str(cutoff),
-                     "--quality", quality],
-                    capture_output=True, text=True,
-                )
-                ok = result.returncode == 0 and out_pdf.exists()
-                pdf_bytes = out_pdf.read_bytes() if ok else None
-        if not ok:
-            st.session_state.pop("pc_pdf", None)
-            st.error("Put/Call report failed:\n\n" + (result.stderr or result.stdout or "no output"))
-        else:
-            st.session_state["pc_pdf"] = pdf_bytes
-            st.session_state["pc_pdf_name"] = fname
-            st.session_state["pc_pdf_mb"] = len(pdf_bytes) / 1024 / 1024
-            st.success(f"{quality.capitalize()} report ready — {st.session_state['pc_pdf_mb']:.1f} MB.")
-    if st.session_state.get("pc_pdf"):
-        st.download_button(
-            f"⬇️ Download {st.session_state.get('pc_pdf_name', 'PutCall_Ratios_Report.pdf')} "
-            f"({st.session_state.get('pc_pdf_mb', 0):.1f} MB)",
-            data=st.session_state["pc_pdf"],
-            file_name=st.session_state.get("pc_pdf_name", "PutCall_Ratios_Report.pdf"),
-            mime="application/pdf")
-        email_report_ui("pc_pdf", "pc_pdf", st.session_state.get("pc_pdf"),
-                        subject="Put/Call Ratios Report",
-                        attachment_name=st.session_state.get("pc_pdf_name", "PutCall_Ratios_Report.pdf"))
-    st.caption("Screen = crisp 160-dpi charts. Email = lighter 96-dpi for a smaller attachment. "
-               "The buttons above only build a file to download — they don't email anyone.")
-    st.divider()
 
     # --- per-product interactive chart ---
     labels = {r.ticker: f"{r.market} · {r.asset}" for r in detail.itertuples(index=False)}
@@ -8112,6 +8057,51 @@ if active == "Put/Call Ratios":
                "column header to sort (e.g. Avg/day for the most active books).")
     brand.themed_dataframe(show, _pc_fmt, colorers=[(["Signal"], _pc_sig_color)],
                            na_rep="—", height=520)
+
+    # --- branded PDF (whole-book chartbook) — crisp for screen, or a lighter email copy. Pinned to
+    #     the FOOT of the page for a consistent "generate + email at the bottom" layout. ---
+    st.divider()
+    st.markdown("**Daily client report** — the heatmap, ranked put/call bar, products-of-interest table, "
+                "and a put/call chart for every market, on the XP brand.")
+    qc1, qc2 = st.columns(2)
+    _gen = None
+    if qc1.button("📈 Generate — screen (crisp)", type="primary", disabled=not PC_DETAIL_FILE.exists()):
+        _gen = ("screen", "PutCall_Ratios_Report.pdf")
+    if qc2.button("📧 Generate — email (smaller file)", disabled=not PC_DETAIL_FILE.exists()):
+        _gen = ("email", "PutCall_Ratios_Report_email.pdf")
+    if _gen:
+        quality, fname = _gen
+        with st.spinner(f"Rendering put/call charts… ({quality}, whole book)"):
+            with tempfile.TemporaryDirectory() as tmp:
+                out_pdf = Path(tmp) / "pc.pdf"
+                result = subprocess.run(
+                    [sys.executable, str(PCREPORT_CLI), str(PC_DETAIL_FILE), str(out_pdf),
+                     "--asof", str(meta.get("as_of", "")), "--threshold", str(cutoff),
+                     "--quality", quality],
+                    capture_output=True, text=True,
+                )
+                ok = result.returncode == 0 and out_pdf.exists()
+                pdf_bytes = out_pdf.read_bytes() if ok else None
+        if not ok:
+            st.session_state.pop("pc_pdf", None)
+            st.error("Put/Call report failed:\n\n" + (result.stderr or result.stdout or "no output"))
+        else:
+            st.session_state["pc_pdf"] = pdf_bytes
+            st.session_state["pc_pdf_name"] = fname
+            st.session_state["pc_pdf_mb"] = len(pdf_bytes) / 1024 / 1024
+            st.success(f"{quality.capitalize()} report ready — {st.session_state['pc_pdf_mb']:.1f} MB.")
+    if st.session_state.get("pc_pdf"):
+        st.download_button(
+            f"⬇️ Download {st.session_state.get('pc_pdf_name', 'PutCall_Ratios_Report.pdf')} "
+            f"({st.session_state.get('pc_pdf_mb', 0):.1f} MB)",
+            data=st.session_state["pc_pdf"],
+            file_name=st.session_state.get("pc_pdf_name", "PutCall_Ratios_Report.pdf"),
+            mime="application/pdf")
+        email_report_ui("pc_pdf", "pc_pdf", st.session_state.get("pc_pdf"),
+                        subject="Put/Call Ratios Report",
+                        attachment_name=st.session_state.get("pc_pdf_name", "PutCall_Ratios_Report.pdf"))
+    st.caption("Screen = crisp 160-dpi charts. Email = lighter 96-dpi for a smaller attachment. "
+               "The buttons above only build a file to download — they don't email anyone.")
     st.stop()
 
 
@@ -8423,3 +8413,149 @@ else:
         email_report_ui(f"tbl_{active.replace(' ', '_')}", "table", st.session_state.get("pdf_bytes"),
                         subject=f"{active} — flagged opportunities",
                         attachment_name=st.session_state.get("pdf_name", "report.pdf"))
+
+
+# ─── Visual client report (Vol / Skew / Term) — controls pinned to the FOOT of the page ──────────
+# Relocated here from just below the charts so every page's generate/email controls sit at the
+# bottom, consistently. `active`, `meta`, `threshold`, REPORTS are all in scope in this linear flow.
+if active in REPORTS:
+    cfg = REPORTS[active]
+    st.divider()
+    st.markdown(f"##### Generate the {active} report")
+    if st.button(cfg["label"], type="primary", disabled=not cfg["detail"].exists()):
+        with st.spinner("Rendering charts…"):
+            with tempfile.TemporaryDirectory() as tmp:
+                out_pdf = Path(tmp) / "report.pdf"
+                result = subprocess.run(
+                    [sys.executable, str(cfg["cli"]), str(cfg["detail"]), str(out_pdf),
+                     "--asof", str(meta.get("as_of", "")),
+                     "--threshold", str(threshold if threshold is not None else 1.5)],
+                    capture_output=True, text=True,
+                )
+                ok = result.returncode == 0 and out_pdf.exists()
+                pdf_bytes = out_pdf.read_bytes() if ok else None
+        if not ok:
+            st.session_state.pop(cfg["key"], None)
+            st.error(f"{active} report failed:\n\n" + (result.stderr or result.stdout or "no output"))
+        else:
+            st.session_state[cfg["key"]] = pdf_bytes
+            st.success(f"{active} report ready.")
+    if st.session_state.get(cfg["key"]):
+        _pdf = st.session_state[cfg["key"]]
+        st.download_button(f"⬇️ Download {active} Report (PDF)", data=_pdf,
+                           file_name=cfg["file"], mime="application/pdf", key=f"{cfg['key']}_dl")
+
+        _asof = str(meta.get("as_of", ""))[:10]
+        email_report_ui(cfg["key"], cfg["key"], _pdf,
+                        subject=f"{active} Report" + (f" — {_asof}" if _asof else ""),
+                        attachment_name=cfg["file"],
+                        intro_html=f"<p>Please find today's {active} report attached.</p>")
+
+        # Inline preview — the actual report pages (charts + table) shown on the page.
+        with st.expander("👁️  Preview the report here", expanded=True):
+            try:
+                for _img in _pdf_page_images(_pdf):
+                    st.image(_img, use_container_width=True)
+            except Exception as _e:
+                st.caption(f"(Inline preview needs pypdfium2 — {_e})")
+
+
+# ─── AG Fundamentals report generators — pinned to the FOOT of the page, below the flags table ────
+# Moved here from above the table so the pulled data shows first, then the generators (like every
+# other page). Fresh `if` block → re-import agdata and recompute the WASDE as-of.
+if active == "AG Fundamentals":
+    from src import agdata
+    _wcal = agdata.report_calendar()
+    _wpast = _wcal[(_wcal["report"] == "WASDE") & (_wcal["date"] <= pd.Timestamp.now().normalize())]
+    _wasof = (_wpast["date"].max().strftime("%d %b %Y") + " WASDE") if not _wpast.empty else ""
+    st.divider()
+    st.markdown("##### Generate the ag reports")
+    _t_wasde, _t_rx = st.tabs(["🌍 WASDE — Supply & Demand", "📊 USDA Reaction — Acreage & Grain Stocks"])
+
+    with _t_wasde:
+        st.markdown("**Monthly WASDE balance-sheet note** — US & world supply/demand and stocks-to-use, plus "
+                    "month-over-month ending-stocks revisions and the trade-consensus surprise (when estimates "
+                    "are loaded). Auto-emails on each release when switched on in Alert Settings.")
+        if st.button("🌍 Generate WASDE Report (PDF)", type="primary", key="wasde_gen"):
+            with st.spinner("Building the WASDE note from USDA PS&D…"):
+                with tempfile.TemporaryDirectory() as tmp:
+                    out_pdf = Path(tmp) / "wasde.pdf"
+                    result = subprocess.run(
+                        [sys.executable, str(WASDEREPORT_CLI), str(out_pdf), "--asof", _wasof],
+                        capture_output=True, text=True,
+                    )
+                    ok = result.returncode == 0 and out_pdf.exists()
+                    pdf_bytes = out_pdf.read_bytes() if ok else None
+            if not ok:
+                st.session_state.pop("wasde_pdf", None)
+                st.error("WASDE report failed:\n\n" + (result.stderr or result.stdout or "no output"))
+            else:
+                st.session_state["wasde_pdf"] = pdf_bytes
+                st.success("WASDE report ready.")
+        if st.session_state.get("wasde_pdf"):
+            st.download_button("⬇️ Download WASDE_Report.pdf", data=st.session_state["wasde_pdf"],
+                               file_name="WASDE_Report.pdf", mime="application/pdf")
+            email_report_ui("wasde_pdf", "wasde", st.session_state.get("wasde_pdf"),
+                            subject="USDA WASDE — Supply & Demand", attachment_name="WASDE_Report.pdf")
+
+    with _t_rx:
+        st.markdown("**USDA Reaction note — quarterly Grain Stocks (+ June Acreage).** Stocks total with the "
+                    "on-farm/off-farm split and implied quarterly use; the June release also adds planted area "
+                    "vs the March intentions, wheat by class, and the acreage surprise. It **auto-detects the "
+                    "latest release** and **emails itself on each quarterly print** (the scheduled task is live). "
+                    "Generate or preview it on demand here.")
+        c_gen, c_prev = st.columns(2)
+        if c_gen.button("📊 Generate PDF", type="primary", key="rx_gen"):
+            with st.spinner("Pulling the latest NASS Grain Stocks…"):
+                with tempfile.TemporaryDirectory() as tmp:
+                    out_pdf = Path(tmp) / "rx.pdf"
+                    result = subprocess.run(
+                        [sys.executable, str(USDAREACTION_CLI), str(out_pdf)],
+                        capture_output=True, text=True,
+                    )
+                    ok = result.returncode == 0 and out_pdf.exists()
+                    pdf_bytes = out_pdf.read_bytes() if ok else None
+            if not ok:
+                st.session_state.pop("rx_pdf", None)
+                st.error("USDA Reaction note failed:\n\n" + (result.stderr or result.stdout or "no output"))
+            else:
+                st.session_state["rx_pdf"] = pdf_bytes
+                st.success("USDA Reaction note ready.")
+        if c_prev.button("🔢 Preview the numbers", key="rx_prev"):
+            import json as _json
+            with st.spinner("Pulling the latest NASS Grain Stocks…"):
+                with tempfile.TemporaryDirectory() as tmp:
+                    jp = Path(tmp) / "rx.json"
+                    r = subprocess.run([sys.executable, str(USDAREACTION_CLI), "--json", str(jp)],
+                                       capture_output=True, text=True)
+                    st.session_state["rx_data"] = (_json.loads(jp.read_text(encoding="utf-8"))
+                                                   if (r.returncode == 0 and jp.exists()) else None)
+        _d = st.session_state.get("rx_data")
+        if _d:
+            st.caption(f"Latest report: **{_d.get('label', '')} {_d.get('year', '')}** "
+                       + ("— June: full note with Acreage" if _d.get("full") else "— stocks-only"))
+            if _d.get("pending"):
+                st.info("June Acreage isn't released yet — showing March intentions; the actuals and the "
+                        "surprise fill in on release.")
+            if _d.get("full"):
+                st.markdown("**Planted acreage** — vs March intentions & year-ago")
+                st.dataframe(pd.DataFrame(_d["acre"])[["crop", "actual", "mar", "vs_mar", "vs_yr", "read"]],
+                             hide_index=True, use_container_width=True)
+                st.markdown("**Wheat by class**")
+                st.dataframe(pd.DataFrame(_d["wclass"])[["crop", "actual", "vs_yr", "read"]],
+                             hide_index=True, use_container_width=True)
+            st.markdown(f"**{_d.get('label', '')} stocks** — total, on-farm vs off-farm")
+            st.dataframe(pd.DataFrame(_d["stk"])[["crop", "total", "vs_yr", "on", "off", "read"]],
+                         hide_index=True, use_container_width=True)
+            if _d.get("dis"):
+                st.markdown(f"**Implied {_d.get('quarter', '')} use** (prior-quarter minus this-quarter stocks)")
+                st.dataframe(pd.DataFrame(_d["dis"])[["crop", "use", "vs_yr", "read"]],
+                             hide_index=True, use_container_width=True)
+        if st.session_state.get("rx_pdf"):
+            st.download_button("⬇️ Download USDA_Reaction.pdf", data=st.session_state["rx_pdf"],
+                               file_name="USDA_Reaction.pdf", mime="application/pdf")
+            email_report_ui("rx_pdf", "usda_reaction", st.session_state.get("rx_pdf"),
+                            subject="USDA Grain Stocks — Reaction", attachment_name="USDA_Reaction.pdf")
+        st.caption("Auto-send is **live** (Task Scheduler → `usda_reaction_scheduled_email.py`): it emails the "
+                   "note to the **USDA Reaction** recipients on each quarterly Grain Stocks print "
+                   "(Jan / Mar / Jun / Sep).")

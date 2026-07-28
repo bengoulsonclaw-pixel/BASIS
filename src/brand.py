@@ -607,8 +607,36 @@ def apply() -> None:
     st.set_page_config(). The theme defaults to the user's last saved choice."""
     if "basis_theme" not in st.session_state:
         st.session_state["basis_theme"] = _load_pref() or "dark"
+    _sync_native_theme()
     st.markdown(_CSS.safe_substitute(palette()), unsafe_allow_html=True)
     _apply_altair_theme()
+
+
+def _sync_native_theme() -> None:
+    """Drive Streamlit's NATIVE theme from the active palette. The data grid
+    (st.dataframe) is canvas-rendered and ignores the app's CSS entirely — its
+    header fill and grid borders come from the Streamlit theme, so on the light
+    palette they stayed config.toml-dark (black borders on white tables). The
+    theme is re-sent to the frontend on each rerun, so the toggle's st.rerun()
+    re-skins the grids too. Process-global (fine: single-user app, one pref)."""
+    from streamlit import config as _st_config
+    pal = palette()
+    opts = {
+        "theme.base": pal["name"],
+        "theme.primaryColor": pal["gold"],
+        "theme.backgroundColor": pal["canvas"],
+        "theme.secondaryBackgroundColor": pal["surface2"],
+        "theme.textColor": pal["text"],
+        "theme.borderColor": pal["border"],
+        "theme.dataframeBorderColor": pal["border"],
+        "theme.dataframeHeaderBackgroundColor": pal["surface2"],
+    }
+    for _k, _v in opts.items():
+        try:
+            if _st_config.get_option(_k) != _v:
+                _st_config.set_option(_k, _v)
+        except Exception:
+            pass                      # unknown option on an older Streamlit — skip
 
 
 # --- rendered pieces -------------------------------------------------------
