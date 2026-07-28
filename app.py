@@ -1572,18 +1572,31 @@ def render_home() -> None:
               on_click=_go, args=("Morning Coffee",),
               help="The morning report — overnight moves, levels and the day ahead.")
     def _run_ficc_pull():
-        with st.spinner("Pulling all FICC inputs from Bloomberg… (~1–3 min)"):
-            res = subprocess.run([sys.executable, str(SNAPSHOT_CLI)], cwd=str(ROOT),
-                                 capture_output=True, text=True,
-                                 env={**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"})
-        if res.returncode != 0:
-            st.error("Snapshot failed:\n\n" + (res.stderr or res.stdout or "no output"))
+        # live elapsed timer instead of a static spinner — the honest cost is ~10-20 min
+        # (data legs ~1 min; the own-vol-curve build is the long stage)
+        _ph = st.empty()
+        _t0 = time.time()
+        proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI)], cwd=str(ROOT),
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                env={**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"})
+        while proc.poll() is None:
+            _el = (time.time() - _t0) / 60
+            _ph.info(f"⏳ Pulling all FICC inputs from Bloomberg — **{_el:.1f} min elapsed** "
+                     "(typically 10–20 min: the data legs finish in ~1 min, the "
+                     "own-vol-curve build is the long stage).")
+            time.sleep(5)
+        _out, _err = proc.communicate()
+        _ph.empty()
+        if proc.returncode != 0:
+            st.error("Snapshot failed:\n\n" + (_err or _out or "no output"))
         else:
             run_daily.run(); load_signals.clear()
             _regen_mc_heatmap()          # refresh the Morning Coffee heatmap on Home
             gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
             st.session_state.pop("ficc_pull_confirm", None)
-            st.success("Snapshot pulled + signals refreshed."); st.rerun()
+            st.success(f"Snapshot pulled + signals refreshed "
+                       f"({(time.time() - _t0) / 60:.1f} min).")
+            st.rerun()
 
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
@@ -1800,19 +1813,28 @@ def render_equities_home() -> None:
         if _g2.button("Cancel", key="eq_pull_cancel"):
             st.session_state.pop("eq_pull_confirm", None); st.rerun()
     if st.session_state.pop("eq_pull_go", False):
-        with st.spinner("Pulling equities… (Yahoo quotes + fundamentals; Bloomberg membership "
-                        "when the Terminal is up)"):
-            res = subprocess.run([sys.executable, str(SNAPSHOT_CLI), "--equities"],
-                                 cwd=str(ROOT), capture_output=True, text=True,
-                                 env={**os.environ, "DATAFEED_MODE": "bloomberg",
-                                      "PYTHONUTF8": "1"})
-        if res.returncode != 0:
-            st.error("Equities pull failed:\n\n" + (res.stderr or res.stdout or "no output"))
+        _ph = st.empty()
+        _t0 = time.time()
+        proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI), "--equities"],
+                                cwd=str(ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, env={**os.environ, "DATAFEED_MODE": "bloomberg",
+                                                "PYTHONUTF8": "1"})
+        while proc.poll() is None:
+            _el = (time.time() - _t0) / 60
+            _ph.info(f"⏳ Pulling equities — **{_el:.1f} min elapsed** (typically ~5–7 min for "
+                     "the ~2,700-name universe: ETF membership + chunked Yahoo quotes/history, "
+                     "plus fundamentals when their cycle is due).")
+            time.sleep(5)
+        _out, _err = proc.communicate()
+        _ph.empty()
+        if proc.returncode != 0:
+            st.error("Equities pull failed:\n\n" + (_err or _out or "no output"))
         else:
             _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
             _eqf_frame.clear()
             gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
-            st.success("Equities data refreshed."); st.rerun()
+            st.success(f"Equities data refreshed ({(time.time() - _t0) / 60:.1f} min).")
+            st.rerun()
     if c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
                  help="Re-pull the latest closes from Yahoo Finance (free) and rebuild the "
                       "movers table and heatmap. Falls back to the cached quotes offline."):
