@@ -670,6 +670,12 @@ def _skew_charts(threshold):
     if d.empty:
         st.caption("No markets match the current Home-page sector filter.")
         return
+    st.caption("⚠️ This page still runs on the **vendor surface's** 90/110% moneyness wings. Since "
+               "28 Jul 2026 we also record **our own settlement-built skew** daily (same Black-76 "
+               "machinery as the Volatility/Term pages — OTM put at 0.90×F, OTM call at 1.10×F, "
+               "interpolated to constant 30d; `data/snapshot/own_skew_history.parquet`). **The own "
+               "history needs backfilling at some point** before this page can switch source — until "
+               "then it accrues one settle per day as a validation trail.")
     thr = float(threshold) if threshold is not None else 1.5
     d["flag"] = np.where(d["z"] >= thr, "Rich — sell skew",
                 np.where(d["z"] <= -thr, "Cheap — buy skew", "Neutral"))

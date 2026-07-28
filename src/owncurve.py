@@ -216,8 +216,20 @@ def _strike_scale(strikes, F: float) -> float:
     return min((1.0, 0.1, 0.01, 10.0, 100.0), key=lambda s: abs(math.log((med * s) / F)))
 
 
+SKEW_WINGS = (0.90, 1.10)      # vendor-matching moneyness: put wing / call wing
+WING_TOL = 0.03                # nearest listed strike must sit within 3 moneyness pts
+
+
 def product_pillars(generic: str, log=print):
-    """[(dte, atm_mid_vol%, oi_weight, series_root)] across the front option expiries."""
+    """(atm_pillars, skew_pillars) across the front option expiries.
+
+    atm_pillars: [(dte, atm_mid_vol%, oi_weight, series_root)] — the vol/term book.
+    skew_pillars: [(dte, put90_vol, call110_vol, atm_mid_vol%)] — the OTM put settle
+    inverted at the strike nearest 0.90×F and the OTM call at 1.10×F (the vendor
+    surface's moneyness convention; metric downstream = (put−call)/atm). A wing only
+    exists where a listed strike sits within WING_TOL of the target AND its settle
+    inverts above the floor — low-vol products (bonds) will legitimately be sparse,
+    which is honest: the vendor's wings there are model extrapolation."""
     futs = []
     for r in _bds(generic, "FUT_CHAIN"):
         tk = _first(r)
@@ -226,7 +238,23 @@ def product_pillars(generic: str, log=print):
         if len(futs) >= MAX_FUTS:
             break
     today = pd.Timestamp.today().normalize()
-    pillars, seen_exp = [], set()
+    pillars, skews, seen_exp = [], [], set()
+
+    def _wing(strikes, scale, F, dte, target, leg):
+        """Invert the OTM settle at the listed strike nearest target×F, or None."""
+        side = 0 if leg == "call" else 1                 # (call_tk, put_tk) tuple slot
+        cands = {k: v[side] for k, v in strikes.items() if v[side]}
+        if not cands:
+            return None
+        k = sorted(cands, key=lambda x: abs(x * scale - target * F))[0]
+        if abs(k * scale / F - target) > WING_TOL:
+            return None
+        px = _bdp(cands[k], "PX_SETTLE")
+        if px is None or pd.isna(px):
+            return None
+        iv = implied_vol_price(float(px) * scale, F, k * scale, dte, leg == "call")
+        return iv if iv is not None and iv > 0.5 else None
+
     for fut in futs:
         if len(pillars) >= N_EXPIRIES:
             break
@@ -264,8 +292,13 @@ def product_pillars(generic: str, log=print):
             oi = sum(float(x) for x in (_bdp(call_tk, "OPEN_INT"), _bdp(put_tk, "OPEN_INT"))
                      if x is not None and pd.notna(x))
             seen_exp.add(dte)
-            pillars.append((dte, float(np.mean(ivs)), oi, root))
-    return sorted(pillars)
+            atm_mid = float(np.mean(ivs))
+            pillars.append((dte, atm_mid, oi, root))
+            pw = _wing(strikes, scale, F, dte, SKEW_WINGS[0], "put")
+            cw = _wing(strikes, scale, F, dte, SKEW_WINGS[1], "call")
+            if pw is not None and cw is not None:
+                skews.append((dte, pw, cw, atm_mid))
+    return sorted(pillars), sorted(skews)
 
 
 # Vendor-matching term tenors, evaluated off the SAME fitted curve as ours30/ours90.
@@ -294,7 +327,7 @@ def build_book(tickers=None, log=print) -> pd.DataFrame:
     recs = []
     for t in tickers:
         try:
-            pil = product_pillars(t, log=log)
+            pil, skw = product_pillars(t, log=log)
         except Exception as e:
             log(f"  {name(t):24s} ERROR {type(e).__name__}: {e}")
             continue
@@ -321,10 +354,24 @@ def build_book(tickers=None, log=print) -> pd.DataFrame:
         log(f"  {name(t):24s} {len(pil)} pillars [{method}]  30d {ours30:6.2f}  90d {ours90:6.2f}"
             + (f"  | {tstr}" if tstr else "")
             + (f"  | BBG30 {bbg30[t]:6.2f}  diff {ours30 - bbg30[t]:+.2f}" if t in bbg30 else ""))
+        # own skew at 30d: each wing interpolated (total variance) across its own
+        # expiry pillars; denominator = the book's fitted ours30 so the metric stays
+        # coherent with the vol book. Needs both wings on >=2 expiries — bonds etc.
+        # legitimately NaN out (their vendor wings are model extrapolation anyway).
+        put30 = call30 = skew30 = np.nan
+        if len(skw) >= 2 and ours30 is not None:
+            ptrip = [(d, pv, 1.0) for d, pv, _, _ in skw]
+            ctrip = [(d, cv, 1.0) for d, _, cv, _ in skw]
+            p_v, c_v = interp_variance(ptrip, 30.0), interp_variance(ctrip, 30.0)
+            if p_v is not None and c_v is not None and ours30 > 0:
+                put30, call30 = round(p_v, 2), round(c_v, 2)
+                skew30 = round((p_v - c_v) / ours30, 4)
         rec = {"ticker": t, "market": name(t), "n_pillars": len(pil), "method": method,
                "ours30": round(ours30, 2), "ours90": round(ours90, 2),
                "bbg30": round(bbg30[t], 2) if t in bbg30 else np.nan,
-               "pillars": detail}
+               "pillars": detail,
+               "own_put30": put30, "own_call30": call30, "own_skew30": skew30,
+               "n_skew_pillars": len(skw)}
         rec.update({f"own_{lab.lower()}": tenors[lab] for lab, _ in OWN_TENORS})
         recs.append(rec)
     df = pd.DataFrame(recs)
@@ -560,6 +607,7 @@ def _settle_date() -> pd.Timestamp:
 
 
 TERM_HISTORY_FILE = ROOT / "data" / "snapshot" / "own_term_history.parquet"
+SKEW_HISTORY_FILE = ROOT / "data" / "snapshot" / "own_skew_history.parquet"
 
 
 def append_today(log=print) -> None:
@@ -567,8 +615,10 @@ def append_today(log=print) -> None:
     upsert the settle-dated ours30/ours90/bbg30 per product into the history — the
     report's implied source (spliced with the surface's history) + validation trail.
     The per-tenor term values accrue the same way into own_term_history (long:
-    date/ticker/tenor/vol) — the term book's own leg. History starts 2026-07-27;
-    a per-tenor settlement backfill is a separate Bloomberg-budget decision."""
+    date/ticker/tenor/vol) — the term book's own leg (history from 2026-07-27) —
+    and the 30d wing/skew values into own_skew_history (recording-only from
+    2026-07-28: the Skew page stays vendor until this is backfilled/deep enough).
+    Any settlement backfill is a separate Bloomberg-budget decision."""
     df = build_book(log=log)
     if df.empty:
         return
@@ -582,17 +632,32 @@ def append_today(log=print) -> None:
         pass
     rows.sort_values(["ticker", "date"]).to_parquet(HISTORY_FILE, index=False)
 
-    tcols = [c for c in df.columns if c.startswith("own_")]
-    if not tcols:
-        return
-    long = df.melt(id_vars=["ticker"], value_vars=tcols,
-                   var_name="tenor", value_name="vol").dropna(subset=["vol"])
-    long["tenor"] = long["tenor"].str.replace("own_", "", regex=False).str.upper()
-    long["date"] = stamp
-    try:
-        old = pd.read_parquet(TERM_HISTORY_FILE)
-        old["date"] = pd.to_datetime(old["date"])
-        long = pd.concat([old[old["date"] != stamp], long], ignore_index=True)
-    except Exception:
-        pass
-    long.sort_values(["ticker", "tenor", "date"]).to_parquet(TERM_HISTORY_FILE, index=False)
+    tcols = [f"own_{lab.lower()}" for lab, _ in OWN_TENORS if f"own_{lab.lower()}" in df.columns]
+    if tcols:
+        long = df.melt(id_vars=["ticker"], value_vars=tcols,
+                       var_name="tenor", value_name="vol").dropna(subset=["vol"])
+        long["tenor"] = long["tenor"].str.replace("own_", "", regex=False).str.upper()
+        long["date"] = stamp
+        try:
+            old = pd.read_parquet(TERM_HISTORY_FILE)
+            old["date"] = pd.to_datetime(old["date"])
+            long = pd.concat([old[old["date"] != stamp], long], ignore_index=True)
+        except Exception:
+            pass
+        long.sort_values(["ticker", "tenor", "date"]).to_parquet(TERM_HISTORY_FILE, index=False)
+
+    # own skew — RECORDING ONLY for now (the Skew page stays on the vendor surface
+    # until this history is backfilled or deep enough to z-score; app carries a note)
+    if "own_skew30" in df.columns:
+        sk = df[["ticker", "own_put30", "own_call30", "own_skew30"]].dropna(subset=["own_skew30"])
+        if len(sk):
+            sk = sk.rename(columns={"own_put30": "put", "own_call30": "call",
+                                    "own_skew30": "skew"}).assign(
+                atm=df.set_index("ticker").loc[sk["ticker"], "ours30"].values, date=stamp)
+            try:
+                old = pd.read_parquet(SKEW_HISTORY_FILE)
+                old["date"] = pd.to_datetime(old["date"])
+                sk = pd.concat([old[old["date"] != stamp], sk], ignore_index=True)
+            except Exception:
+                pass
+            sk.sort_values(["ticker", "date"]).to_parquet(SKEW_HISTORY_FILE, index=False)
