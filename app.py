@@ -147,6 +147,11 @@ def run_morning_coffee() -> bool:
         mc_log, mc_ok = f"Could not launch Morning Coffee: {e}", False
     st.session_state["mc_ok"] = mc_ok
     st.session_state["mc_log"] = mc_log
+    try:        # persist for post-mortems (session_state dies with the tab)
+        (ROOT / "data" / "mc_last_run.log").write_text(
+            f"ok={mc_ok}\n{mc_log}", encoding="utf-8")
+    except Exception:
+        pass
     st.session_state.pop("mc_docx", None)
     match = re.search(r"Report \(EN\) saved to:\s*(.+\.docx)", mc_log)
     if mc_ok and match:
@@ -2760,9 +2765,11 @@ def render_morning_coffee() -> None:
                 "here in English with the heatmap.")
         return
     if not st.session_state["mc_ok"]:
-        st.error("Morning Coffee run failed — see the log. The usual cause is the Bloomberg "
-                 "Terminal not being logged in on this PC.")
-        with st.expander("Run log"):
+        st.error("Morning Coffee run failed — the log below has the actual error. "
+                 "(NOT necessarily Bloomberg: prices fall back to the morning snapshot "
+                 "Terminal-closed — news, Gmail, the AI commentary or the email send "
+                 "can each fail independently.)")
+        with st.expander("Run log", expanded=True):
             st.code(st.session_state.get("mc_log", ""), language="text")
         return
 

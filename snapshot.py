@@ -296,6 +296,12 @@ def _fetch_phase() -> dict | None:
     except Exception as e:
         print(f"  (own-curve marks fetch skipped: {e})")
 
+    # The DATA SOURCE is a property of the FETCH, not of whatever env the compute phase
+    # later runs in (a compute run without DATAFEED_MODE once relabelled a real bloomberg
+    # snapshot as "mock", flipping the app into demo-mode warnings). Persist it here.
+    (SNAP / ".fetch_meta.json").write_text(json.dumps(
+        {"source": MODE, "fetched_at": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}))
+
     print(">>> BLOOMBERG PHASE COMPLETE — the Terminal can be closed now. <<<")
     return {"phase": "fetched", "fetched_at": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
             "n_tickers": len(tickers)}
@@ -341,10 +347,14 @@ def _compute_phase(include_equities: bool = False) -> dict:
                              ).strftime("%Y-%m-%d %H:%M:%S")
     _dc = [c for c in prices.columns if str(c).lower() in ("date", "index")]
     _idx = pd.to_datetime(prices[_dc[0]]) if _dc else pd.to_datetime(prices.index)
+    try:      # source = how the data was FETCHED (persisted by the fetch phase); the
+        _src = json.loads((SNAP / ".fetch_meta.json").read_text()).get("source", "")
+    except Exception:
+        _src = ""
     manifest = {
         "created": pulled_at,
         "as_of": str(_idx.max().date()) if len(prices) else "",
-        "source": MODE,                       # "bloomberg" for a real morning pull
+        "source": _src or prev.get("source", MODE),
         "n_tickers": len(list(INSTRUMENTS)),
         "price_rows": int(len(prices)),
         "iv_markets": int(iv.notna().any().sum()),
