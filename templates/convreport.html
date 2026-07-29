@@ -33,7 +33,7 @@
       <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
     </div>
     <p class="summary">
-      The strongest technical setups across the futures book, screened by a deliberately
+      The strongest technical setups across the {{ book_label | default('futures book') }}, screened by a deliberately
       <b>independent set of {{ total }} method{{ '' if total == 1 else 's' }}</b>{% if axes %} across
       <b>{{ axes|length }} {{ 'axis' if axes|length == 1 else 'axes' }}</b> of the market{% endif %}
       &mdash; where they agree it is genuine corroboration, not one indicator restated several ways.
@@ -54,8 +54,8 @@
       setup clears a minimum <b>conviction of {{ '%g'|format(min_conviction) }}</b> and
       <b>score of {{ '%g'|format(min_score) }}</b> &mdash; in a week when nothing clears that bar,
       nothing is put forward{% endif %}. Each chart carries the indicators that flagged it, the
-      measured-move objective, the invalidation level and the per-contract risk where available;
-      fixed income is read on <b>yields</b>.
+      measured-move objective, the invalidation level and the {% if equities %}risk to the invalidation
+      as a <b>% move</b>{% else %}per-contract risk where available; fixed income is read on <b>yields</b>{% endif %}.
     </p>
 
     <div class="trigger">
@@ -159,8 +159,8 @@
       recommendation or a solicitation. "Conviction" is a cross-strategy confluence score (how many of
       the technical strategies agree &times; how strongly), not a probability or a price forecast;
       "objective"/"invalidation" levels are the measured-move and stop levels from the flagging
-      pattern, not price targets. Fixed income is screened on benchmark yields. Source data is subject
-      to your market-data licence terms; verify redistribution rights before external use.</div>
+      pattern, not price targets.{% if not equities %} Fixed income is screened on benchmark yields.{% endif %}
+      Source data is subject to your market-data licence terms; verify redistribution rights before external use.</div>
     </div>
     {% endmacro %}
 

@@ -16,6 +16,7 @@ Run standalone (the app calls it as a subprocess):
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import re
 import subprocess
@@ -68,16 +69,72 @@ _CHART_FN = {
 }
 
 
+# ── history source: FICC datafeed by default, or an injected equity store ──────────────────────
+# The report normally pulls its chart history from the FICC datafeed (get_history_ta → yields for
+# fixed income). The Equities TA report runs the SAME engine over the equity universe by injecting a
+# cached yfinance OHLCV store here: `close` + `volume` frames (date × Bloomberg-style ticker) feed
+# every strategy's chart_data, and `meta` ({ticker: {'name','sector',…}}) supplies the sector label.
+# When set, is_fixed_income is forced off (equities are prices, never yields) and $-risk falls back
+# to % (no futures point value). FICC leaves this None and nothing below changes.
+_HIST = {"close": None, "volume": None, "meta": None}
+
+
+def set_history_source(close=None, volume=None, meta=None) -> None:
+    """Point the report at an injected OHLCV store (equities) instead of the FICC datafeed."""
+    _HIST["close"], _HIST["volume"], _HIST["meta"] = close, volume, meta
+
+
+def _pf_series(tk: str):
+    """The price/yield series for tk — from the injected equity store if set, else FICC yields."""
+    c = _HIST["close"]
+    if c is not None:
+        return c[tk].dropna() if tk in c.columns else pd.Series(dtype=float)
+    return get_history_ta([tk])[tk].dropna()
+
+
+def _is_fi(tk) -> bool:
+    """Fixed income only in FICC mode — an injected equity store is always priced, never yields."""
+    return _HIST["close"] is None and u.is_fixed_income(str(tk))
+
+
+def _sector_of(tk: str) -> str:
+    """Sector/asset label — from the injected equity meta if set, else the FICC universe."""
+    m = _HIST["meta"]
+    if m is not None:
+        return ((m.get(tk) or {}).get("sector")) or "—"
+    return u.asset(tk) or "—"
+
+
+def _call_chart(fn, tk: str, hist1, vol1):
+    """Call a strategy's *_chart_data, feeding the injected equity history/volume when the function
+    accepts them (all take `history`; only OBV/MFI take `volume`). In FICC mode hist1/vol1 are None
+    and each function falls back to its own datafeed pull, exactly as before."""
+    params = inspect.signature(fn).parameters
+    kw = {}
+    if hist1 is not None and "history" in params:
+        kw["history"] = hist1
+    if vol1 is not None and "volume" in params:
+        kw["volume"] = vol1
+    return fn(tk, **kw)
+
+
 # ── gather each flagging strategy's read for one product ────────────────────
 def _gather(tk: str, strats: set) -> dict:
     """{strategy: {'cdata':..., 'info':...}} for the strategies that flagged this product."""
     out = {}
+    hist1 = vol1 = None                                 # equity mode: feed the injected OHLCV store
+    c = _HIST["close"]
+    if c is not None and tk in c.columns:
+        hist1 = pd.DataFrame({tk: c[tk]})
+        v = _HIST["volume"]
+        if v is not None and tk in v.columns:
+            vol1 = pd.DataFrame({tk: v[tk]})
     for s in strats:
         fn = _CHART_FN.get(s)
         if fn is None:
             continue
         try:
-            cdata, info = fn(tk)
+            cdata, info = _call_chart(fn, tk, hist1, vol1)
         except Exception:
             cdata, info = None, None
         if info is not None:
@@ -174,7 +231,7 @@ def _risk(tk, entry, stop) -> dict:
     if not (np.isfinite(entry) and np.isfinite(stop)) or entry == 0:
         return out
     out["pct"] = abs(entry - stop) / abs(entry) * 100.0
-    if u.is_fixed_income(str(tk)):
+    if _is_fi(tk):
         return out
     try:
         from src.volbt import point_value
@@ -272,7 +329,7 @@ def _prose(pick: dict, gathered: dict, lv: dict) -> str:
     """A neutral paragraph: what's stacking up, the specifics, and the where-it-confirms /
     where-it-fails / objective scenario read (all objective observations, never a recommendation)."""
     word = "constructive" if pick["net_dir"] > 0 else "cautious"
-    is_fi = u.is_fixed_income(pick["instruments"])
+    is_fi = _is_fi(pick["instruments"])
     strats = [s for s, _d, _st in pick["tags"]]
     names = ", ".join(_SHORT.get(s, s) for s in strats)
     clauses = [c for c in (_phrase(s, (gathered.get(s) or {}).get("info") or {}, is_fi)
@@ -356,14 +413,14 @@ def _est_section_in(pick, n_panels: int) -> float:
 # ── the multi-indicator chart (every flagging line on one price/yield axis) ──
 def _chart_png(tk: str, gathered: dict, net_dir: int, pf=None, lv=None) -> str:
     if pf is None:
-        pf = get_history_ta([tk])[tk].dropna()
+        pf = _pf_series(tk)
     if pf is None or getattr(pf, "empty", True):
         return ""
     if lv is None:                                     # standalone use: same levels the prose cites
         lv = _full_levels(gathered, pf, net_dir)
     win = pf.tail(180)
     strats = set(gathered)
-    is_fi = u.is_fixed_income(tk)
+    is_fi = _is_fi(tk)
     # Oscillators can't share the price axis, so flagged indicator series get their own
     # sub-panels under the price chart: RSI/MFI share one 0–100 panel, MACD and OBV get
     # their own. Only the panels a pick actually flagged are drawn.
@@ -669,7 +726,7 @@ def select(sig_df: pd.DataFrame, top_n: int = 5, min_strats: int = 2, mode: str 
             out.append({"instruments": r.instruments, "market": r.market, "n": int(r.n),
                         "net_dir": int(r.net_dir), "conviction": float(r.conviction),
                         "score": float(r.score), "tags": list(r.tags), "conflict": bool(r.conflict),
-                        "sector": u.asset(r.instruments) or "—",
+                        "sector": _sector_of(r.instruments),
                         "longs": int(r.longs), "shorts": int(r.shorts), "total": total})
         return out
 
@@ -730,7 +787,7 @@ def _enrich(pick: dict, baseline: set) -> dict:
     """Attach the chart + prose + levels ($ risk, new-this-week flag) to a pick."""
     tk = pick["instruments"]
     gathered = _gather(tk, {s for s, _d, _st in pick["tags"]})
-    pf = get_history_ta([tk])[tk].dropna()
+    pf = _pf_series(tk)
     entry = float(pf.iloc[-1]) if len(pf) else None
     pick = dict(pick)
     lv = _full_levels(gathered, pf, pick["net_dir"])
@@ -742,7 +799,7 @@ def _enrich(pick: dict, baseline: set) -> dict:
     pick["img"] = _chart_png(tk, gathered, pick["net_dir"], pf, lv)   # chart draws the SAME levels
     raw = _prose(pick, gathered, lv)
     pick["_raw"], pick["prose"] = raw, _md2html(raw)
-    pick["sector"] = u.asset(tk) or "—"
+    pick["sector"] = _sector_of(tk)
     pick["is_new"] = tk not in baseline
     pick["flagged_by"] = ", ".join(_TAG.get(s, s) + (" ▲" if d > 0 else " ▼" if d < 0 else "")
                                    for s, d, _st in pick["tags"])
@@ -819,7 +876,7 @@ def _paginate(table):
 
 def render_html(sig_df, asof, top_n=5, min_strats=2, update_baseline=False, ai_polish=False,
                 mode="per_side", strategies=None, picks=None, exclude=None,
-                min_conviction=0.0, min_score=0.0) -> str:
+                min_conviction=0.0, min_score=0.0, equities=False) -> str:
     sel = select(sig_df, top_n=top_n, min_strats=min_strats, mode=mode, strategies=strategies,
                  picks=picks, exclude=exclude, min_conviction=min_conviction, min_score=min_score)
     baseline = _load_baseline()
@@ -860,16 +917,18 @@ def render_html(sig_df, asof, top_n=5, min_strats=2, update_baseline=False, ai_p
         # otherwise the report describes machinery that never fires
         dedup_active=tascore.has_intra_axis_dup(sel.get("scored", [])),
         min_conviction=min_conviction, min_score=min_score,
+        equities=equities, book_label=("equity universe" if equities else "futures book"),
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )
 
 
 def build_pdf(sig_df, asof, out_pdf, top_n=5, min_strats=2, update_baseline=False, ai_polish=False,
               mode="per_side", strategies=None, picks=None, exclude=None,
-              min_conviction=0.0, min_score=0.0):
+              min_conviction=0.0, min_score=0.0, equities=False):
     from reportkit import render_pdf
     return render_pdf(render_html(sig_df, asof, top_n, min_strats, update_baseline, ai_polish, mode,
-                                  strategies, picks, exclude, min_conviction, min_score), out_pdf)
+                                  strategies, picks, exclude, min_conviction, min_score,
+                                  equities=equities), out_pdf)
 
 
 def main():
@@ -900,21 +959,32 @@ def main():
     ap.add_argument("--exclude", default=None,
                     help="comma-separated tickers to hold out of the whole client report; omit to "
                          "use the saved list in data/report_exclude.json")
+    ap.add_argument("--equities", action="store_true",
+                    help="run over the EQUITIES universe: pull every chart's history from the cached "
+                         "yfinance OHLCV store (src.eqta) instead of the FICC datafeed, label sectors "
+                         "from the equity membership cache, and skip the FICC sector/product filter")
     args = ap.parse_args()
     _csv = lambda v: [s.strip() for s in v.split(",") if s.strip()] if v else None
     strategies, picks, exclude = _csv(args.strategies), _csv(args.picks), _csv(args.exclude)
     df = pd.read_parquet(args.signals_parquet)
-    try:                                       # honour the dashboard's sector/product filter
-        from universe import enabled_tickers as _en, filter_active as _fa
-        if _fa() and "instruments" in df.columns:
-            _e = _en()
-            df = df[df["instruments"].map(lambda k: all(p.strip() in _e for p in str(k).split("/")))]
-    except Exception:
-        pass
+    if args.equities:                          # equity report: inject the yfinance OHLCV store
+        from src import eqta
+        _close, _vol = eqta.load_history()
+        set_history_source(_close, _vol, eqta.member_meta())
+        if exclude is None:                    # bare CLI run: fall back to the equities exclude list
+            exclude = sorted(u.report_excluded("equities"))
+    else:
+        try:                                   # honour the dashboard's sector/product filter (FICC)
+            from universe import enabled_tickers as _en, filter_active as _fa
+            if _fa() and "instruments" in df.columns:
+                _e = _en()
+                df = df[df["instruments"].map(lambda k: all(p.strip() in _e for p in str(k).split("/")))]
+        except Exception:
+            pass
     build_pdf(df, args.asof, args.out_pdf, top_n=args.top, min_strats=args.min_strats,
               update_baseline=args.baseline, ai_polish=args.ai_polish, mode=args.mode,
               strategies=strategies, picks=picks, exclude=exclude,
-              min_conviction=args.min_conviction, min_score=args.min_score)
+              min_conviction=args.min_conviction, min_score=args.min_score, equities=args.equities)
     print(f"Wrote {args.out_pdf}")
 
 

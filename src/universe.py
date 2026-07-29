@@ -438,18 +438,24 @@ def save_default(off_assets, off_tickers) -> None:
 # every strategy page, the hub scoring and the other reports. Deliberately SEPARATE
 # from the Sectors & products filter above, which switches a market off app-wide.
 REPORT_EXCLUDE = STORE.parent / "report_exclude.json"
+# One exclusion list PER BOOK — the FICC and equities Technical Analysis reports each hold out
+# their own products. `scope` selects the file; default "ficc" keeps the original path.
+REPORT_EXCLUDE_FILES = {"ficc": REPORT_EXCLUDE,
+                        "equities": STORE.parent / "eq_report_exclude.json"}
 
 
-def report_excluded() -> set:
-    """Tickers held out of the client Technical Analysis report; empty set if none."""
+def report_excluded(scope: str = "ficc") -> set:
+    """Tickers held out of the client Technical Analysis report for `scope` ('ficc' | 'equities');
+    empty set if none."""
+    f = REPORT_EXCLUDE_FILES.get(scope, REPORT_EXCLUDE)
     try:
-        return set(json.loads(REPORT_EXCLUDE.read_text(encoding="utf-8")).get("tickers", []))
+        return set(json.loads(f.read_text(encoding="utf-8")).get("tickers", []))
     except Exception:
         return set()
 
 
-def save_report_excluded(tickers) -> None:
-    """Persist the report-only exclusion list."""
-    REPORT_EXCLUDE.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_EXCLUDE.write_text(json.dumps({"tickers": sorted(set(tickers))}, indent=2),
-                              encoding="utf-8")
+def save_report_excluded(tickers, scope: str = "ficc") -> None:
+    """Persist the report-only exclusion list for `scope` ('ficc' | 'equities')."""
+    f = REPORT_EXCLUDE_FILES.get(scope, REPORT_EXCLUDE)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"tickers": sorted(set(tickers))}, indent=2), encoding="utf-8")

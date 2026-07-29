@@ -96,22 +96,24 @@ _CONFLUENCE_FILES = {"ficc": _DATA_DIR / "confluence_set.json",
 TREND_FAMILY = frozenset(TA_AXES["Trend"])
 
 
-def confluence_set():
-    """The scored strategies, from data/confluence_set.json (falls back to CONFLUENCE_DEFAULT).
-    Ordered by TA_STRATEGIES (display order); unknown / renamed names are dropped."""
+def confluence_set(scope: str = "ficc"):
+    """The scored strategies for `scope` ('ficc' | 'equities'), from its confluence_set json (falls
+    back to CONFLUENCE_DEFAULT). Ordered by TA_STRATEGIES (display order); unknown names dropped."""
+    f = _CONFLUENCE_FILES.get(scope, _CONFLUENCE_FILES["ficc"])
     try:
-        saved = set(json.loads(_CONFLUENCE_FILE.read_text(encoding="utf-8")).get("strategies", []))
+        saved = set(json.loads(f.read_text(encoding="utf-8")).get("strategies", []))
     except Exception:
         saved = set()
     chosen = saved or set(CONFLUENCE_DEFAULT)
     return [s for s in TA_STRATEGIES if s in chosen]
 
 
-def save_confluence_set(strategies) -> None:
-    """Persist the confluence set (the scored strategies) for the app + the report."""
+def save_confluence_set(strategies, scope: str = "ficc") -> None:
+    """Persist the confluence set (the scored strategies) for `scope` ('ficc' | 'equities')."""
+    f = _CONFLUENCE_FILES.get(scope, _CONFLUENCE_FILES["ficc"])
     keep = [s for s in TA_STRATEGIES if s in set(strategies)]
-    _CONFLUENCE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _CONFLUENCE_FILE.write_text(json.dumps({"strategies": keep}, indent=2), encoding="utf-8")
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"strategies": keep}, indent=2), encoding="utf-8")
 
 
 def scoring_strategies(override=None):

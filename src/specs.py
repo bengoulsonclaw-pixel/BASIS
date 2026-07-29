@@ -504,7 +504,12 @@ def save_trigger_default(strategy: str, value) -> None:
 # controls from here on every launch, and the WEEKLY emailed report runs on it — so
 # "Set as default" in the app is what the scheduled send obeys. (trigger_defaults.json
 # can't hold these: it coerces every value to float, and `mode` is a string.)
-TA_REPORT_FILE = Path(__file__).resolve().parents[1] / "data" / "ta_report_defaults.json"
+# One defaults file PER BOOK — FICC futures and equities each carry their own report build
+# settings (the FICC file also drives the weekly emailed report). `scope` selects the file.
+_TA_REPORT_DIR = Path(__file__).resolve().parents[1] / "data"
+TA_REPORT_FILES = {"ficc": _TA_REPORT_DIR / "ta_report_defaults.json",
+                   "equities": _TA_REPORT_DIR / "eq_ta_report_defaults.json"}
+TA_REPORT_FILE = TA_REPORT_FILES["ficc"]        # back-compat alias (the FICC/weekly-email file)
 TA_REPORT_DEFAULTS = {
     "mode": "overall",          # per_side | overall | threshold
     "top_n": 10,                # picks (per side in balanced mode; a CAP in quality-bar mode)
@@ -514,24 +519,27 @@ TA_REPORT_DEFAULTS = {
 }
 
 
-def ta_report_defaults() -> dict:
-    """The saved report build settings, falling back to TA_REPORT_DEFAULTS. Unknown keys in
-    the file are ignored, so an old/partial file can't break the report."""
+def ta_report_defaults(scope: str = "ficc") -> dict:
+    """The saved report build settings for `scope` ('ficc' | 'equities'), falling back to
+    TA_REPORT_DEFAULTS. Unknown keys in the file are ignored, so an old/partial file can't break
+    the report."""
     out = dict(TA_REPORT_DEFAULTS)
     try:
-        saved = json.loads(TA_REPORT_FILE.read_text(encoding="utf-8"))
+        f = TA_REPORT_FILES.get(scope, TA_REPORT_FILES["ficc"])
+        saved = json.loads(f.read_text(encoding="utf-8"))
         out.update({k: v for k, v in saved.items() if k in TA_REPORT_DEFAULTS})
     except Exception:
         pass
     return out
 
 
-def save_ta_report_defaults(**kw) -> None:
-    """Persist any subset of the report build settings (merged over what's already saved)."""
-    d = ta_report_defaults()
+def save_ta_report_defaults(scope: str = "ficc", **kw) -> None:
+    """Persist any subset of the report build settings for `scope` (merged over what's saved)."""
+    d = ta_report_defaults(scope)
     d.update({k: v for k, v in kw.items() if k in TA_REPORT_DEFAULTS})
-    TA_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    TA_REPORT_FILE.write_text(json.dumps(d, indent=2, sort_keys=True), encoding="utf-8")
+    f = TA_REPORT_FILES.get(scope, TA_REPORT_FILES["ficc"])
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(d, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def fi_action(signal, direction, ticker) -> str:

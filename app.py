@@ -1801,25 +1801,22 @@ _EQ_AUTOPULL_BAT = ROOT / "run_eq_autopull.bat"
 def _eq_autopull_cfg() -> dict:
     try:
         cfg = json.loads(_EQ_AUTOPULL_FILE.read_text())
-        return {"enabled": bool(cfg.get("enabled")), "time_et": str(cfg.get("time_et", "09:00"))}
+        # "time" is LAPTOP wall time. Older saves stored ET + its local mapping —
+        # migrate via local_time so the shown time matches when the task fires.
+        t = str(cfg.get("time") or cfg.get("local_time") or "08:00")
+        return {"enabled": bool(cfg.get("enabled")), "time": t}
     except Exception:
-        return {"enabled": False, "time_et": "09:00"}
+        return {"enabled": False, "time": "08:00"}
 
 
-def _eq_autopull_apply(enabled: bool, time_et: str) -> tuple[bool, str]:
-    """Create/refresh (or delete) the Windows scheduled task, then persist the
-    setting. Task Scheduler runs on LOCAL wall time, so the ET time is converted
-    via America/New_York at save time — re-save after the US/UK clock changes
-    (their DST dates differ by ~2-3 weeks a year)."""
-    hh, mm = (int(x) for x in time_et.split(":"))
-    _local = (datetime.now(ZoneInfo("America/New_York"))
-              .replace(hour=hh, minute=mm, second=0, microsecond=0)
-              .astimezone())                       # → machine-local wall time
+def _eq_autopull_apply(enabled: bool, hhmm: str) -> tuple[bool, str]:
+    """Create/refresh (or delete) the Windows scheduled task at the given LAPTOP
+    wall time (user choice: no timezone conversion — what you set is when it runs)."""
     if enabled:
         cmd = ["schtasks", "/Create", "/F", "/TN", _EQ_AUTOPULL_TASK,
                "/TR", f'"{_EQ_AUTOPULL_BAT}"',
                "/SC", "WEEKLY", "/D", "MON,TUE,WED,THU,FRI",
-               "/ST", _local.strftime("%H:%M")]
+               "/ST", hhmm]
     else:
         cmd = ["schtasks", "/Delete", "/F", "/TN", _EQ_AUTOPULL_TASK]
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -1829,19 +1826,18 @@ def _eq_autopull_apply(enabled: bool, time_et: str) -> tuple[bool, str]:
     if ok:
         _EQ_AUTOPULL_FILE.parent.mkdir(parents=True, exist_ok=True)
         _EQ_AUTOPULL_FILE.write_text(json.dumps(
-            {"enabled": enabled, "time_et": time_et,
-             "local_time": _local.strftime("%H:%M")}, indent=2))
+            {"enabled": enabled, "time": hhmm}, indent=2))
     return ok, err
 
 
 def _eq_autopull_control(col) -> None:
     cfg = _eq_autopull_cfg()
-    _lbl = (f"⏰ Auto-pull · {cfg['time_et']} ET" if cfg["enabled"] else "⏰ Auto-pull · off")
+    _lbl = (f"⏰ Auto-pull · {cfg['time']}" if cfg["enabled"] else "⏰ Auto-pull · off")
     with col.popover(_lbl, use_container_width=True,
                      help="Schedule an automatic daily equities pull (weekdays) — runs even "
                           "when BASIS is closed, via Windows Task Scheduler."):
-        _cur = dtime(*(int(x) for x in cfg["time_et"].split(":")))
-        _t = st.time_input("Pull daily at (US-Eastern)", value=_cur, step=300,
+        _cur = dtime(*(int(x) for x in cfg["time"].split(":")))
+        _t = st.time_input("Pull daily at (laptop time)", value=_cur, step=300,
                            key="eq_ap_time")
         _on = st.toggle("Automatic pull on", value=cfg["enabled"], key="eq_ap_on")
         if st.button("Save", key="eq_ap_save", use_container_width=True, type="primary"):
@@ -1853,16 +1849,12 @@ def _eq_autopull_control(col) -> None:
                 st.error(f"Couldn't update the scheduled task:\n\n{msg or 'no output'}")
         if st.session_state.pop("eq_ap_saved", False):
             st.success("Saved.")
-        _loc = _eq_autopull_cfg().get("local_time") if cfg["enabled"] else None
-        st.caption(("**On** — weekdays at " + cfg["time_et"] + " ET"
-                    + (f" ({_loc} this machine's time)" if _loc else "") + ". "
+        st.caption((f"**On** — weekdays at {cfg['time']} laptop time. "
                     if cfg["enabled"] else "**Off.** ")
                    + "Runs the same job as **Pull equities data** (Yahoo quotes/history + "
                      "weekly fundamentals; Bloomberg membership only if the Terminal is up), "
                      "then syncs the VPS. The laptop must be ON (and not asleep) at pull "
-                     "time. ET is converted to this machine's time when you save — re-save "
-                     "once after each US clock change (spring/autumn) to stay on ET. "
-                     "Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
+                     "time. Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
 
 
 def render_equities_home() -> None:
@@ -3853,8 +3845,9 @@ def _ta_render_gallery(gallery, gallery_data_fn, as_of) -> None:
 
 def render_eq_ta_overview() -> None:
     """Equities Technical Analysis — the FICC TA overview run on the equity universe off yfinance
-    data. Same strategies, same cross-strategy scoring, same charts; the confluence set is the one
-    edited on the FICC Technical Analysis page (shared)."""
+    data. Same strategies, same cross-strategy scoring, same charts, and the same foot-of-page PDF
+    report + email controls; the confluence set and report settings are this page's OWN, independent
+    of the FICC ones."""
     from src import eqta
     st.subheader("\U0001F4C8 Equities — Technical Analysis")
     st.caption("Every equity flagged across the technical strategies, ranked by a cross-strategy "
