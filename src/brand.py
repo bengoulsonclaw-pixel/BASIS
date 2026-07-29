@@ -153,14 +153,14 @@ def header_svg(pal: dict, height: int = 34, tagline: bool = False) -> str:
         f'<stop offset="0" stop-color="#F2F4F6"/><stop offset="1" stop-color="#9CA2A9"/></linearGradient>'
         f'</defs>'
     )
+    # Clean bold ❯ mark, matching the app icon: silver edge (top) + gold edge (bottom) converging
+    # on a gold node. The old measurement bracket was dropped for the simpler, bolder icon look,
+    # so the sidebar logo now reads the same as the icon everywhere.
     mark = (
         f'<g transform="translate(14,26) scale(0.62)">'
-        f'<line x1="6" y1="2" x2="6" y2="102" stroke="{pal["bracket"]}" stroke-width="2"/>'
-        f'<line x1="2.5" y1="2" x2="9.5" y2="2" stroke="{pal["bracket"]}" stroke-width="2"/>'
-        f'<line x1="2.5" y1="102" x2="9.5" y2="102" stroke="{pal["bracket"]}" stroke-width="2"/>'
-        f'<path d="M8 2 L150 52" fill="none" stroke="url(#si_{u})" stroke-width="8" stroke-linecap="round"/>'
-        f'<path d="M8 102 L150 52" fill="none" stroke="url(#go_{u})" stroke-width="8" stroke-linecap="round"/>'
-        f'<circle cx="150" cy="52" r="8.5" fill="url(#go_{u})"/></g>'
+        f'<path d="M8 2 L150 52" fill="none" stroke="url(#si_{u})" stroke-width="12" stroke-linecap="round"/>'
+        f'<path d="M8 102 L150 52" fill="none" stroke="url(#go_{u})" stroke-width="12" stroke-linecap="round"/>'
+        f'<circle cx="150" cy="52" r="11" fill="url(#go_{u})"/></g>'
     )
     if not tagline:
         # viewBox trimmed to the drawn content (mark ends ~x107, wordmark ~x368) so no dead

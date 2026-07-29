@@ -1824,6 +1824,19 @@ def _eq_autopull_apply(enabled: bool, hhmm: str) -> tuple[bool, str]:
     err = (r.stderr or r.stdout or "").strip()
     # deleting a task that never existed is success, not failure
     ok = r.returncode == 0 or (not enabled and "cannot find" in err.lower())
+    if ok and enabled:
+        # schtasks /Create can't set it, so flip "run as soon as possible after a missed start"
+        # (StartWhenAvailable) via PowerShell — the task then CATCHES UP when the laptop next wakes
+        # instead of silently skipping a morning it slept through. Best-effort; the task runs without it.
+        try:
+            subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                 f"$t=Get-ScheduledTask -TaskName '{_EQ_AUTOPULL_TASK}';"
+                 f"$t.Settings.StartWhenAvailable=$true;"
+                 f"Set-ScheduledTask -TaskName '{_EQ_AUTOPULL_TASK}' -Settings $t.Settings | Out-Null"],
+                capture_output=True, text=True, timeout=30)
+        except Exception:
+            pass
     if ok:
         _EQ_AUTOPULL_FILE.parent.mkdir(parents=True, exist_ok=True)
         _EQ_AUTOPULL_FILE.write_text(json.dumps(
@@ -1853,9 +1866,10 @@ def _eq_autopull_control(col) -> None:
         st.caption((f"**On** — weekdays at {cfg['time']} laptop time. "
                     if cfg["enabled"] else "**Off.** ")
                    + "Runs the same job as **Pull equities data** (Yahoo quotes/history + "
-                     "weekly fundamentals; Bloomberg membership only if the Terminal is up), "
-                     "then syncs the VPS. The laptop must be ON (and not asleep) at pull "
-                     "time. Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
+                     "weekly fundamentals + the **Technical Analysis** backfill & signals; Bloomberg "
+                     "membership only if the Terminal is up), then syncs the VPS. If the laptop is off "
+                     "or asleep at pull time it catches up as soon as it's next awake. "
+                     "Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
 
 
 def render_equities_home() -> None:
@@ -3540,12 +3554,14 @@ def render_ta_overview() -> None:
                    "**Score** = Σ signed strength across the strategies (confluence × strength); "
                    "**Conviction** = their mean strength (0–100).")
 
-    # --- per-strategy counts + one-click drill-down into each page ---
+    # --- per-strategy counts, CONFLUENCE SET ONLY: the non-scored strategies never enter `flagged`,
+    #     so they'd read 0 across the board — redundant. Only the scored methods are listed. ---
     st.markdown("##### By strategy")
+    st.caption("The methods in your confluence set above — the only ones scored, so the only ones counted here.")
     counts = [{"Strategy": s, "Flagged": int((flagged["strategy"] == s).sum()),
                "Long": int(((flagged["strategy"] == s) & (flagged["dir"] > 0)).sum()),
                "Short": int(((flagged["strategy"] == s) & (flagged["dir"] < 0)).sum())}
-              for s in tascore.TA_STRATEGIES]
+              for s in tascore.TA_STRATEGIES if s in set(_conf)]
     brand.themed_dataframe(pd.DataFrame(counts), {}, column_config={
         # pin the three integer columns narrow so they don't over-expand and clip "Short" off the
         # right edge; the wide "Strategy" text column then absorbs the remaining container width.
@@ -3984,10 +4000,11 @@ def render_eq_ta_overview() -> None:
                    "**Score** = Σ signed strength across the strategies; **Conviction** = their mean strength (0–100).")
 
     st.markdown("##### By strategy")
+    st.caption("The methods in your confluence set above — the only ones scored, so the only ones counted here.")
     counts = [{"Strategy": s, "Flagged": int((flagged["strategy"] == s).sum()),
                "Long": int(((flagged["strategy"] == s) & (flagged["dir"] > 0)).sum()),
                "Short": int(((flagged["strategy"] == s) & (flagged["dir"] < 0)).sum())}
-              for s in tascore.TA_STRATEGIES]
+              for s in tascore.TA_STRATEGIES if s in set(_conf)]
     brand.themed_dataframe(pd.DataFrame(counts), {}, column_config={
         "Flagged": st.column_config.NumberColumn(width="small"),
         "Long": st.column_config.NumberColumn(width="small"),

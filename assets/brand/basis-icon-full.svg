@@ -1,7 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
- <!-- BASIS app icon (mark only). Silver edge (top) + gold edge (bottom) converging on a
-      gold dot, on a rounded dark tile. Source of truth for basis-icon-*.png + the small
-      sizes of basis.ico. Regenerate rasters with build_icons.py. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+     font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif">
+ <!-- BASIS app icon WITH wordmark — mark over "BASIS". Used only at the LARGE sizes of
+      basis.ico (256/128px, where a desktop shortcut renders it); the wordmark is illegible
+      below ~64px so those sizes fall back to basis-icon.svg. Regenerate with build_icons.py. -->
  <defs>
   <radialGradient id="bg" cx="0.5" cy="0.40" r="0.95">
     <stop offset="0" stop-color="#343434"/><stop offset="1" stop-color="#111111"/>
@@ -13,12 +14,17 @@
     <stop offset="0" stop-color="#F6D24A"/><stop offset="1" stop-color="#D9971C"/></linearGradient>
   <linearGradient id="sil" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#F2F4F6"/><stop offset="1" stop-color="#9CA2A9"/></linearGradient>
+  <linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#EEF0F3"/><stop offset="0.50" stop-color="#C0C5CC"/>
+    <stop offset="0.72" stop-color="#CBA53C"/><stop offset="1" stop-color="#F4CC3A"/></linearGradient>
  </defs>
  <rect width="100" height="100" rx="23" fill="url(#bg)"/>
  <rect width="100" height="100" rx="23" fill="url(#gloss)"/>
- <g stroke-linecap="round">
+ <g transform="translate(19,4) scale(0.62)" stroke-linecap="round">
    <path d="M20 26 L76 50" fill="none" stroke="url(#sil)" stroke-width="11"/>
    <path d="M20 74 L76 50" fill="none" stroke="url(#gold)" stroke-width="11"/>
    <circle cx="76" cy="50" r="10.5" fill="url(#gold)"/>
  </g>
+ <text x="50" y="79" text-anchor="middle" font-size="17.5" font-weight="700"
+       letter-spacing="1.2" fill="url(#sg)">BASIS</text>
 </svg>

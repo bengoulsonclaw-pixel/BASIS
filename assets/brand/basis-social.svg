@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"
+     font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif">
+ <!-- BASIS social avatar — mark over the "BASIS" wordmark on a full-bleed dark square.
+      Circle-crop safe (X / Instagram / LinkedIn profile pictures). Regenerate the PNGs
+      with build_icons.py. Upload the SQUARE PNG; platforms apply their own circular crop. -->
+ <defs>
+  <radialGradient id="bg" cx="0.5" cy="0.40" r="0.92">
+    <stop offset="0" stop-color="#2E2E2E"/><stop offset="1" stop-color="#161616"/>
+  </radialGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#F6D24A"/><stop offset="1" stop-color="#D9971C"/></linearGradient>
+  <linearGradient id="sil" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#F2F4F6"/><stop offset="1" stop-color="#9CA2A9"/></linearGradient>
+  <linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#EEF0F3"/><stop offset="0.50" stop-color="#C0C5CC"/>
+    <stop offset="0.72" stop-color="#CBA53C"/><stop offset="1" stop-color="#F4CC3A"/></linearGradient>
+ </defs>
+ <rect width="1024" height="1024" fill="url(#bg)"/>
+ <g transform="translate(309,168) scale(4.0)" stroke-linecap="round">
+   <path d="M16 22 L80 50" fill="none" stroke="url(#sil)" stroke-width="11"/>
+   <path d="M16 78 L80 50" fill="none" stroke="url(#gold)" stroke-width="11"/>
+   <circle cx="80" cy="50" r="11" fill="url(#gold)"/>
+ </g>
+ <text x="516" y="762" text-anchor="middle" font-size="168" font-weight="700"
+       letter-spacing="7" fill="url(#sg)">BASIS</text>
+</svg>
