@@ -3141,6 +3141,113 @@ def _ta_gallery_data(tk, strset_key, as_of):
     return out
 
 
+@st.cache_data(show_spinner=False)
+def _eq_ta_scored(as_of, scored_key=None):
+    """Equities cross-strategy scoring — the equity opportunities (from eqta) through the SAME
+    tascore engine as the FICC side. Recomputed only when the signals or confluence set change."""
+    from src import eqta
+    df, _ = eqta.load_signals()
+    if df is None or df.empty:
+        return None, None
+    flagged = tascore.ta_flagged(df, list(scored_key) if scored_key else None)
+    if flagged is None or flagged.empty:
+        return None, None
+    flagged = flagged.copy()
+    flagged["dir"] = pd.to_numeric(flagged["direction"], errors="coerce").fillna(0).astype(int)
+    flagged["strength"] = [tascore.strength(s, m) for s, m in zip(flagged["strategy"], flagged["metric"])]
+    if "name" not in flagged.columns:                 # the leaderboard labels rows by `name`
+        flagged["name"] = flagged["market"]
+    return flagged, tascore.score_products(flagged)
+
+
+@st.cache_data(show_spinner=False)
+def _eq_ta_gallery_data(tk, strset_key, as_of):
+    """Per-equity gallery data — mirrors _ta_gallery_data but feeds each strategy's *_chart_data the
+    cached equity close/volume (get_history_ta has no equities)."""
+    from src import eqta
+    from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
+                                breakout_retest as _br, momentum as _mom, fibonacci as _fbn,
+                                elliott_wave as _ew, ichimoku as _ich, obv as _obv, mfi as _mfi)
+    strset = set(strset_key)
+    out = {"pf": None, "flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None,
+           "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None}
+    close, vol = eqta.load_history()
+    if close.empty or tk not in close.columns:
+        return out
+    out["pf"] = close[tk].dropna()
+    hist = pd.DataFrame({tk: out["pf"]})
+    volf = vol[[tk]] if (not vol.empty and tk in vol.columns) else None
+    if "Flag Breakout" in strset:
+        try:
+            _fcd, _fi = _fb.flag_chart_data(tk, history=hist)
+            if _fcd is not None and not _fcd.empty and _fi:
+                out["flag"] = (_fcd[["date", "upper", "lower", "breakout"]].dropna(), _fi)
+        except Exception:
+            pass
+    if "Support & Resistance" in strset:
+        try:
+            _, _isr = _sr.sr_chart_data(tk, history=hist)
+            out["sr_levels"] = (_isr or {}).get("levels", []) or []
+        except Exception:
+            pass
+    if "Fibonacci Retracement" in strset:
+        try:
+            _, _ifb = _fbn.fib_chart_data(tk, history=hist)
+            out["fib_levels"] = [L for L in ((_ifb or {}).get("levels", []) or []) if L.get("key")]
+        except Exception:
+            pass
+    if "Breakout & Retest" in strset:
+        try:
+            _, _ibr = _br.retest_chart_data(tk, history=hist)
+            out["retest_level"] = (_ibr or {}).get("level")
+        except Exception:
+            pass
+    if "Momentum (RSI/MACD)" in strset:
+        try:
+            _mcd, _mi = _mom.momentum_chart_data(tk, history=hist)
+            if _mcd is not None and not _mcd.empty:
+                out["mom"] = _mcd[["date", "rsi"]].dropna()
+        except Exception:
+            pass
+    if "Elliott Wave" in strset:
+        try:
+            _, _ewi = _ew.elliott_chart_data(tk, history=hist)
+            if _ewi and _ewi.get("pivots"):
+                out["elliott"] = _ewi["pivots"]
+        except Exception:
+            pass
+    if "Ichimoku Cloud" in strset:
+        try:
+            _, _ici = _ich.ichimoku_chart_data(tk, history=hist)
+            if _ici and _ici.get("cloud"):
+                out["ichimoku"] = _ici
+        except Exception:
+            pass
+    if "On-Balance Volume" in strset and volf is not None:
+        try:
+            _od, _oi = _obv.obv_chart_data(tk, history=hist, volume=volf)
+            if _od is not None and not _od.empty:
+                out["obv"] = _od[["date", "obv"]].dropna()
+        except Exception:
+            pass
+    if "Money Flow Index" in strset and volf is not None:
+        try:
+            _md, _mi2 = _mfi.mfi_chart_data(tk, history=hist, volume=volf)
+            if _md is not None and not _md.empty:
+                out["mfi"] = _md[["date", "mfi"]].dropna()
+        except Exception:
+            pass
+    return out
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _eq_instruments() -> dict:
+    """{ticker: (name, 0.0, sector, region)} — an INSTRUMENTS-shaped map of the equity universe so
+    the shared prodsearch / sector helpers work on the Equities TA page."""
+    from src import eqta
+    return {t: (m["name"], 0.0, m["sector"], m["region"]) for t, m in eqta.member_meta().items()}
+
+
 def render_ta_overview() -> None:
     import altair as alt
     from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
@@ -3489,6 +3596,267 @@ def render_ta_overview() -> None:
     # block — not the leaderboard/gallery above it.
     st.divider()
     _ta_reports(meta, prod)
+
+
+def _ta_render_gallery(gallery, gallery_data_fn, as_of) -> None:
+    """The per-product chart gallery — price + every flagging overlay (Bollinger, MAs, flag channel,
+    Ichimoku cloud + Tenkan/Kijun, Elliott count, S&R / Fib / retest levels) and the RSI/MFI + OBV
+    sub-panels. Shared by the FICC and Equities TA pages; only `gallery_data_fn` (the per-product
+    data source) differs. `_yax` is Price for equities automatically (is_fixed_income is False)."""
+    import altair as alt                              # render_ta_overview imports it lazily; do the same here
+    if gallery is None or gallery.empty:
+        return
+
+    def _arrow(d):
+        return " ▲" if d > 0 else " ▼" if d < 0 else ""
+
+    _sel_name = str(gallery.iloc[0]["market"])
+    st.markdown(f"##### Charts — {_sel_name}")
+    st.caption("Charts for the **selected** stacked product (click another row above to switch). Each "
+               "chart draws **what triggered the flags**: Bollinger bands, the moving averages "
+               "(MA crossover 50/200 · swing 20/50 · trend 20/100), the flag channel, the **Ichimoku "
+               "cloud + Tenkan/Kijun**, the **Elliott wave count (purple, 0–5)**, and the "
+               "support/resistance, broken and flag-breakout levels. Sub-panels below carry **RSI / MFI** "
+               "(when momentum or money-flow flag) and **OBV** (when volume flags).")
+    _cc = brand.chart_colors()
+    for r in gallery.itertuples(index=False):
+        tk = r.instruments
+        _yax = "Yield (%)" if universe.is_fixed_income(tk) else "Price"
+        strset = {s for s, _, _ in r.tags}
+        tags_txt = ", ".join(_STRAT_SHORT.get(s, s) + _arrow(d) for s, d, _st in r.tags)
+        net = "long ▲" if r.net_dir > 0 else "short ▼" if r.net_dir < 0 else "mixed"
+        st.markdown(f"**{r.market}** · {int(r.n)} strategies ({tags_txt}) · net **{net}** · score **{abs(r.score):.0f}**")
+        _g = gallery_data_fn(tk, frozenset(strset), as_of)
+        pf = _g["pf"]
+        if pf is None or pf.empty:
+            st.caption("No history to chart.")
+            continue
+        win = pf.tail(180)
+        pxdf = pd.DataFrame({"date": win.index, "price": win.to_numpy(dtype=float)})
+
+        lines = {}
+        if "Bollinger Squeeze" in strset:
+            _mid, _sd = pf.rolling(20).mean(), pf.rolling(20).std()
+            lines["BB upper"], lines["BB mid"], lines["BB lower"] = _mid + 2 * _sd, _mid, _mid - 2 * _sd
+        for _strat, _ws in (("MA Crossover", (50, 200)), ("MA Swing", (20, 50)), ("Trend", (20, 100))):
+            if _strat in strset:
+                for _w in _ws:
+                    lines.setdefault(f"MA{_w}", pf.rolling(_w).mean())
+
+        flag_layers, rules = [], []
+        if _g["flag"]:
+            _fch, _fi = _g["flag"]
+            _fcol = _cc["long"] if _fi["sign"] > 0 else _cc["short"]
+            _fbase = alt.Chart(_fch).encode(x="date:T")
+            flag_layers += [
+                _fbase.mark_area(opacity=0.22, color=_fcol).encode(y="lower:Q", y2="upper:Q"),
+                _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="upper:Q"),
+                _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="lower:Q"),
+                _fbase.mark_line(color=_fcol, strokeDash=[6, 3], strokeWidth=2.4).encode(y="breakout:Q"),
+                alt.Chart(pd.DataFrame({"date": [_fi["pole_base"][0], _fi["pole_tip"][0]],
+                                        "price": [_fi["pole_base"][1], _fi["pole_tip"][1]]})).mark_line(
+                    color="#B0B0B0", strokeWidth=2.8).encode(x="date:T", y="price:Q"),
+            ]
+        for lv in _g["sr_levels"]:
+            rules.append((lv["price"], _cc["long"] if lv["kind"] == "support" else _cc["short"]))
+        for _L in _g["fib_levels"]:
+            rules.append((_L["price"], _cc["accent"]))
+        if _g["retest_level"] is not None:
+            rules.append((_g["retest_level"], _cc["accent"]))
+
+        base = alt.Chart(pxdf).encode(x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)))
+        layers = list(flag_layers)
+        if lines:
+            _ldf = pd.DataFrame({"date": win.index})
+            for _lab, _ser in lines.items():
+                _ldf[_lab] = _ser.reindex(win.index).to_numpy(dtype=float)
+            _long = _ldf.melt("date", var_name="Indicator", value_name="val").dropna(subset=["val"])
+            layers.append(alt.Chart(_long).mark_line(strokeWidth=1.8).encode(
+                x="date:T", y=alt.Y("val:Q", scale=alt.Scale(zero=False)),
+                color=alt.Color("Indicator:N", legend=alt.Legend(orient="top", title=None, labelFontSize=11)),
+                tooltip=[alt.Tooltip("Indicator:N"), alt.Tooltip("val:Q", format=",.2f")]))
+        layers.append(base.mark_line(color=_cc["ink"], strokeWidth=2.3).encode(
+            y=alt.Y("price:Q", title=_yax, scale=alt.Scale(zero=False), axis=alt.Axis(labelFontSize=11)),
+            tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("price:Q", title=_yax, format=",.2f")]))
+        for pv, cv in rules:
+            if np.isfinite(pv):
+                layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
+                    color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+        if _g.get("elliott"):
+            _piv = pd.DataFrame([p for p in _g["elliott"] if p["date"] >= win.index[0]])
+            if len(_piv) >= 2:
+                layers.append(alt.Chart(_piv).mark_line(
+                    color="#9575CD", strokeWidth=1.8, opacity=0.9,
+                    point=alt.OverlayMarkDef(color="#9575CD", size=42)).encode(
+                    x="date:T", y=alt.Y("price:Q", scale=alt.Scale(zero=False)),
+                    tooltip=[alt.Tooltip("label:N", title="Wave"),
+                             alt.Tooltip("price:Q", title=_yax, format=",.2f")]))
+                layers.append(alt.Chart(_piv).mark_text(
+                    dy=-12, fontSize=12, fontWeight="bold", color="#B39DDB").encode(
+                    x="date:T", y="price:Q", text="label:N"))
+        _ich_layers = []
+        _ich = _g.get("ichimoku")
+        if _ich and _ich.get("cloud"):
+            _cl = pd.DataFrame([c for c in _ich["cloud"] if c["date"] >= win.index[0]]).dropna(
+                subset=["a", "b"])
+            if not _cl.empty:
+                _cl["bull"] = _cl["a"] >= _cl["b"]
+                for _fl, _col in ((True, _cc["long"]), (False, _cc["short"])):
+                    _seg = _cl.copy()
+                    _seg.loc[_cl["bull"] != _fl, ["a", "b"]] = None
+                    _ich_layers.append(alt.Chart(_seg).mark_area(opacity=0.32).encode(
+                        x="date:T", y=alt.Y("a:Q", scale=alt.Scale(zero=False)), y2="b:Q",
+                        color=alt.value(_col)))
+                for _k, _c2 in (("tenkan", "#26A69A"), ("kijun", "#EC407A")):
+                    _ln = pd.DataFrame([rr for rr in (_ich.get(_k) or []) if rr["date"] >= win.index[0]]
+                                       ).dropna(subset=["val"])
+                    if not _ln.empty:
+                        _ich_layers.append(alt.Chart(_ln).mark_line(
+                            color=_c2, strokeWidth=1.2, opacity=0.85).encode(
+                            x="date:T", y=alt.Y("val:Q", scale=alt.Scale(zero=False))))
+        brand.show_chart(alt.layer(*(_ich_layers + layers)).resolve_scale(y="shared").properties(height=300))
+
+        _osc, _guides = [], []
+        if _g["mom"] is not None:
+            _osc.append(("rsi", _g["mom"].tail(180), "#7E57C2", "RSI"))
+            _guides += [(70, _cc["short"]), (30, _cc["long"])]
+        if _g["mfi"] is not None:
+            _osc.append(("mfi", _g["mfi"].tail(180), "#00897B", "MFI"))
+            _guides += [(80, _cc["short"]), (20, _cc["long"])]
+        if _osc:
+            _olays = [alt.Chart(_df).mark_line(color=_c, strokeWidth=2).encode(
+                x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
+                y=alt.Y(f"{_col_name}:Q", title="RSI / MFI", scale=alt.Scale(domain=[0, 100]),
+                        axis=alt.Axis(values=[0, 20, 30, 50, 70, 80, 100], labelFontSize=11)))
+                for _col_name, _df, _c, _ in _osc]
+            _olays += [alt.Chart(pd.DataFrame({"y": [_y]})).mark_rule(
+                color=_c, strokeDash=[4, 3]).encode(y="y:Q") for _y, _c in _guides]
+            brand.show_chart(alt.layer(*_olays).resolve_scale(y="shared").properties(
+                height=130, title=" / ".join(t for _, _, _, t in _osc) + " (14)"))
+
+        if _g["obv"] is not None:
+            brand.show_chart(alt.Chart(_g["obv"].tail(180)).mark_line(
+                color="#26A69A", strokeWidth=1.8).encode(
+                x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
+                y=alt.Y("obv:Q", title="OBV", scale=alt.Scale(zero=False),
+                        axis=alt.Axis(labelFontSize=10))).properties(height=110, title="On-Balance Volume"))
+
+
+def render_eq_ta_overview() -> None:
+    """Equities Technical Analysis — the FICC TA overview run on the equity universe off yfinance
+    data. Same strategies, same cross-strategy scoring, same charts; the confluence set is the one
+    edited on the FICC Technical Analysis page (shared)."""
+    from src import eqta
+    st.subheader("\U0001F4C8 Equities — Technical Analysis")
+    st.caption("Every equity flagged across the technical strategies, ranked by a cross-strategy "
+               "**conviction score** — the same engine as the FICC page, on ~2,600 names off free "
+               "yfinance data. Edit the **confluence set** on the FICC 🔬 Technical Analysis page; it "
+               "feeds this score too.")
+
+    df, meta = eqta.load_signals()
+    if df is None or df.empty:
+        st.info("No equity signals cached yet. Run the equities backfill + engine "
+                "(`python -c \"from src import eqta; eqta.backfill(eqta.universe_tickers()); eqta.run()\"`).")
+        return
+    st.caption(f"Signals as of **{meta.get('as_of', '—')}** over **{meta.get('names', '?')}** names.")
+
+    _conf = tascore.confluence_set() or tascore.CONFLUENCE_DEFAULT
+    flagged, prod = _eq_ta_scored(meta.get("as_of", ""), tuple(_conf))
+    if flagged is None or flagged.empty:
+        st.info("Nothing flagged across the confluence-set strategies right now.")
+        return
+    score_map = dict(zip(prod["instruments"], prod["score"]))
+    _inst = _eq_instruments()
+
+    n_long, n_short = int((flagged["dir"] > 0).sum()), int((flagged["dir"] < 0).sum())
+    n_multi = int((prod["n"] >= 2).sum())
+    m = st.columns(4)
+    m[0].metric("Flagged signals", len(flagged))
+    m[1].metric("Long / Short", f"{n_long} / {n_short}")
+    m[2].metric("Products", int(prod.shape[0]))
+    m[3].metric("Flagged by 2+", n_multi, help="Products flagged by more than one technical strategy.")
+
+    def _arrow(d):
+        return " ▲" if d > 0 else " ▼" if d < 0 else ""
+
+    def _sector(k):
+        return _inst.get(k, (k, 0.0, "—", ""))[2] or "—"
+
+    multi = prod[prod["n"] >= 2]
+    _q = st.text_input("Find a company", key="eqta_search", placeholder=prodsearch.PLACEHOLDER).strip()
+    if _q:
+        multi = prodsearch.filter_frame(multi, _inst, _q, ticker_col="instruments")
+        if multi.empty:
+            st.info(prodsearch.NO_MATCH.format(q=_q))
+    sel_pos = 0
+    if not multi.empty:
+        st.markdown("##### Stacked signals — flagged by 2 or more strategies (ranked by conviction)")
+        st.caption("**Click a product** to bring up its charts — every indicator that flagged it — below.")
+        rows = []
+        for r in multi.itertuples(index=False):
+            tags = ", ".join(_STRAT_SHORT.get(s, s) + _arrow(d) for s, d, _st in r.tags)
+            net = "⚠ mixed" if r.conflict else ("▲ long" if r.net_dir > 0 else "▼ short" if r.net_dir < 0 else "—")
+            rows.append({"Market": r.market, "Sector": _sector(r.instruments), "# Str": int(r.n),
+                         "Net": net, "Conviction": r.conviction, "Score": abs(r.score), "Flagged by": tags})
+        _pal = brand.palette()
+        _sty = (pd.DataFrame(rows).style
+                .format({"Conviction": "{:.0f}", "Score": "{:.0f}"})
+                .set_properties(**{"background-color": _pal["surface"], "color": _pal["text"]}))
+        _evt = st.dataframe(_sty, use_container_width=True, hide_index=True,
+                            on_select="rerun", selection_mode="single-row", key="eqta_stack_table")
+        try:
+            _sel = _evt.selection["rows"]
+        except Exception:
+            _sel = []
+        if _sel:
+            sel_pos = int(_sel[0])
+        st.caption("▲ long · ▼ short · ⚠ strategies disagree. Click a row to chart that product below. "
+                   "**Score** = Σ signed strength across the strategies; **Conviction** = their mean strength (0–100).")
+
+    st.markdown("##### By strategy")
+    counts = [{"Strategy": s, "Flagged": int((flagged["strategy"] == s).sum()),
+               "Long": int(((flagged["strategy"] == s) & (flagged["dir"] > 0)).sum()),
+               "Short": int(((flagged["strategy"] == s) & (flagged["dir"] < 0)).sum())}
+              for s in tascore.TA_STRATEGIES]
+    brand.themed_dataframe(pd.DataFrame(counts), {}, column_config={
+        "Flagged": st.column_config.NumberColumn(width="small"),
+        "Long": st.column_config.NumberColumn(width="small"),
+        "Short": st.column_config.NumberColumn(width="small"),
+    })
+
+    gallery = multi.iloc[[sel_pos]] if not multi.empty else multi.iloc[0:0]
+    _ta_render_gallery(gallery, _eq_ta_gallery_data, meta.get("as_of", ""))
+
+    st.markdown("##### All flagged signals")
+    fc1, fc2 = st.columns([3, 2])
+    pick = fc1.multiselect("Filter by strategy", tascore.TA_STRATEGIES, default=[], key="eqta_filter",
+                           help="Empty = every technical strategy.")
+    sidef = fc2.radio("Side", ["All", "Long", "Short"], horizontal=True, key="eqta_side")
+    view = flagged
+    if pick:
+        view = view[view["strategy"].isin(pick)]
+    if sidef == "Long":
+        view = view[view["dir"] > 0]
+    elif sidef == "Short":
+        view = view[view["dir"] < 0]
+    view = view.assign(_score=view["instruments"].map(lambda k: abs(score_map.get(k, 0.0))))
+    view = view.sort_values(["_score", "name", "strategy"], ascending=[False, True, True])
+    show = pd.DataFrame({
+        "Market": view["name"].values,
+        "Sector": [_sector(k) for k in view["instruments"]],
+        "Strategy": [_STRAT_SHORT.get(s, s) for s in view["strategy"]],
+        "Signal": [f"{sig}{_arrow(d)}" for sig, d in zip(view["signal"], view["dir"])],
+        "Conviction": view["strength"].round(0).values,
+        "Score": view["_score"].round(0).values,
+        "Notes": view["context"].values,
+    })
+
+    def _sig_color(col):
+        return ["color:#137333;font-weight:700" if "▲" in str(v)
+                else "color:#c5221f;font-weight:700" if "▼" in str(v) else "color:#888" for v in col]
+
+    brand.themed_dataframe(show, {"Conviction": "{:.0f}", "Score": "{:.0f}"},
+                           colorers=[(["Signal"], _sig_color)], height=520)
 
 
 def render_data_health() -> None:
@@ -6314,11 +6682,12 @@ with st.sidebar:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
         # No "Equities Home" entry — the Equities desk segment (and the logo) already land there.
-        _nav_button("01 · Company Fundamentals", "eq:Fundamentals")
-        _nav_button("02 · Earnings Calendar", "eq:Earnings")
-        _nav_button("03 · Single Stock Correlations", "eq:Correlations")
-        _nav_button("04 · Index Dispersion", "eq:Dispersion")
-        _nav_button("05 · Client ETFs", "eq:ETFs")
+        _nav_button("01 · Technical Analysis", "eq:Technical Analysis")
+        _nav_button("02 · Company Fundamentals", "eq:Fundamentals")
+        _nav_button("03 · Earnings Calendar", "eq:Earnings")
+        _nav_button("04 · Single Stock Correlations", "eq:Correlations")
+        _nav_button("05 · Index Dispersion", "eq:Dispersion")
+        _nav_button("06 · Client ETFs", "eq:ETFs")
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
@@ -6494,6 +6863,8 @@ if side == "Equities":
         render_eq_etfs()
     elif active == "eq:Dispersion":
         render_eq_dispersion()
+    elif active == "eq:Technical Analysis":
+        render_eq_ta_overview()
     else:
         render_equities_home()
     st.stop()

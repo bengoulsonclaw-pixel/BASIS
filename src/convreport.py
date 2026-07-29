@@ -855,9 +855,10 @@ def render_html(sig_df, asof, top_n=5, min_strats=2, update_baseline=False, ai_p
         leaderboard_img=leaderboard_img,
         n_con=len(constructive), n_cau=len(cautious), n_new=n_new, total=sel["total"], mode=mode,
         scored=sel.get("scored", []),
+        axes=tascore.axis_breakdown(sel.get("scored", [])),   # per-axis breakdown for the intro list
         # only explain the trend de-duplication when the set actually holds >1 trend read —
         # otherwise the report describes machinery that never fires
-        dedup_active=sum(1 for s in sel.get("scored", []) if s in tascore.TREND_FAMILY) > 1,
+        dedup_active=tascore.has_intra_axis_dup(sel.get("scored", [])),
         min_conviction=min_conviction, min_score=min_score,
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )

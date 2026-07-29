@@ -127,15 +127,16 @@ def _analyse(px: pd.Series, vol: pd.Series) -> dict | None:
             "mfi_now": m, "rsi_now": r, "metric": float(np.copysign(sc, ddir))}
 
 
-def find_opportunities(history: pd.DataFrame | None = None) -> pd.DataFrame:
+def find_opportunities(history: pd.DataFrame | None = None,
+                       volume: pd.DataFrame | None = None) -> pd.DataFrame:
     uni = _universe()
     if history is None:
         history = get_history(uni)
-    vols = get_volume_history(uni)
+    vols = volume if volume is not None else get_volume_history(uni)   # equities pass their own
 
     rows = []
-    for t in uni:
-        if t not in history.columns or t not in getattr(vols, "columns", []):
+    for t in list(history.columns):        # universe-agnostic (was `uni`)
+        if t not in getattr(vols, "columns", []):
             continue
         try:
             d = _analyse(history[t], vols[t])
@@ -164,14 +165,15 @@ def find_opportunities(history: pd.DataFrame | None = None) -> pd.DataFrame:
     return df.reindex(order).reset_index(drop=True)
 
 
-def mfi_chart_data(ticker: str, history: pd.DataFrame | None = None):
+def mfi_chart_data(ticker: str, history: pd.DataFrame | None = None,
+                   volume: pd.DataFrame | None = None):
     """(price_df, info): price_df ['date','price','mfi','rsi']; info {'signal','direction',
     'score','label','note','mfi','rsi','price'} — or (None, None)."""
     if history is None:
         history = get_history([ticker])
     if ticker not in history.columns:
         return None, None
-    vols = get_volume_history([ticker])
+    vols = volume if volume is not None else get_volume_history([ticker])   # equities pass their own
     if ticker not in getattr(vols, "columns", []):
         return None, None
     d = _analyse(history[ticker], vols[ticker])

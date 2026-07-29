@@ -20,7 +20,7 @@ def find_opportunities(history: pd.DataFrame | None = None) -> pd.DataFrame:
         history = get_history(TREND_UNIVERSE)
 
     rows = []
-    for t in TREND_UNIVERSE:
+    for t in list(history.columns):        # universe-agnostic (was TREND_UNIVERSE)
         px = history[t].dropna()
         if len(px) < SLOW + 5:
             continue

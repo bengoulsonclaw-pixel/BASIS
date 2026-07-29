@@ -33,6 +33,47 @@ TA_STRATEGIES = [
     "On-Balance Volume", "Money Flow Index",
 ]
 
+# ── the five axes of technical analysis ──────────────────────────────────────────────────────
+# Every method belongs to exactly ONE axis — an independent DIMENSION of the market (direction /
+# momentum / participation / location / structure). Agreement ACROSS axes is genuine corroboration;
+# several methods WITHIN one axis are de-duplicated in the score (harmonic weights — strongest full,
+# next ½, ⅓, …) so a single dimension can't vote twice. The app groups the confluence picker by these
+# axes, and the report prints which method(s) represent each axis. Order = the axes' display order.
+TA_AXES = {
+    "Trend": ["Trend", "MA Crossover", "MA Swing", "Ichimoku Cloud"],
+    "Momentum / Oscillators": ["Momentum (RSI/MACD)", "Mean Reversion"],
+    "Volume": ["On-Balance Volume", "Money Flow Index"],
+    "Support & Resistance": ["Support & Resistance", "Fibonacci Retracement"],
+    "Patterns & Breakouts": ["Flag Breakout", "Breakout & Retest", "Bollinger Squeeze", "Elliott Wave"],
+}
+assert {s for methods in TA_AXES.values() for s in methods} == set(TA_STRATEGIES), \
+    "TA_AXES must partition TA_STRATEGIES — every method in exactly one axis"
+
+_AXIS_OF = {s: ax for ax, methods in TA_AXES.items() for s in methods}
+
+
+def axis_of(strategy: str) -> str:
+    """The axis a strategy sits in — or its own name if ungrouped, so an unknown method
+    de-duplicates alone rather than being folded into another axis."""
+    return _AXIS_OF.get(strategy, strategy)
+
+
+def axis_breakdown(strategies):
+    """[(axis, [methods in it]), …] over the axes actually represented in `strategies`, in axis
+    display order — what the app dropdowns and the report's per-axis list both render from."""
+    chosen = set(strategies)
+    return [(ax, [m for m in methods if m in chosen])
+            for ax, methods in TA_AXES.items() if any(m in chosen for m in methods)]
+
+
+def has_intra_axis_dup(strategies) -> bool:
+    """True if the set puts >1 method in any single axis — i.e. the within-axis de-dup will bite."""
+    counts = {}
+    for s in strategies:
+        ax = axis_of(s)
+        counts[ax] = counts.get(ax, 0) + 1
+    return any(c > 1 for c in counts.values())
+
 # The CONFLUENCE SET — the strategies whose agreement feeds the cross-strategy score. Chosen for
 # INDEPENDENCE (one per axis — trend / momentum / volume / location / pattern) so agreement is
 # genuine corroboration, not the same read echoed by several correlated strategies. EVERY other TA
@@ -45,12 +86,14 @@ CONFLUENCE_DEFAULT = [
     "Support & Resistance",     # location / tested levels
     "Flag Breakout",            # pattern + measured target
 ]
-_CONFLUENCE_FILE = Path(__file__).resolve().parents[1] / "data" / "confluence_set.json"
+_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+# One confluence set PER BOOK — FICC futures and equities keep independent selections, so each TA
+# page can score on its own axes/methods. `scope` selects the file; default "ficc" = the futures set.
+_CONFLUENCE_FILES = {"ficc": _DATA_DIR / "confluence_set.json",
+                     "equities": _DATA_DIR / "eq_confluence_set.json"}
 
-# Correlated trend strategies. If the confluence set holds more than one, they're de-duplicated in
-# the score (strongest counts full, the next at 1/2, 1/3, …) so a trend restated several ways isn't
-# summed several times — the default set has just one (Trend), so this rarely bites.
-TREND_FAMILY = frozenset({"Trend", "MA Crossover", "MA Swing", "Ichimoku Cloud"})
+# Back-compat alias — the de-dup below now covers EVERY axis (via axis_of), not just trend.
+TREND_FAMILY = frozenset(TA_AXES["Trend"])
 
 
 def confluence_set():
@@ -159,12 +202,16 @@ def score_products(flagged: pd.DataFrame) -> pd.DataFrame:
                for r in sub.itertuples(index=False)]
         longs = sum(1 for _, d, _ in sig if d > 0)
         shorts = sum(1 for _, d, _ in sig if d < 0)
-        # De-duplicate correlated trend confirmations: within the trend family the strongest
-        # counts full, the next at 1/2, 1/3, … (harmonic), so a trend restated by several
-        # strategies isn't summed several times into the score. (n / conviction stay raw.)
-        fam = sorted((x for x in sig if x[0] in TREND_FAMILY), key=lambda x: -x[2])
-        fam_w = {s: 1.0 / (k + 1) for k, (s, _d, _st) in enumerate(fam)}
-        signed = float(sum(d * st * fam_w.get(s, 1.0) for s, d, st in sig))
+        # De-duplicate WITHIN each axis: several methods reading the same dimension (two trend
+        # confirmations, OBV + MFI on volume, …) shouldn't each count in full. Per axis the
+        # strongest counts full, the next at 1/2, 1/3, … (harmonic). Agreement ACROSS axes still
+        # counts fully — that's the genuine confluence. (n / conviction stay raw.)
+        axis_w = {}
+        for ax in {axis_of(s) for s, _d, _st in sig}:
+            members = sorted(((s, st) for s, _d, st in sig if axis_of(s) == ax), key=lambda x: -x[1])
+            for k, (s, _st) in enumerate(members):
+                axis_w[s] = 1.0 / (k + 1)
+        signed = float(sum(d * st * axis_w.get(s, 1.0) for s, d, st in sig))
         mkt = sub["market"].mode()
         rows.append({
             "instruments": key,

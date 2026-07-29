@@ -100,7 +100,7 @@ def _signal(ma_fast: float, ma_slow: float, ema_fast: float, mom: float,
 
 def _find(history: pd.DataFrame, cfg: MAConfig) -> pd.DataFrame:
     rows = []
-    for t in TREND_UNIVERSE:
+    for t in list(history.columns):        # universe-agnostic (was TREND_UNIVERSE)
         if asset(t) in EXCLUDE_ASSETS:           # bonds/rates — see EXCLUDE_ASSETS note
             continue
         px = history[t].dropna()

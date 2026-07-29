@@ -234,22 +234,22 @@ def _vol_ratio(va: np.ndarray | None, brk_idx: int) -> float:
     return last / avg - 1.0 if avg > 0 else float("nan")
 
 
-def find_opportunities(history: pd.DataFrame | None = None) -> pd.DataFrame:
+def find_opportunities(history: pd.DataFrame | None = None,
+                       volume: pd.DataFrame | None = None) -> pd.DataFrame:
     """Currently-active break-and-retests across the book, one row per product, ranked by
     retest proximity (tightest first). Conditional: only products with a qualifying recent
     break being retested appear — the frame is often short and may be empty."""
     if history is None:
         history = get_history(TREND_UNIVERSE)
-    try:
-        volume = get_volume_history(TREND_UNIVERSE)
-    except Exception:
-        volume = pd.DataFrame()
+    if volume is None:                                # equities pass their own volume frame
+        try:
+            volume = get_volume_history(TREND_UNIVERSE)
+        except Exception:
+            volume = pd.DataFrame()
 
     rows = []
-    for t in TREND_UNIVERSE:
-        if t not in history.columns:
-            continue
-        vser = volume[t] if (not volume.empty and t in volume.columns) else None
+    for t in list(history.columns):        # universe-agnostic (was TREND_UNIVERSE)
+        vser = volume[t] if (volume is not None and not volume.empty and t in volume.columns) else None
         d = _detect(history[t], vser)
         if d is None or not d["active"]:        # only the live retests make the table
             continue

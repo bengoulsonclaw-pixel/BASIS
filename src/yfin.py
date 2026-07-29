@@ -132,6 +132,59 @@ def _close_frame(symbols: list, **kwargs) -> pd.DataFrame:
     return close.sort_index()
 
 
+def _ohlcv_frames(symbols: list, **kwargs):
+    """Chunked yf.download -> (close, volume) frames, date x yahoo-symbol. Mirrors _close_frame
+    but keeps Volume too (the OBV / MFI strategies need it). A failed chunk contributes nothing."""
+    import yfinance as yf
+    cframes, vframes = [], []
+    for i in range(0, len(symbols), _CHUNK):
+        chunk = symbols[i:i + _CHUNK]
+        try:
+            px = yf.download(chunk, progress=False, auto_adjust=False, threads=True, **kwargs)
+        except Exception:
+            continue
+        if px is None or px.empty:
+            continue
+        if isinstance(px.columns, pd.MultiIndex):
+            cframes.append(px["Close"])
+            vframes.append(px["Volume"])
+        else:                                          # single symbol: flat columns
+            cframes.append(px[["Close"]].rename(columns={"Close": chunk[0]}))
+            vframes.append(px[["Volume"]].rename(columns={"Volume": chunk[0]}))
+
+    def _cat(fr):
+        if not fr:
+            return pd.DataFrame()
+        d = pd.concat(fr, axis=1)
+        d = d.loc[:, ~d.columns.duplicated()]
+        d.index = pd.to_datetime(d.index)
+        if getattr(d.index, "tz", None) is not None:
+            d.index = d.index.tz_localize(None)
+        return d.sort_index()
+
+    return _cat(cframes), _cat(vframes)
+
+
+def get_ohlcv(tickers, sessions: int = 504):
+    """(close, volume) frames, each date x BLOOMBERG ticker, ~`sessions` trading days back — the
+    equities technical-analysis backfill (close feeds every strategy; volume feeds OBV / MFI)."""
+    ym = _symbol_map(tickers)
+    if not ym:
+        return pd.DataFrame(), pd.DataFrame()
+    end = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
+    start = end - pd.Timedelta(days=int(sessions * 7 / 5) + 40)
+    close, vol = _ohlcv_frames(list(ym.values()), start=start.strftime("%Y-%m-%d"),
+                               end=end.strftime("%Y-%m-%d"), interval="1d")
+    back = {y: b for b, y in ym.items()}
+
+    def _relabel(d):
+        if d.empty:
+            return d
+        return d[[c for c in d.columns if c in back]].rename(columns=back).dropna(how="all")
+
+    return _relabel(close), _relabel(vol)
+
+
 def get_history(tickers, sessions: int = 60) -> pd.DataFrame:
     """DataFrame date x BLOOMBERG ticker of daily closes covering ~`sessions`
     trading days back. Empty frame when nothing maps or Yahoo is unreachable."""

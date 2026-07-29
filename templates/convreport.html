@@ -8,6 +8,11 @@
      but only a touch: at 7pt it was the least legible thing in the report. */
   table.lead { font-size: 8.5pt; }
   table.lead td, table.lead th { padding: 2.5pt 4pt; }
+  /* Per-axis breakdown of the confluence set — axis on the left, the method(s) feeding it on the right. */
+  table.axes { width: auto; margin: 3mm 0 1mm; border-collapse: collapse; font-size: 8.5pt; }
+  table.axes td { border: 0; padding: 1.4pt 0; vertical-align: top; }
+  table.axes td.axis-name { font-weight: 700; color: #111; padding-right: 7mm; white-space: nowrap; }
+  table.axes td.axis-methods { color: #333; }
   /* "Ones to watch" rows: muted so they read as secondary to the picks above, but still legible. */
   table.lead tr.watch-sep td { background: #ECECEC; color: #555; font-style: italic;
                                font-weight: 700; font-size: 7pt; letter-spacing: .2px; padding-top: 3.5pt; }
@@ -29,10 +34,19 @@
     </div>
     <p class="summary">
       The strongest technical setups across the futures book, screened by a deliberately
-      <b>independent set of {{ total }} methods</b>{% if scored %} &mdash; {{ scored | join(', ') }}{% endif %}.
-      Each reads a different dimension of the market, so where they agree it is genuine corroboration
-      rather than one indicator restated {{ total }} ways.
+      <b>independent set of {{ total }} method{{ '' if total == 1 else 's' }}</b>{% if axes %} across
+      <b>{{ axes|length }} {{ 'axis' if axes|length == 1 else 'axes' }}</b> of the market{% endif %}
+      &mdash; where they agree it is genuine corroboration, not one indicator restated several ways.
+      The {{ 'axis' if axes|length == 1 else 'axes' }}, and the method{{ '' if total == 1 else 's' }}
+      feeding each:
     </p>
+    {% if axes %}
+    <table class="axes">
+      {% for ax, methods in axes %}
+      <tr><td class="axis-name">{{ ax }}</td><td class="axis-methods">{{ methods | join(', ') }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
     <p class="summary">
       <b>This edition: {{ n_con }} constructive, {{ n_cau }} cautious</b>{% if n_new %}
       ({{ n_new }} new since last week){% endif %}. Nothing appears without at least two of the
