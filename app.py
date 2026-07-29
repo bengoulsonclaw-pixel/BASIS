@@ -1800,7 +1800,8 @@ _EQ_AUTOPULL_BAT = ROOT / "run_eq_autopull.bat"
 
 def _eq_autopull_cfg() -> dict:
     try:
-        cfg = json.loads(_EQ_AUTOPULL_FILE.read_text())
+        # utf-8-sig: tolerate a BOM from hand-edits (PowerShell's Set-Content utf8 adds one)
+        cfg = json.loads(_EQ_AUTOPULL_FILE.read_text(encoding="utf-8-sig"))
         # "time" is LAPTOP wall time. Older saves stored ET + its local mapping —
         # migrate via local_time so the shown time matches when the task fires.
         t = str(cfg.get("time") or cfg.get("local_time") or "08:00")
