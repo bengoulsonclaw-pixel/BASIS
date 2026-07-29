@@ -10,11 +10,11 @@ resolving into a single indicator/decision.
 | File | What it is | Used by |
 |------|------------|---------|
 | `basis-icon.svg` | Rounded dark app-icon tile — mark only (scalable) | source of truth for the app icon |
-| `basis-icon-full.svg` | App-icon tile WITH the "BASIS" wordmark | the large sizes (256/128) of `basis.ico` |
+| `basis-icon-full.svg` | App-icon tile WITH the "BASIS" wordmark | branding tile (large only); not used in the `.ico` |
 | `basis-social.svg` | Mark + wordmark on a full-bleed dark square | source of the social avatars |
 | `basis-icon-512.png`, `-256.png` | Raster app icon (mark only) | Streamlit `page_icon` (browser tab) |
 | `basis-social-1024/512/400.png` | Social avatar (mark + wordmark), circle-crop safe | X / Instagram / LinkedIn profile pictures |
-| `basis.ico` | Multi-res desktop icon: full logo @256/128, mark @64→16 | the **BASIS** desktop shortcut |
+| `basis.ico` | Desktop-shortcut icon — clean bold mark, all sizes 16–256 (**BMP** frames) | the **BASIS** desktop shortcut |
 | `basis-header-dark.svg` | Mark + wordmark, silver→gold (for dark bg) | reference |
 | `basis-header-light.svg` | Mark + wordmark, slate→gold (for light bg) | reference |
 | `build_icons.py` | Regenerates every PNG + the `.ico` from the SVG sources | run in the repo venv |
@@ -23,9 +23,10 @@ The live app does **not** load the header SVGs from disk — `src/brand.py` rend
 the mark + wordmark inline so it re-colours instantly with the theme toggle.
 
 **Regenerating rasters:** edit an SVG, then `python assets/brand/build_icons.py` (uses the
-bundled Playwright Chromium). The wordmark is only legible above ~64 px, so the app icon /
-favicon and the small `.ico` frames stay mark-only; the full `❯ BASIS` logo appears at
-256/128 px (desktop shortcut) and in the social avatars.
+bundled Playwright Chromium). The app icon, favicon and `.ico` all use the clean bold mark
+(the wordmark is illegible below ~64 px); the wordmark lives in the social avatars. The `.ico`
+is written with **BMP** frames — PNG-compressed `.ico` frames open in Pillow but render **blank**
+in Windows Explorer.
 
 ## Palette
 | Token | Dark | Light |

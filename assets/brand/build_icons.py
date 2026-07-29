@@ -7,14 +7,14 @@ Renders each SVG crisply at native pixel sizes via the repo's bundled Playwright
 
   basis-icon-512.png, basis-icon-256.png     mark-only app icon -> Streamlit page_icon (browser tab)
   basis-social-1024/512/400.png              mark + wordmark    -> social avatars (X / Instagram / …)
-  basis.ico                                  multi-resolution desktop-shortcut icon:
-                                               256 / 128 px = full "> BASIS" logo (basis-icon-full.svg)
-                                                64 / 48 / 32 / 16 px = mark only (basis-icon.svg),
-                                               because the wordmark is unreadable below ~64 px.
+  basis.ico                                  desktop-shortcut icon: the clean bold mark at every
+                                             size (16-256).
+
+NB: the .ico MUST use BMP frames (bitmap_format="bmp"). PNG-compressed .ico frames open fine in
+Pillow but render BLANK in Windows Explorer / on desktop shortcuts — that bit us once.
 """
 import io
 import os
-import struct
 import sys
 from pathlib import Path
 
@@ -29,6 +29,8 @@ if _local.exists() and "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
 from PIL import Image                                   # noqa: E402
 from playwright.sync_api import sync_playwright         # noqa: E402
 
+ICO_SIZES = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)]
+
 
 def _render(browser, svg: Path, size: int) -> Image.Image:
     """Render one SVG to a transparent-cornered RGBA image of exactly size x size px."""
@@ -40,39 +42,25 @@ def _render(browser, svg: Path, size: int) -> Image.Image:
     return Image.open(io.BytesIO(png)).convert("RGBA")
 
 
-def _build_ico(images, path: Path) -> None:
-    """Pack several PIL images into one multi-resolution .ico (PNG-compressed entries)."""
-    imgs = sorted(images, key=lambda im: im.size[0])
-    blobs = []
-    for im in imgs:
-        buf = io.BytesIO(); im.save(buf, format="PNG"); blobs.append(buf.getvalue())
-    out = io.BytesIO()
-    out.write(struct.pack("<HHH", 0, 1, len(imgs)))     # ICONDIR: reserved, type=1, count
-    offset = 6 + 16 * len(imgs)
-    for im, blob in zip(imgs, blobs):
-        w, h = im.size
-        out.write(struct.pack("<BBBBHHII",              # ICONDIRENTRY
-                              w if w < 256 else 0, h if h < 256 else 0,
-                              0, 0, 1, 32, len(blob), offset))
-        offset += len(blob)
-    for blob in blobs:
-        out.write(blob)
-    path.write_bytes(out.getvalue())
+def _save_ico(img: Image.Image, path: Path) -> None:
+    """Write a Windows-safe multi-size .ico from one image. BMP frames only (see module note)."""
+    try:
+        img.save(path, format="ICO", sizes=ICO_SIZES, bitmap_format="bmp")
+    except TypeError:                                   # Pillow < 9.3 has no bitmap_format kwarg
+        img.save(path, format="ICO", sizes=ICO_SIZES)
 
 
 def main() -> None:
-    mark, full, social = HERE / "basis-icon.svg", HERE / "basis-icon-full.svg", HERE / "basis-social.svg"
+    mark, social = HERE / "basis-icon.svg", HERE / "basis-social.svg"
     with sync_playwright() as p:
         b = p.chromium.launch()
         try:
-            _render(b, mark, 512).save(HERE / "basis-icon-512.png")
+            m512 = _render(b, mark, 512)
+            m512.save(HERE / "basis-icon-512.png")
             _render(b, mark, 256).save(HERE / "basis-icon-256.png")
             for s in (1024, 512, 400):
                 _render(b, social, s).save(HERE / f"basis-social-{s}.png")
-            _build_ico([_render(b, full, 256), _render(b, full, 128),
-                        _render(b, mark, 64), _render(b, mark, 48),
-                        _render(b, mark, 32), _render(b, mark, 16)],
-                       HERE / "basis.ico")
+            _save_ico(m512, HERE / "basis.ico")         # desktop shortcut — clean bold mark, all sizes
         finally:
             b.close()
     print("rebuilt:", ", ".join(sorted(f.name for f in HERE.glob("basis*.png"))), "+ basis.ico")
