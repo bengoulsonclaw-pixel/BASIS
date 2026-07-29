@@ -31,6 +31,17 @@
   .sidebar .contact .label { color: var(--yellow); font-weight: 700; font-size: 7.5pt; margin-bottom: 1mm; }
   .sidebar .contact .name  { font-size: 7.5pt; margin-bottom: 1mm; }
   .sidebar .contact .email { font-size: 5.5pt; color: #dcdcdc; overflow-wrap: anywhere; line-height: 1.5; }
+  /* Contact vertically CENTRED in the sidebar; "Produced by" credit pinned to the bottom. Both are
+     absolutely positioned inside the FIXED sidebar, so they land identically on every page and stay
+     put regardless of the logo's height (the logo keeps the top in normal flow). "Produced by" is
+     the same on every report; only the Contact's name/emails above it vary by desk (FICC vs equity). */
+  .sidebar .contact { margin: auto 0; }   /* flex auto-margins centre it in the space below the logo */
+  .sidebar::after {
+    content: "Produced by\A Ben I. Goulson\A Benjamin.Goulson@xpi.com.br";
+    position: absolute; left: 0.14in; right: 0.14in; bottom: 0.2in;
+    white-space: pre-line; color: #c9c9c9; font-size: 5.5pt; line-height: 1.6;
+    letter-spacing: .1px; overflow-wrap: anywhere;
+  }
 
   /* Content column: starts right of the band (0.30 + 1.55 + 0.20 gutter = 2.05"),
      0.30" right margin → 5.92" wide. Top/bottom inset comes from the @page margin
@@ -56,8 +67,12 @@
              background: #FFF8E1; border-left: 3pt solid var(--yellow); }
 
   .banner { background: var(--black); color: var(--yellow); font-weight: 700; text-transform: uppercase;
-            font-size: 11pt; letter-spacing: .3px; padding: 3.5pt 6pt; margin-top: 5mm; break-after: avoid; }
-  .banner .sig { float: right; text-transform: none; }
+            font-size: 11pt; letter-spacing: .3px; padding: 3.5pt 6pt; margin-top: 5mm; break-after: avoid;
+            display: flex; justify-content: space-between; align-items: baseline; gap: 10pt; }
+  /* name flexes + wraps if very long (equity names run long); the status stays intact on the right,
+     both kept INSIDE the bar — the old `float:right` spilled past the bar on long names. */
+  .banner .mkt { min-width: 0; overflow-wrap: anywhere; }
+  .banner .sig { text-transform: none; flex: 0 0 auto; white-space: nowrap; }
   .banner .sig.long { color: #8BE6A0; }
   .banner .sig.short { color: #FF9A8B; }
 

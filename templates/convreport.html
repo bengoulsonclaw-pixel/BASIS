@@ -23,8 +23,15 @@
 <body>
   <div class="sidebar">
     <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
-    <div class="contact"><div class="label">Contact</div><div class="name">Ben I. Goulson</div>
-      <div class="email">Benjamin.Goulson@xpi.com.br</div><div class="email">Futures.Offshore@xpi.us</div></div>
+    <div class="contact"><div class="label">Contact</div>
+      {%- if equities %}
+      <div class="name">Leandro Slaib</div>
+      <div class="email">Leandro.Slaib@xpi.us</div><div class="email">Mesa.Brasil@xpi.us</div>
+      {%- else %}
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div><div class="email">Futures.Offshore@xpi.us</div>
+      {%- endif %}
+    </div>
   </div>
   {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
   <div class="content">
@@ -124,7 +131,7 @@
 
     {% macro pick_block(p) %}
     <div class="section">
-      <div class="banner">{{ p.market }}
+      <div class="banner"><span class="mkt">{{ p.market }}</span>
         <span class="sig {% if p.net_dir > 0 %}long{% else %}short{% endif %}">
           {{ 'Constructive' if p.net_dir > 0 else 'Cautious' }} &middot; {{ p.n }}/{{ p.total }}
           &middot; Conviction {{ '%.0f'|format(p.conviction) }}

@@ -11,9 +11,11 @@
      align-items:stretch makes the sidebar as tall as the whole content (no per-page repeat). */
   .wrap { display: flex; width: 640px; align-items: stretch; }
   .sidebar { width: 120px; flex-shrink: 0; background: #0A0A0A; border-right: 4px solid #F5C518;
-             color: #fff; padding: 16px 12px; }
+             color: #fff; padding: 16px 12px; display: flex; flex-direction: column; position: relative; }
   .sidebar .logo img { width: 100%; display: block; }
-  .sidebar .contact { margin-top: 22px; }
+  .sidebar .contact { margin: auto 0; }   /* centred in the sidebar — matches the PDF reports */
+  .sidebar .produced { position: absolute; left: 12px; right: 12px; bottom: 16px;
+                       font-size: 8px; color: #cfcfcf; line-height: 1.55; overflow-wrap: break-word; }
   .sidebar .contact .label { color: #F5C518; font-weight: 700; font-size: 8.5px; letter-spacing: .4px; margin-bottom: 5px; }
   .sidebar .contact .nm { font-size: 12px; font-weight: 700; color: #fff; line-height: 1.25; margin-bottom: 7px; }
   .sidebar .contact .em { font-size: 8px; color: #d8d8d8; line-height: 1.55; overflow-wrap: break-word; word-break: normal; margin-bottom: 3px; }
@@ -52,6 +54,7 @@
         <div class="em">Benjamin.Goulson@<wbr>xpi.com.br</div>
         <div class="em">Futures.Offshore@<wbr>xpi.us</div>
       </div>
+      <div class="produced">Produced by<br>Ben I. Goulson<br>Benjamin.Goulson@<wbr>xpi.com.br</div>
     </div>
 
     <div class="content">
