@@ -15,7 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
@@ -1788,6 +1788,83 @@ def _equities_heatmap(index_keys) -> None:
                     height=height + 6, scrolling=False)
 
 
+# ── Equities auto-pull (Windows Task Scheduler) ──────────────────────────────
+# The ⏰ control left of "Pull equities data": a daily scheduled run of
+# `snapshot.py --equities` via run_eq_autopull.bat, so e.g. a 09:00 ET pull
+# lands fresh data for the US open without touching the app. The task runs
+# whether or not BASIS is open (it's a Task Scheduler job, not an app thread).
+_EQ_AUTOPULL_TASK = "BASIS Equities Auto Pull"
+_EQ_AUTOPULL_FILE = ROOT / "data" / "eq_autopull.json"
+_EQ_AUTOPULL_BAT = ROOT / "run_eq_autopull.bat"
+
+
+def _eq_autopull_cfg() -> dict:
+    try:
+        cfg = json.loads(_EQ_AUTOPULL_FILE.read_text())
+        return {"enabled": bool(cfg.get("enabled")), "time_et": str(cfg.get("time_et", "09:00"))}
+    except Exception:
+        return {"enabled": False, "time_et": "09:00"}
+
+
+def _eq_autopull_apply(enabled: bool, time_et: str) -> tuple[bool, str]:
+    """Create/refresh (or delete) the Windows scheduled task, then persist the
+    setting. Task Scheduler runs on LOCAL wall time, so the ET time is converted
+    via America/New_York at save time — re-save after the US/UK clock changes
+    (their DST dates differ by ~2-3 weeks a year)."""
+    hh, mm = (int(x) for x in time_et.split(":"))
+    _local = (datetime.now(ZoneInfo("America/New_York"))
+              .replace(hour=hh, minute=mm, second=0, microsecond=0)
+              .astimezone())                       # → machine-local wall time
+    if enabled:
+        cmd = ["schtasks", "/Create", "/F", "/TN", _EQ_AUTOPULL_TASK,
+               "/TR", f'"{_EQ_AUTOPULL_BAT}"',
+               "/SC", "WEEKLY", "/D", "MON,TUE,WED,THU,FRI",
+               "/ST", _local.strftime("%H:%M")]
+    else:
+        cmd = ["schtasks", "/Delete", "/F", "/TN", _EQ_AUTOPULL_TASK]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    err = (r.stderr or r.stdout or "").strip()
+    # deleting a task that never existed is success, not failure
+    ok = r.returncode == 0 or (not enabled and "cannot find" in err.lower())
+    if ok:
+        _EQ_AUTOPULL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _EQ_AUTOPULL_FILE.write_text(json.dumps(
+            {"enabled": enabled, "time_et": time_et,
+             "local_time": _local.strftime("%H:%M")}, indent=2))
+    return ok, err
+
+
+def _eq_autopull_control(col) -> None:
+    cfg = _eq_autopull_cfg()
+    _lbl = (f"⏰ Auto-pull · {cfg['time_et']} ET" if cfg["enabled"] else "⏰ Auto-pull · off")
+    with col.popover(_lbl, use_container_width=True,
+                     help="Schedule an automatic daily equities pull (weekdays) — runs even "
+                          "when BASIS is closed, via Windows Task Scheduler."):
+        _cur = dtime(*(int(x) for x in cfg["time_et"].split(":")))
+        _t = st.time_input("Pull daily at (US-Eastern)", value=_cur, step=300,
+                           key="eq_ap_time")
+        _on = st.toggle("Automatic pull on", value=cfg["enabled"], key="eq_ap_on")
+        if st.button("Save", key="eq_ap_save", use_container_width=True, type="primary"):
+            ok, msg = _eq_autopull_apply(_on, _t.strftime("%H:%M"))
+            if ok:
+                st.session_state["eq_ap_saved"] = True
+                st.rerun()
+            else:
+                st.error(f"Couldn't update the scheduled task:\n\n{msg or 'no output'}")
+        if st.session_state.pop("eq_ap_saved", False):
+            st.success("Saved.")
+        _loc = _eq_autopull_cfg().get("local_time") if cfg["enabled"] else None
+        st.caption(("**On** — weekdays at " + cfg["time_et"] + " ET"
+                    + (f" ({_loc} this machine's time)" if _loc else "") + ". "
+                    if cfg["enabled"] else "**Off.** ")
+                   + "Runs the same job as **Pull equities data** (Yahoo quotes/history + "
+                     "weekly fundamentals; Bloomberg membership only if the Terminal is up), "
+                     "then syncs the VPS. The laptop must be ON (and not asleep) at pull "
+                     "time. ET is converted to this machine's time when you save — re-save "
+                     "once after each US clock change (spring/autumn) to stay on ET. "
+                     "Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
+
+
 def render_equities_home() -> None:
     snap = _load_snap()
     # (world clocks moved to the fixed top bar — rendered on every page)
@@ -1798,7 +1875,8 @@ def render_equities_home() -> None:
                               "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
     sel = sel or _keys
     st.subheader("Data")
-    c1, c2, c3 = st.columns(3)
+    c0, c1, c2, c3 = st.columns([1.15, 1.55, 1.55, 2.75])
+    _eq_autopull_control(c0)
     try:                                   # mirror snapshot.py's equities pull switches
         from snapshot import PULL_EQUITY_CONSTITUENTS as _EQ_ON, PULL_FUNDAMENTALS as _EQF_ON
     except Exception:
@@ -2909,49 +2987,73 @@ _fragment = getattr(st, "fragment", None) or getattr(st, "experimental_fragment"
 
 
 @_fragment
-def _ta_reports(meta, prod=None) -> None:
+def _ta_reports(meta, prod=None, scope="ficc", conf_set=None) -> None:
     """The report controls, ISOLATED in a Streamlit fragment: clicking Generate (a ~15–25s PDF
     subprocess) reruns ONLY this block, so the heavy leaderboard/gallery below don't re-execute
     and the page no longer ghosts / half-redraws while the report builds. `prod` is the scored
-    product table, used to offer the pick list."""
+    product table, used to offer the pick list.
+
+    `scope` ('ficc' | 'equities') runs the SAME controls over either book: it selects the signals
+    file, the instrument universe + sector labels, and the per-book persistence (report defaults +
+    exclude list), and — for equities — passes ``--equities`` so the report engine draws its charts
+    from the yfinance OHLCV store. `conf_set` overrides the scored confluence set (equities passes
+    its own page's selection; FICC falls back to the shared session set). Every widget key is suffixed
+    by scope so the two pages' fragments never collide."""
+    eq = scope == "equities"
+    k = f"_{scope}"                               # per-scope widget-key suffix (no cross-page collisions)
+    _pdf_key = f"conv_pdf{k}"                     # session slot for the built PDF bytes
+    if eq:
+        from src import eqta
+        sig_file = eqta.SIGNALS_FILE
+        _emeta = eqta.member_meta()
+        _instruments = list(_emeta.keys())
+        _name_fn = lambda t: (_emeta.get(t, {}) or {}).get("name") or t
+        _sector_fn = lambda t: (_emeta.get(t, {}) or {}).get("sector") or "—"
+        _report_label = "Equities Technical Analysis"
+    else:
+        sig_file = SIGNALS_FILE
+        _instruments = INSTRUMENTS
+        _name_fn = universe.name
+        _sector_fn = lambda t: universe.asset(t) or "—"
+        _report_label = "Technical Analysis"
     # --- Technical Analysis report (merged: conviction leaderboard + the curated best-ideas screen) ---
     cc1, cc2 = st.columns([1, 3])
-    _rd = ta_report_defaults()                    # saved build settings; also drive the weekly email
+    _rd = ta_report_defaults(scope)               # saved build settings; also drive the weekly email
     _MODE_IX = {"per_side": 0, "overall": 1, "threshold": 2}
     _conv_mode_lbl = cc1.radio("Selection",
                                ["Balanced — N per side", "Strongest overall — top N",
                                 "Quality bar — min conviction & score"],
-                               key="conv_mode", index=_MODE_IX.get(_rd["mode"], 1),
+                               key=f"conv_mode{k}", index=_MODE_IX.get(_rd["mode"], 1),
                                help="Balanced: the top N constructive AND the top N cautious. "
                                     "Strongest overall: the top N by conviction regardless of side. "
                                     "Quality bar: only setups clearing an ABSOLUTE bar — so a quiet "
                                     "week reports as quiet instead of padding out N weak charts.")
     _conv_mode = ("threshold" if "Quality" in _conv_mode_lbl
                   else "overall" if "overall" in _conv_mode_lbl else "per_side")
-    _conv_top = cc1.number_input("How many", 3, 12, int(_rd["top_n"]), key="conv_top",
+    _conv_top = cc1.number_input("How many", 3, 12, int(_rd["top_n"]), key=f"conv_top{k}",
                                  help="Balanced mode: this many on EACH side. Strongest-overall: "
                                       "this many in TOTAL. Quality bar: an upper CAP on how many "
                                       "qualifying setups get written up.")
     _min_conv = _min_score = 0.0
     if _conv_mode == "threshold":
         _min_conv = cc1.number_input(
-            "Min conviction", 0, 100, int(_rd["min_conviction"]), 5, key="conv_minconv",
+            "Min conviction", 0, 100, int(_rd["min_conviction"]), 5, key=f"conv_minconv{k}",
             help="Average strength of the flagging strategies (0–100). Filters out setups that are "
                  "broad but individually weak.")
         _min_score = cc1.number_input(
-            "Min |score|", 0, 600, int(_rd["min_score"]), 10, key="conv_minscore",
+            "Min |score|", 0, 600, int(_rd["min_score"]), 10, key=f"conv_minscore{k}",
             help="Score = conviction × how many strategies agree, so this is effectively a BREADTH "
                  "floor on top of conviction. With a 5-strategy set, ~150 ≈ two strong agreeing "
                  "reads; 200+ demands three or more.")
-    _conv_ai = cc1.checkbox("✨ AI-polish the write-ups", key="conv_ai", value=bool(_rd["ai_polish"]),
+    _conv_ai = cc1.checkbox("✨ AI-polish the write-ups", key=f"conv_ai{k}", value=bool(_rd["ai_polish"]),
                             help="Rewrite each chart note in a conversational desk-analyst voice via "
                                  "Claude (numbers & levels kept exact, neutral tone); falls back to "
                                  "the plain template if the model isn't reachable. Adds ~30–90s.")
     # One place to fix the report's build settings — and the WEEKLY email obeys the same saved values.
-    if cc1.button("📌 Set as default", key="conv_defaults_save",
+    if cc1.button("📌 Set as default", key=f"conv_defaults_save{k}",
                   help="Save this Selection / How many / AI-polish (and the quality bar) as the "
                        "startup default — the weekly emailed report runs on exactly these."):
-        save_ta_report_defaults(mode=_conv_mode, top_n=int(_conv_top), ai_polish=bool(_conv_ai),
+        save_ta_report_defaults(scope, mode=_conv_mode, top_n=int(_conv_top), ai_polish=bool(_conv_ai),
                                 min_conviction=float(_min_conv), min_score=float(_min_score))
         st.toast("Report defaults saved — the weekly email will use these.", icon="📌")
     cc1.caption(f"📌 Default: **{_rd['mode'].replace('_', ' ')}**, **{int(_rd['top_n'])}** picks, "
@@ -2962,16 +3064,16 @@ def _ta_reports(meta, prod=None) -> None:
     with st.expander("🚫 Products excluded from the client report", expanded=False):
         _excl = st.multiselect(
             "Held out of the report entirely (picks, leaderboard, summary and watchlist)",
-            options=sorted(INSTRUMENTS, key=lambda t: str(universe.name(t))),
-            default=[t for t in universe.report_excluded() if t in INSTRUMENTS],
-            format_func=lambda t: str(universe.name(t)), key="rep_excl",
+            options=sorted(_instruments, key=lambda t: str(_name_fn(t))),
+            default=[t for t in universe.report_excluded(scope) if t in set(_instruments)],
+            format_func=lambda t: str(_name_fn(t)), key=f"rep_excl{k}",
             help="For markets your clients don't trade. They stay FULLY live everywhere else — the "
                  "universe, every strategy page, the hub scoring and the other reports. (This is not "
                  "the Home ‘Sectors & products’ filter, which switches a market off app-wide.)")
         _rx1, _rx2 = st.columns([1, 2.4])
-        if _rx1.button("💾 Save as default", key="rep_excl_save",
+        if _rx1.button("💾 Save as default", key=f"rep_excl_save{k}",
                        help="Persist this list — used by the weekly emailed report and on every launch."):
-            universe.save_report_excluded(_excl)
+            universe.save_report_excluded(_excl, scope)
             st.toast(f"{len(_excl)} product(s) excluded from the report.", icon="🚫")
         _rx2.caption("**Generate report** uses whatever's selected here; **Save** also applies it to "
                      "the weekly email and future launches.")
@@ -2996,7 +3098,7 @@ def _ta_reports(meta, prod=None) -> None:
                 _view = pd.DataFrame({
                     "Include": [t in _dflt for t in _cand["instruments"]],
                     "Market": _cand["market"].tolist(),
-                    "Sector": [universe.asset(t) or "—" for t in _cand["instruments"]],
+                    "Sector": [_sector_fn(t) for t in _cand["instruments"]],
                     "#": _cand["n"].tolist(),
                     "Net": ["▲ constructive" if d > 0 else "▼ cautious" for d in _cand["net_dir"]],
                     "Conviction": [round(float(c)) for c in _cand["conviction"]],
@@ -3006,44 +3108,51 @@ def _ta_reports(meta, prod=None) -> None:
                 _ed = st.data_editor(
                     _view, hide_index=True, use_container_width=True,
                     disabled=[c for c in _view.columns if c != "Include"],
-                    key=f"ta_picks_{_conv_mode}_{int(_conv_top)}_{len(_cand)}")
+                    key=f"ta_picks{k}_{_conv_mode}_{int(_conv_top)}_{len(_cand)}")
                 _picks = [t for t, keep in zip(_cand["instruments"], _ed["Include"]) if keep]
                 st.caption(f"**{len(_picks)}** pick(s) will be written up, ranked by |Score|. "
                            "Leave the defaults for the automatic strongest-N behaviour.")
 
-    if cc1.button("📈 Generate Technical Analysis Report (PDF)", type="primary", disabled=not SIGNALS_FILE.exists()):
+    _fname = _report_label.replace(" ", "_") + "_Report.pdf"
+    if cc1.button(f"📈 Generate {_report_label} Report (PDF)", type="primary",
+                  key=f"conv_gen{k}", disabled=not sig_file.exists()):
         with st.spinner("Selecting the setups and drawing each chart…"):
             with tempfile.TemporaryDirectory() as tmp:
                 out_pdf = Path(tmp) / "ta.pdf"
-                cmd = [sys.executable, str(CONVREPORT_CLI), str(SIGNALS_FILE), str(out_pdf),
+                cmd = [sys.executable, str(CONVREPORT_CLI), str(sig_file), str(out_pdf),
                        "--asof", str(meta.get("as_of", "")), "--top", str(int(_conv_top)),
                        "--mode", _conv_mode]
+                if eq:                                       # draw charts from the yfinance OHLCV store
+                    cmd.append("--equities")
                 if _conv_mode == "threshold":
                     cmd += ["--min-conviction", str(float(_min_conv)),
                             "--min-score", str(float(_min_score))]
                 if _conv_ai:
                     cmd.append("--ai-polish")
-                _cs = st.session_state.get("conf_set") or tascore.CONFLUENCE_DEFAULT
+                _cs = list(conf_set) if conf_set else (st.session_state.get("conf_set")
+                                                       or tascore.CONFLUENCE_DEFAULT)
                 cmd += ["--strategies", ",".join(_cs)]       # match the on-page confluence set
                 if _picks is not None:                       # the desk's curated pick list
                     cmd += ["--picks", ",".join(_picks)]
                 cmd += ["--exclude", ",".join(_excl)]        # WYSIWYG even before Save
                 res = subprocess.run(cmd, capture_output=True, text=True)
                 ok = res.returncode == 0 and out_pdf.exists()
-                st.session_state["conv_pdf"] = out_pdf.read_bytes() if ok else None
-        if not st.session_state.get("conv_pdf"):
-            st.error("Technical Analysis report failed:\n\n" + (res.stderr or res.stdout or "no output"))
+                st.session_state[_pdf_key] = out_pdf.read_bytes() if ok else None
+        if not st.session_state.get(_pdf_key):
+            st.error(f"{_report_label} report failed:\n\n" + (res.stderr or res.stdout or "no output"))
         else:
-            st.success("Technical Analysis report ready.")
-    if st.session_state.get("conv_pdf"):
-        st.download_button("⬇️ Download Technical_Analysis_Report.pdf", data=st.session_state["conv_pdf"],
-                           file_name="Technical_Analysis_Report.pdf", mime="application/pdf", key="conv_pdf_dl")
-        email_report_ui("conv_pdf", "conv_pdf", st.session_state.get("conv_pdf"),
-                        subject="Technical Analysis Report", attachment_name="Technical_Analysis_Report.pdf")
-    cc2.caption("The merged **Technical Analysis** report — opens with the conviction leaderboard and the "
+            st.success(f"{_report_label} report ready.")
+    if st.session_state.get(_pdf_key):
+        st.download_button(f"⬇️ Download {_fname}", data=st.session_state[_pdf_key],
+                           file_name=_fname, mime="application/pdf", key=f"conv_pdf_dl{k}")
+        email_report_ui(_pdf_key, _pdf_key, st.session_state.get(_pdf_key),
+                        subject=f"{_report_label} Report", attachment_name=_fname)
+    cc2.caption(f"The merged **{_report_label}** report — opens with the conviction leaderboard and the "
                 "stacked-signals summary, then the strongest constructive & cautious setups by "
                 "cross-strategy conviction, each with a multi-indicator chart, a plain-English read and "
-                "objective / invalidation levels. Neutral, client-safe language; fixed income read on yields.")
+                "objective / invalidation levels. Neutral, client-safe language"
+                + ("; ~2,600 single-name equities off free yfinance data." if eq
+                   else "; fixed income read on yields."))
 
 
 @st.cache_data(show_spinner=False)
@@ -3750,8 +3859,7 @@ def render_eq_ta_overview() -> None:
     st.subheader("\U0001F4C8 Equities — Technical Analysis")
     st.caption("Every equity flagged across the technical strategies, ranked by a cross-strategy "
                "**conviction score** — the same engine as the FICC page, on ~2,600 names off free "
-               "yfinance data. Edit the **confluence set** on the FICC 🔬 Technical Analysis page; it "
-               "feeds this score too.")
+               "yfinance data. This page keeps its **own** confluence set, independent of the FICC one.")
 
     df, meta = eqta.load_signals()
     if df is None or df.empty:
@@ -3760,7 +3868,25 @@ def render_eq_ta_overview() -> None:
         return
     st.caption(f"Signals as of **{meta.get('as_of', '—')}** over **{meta.get('names', '?')}** names.")
 
-    _conf = tascore.confluence_set() or tascore.CONFLUENCE_DEFAULT
+    with st.expander("🎯 Confluence set — which methods feed the score, by axis", expanded=True):
+        st.caption("The five independent **axes** of technical analysis — this **equities** page keeps its "
+                   "**own** selection, separate from the FICC page. Tick the method(s) that feed the score "
+                   "within each; several in one axis are de-duplicated so a dimension can't vote twice. "
+                   "(Flag Breakout has no equity signals yet, so it contributes nothing here for now.)")
+        _saved = set(tascore.confluence_set("equities"))
+        _conf = []
+        _acols = st.columns(len(tascore.TA_AXES))
+        for _col, (_ax, _methods) in zip(_acols, tascore.TA_AXES.items()):
+            _picked = _col.multiselect(
+                _ax, options=_methods, default=[m for m in _methods if m in _saved],
+                key=f"conf_ax_eq::{_ax}",
+                help=f"The {_ax.lower()} axis — {len(_methods)} method(s) available. Blank = out of the score.")
+            _conf.extend(_picked)
+        if st.button("💾 Save as default", key="conf_save_eq",
+                     help="Persist this equities confluence set — independent of the FICC one."):
+            tascore.save_confluence_set(_conf or tascore.CONFLUENCE_DEFAULT, scope="equities")
+            st.toast("Equities confluence set saved.", icon="🎯")
+    _conf = _conf or tascore.CONFLUENCE_DEFAULT
     flagged, prod = _eq_ta_scored(meta.get("as_of", ""), tuple(_conf))
     if flagged is None or flagged.empty:
         st.info("Nothing flagged across the confluence-set strategies right now.")
@@ -3857,6 +3983,12 @@ def render_eq_ta_overview() -> None:
 
     brand.themed_dataframe(show, {"Conviction": "{:.0f}", "Score": "{:.0f}"},
                            colorers=[(["Signal"], _sig_color)], height=520)
+
+    # Report controls pinned to the FOOT of the page — the same "generate + email at the bottom"
+    # layout as the FICC page, run over the equity book (scope="equities" feeds convreport the
+    # yfinance OHLCV store) and scored on THIS page's confluence set.
+    st.divider()
+    _ta_reports(meta, prod, scope="equities", conf_set=_conf)
 
 
 def render_data_health() -> None:
