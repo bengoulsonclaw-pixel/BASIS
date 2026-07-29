@@ -14,6 +14,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from reportkit import pretty_date        # module-level: render_html needs it (render_pdf stays lazy in build_pdf)
+
 TEMPLATES = Path(__file__).parent.parent / "templates"
 ASSETS = TEMPLATES / "assets"
 
@@ -54,7 +56,7 @@ def render_html(rows, title, asof, trigger="") -> str:
 
 
 def build_pdf(rows, title, asof, out_path, trigger=""):
-    from reportkit import pretty_date, render_pdf   # self-healing headless-Chromium renderer
+    from reportkit import render_pdf   # lazy: the self-healing headless-Chromium renderer (heavy import)
     return render_pdf(render_html(rows, title, asof, trigger), out_path)
 
 
@@ -65,11 +67,14 @@ def main():
     ap.add_argument("--title", default="Trading Opportunities")
     ap.add_argument("--asof", default="")
     ap.add_argument("--trigger", default="")
+    ap.add_argument("--no-filter", action="store_true",
+                    help="skip the FICC sector/product filter (the Equities pages pass this — equity "
+                         "tickers aren't in the futures enabled-set, so the filter would drop them all)")
     args = ap.parse_args()
     rows = json.loads(Path(args.rows_json).read_text(encoding="utf-8"))
-    try:                                       # honour the dashboard's sector/product filter
+    try:                                       # honour the dashboard's sector/product filter (FICC only)
         from universe import enabled_tickers as _en, filter_active as _fa
-        if _fa():
+        if _fa() and not args.no_filter:
             _e = _en()
             rows = [r for r in rows
                     if not str(r.get("instruments", "")).strip()

@@ -2964,16 +2964,60 @@ def _ax(tk) -> str:
     return "Yield (%)" if universe.is_fixed_income(str(tk)) else "Price"
 
 
-def _ta_quicknav(current: str | None = None) -> None:
+def _ta_quicknav(current: str | None = None, eq: bool = False) -> None:
     """Quick-switch buttons for the technical strategies — the same 2×5 set as the Technical
     Analysis hub. Shown on the hub and at the top of each technical-strategy page so the user
-    can flip between them without the sidebar; the current page's button is highlighted."""
+    can flip between them without the sidebar; the current page's button is highlighted. `eq`
+    routes to the Equities per-strategy pages (`eq:<strategy>`) instead of the FICC ones."""
     cols = st.columns(5)
     for i, s in enumerate(tascore.TA_STRATEGIES):
+        dest = f"eq:{s}" if eq else s
         cols[i % 5].button(
-            _STRAT_SHORT.get(s, s), key=f"tanav_{current or 'hub'}_{s}",
+            _STRAT_SHORT.get(s, s), key=f"tanav_{'eq_' if eq else ''}{current or 'hub'}_{s}",
             use_container_width=True, type="primary" if s == current else "secondary",
-            on_click=_go, args=(s,))
+            on_click=_go, args=(dest,))
+
+
+def _ta_conviction_expander() -> None:
+    """The shared "How Conviction & Score are calculated" explainer — identical on the FICC and
+    Equities TA hubs (the maths is universe-agnostic)."""
+    with st.expander("ℹ️  How “Conviction” and “Score” are calculated"):
+        st.markdown(
+            "Every strategy speaks its own language — a z-score, a 0–100 readiness/proximity, a momentum "
+            "score, a return %, an MA-gap %. To rank products across all of them, each flagged signal is "
+            "put on one common scale, then aggregated per product in **three steps**.\n\n"
+            "**1 · Each flagged signal → a _strength_ (0–100).** How far the metric sits toward "
+            "“full conviction”:\n\n"
+            "> `strength = min(100, |metric| ÷ full-scale × 100)`\n\n"
+            "where **full-scale** (the metric magnitude that scores 100) is:\n\n"
+            "| Strategy | Native metric | = 100 at |\n"
+            "|---|---|---|\n"
+            "| Mean Reversion | \\|z-score\\| | 3.0 |\n"
+            "| Trend | \\|3-month return\\| | 25% |\n"
+            "| MA Crossover / MA Swing | \\|MA gap\\| | 10% |\n"
+            "| Flag Breakout · S&R · Fibonacci · Breakout & Retest · Momentum · Bollinger Squeeze · "
+            "Elliott Wave · Ichimoku · OBV · MFI | already 0–100 (readiness / proximity / momentum / "
+            "squeeze / wave fit / Ichimoku / volume flow) | used as-is |\n\n"
+            "**2 · Conviction (0–100) = the _average_ strength** of the strategies flagging that product — "
+            "how strong the signals are on average, *regardless of how many* agree.\n\n"
+            "**3 · Score = the _signed sum_ of those strengths** — long signals count **＋**, short **－** — "
+            "displayed as **|Score|**:\n\n"
+            "> `Score = | Σ (±strength) |`\n\n"
+            "So Score rewards **both** confluence (more agreeing strategies) **and** strength, while "
+            "opposing calls partly cancel. The **sign** of that sum sets the **Net** column "
+            "(▲ long / ▼ short, or ⚠ *mixed* when both sides fire), and **|Score| ranks the table**.\n\n"
+            "**Confluence set.** Only a curated, *independent* subset feeds this score — by default "
+            "**Trend, Momentum (RSI/MACD), OBV, Support & Resistance and Flag Breakout**, one per axis "
+            "(direction / momentum / volume / location / pattern) — so agreement is real corroboration, "
+            "not the same read echoed. Edit it under **🎯 Confluence set** above; every other strategy "
+            "keeps its page and chart overlays but stays out of the score. If you tick more than one "
+            "method in the **same axis**, they're de-duplicated (strongest full, the next at **½**, "
+            "**⅓**, …), so a single dimension can't vote twice.\n\n"
+            "**Worked example.** Three strategies flag a product **Long** at strengths 90 / 80 / 70 and one "
+            "flags it **Short** at 60 → Conviction = (90+80+70+60) ÷ 4 = **75**; "
+            "Score = |＋90＋80＋70－60| = **180** (the short partly cancels); Net = **▲ long**. If instead all "
+            "four agreed Long, Score = |90+80+70+60| = **300** — same conviction, far higher stacked score."
+        )
 
 
 _fragment = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None) or (lambda f: f)
@@ -3862,6 +3906,12 @@ def render_eq_ta_overview() -> None:
         return
     st.caption(f"Signals as of **{meta.get('as_of', '—')}** over **{meta.get('names', '?')}** names.")
 
+    _ta_conviction_expander()
+
+    # Quick-nav row (top of page): open any strategy's own EQUITIES page — trigger control, table, charts.
+    st.caption("Open a strategy for its trigger control, full table and charts:")
+    _ta_quicknav(eq=True)
+
     with st.expander("🎯 Confluence set — which methods feed the score, by axis", expanded=True):
         st.caption("The five independent **axes** of technical analysis — this **equities** page keeps its "
                    "**own** selection, separate from the FICC page. Tick the method(s) that feed the score "
@@ -3983,6 +4033,128 @@ def render_eq_ta_overview() -> None:
     # yfinance OHLCV store) and scored on THIS page's confluence set.
     st.divider()
     _ta_reports(meta, prod, scope="equities", conf_set=_conf)
+
+
+def render_eq_strategy(strat: str) -> None:
+    """An Equities per-strategy page — the FICC strategy-page layout (quick-nav, per-strategy trigger
+    control, chart and full table) run on the equity universe off yfinance data. Reached from the TA
+    quick-nav (active = "eq:<strategy>"). Trigger defaults persist independently of the FICC ones."""
+    from src import eqta
+    st.header(strat)
+    st.caption(STRATEGY_BLURB.get(strat, ""))
+    _ta_quicknav(strat, eq=True)
+    st.caption("💡 Equities run on **price** (free yfinance data) — no fixed-income yield inversion here; "
+               "a **Long / up** read simply screens the share price higher.")
+
+    df, meta = eqta.load_signals()
+    if df is None or df.empty:
+        st.info("No equity signals cached yet — run the equities backfill + engine from the "
+                "📈 Technical Analysis page first.")
+        return
+    _inst = _eq_instruments()
+
+    def _sector(k):
+        return _inst.get(k, (k, 0.0, "—", ""))[2] or "—"
+
+    # --- per-strategy trigger control (same as the FICC pages), persisted independently as eq:<strat> ---
+    spec = SPECS.get(strat, {})
+    threshold = spec.get("default")
+    if threshold is not None:
+        threshold = st.number_input(
+            spec["label"], min_value=float(spec["min"]), max_value=float(spec["max"]),
+            value=trigger_default(f"eq:{strat}", spec["default"]), step=float(spec["step"]),
+            key=f"eqthr_{strat}",
+            help="Changing this re-derives the flags from the stored metrics — no data re-pull. It sets "
+                 "the trigger for the table below, and is independent of this strategy's FICC trigger.")
+        st.info(f"**Trigger:** {spec['trigger'](threshold)}")
+        _td1, _td2 = st.columns([0.74, 0.26])
+        if _td2.button("📌 Set default", key=f"eqthr_def_{strat}", use_container_width=True,
+                       help="Save this as the EQUITIES default trigger for this strategy (independent of FICC)."):
+            save_trigger_default(f"eq:{strat}", float(threshold))
+            st.toast(f"Saved {threshold:g} as the equities default trigger for {strat}.", icon="📌")
+        _td1.caption(f"📌 Equities default trigger for **{strat}**: "
+                     f"**{trigger_default(f'eq:{strat}', spec['default']):g}** — change it above, then **Set default**.")
+    if spec.get("math"):
+        with st.expander("ℹ️  How this is calculated"):
+            st.markdown(spec["math"])
+
+    # --- this strategy's flagged equity signals, reflagged at the trigger ---
+    _v = df[df["strategy"] == strat].copy()
+    if _v.empty:
+        _why = " (not run on the equity universe)" if strat in ("Mean Reversion", "Flag Breakout") else ""
+        st.info(f"No **{strat}** signals in the equity universe{_why}.")
+        return
+    if threshold is not None and spec.get("hi"):
+        _v = reflag_rows(_v, float(threshold), spec["hi"], spec["lo"])   # equities: price, not yields
+        _v = pd.concat([_v[_v["direction"] != 0], _v[_v["direction"] == 0]])
+    _flagged = _v[_v["direction"] != 0].copy()
+
+    # --- chart: reuse the shared gallery (price + this strategy's overlay + RSI/MFI/OBV sub-panels) ---
+    if _flagged.empty:
+        st.info("Nothing flagged at the current trigger — lower it to chart the near-misses.")
+    else:
+        _order = _flagged.reindex(_flagged["metric"].abs().sort_values(ascending=False).index)
+        _mkts = _order["market"].tolist()
+        sel = st.selectbox(f"Chart a market — {len(_mkts)} flagged at the current trigger (strongest first)",
+                           _mkts, key=f"eqstrat_sel_{strat}")
+        _row = _order[_order["market"] == sel].iloc[0]
+        _d = int(_row["direction"])
+        _stg = tascore.strength(strat, _row["metric"])
+        gallery = pd.DataFrame([{
+            "instruments": _row["instruments"], "market": sel, "n": 1, "net_dir": _d,
+            "score": _d * _stg, "conflict": False, "tags": [(strat, _d, _stg)],
+        }])
+        _ta_render_gallery(gallery, _eq_ta_gallery_data, meta.get("as_of", ""))
+
+    # --- full table for this strategy across the equity universe (tick rows → plain-table PDF) ---
+    st.markdown("##### All flagged signals")
+    st.caption("Tick rows to export a plain-table PDF for **this** strategy; the full multi-indicator "
+               "client report (leaderboard + charts + write-ups) is on the 📈 Technical Analysis page.")
+    _q = st.text_input("Find a company", key=f"eqstrat_find_{strat}",
+                       placeholder=prodsearch.PLACEHOLDER).strip()
+    show_src = _v
+    if _q:
+        show_src = prodsearch.filter_frame(show_src, _inst, _q, ticker_col="instruments")
+        if show_src.empty:
+            st.info(prodsearch.NO_MATCH.format(q=_q))
+    if not show_src.empty:
+        _view = show_src.copy()
+        _view.insert(0, "Include", _view["signal"].ne("—"))
+        _view.insert(2, "Sector", [_sector(k) for k in _view["instruments"]])
+        _cols = ["Include", "market", "Sector", "signal", "metric", "level", "context"]
+        _edited = st.data_editor(
+            _view[_cols], use_container_width=True, hide_index=True, key=f"eqstrat_editor_{strat}",
+            column_config={
+                "Include": st.column_config.CheckboxColumn("Include", help="Tick to add to the PDF report"),
+                "market": "Market", "Sector": st.column_config.TextColumn("Sector", width="small"),
+                "signal": "Signal", "metric": "Metric", "level": "Level", "context": "Notes"},
+            disabled=[c for c in _cols if c != "Include"])
+        chosen = show_src.loc[[i for i, keep in zip(_view.index, _edited["Include"]) if keep]]
+        st.caption(f"**{len(chosen)}** row(s) selected for the report.")
+        _pk = f"eqstrat_pdf_{strat}"
+        if st.button("📄 Generate PDF report", type="primary", key=f"eqstrat_gen_{strat}",
+                     disabled=chosen.empty):
+            with st.spinner("Rendering PDF…"):
+                with tempfile.TemporaryDirectory() as tmp:
+                    out_pdf, rows_json = Path(tmp) / "report.pdf", Path(tmp) / "rows.json"
+                    rows_json.write_text(chosen.to_json(orient="records"), encoding="utf-8")
+                    cmd = [sys.executable, str(REPORT_CLI), str(rows_json), str(out_pdf),
+                           "--title", f"{strat} — Equities", "--asof", str(meta.get("as_of", "")),
+                           "--trigger", (spec["trigger"](threshold) if threshold is not None else ""),
+                           "--no-filter"]                       # equity tickers aren't in the FICC enabled-set
+                    res = subprocess.run(cmd, capture_output=True, text=True)
+                    ok = res.returncode == 0 and out_pdf.exists()
+                    st.session_state[_pk] = out_pdf.read_bytes() if ok else None
+            if not st.session_state.get(_pk):
+                st.error("Report failed:\n\n" + (res.stderr or res.stdout or "no output"))
+            else:
+                st.success("Report ready.")
+        if st.session_state.get(_pk):
+            _fn = f"{strat.replace(' ', '_').replace('/', '-')}_Equities.pdf"
+            st.download_button(f"⬇️ Download {_fn}", data=st.session_state[_pk], file_name=_fn,
+                               mime="application/pdf", key=f"eqstrat_dl_{strat}")
+            email_report_ui(_pk, _pk, st.session_state.get(_pk),
+                            subject=f"{strat} — Equities Technical Analysis", attachment_name=_fn)
 
 
 def render_data_health() -> None:
@@ -6991,6 +7163,8 @@ if side == "Equities":
         render_eq_dispersion()
     elif active == "eq:Technical Analysis":
         render_eq_ta_overview()
+    elif active.startswith("eq:") and active[3:] in tascore.TA_STRATEGIES:
+        render_eq_strategy(active[3:])           # per-strategy Equities page (trigger + chart + table)
     else:
         render_equities_home()
     st.stop()

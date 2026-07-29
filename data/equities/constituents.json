@@ -4874,16 +4874,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "BARC LN Equity",
-      "name": "Barclays Plc",
-      "sector": "Financials",
+      "ticker": "RIO LN Equity",
+      "name": "Rio Tinto Plc",
+      "sector": "Materials",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "RIO LN Equity",
-      "name": "Rio Tinto Plc",
-      "sector": "Materials",
+      "ticker": "BARC LN Equity",
+      "name": "Barclays Plc",
+      "sector": "Financials",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -4937,16 +4937,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "AAL LN Equity",
-      "name": "Anglo American Plc",
-      "sector": "Materials",
+      "ticker": "CPG LN Equity",
+      "name": "Compass Group Plc",
+      "sector": "Consumer Discretionary",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "CPG LN Equity",
-      "name": "Compass Group Plc",
-      "sector": "Consumer Discretionary",
+      "ticker": "AAL LN Equity",
+      "name": "Anglo American Plc",
+      "sector": "Materials",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -4986,16 +4986,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "SSE LN Equity",
-      "name": "Sse Plc",
-      "sector": "Utilities",
+      "ticker": "III LN Equity",
+      "name": "3I Group Plc",
+      "sector": "Financials",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "III LN Equity",
-      "name": "3I Group Plc",
-      "sector": "Financials",
+      "ticker": "SSE LN Equity",
+      "name": "Sse Plc",
+      "sector": "Utilities",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5049,16 +5049,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "LGEN LN Equity",
-      "name": "Legal And General Group Plc",
-      "sector": "Financials",
+      "ticker": "CCEP LN Equity",
+      "name": "Coca Cola Europacific Partners Plc",
+      "sector": "Consumer Staples",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "CCEP LN Equity",
-      "name": "Coca Cola Europacific Partners Plc",
-      "sector": "Consumer Staples",
+      "ticker": "LGEN LN Equity",
+      "name": "Legal And General Group Plc",
+      "sector": "Financials",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5077,16 +5077,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "HLMA LN Equity",
-      "name": "Halma Plc",
-      "sector": "Information Technology",
+      "ticker": "SGRO LN Equity",
+      "name": "Segro Reit Plc",
+      "sector": "Real Estate",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "SGRO LN Equity",
-      "name": "Segro Reit Plc",
-      "sector": "Real Estate",
+      "ticker": "HLMA LN Equity",
+      "name": "Halma Plc",
+      "sector": "Information Technology",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5119,9 +5119,9 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "DPLM LN Equity",
-      "name": "Diploma Plc",
-      "sector": "Industrials",
+      "ticker": "SN LN Equity",
+      "name": "Smith And Nephew Plc",
+      "sector": "Health Care",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5133,16 +5133,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "SN LN Equity",
-      "name": "Smith And Nephew Plc",
-      "sector": "Health Care",
+      "ticker": "CCH LN Equity",
+      "name": "Coca Cola Hbc Ag",
+      "sector": "Consumer Staples",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "CCH LN Equity",
-      "name": "Coca Cola Hbc Ag",
-      "sector": "Consumer Staples",
+      "ticker": "DPLM LN Equity",
+      "name": "Diploma Plc",
+      "sector": "Industrials",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5154,15 +5154,15 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "ITRK LN Equity",
-      "name": "Intertek Group Plc",
+      "ticker": "BNZL LN Equity",
+      "name": "Bunzl",
       "sector": "Industrials",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "BNZL LN Equity",
-      "name": "Bunzl",
+      "ticker": "ITRK LN Equity",
+      "name": "Intertek Group Plc",
       "sector": "Industrials",
       "region": "UK",
       "index": "FTSE 100"
@@ -5171,6 +5171,20 @@
       "ticker": "SGE LN Equity",
       "name": "The Sage Group Plc",
       "sector": "Information Technology",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "PSON LN Equity",
+      "name": "Pearson Plc",
+      "sector": "Consumer Discretionary",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "MKS LN Equity",
+      "name": "Marks And Spencer Group Plc",
+      "sector": "Consumer Staples",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5189,20 +5203,6 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "MKS LN Equity",
-      "name": "Marks And Spencer Group Plc",
-      "sector": "Consumer Staples",
-      "region": "UK",
-      "index": "FTSE 100"
-    },
-    {
-      "ticker": "PSON LN Equity",
-      "name": "Pearson Plc",
-      "sector": "Consumer Discretionary",
-      "region": "UK",
-      "index": "FTSE 100"
-    },
-    {
       "ticker": "EDV LN Equity",
       "name": "Endeavour Mining",
       "sector": "Materials",
@@ -5213,13 +5213,6 @@
       "ticker": "BEZ LN Equity",
       "name": "Beazley Plc",
       "sector": "Financials",
-      "region": "UK",
-      "index": "FTSE 100"
-    },
-    {
-      "ticker": "CNA LN Equity",
-      "name": "Centrica Plc",
-      "sector": "Utilities",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5245,6 +5238,20 @@
       "index": "FTSE 100"
     },
     {
+      "ticker": "CNA LN Equity",
+      "name": "Centrica Plc",
+      "sector": "Utilities",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "SBRY LN Equity",
+      "name": "Sainsbury(J) Plc",
+      "sector": "Consumer Staples",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
       "ticker": "PCT LN Equity",
       "name": "Polar Capital Technology Trust Plc",
       "sector": "Financials",
@@ -5255,13 +5262,6 @@
       "ticker": "WEIR LN Equity",
       "name": "Weir Group Plc",
       "sector": "Industrials",
-      "region": "UK",
-      "index": "FTSE 100"
-    },
-    {
-      "ticker": "SBRY LN Equity",
-      "name": "Sainsbury(J) Plc",
-      "sector": "Consumer Staples",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5280,16 +5280,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "HSX LN Equity",
-      "name": "Hiscox Ltd",
-      "sector": "Financials",
+      "ticker": "MRO LN Equity",
+      "name": "Melrose Industries Plc",
+      "sector": "Industrials",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "MRO LN Equity",
-      "name": "Melrose Industries Plc",
-      "sector": "Industrials",
+      "ticker": "HSX LN Equity",
+      "name": "Hiscox Ltd",
+      "sector": "Financials",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5392,16 +5392,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "LMP LN Equity",
-      "name": "Londonmetric Property Reit Plc",
-      "sector": "Real Estate",
+      "ticker": "CTEC LN Equity",
+      "name": "Convatec Group Plc",
+      "sector": "Health Care",
       "region": "UK",
       "index": "FTSE 100"
     },
     {
-      "ticker": "CTEC LN Equity",
-      "name": "Convatec Group Plc",
-      "sector": "Health Care",
+      "ticker": "LMP LN Equity",
+      "name": "Londonmetric Property Reit Plc",
+      "sector": "Real Estate",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5413,9 +5413,9 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "BGEO LN Equity",
-      "name": "Lion Finance Group Plc",
-      "sector": "Financials",
+      "ticker": "CRDA LN Equity",
+      "name": "Croda International Plc",
+      "sector": "Materials",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5448,9 +5448,16 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "CRDA LN Equity",
-      "name": "Croda International Plc",
-      "sector": "Materials",
+      "ticker": "BGEO LN Equity",
+      "name": "Lion Finance Group Plc",
+      "sector": "Financials",
+      "region": "UK",
+      "index": "FTSE 100"
+    },
+    {
+      "ticker": "BRBY LN Equity",
+      "name": "Burberry Group Plc",
+      "sector": "Consumer Discretionary",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5462,9 +5469,9 @@
       "index": "FTSE 100"
     },
     {
-      "ticker": "BRBY LN Equity",
-      "name": "Burberry Group Plc",
-      "sector": "Consumer Discretionary",
+      "ticker": "INVP LN Equity",
+      "name": "Investec Plc",
+      "sector": "Financials",
       "region": "UK",
       "index": "FTSE 100"
     },
@@ -5479,13 +5486,6 @@
       "ticker": "ENT LN Equity",
       "name": "Entain Plc",
       "sector": "Consumer Discretionary",
-      "region": "UK",
-      "index": "FTSE 100"
-    },
-    {
-      "ticker": "INVP LN Equity",
-      "name": "Investec Plc",
-      "sector": "Financials",
       "region": "UK",
       "index": "FTSE 100"
     },
