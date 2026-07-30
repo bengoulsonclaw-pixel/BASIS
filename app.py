@@ -835,7 +835,8 @@ _GROUP_TABS = {
     "Market Information": [("📅 Reports Calendar", "Release Calendar"),
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
-                           ("🧮 Fut / Yield", "Fut Yield")],
+                           ("🧮 Fut / Yield", "Fut Yield"),
+                           ("🌐 Universe", "Universe")],
     "Trade Testing":      [("🏛️ Fed Path", "Fed Path"),
                            ("🧪 Vol Backtester", "Vol Backtester")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
@@ -1824,19 +1825,8 @@ def _eq_autopull_apply(enabled: bool, hhmm: str) -> tuple[bool, str]:
     err = (r.stderr or r.stdout or "").strip()
     # deleting a task that never existed is success, not failure
     ok = r.returncode == 0 or (not enabled and "cannot find" in err.lower())
-    if ok and enabled:
-        # schtasks /Create can't set it, so flip "run as soon as possible after a missed start"
-        # (StartWhenAvailable) via PowerShell — the task then CATCHES UP when the laptop next wakes
-        # instead of silently skipping a morning it slept through. Best-effort; the task runs without it.
-        try:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-                 f"$t=Get-ScheduledTask -TaskName '{_EQ_AUTOPULL_TASK}';"
-                 f"$t.Settings.StartWhenAvailable=$true;"
-                 f"Set-ScheduledTask -TaskName '{_EQ_AUTOPULL_TASK}' -Settings $t.Settings | Out-Null"],
-                capture_output=True, text=True, timeout=30)
-        except Exception:
-            pass
+    # No catch-up on purpose: the task runs only if the laptop is ON at the scheduled time; a run
+    # missed because it was off/asleep is simply skipped (schtasks' default — StartWhenAvailable off).
     if ok:
         _EQ_AUTOPULL_FILE.parent.mkdir(parents=True, exist_ok=True)
         _EQ_AUTOPULL_FILE.write_text(json.dumps(
@@ -1867,8 +1857,8 @@ def _eq_autopull_control(col) -> None:
                     if cfg["enabled"] else "**Off.** ")
                    + "Runs the same job as **Pull equities data** (Yahoo quotes/history + "
                      "weekly fundamentals + the **Technical Analysis** backfill & signals; Bloomberg "
-                     "membership only if the Terminal is up), then syncs the VPS. If the laptop is off "
-                     "or asleep at pull time it catches up as soon as it's next awake. "
+                     "membership only if the Terminal is up), then syncs the VPS. It runs only if the "
+                     "laptop is **on** at pull time — a missed run is skipped, not caught up later. "
                      "Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
 
 
@@ -6961,10 +6951,10 @@ with st.sidebar:
         pass
     if _side == "FICC":
         st.markdown('<div class="bt-sect">FICC modules</div>', unsafe_allow_html=True)
-        # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield) collapses
-        # to one entry; Trade Testing (Fed Path + Vol Backtester) sits below the groups. Both
-        # carry the tab-row switcher (_render_group_tabs). Morning Coffee is reached from the
-        # Home page's Data row.
+        # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield / Universe)
+        # collapses to one entry; Trade Testing (Fed Path + Vol Backtester) does the same, numbered
+        # in after the strategy groups. Both carry the tab-row switcher (_render_group_tabs).
+        # Morning Coffee is reached from the Home page's Data row.
         _nav_button("01 · Market Information", "Release Calendar")
         _nav_button("02 · Confluence", "Confluence")
         _n_mod = 2
@@ -6985,14 +6975,15 @@ with st.sidebar:
                 st.caption(_group)
                 for _s in _strats:
                     _nav_button(_s, _s)
+        _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Correlations", "Product Correlations")
+        _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Trade Testing", "Fed Path")
         st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
-        _nav_button("C1 · Correlations", "Product Correlations")
-        _nav_button("C2 · Strategy Builder", "Strategy Builder")
-        _nav_button("C3 · Trade Testing", "Fed Path")
-        _nav_button("C4 · Data Health", "Data health")
+        _nav_button("Strategy Builder", "Strategy Builder")
         st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
         _nav_button("Alert Settings", "Recipients")
-        _nav_button("Universe", "Universe")
+        _nav_button("Data Health", "Data health")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
