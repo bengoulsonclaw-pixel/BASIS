@@ -7235,9 +7235,14 @@ def render_universe():
         "again; regenerate any client reports afterwards to include it."
     )
 
+# Destinations shared across BOTH desks (Cross-asset / System sidebar sections) — reachable from
+# either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
+# chain below rather than being swallowed by its else-branch back into the Equities home page.
+_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health"}
+
 # ----- EQUITIES side: its own home (and future pages), dispatched before the FICC pipeline so the
 # futures report-popup + group-tab switcher never run on the Equities side -----------------------
-if side == "Equities":
+if side == "Equities" and active not in _SHARED_DESTS:
     if active == "eq:Fundamentals":
         render_eq_fundamentals()
     elif active == "eq:Earnings":
@@ -7256,8 +7261,10 @@ if side == "Equities":
         render_equities_home()
     st.stop()
 
-# ----- report-day alert: full-screen popup at each release time, on top of any page -----
-render_report_popup()
+# ----- report-day alert: full-screen popup at each release time, on top of any FICC page.
+# Still skipped on the Equities desk (including its view of a shared page) — unchanged intent. -----
+if side != "Equities":
+    render_report_popup()
 
 # Collapsed-group tab switcher (Volatility / Positioning & Flow / Fundamentals): shows at the top of
 # any member page so you can hop between the group's views from its single sidebar entry.
