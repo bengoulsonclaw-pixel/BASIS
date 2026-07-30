@@ -158,6 +158,27 @@ def run_equities() -> dict:
         except Exception as e:
             print(f"  (Fundamentals pull skipped: {e})")
 
+    # Technical Analysis — refresh the equity OHLCV backfill + re-run every technical strategy, so the
+    # Equities → Technical Analysis page (and its reports) are current each pull. Runs AFTER the
+    # membership refresh above (it reads the just-updated universe). Settlement-based: yfin.get_ohlcv
+    # drops any still-forming bar, so a pre-open run uses settled closes. Guarded like the rest — a
+    # failure leaves the last good signals in place (the page never blanks) and never blocks the pull.
+    try:
+        from src import eqta
+        _tks = eqta.universe_tickers()
+        if not _tks:
+            print("  Technical Analysis: no equity universe cached yet — skipped.")
+        else:
+            _cl, _ = eqta.backfill(_tks)
+            if _cl is None or getattr(_cl, "empty", True):
+                print("  Technical Analysis: Yahoo returned no prices — existing signals kept.")
+            else:
+                _sig = eqta.run()
+                print(f"  Technical Analysis: {_cl.shape[1]} names priced "
+                      f"(latest settled close {_cl.index.max():%Y-%m-%d}), {len(_sig)} signals.")
+    except Exception as e:
+        print(f"  (Technical Analysis refresh skipped: {e})")
+
     # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit).
     # On the Yahoo source the quotes/history/fundamentals legs cost ZERO Bloomberg hits —
     # only the membership meta pull (name/sector per constituent) touches the Terminal.

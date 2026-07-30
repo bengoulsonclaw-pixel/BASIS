@@ -165,9 +165,15 @@ def _ohlcv_frames(symbols: list, **kwargs):
     return _cat(cframes), _cat(vframes)
 
 
-def get_ohlcv(tickers, sessions: int = 504):
+def get_ohlcv(tickers, sessions: int = 504, drop_forming: bool = True):
     """(close, volume) frames, each date x BLOOMBERG ticker, ~`sessions` trading days back — the
-    equities technical-analysis backfill (close feeds every strategy; volume feeds OBV / MFI)."""
+    equities technical-analysis backfill (close feeds every strategy; volume feeds OBV / MFI).
+
+    `drop_forming` (default) removes the CURRENT calendar day's still-forming bar, so a pull taken
+    while ANY exchange is mid-session uses only SETTLED closes — the suite is settlement-based, and a
+    half-formed intraday bar would otherwise read as a fake 'close'. A pre-open pull (e.g. the daily
+    refresh) is unaffected for markets not yet open, and cleanly drops the partial bar for those that
+    are (e.g. European names when the job runs on Americas time)."""
     ym = _symbol_map(tickers)
     if not ym:
         return pd.DataFrame(), pd.DataFrame()
@@ -182,7 +188,14 @@ def get_ohlcv(tickers, sessions: int = 504):
             return d
         return d[[c for c in d.columns if c in back]].rename(columns=back).dropna(how="all")
 
-    return _relabel(close), _relabel(vol)
+    close, vol = _relabel(close), _relabel(vol)
+    if drop_forming:                                   # settled sessions only — no partial "today" bar
+        cutoff = pd.Timestamp.today().normalize()
+        if not close.empty:
+            close = close[close.index < cutoff]
+        if not vol.empty:
+            vol = vol[vol.index < cutoff]
+    return close, vol
 
 
 def get_history(tickers, sessions: int = 60) -> pd.DataFrame:

@@ -252,75 +252,93 @@ def _window_frame(s: pd.Series, va: np.ndarray | None, d: dict) -> pd.DataFrame:
     return out
 
 
-def compute_table() -> pd.DataFrame:
+def compute_table(history: pd.DataFrame | None = None, volume: pd.DataFrame | None = None,
+                  persist: bool = True) -> pd.DataFrame:
     """Full set of currently-detected flags with all geometry + volume confirmation, one
-    row per product, ranked nearest-breakout first. Persists the per-flag price/volume/
-    channel history for the visual report. The single source of truth for the dashboard
-    rows and the report."""
-    tickers = list(TREND_UNIVERSE)
-    history = get_history(tickers)
-    try:
-        volume = get_volume_history(tickers)
-    except Exception:
-        volume = pd.DataFrame()
+    row per product, ranked nearest-breakout first. The single source of truth for the dashboard
+    rows and the report.
+
+    Pass `history`/`volume` (date×ticker close/volume frames) to run over an ARBITRARY universe —
+    the equities side feeds its cached yfinance OHLCV; omit them for the FICC universe (pulls its own
+    yields + volume). `persist` writes the per-flag price/volume/channel HISTORY_FILE for the FICC
+    visual report — the equities run passes False so it never clobbers the futures cache."""
+    if history is None:
+        tickers = list(TREND_UNIVERSE)
+        history = get_history(tickers)
+        try:
+            volume = get_volume_history(tickers)
+        except Exception:
+            volume = pd.DataFrame()
+    else:
+        tickers = list(history.columns)             # injected universe (equities)
+        if volume is None:
+            volume = pd.DataFrame()
 
     recs, hist_frames = [], []
     for t in tickers:
         if t not in history.columns:
             continue
-        vser = volume[t] if (not volume.empty and t in volume.columns) else None
-        d = _detect_flag(history[t], vser)
-        if d is None:
-            continue
-        s = history[t].dropna()
-        va = vser.reindex(s.index).to_numpy(dtype=float) if vser is not None else None
-        metric = d["sign"] * d["proximity"]
-        signal, direction = _signal(metric, DEFAULT_TRIGGER)
-        recs.append({
-            "market": name(t), "ticker": t, "asset": asset(t), "region": region(t),
-            "pattern": f"{'Bull' if d['sign'] > 0 else 'Bear'} {d['shape']}", "sign": int(d["sign"]),
-            "pole_ret": round(d["sign"] * d["pole_ret"], 4), "plen": int(d["plen"]),
-            "flen": int(d["flen"]), "retrace": round(d["retrace"], 3),
-            "readiness": round(d["proximity"], 1), "metric": round(metric, 1),
-            "dist_pct": round(d["dist_pct"], 2), "broke": bool(d["broke"]),
-            "breakout": round(d["brk"], 4),
-            "target": round(d["target"], 4), "stop": round(d["stop"], 4),
-            "rr": round(d["rr"], 2) if np.isfinite(d["rr"]) else np.nan,
-            "level": round(float(s.iloc[-1]), 4),
-            "pole_base_date": s.index[d["base_idx"]], "pole_tip_date": s.index[d["anchor"]],
-            "pole_base_px": round(float(s.iloc[d["base_idx"]]), 4),
-            "pole_tip_px": round(float(s.iloc[d["anchor"]]), 4),
-            "vol_dryup": round(d["vol_dryup"], 3) if np.isfinite(d["vol_dryup"]) else np.nan,
-            "vol_surge": round(d["vol_surge"], 3) if np.isfinite(d["vol_surge"]) else np.nan,
-            "vol_confirms": d["vol_confirms"], "signal": signal, "direction": direction,
-        })
-        hf = _window_frame(s, va, d)
-        hf["ticker"] = t
-        hist_frames.append(hf)
+        try:
+            vser = volume[t] if (volume is not None and not volume.empty and t in volume.columns) else None
+            d = _detect_flag(history[t], vser)
+            if d is None:
+                continue
+            s = history[t].dropna()
+            va = vser.reindex(s.index).to_numpy(dtype=float) if vser is not None else None
+            metric = d["sign"] * d["proximity"]
+            signal, direction = _signal(metric, DEFAULT_TRIGGER)
+            recs.append({
+                "market": name(t), "ticker": t, "asset": asset(t), "region": region(t),
+                "pattern": f"{'Bull' if d['sign'] > 0 else 'Bear'} {d['shape']}", "sign": int(d["sign"]),
+                "pole_ret": round(d["sign"] * d["pole_ret"], 4), "plen": int(d["plen"]),
+                "flen": int(d["flen"]), "retrace": round(d["retrace"], 3),
+                "readiness": round(d["proximity"], 1), "metric": round(metric, 1),
+                "dist_pct": round(d["dist_pct"], 2), "broke": bool(d["broke"]),
+                "breakout": round(d["brk"], 4),
+                "target": round(d["target"], 4), "stop": round(d["stop"], 4),
+                "rr": round(d["rr"], 2) if np.isfinite(d["rr"]) else np.nan,
+                "level": round(float(s.iloc[-1]), 4),
+                "pole_base_date": s.index[d["base_idx"]], "pole_tip_date": s.index[d["anchor"]],
+                "pole_base_px": round(float(s.iloc[d["base_idx"]]), 4),
+                "pole_tip_px": round(float(s.iloc[d["anchor"]]), 4),
+                "vol_dryup": round(d["vol_dryup"], 3) if np.isfinite(d["vol_dryup"]) else np.nan,
+                "vol_surge": round(d["vol_surge"], 3) if np.isfinite(d["vol_surge"]) else np.nan,
+                "vol_confirms": d["vol_confirms"], "signal": signal, "direction": direction,
+            })
+            hf = _window_frame(s, va, d)
+            hf["ticker"] = t
+            hist_frames.append(hf)
+        except Exception:
+            continue                                # one bad name never sinks the whole scan
 
     df = pd.DataFrame(recs, columns=DETAIL_COLUMNS)
     if not df.empty:
         order = df["metric"].abs().sort_values(ascending=False).index
         df = df.reindex(order).reset_index(drop=True)
-    try:
-        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-        (pd.concat(hist_frames, ignore_index=True) if hist_frames
-         else pd.DataFrame(columns=["date", "ticker", "price", "volume", "upper", "lower", "breakout"])
-         ).to_parquet(HISTORY_FILE, index=False)
-    except Exception:
-        pass
+    if persist:
+        try:
+            HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            (pd.concat(hist_frames, ignore_index=True) if hist_frames
+             else pd.DataFrame(columns=["date", "ticker", "price", "volume", "upper", "lower", "breakout"])
+             ).to_parquet(HISTORY_FILE, index=False)
+        except Exception:
+            pass
     return df
 
 
-def find_opportunities(history: pd.DataFrame | None = None) -> pd.DataFrame:
-    tbl = compute_table()
+def find_opportunities(history: pd.DataFrame | None = None,
+                       volume: pd.DataFrame | None = None) -> pd.DataFrame:
+    ficc = history is None                          # FICC run owns the visual-report cache
+    tbl = compute_table(history, volume, persist=ficc)
 
-    # Cache the rich table for the visual report (compute-once-daily, like the rest).
-    try:
-        DETAIL_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tbl.to_parquet(DETAIL_FILE, index=False)
-    except Exception:
-        pass
+    # Cache the rich table for the FICC visual report (compute-once-daily, like the rest). The
+    # equities run (injected history) skips it so it never overwrites the futures flag cache.
+    if ficc:
+        try:
+            DETAIL_FILE.parent.mkdir(parents=True, exist_ok=True)
+            tbl.to_parquet(DETAIL_FILE, index=False)
+        except Exception:
+            pass
 
     rows = []
     for r in tbl.itertuples(index=False):
@@ -338,18 +356,25 @@ def find_opportunities(history: pd.DataFrame | None = None) -> pd.DataFrame:
     return frame(rows)
 
 
-def flag_chart_data(ticker: str, history: pd.DataFrame | None = None):
+def flag_chart_data(ticker: str, history: pd.DataFrame | None = None,
+                    volume: pd.DataFrame | None = None):
     """Price + volume + the fitted flag channel (upper / lower / breakout line) over the
     pole-and-flag window, plus an info dict for the dashboard. (DataFrame, info) or
     (None, None) if no flag is present."""
+    _ficc = history is None                         # capture BEFORE we fill history below
     if history is None:
         history = get_history([ticker])
     if ticker not in history.columns:
         return None, None
-    try:
-        vser = get_volume_history([ticker])
-        vser = vser[ticker] if ticker in vser.columns else None
-    except Exception:
+    if volume is not None:                          # equities pass their own volume frame
+        vser = volume[ticker] if ticker in getattr(volume, "columns", []) else None
+    elif _ficc:                                     # FICC standalone: pull its own volume
+        try:
+            vser = get_volume_history([ticker])
+            vser = vser[ticker] if ticker in vser.columns else None
+        except Exception:
+            vser = None
+    else:                                           # injected history, no volume → price-only flag
         vser = None
     d = _detect_flag(history[ticker], vser)
     if d is None:

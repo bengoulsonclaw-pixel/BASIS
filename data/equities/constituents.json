@@ -4501,13 +4501,6 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "SU FP Equity",
-      "name": "Schneider Electric",
-      "sector": "Industrials",
-      "region": "EU",
-      "index": "Euro Stoxx 50"
-    },
-    {
       "ticker": "SAP GY Equity",
       "name": "Sap",
       "sector": "Information Technology",
@@ -4515,9 +4508,9 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "IBE SM Equity",
-      "name": "Iberdrola Sa",
-      "sector": "Utilities",
+      "ticker": "SU FP Equity",
+      "name": "Schneider Electric",
+      "sector": "Industrials",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4529,9 +4522,9 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "UCG IM Equity",
-      "name": "Unicredit",
-      "sector": "Financials",
+      "ticker": "IBE SM Equity",
+      "name": "Iberdrola Sa",
+      "sector": "Utilities",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4550,9 +4543,9 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "ENR GY Equity",
-      "name": "Siemens Energy N Ag",
-      "sector": "Industrials",
+      "ticker": "UCG IM Equity",
+      "name": "Unicredit",
+      "sector": "Financials",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4564,16 +4557,23 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "AI FP Equity",
-      "name": "Lair Liquide Societe Anonyme Pour",
-      "sector": "Materials",
+      "ticker": "BNP FP Equity",
+      "name": "Bnp Paribas Sa",
+      "sector": "Financials",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "BNP FP Equity",
-      "name": "Bnp Paribas Sa",
-      "sector": "Financials",
+      "ticker": "ENR GY Equity",
+      "name": "Siemens Energy N Ag",
+      "sector": "Industrials",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "AI FP Equity",
+      "name": "Lair Liquide Societe Anonyme Pour",
+      "sector": "Materials",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4613,13 +4613,6 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "IFX GY Equity",
-      "name": "Infineon Technologies Ag",
-      "sector": "Information Technology",
-      "region": "EU",
-      "index": "Euro Stoxx 50"
-    },
-    {
       "ticker": "CS FP Equity",
       "name": "Axa Sa",
       "sector": "Financials",
@@ -4637,6 +4630,13 @@
       "ticker": "ABI BB Equity",
       "name": "Anheuser-Busch Inbev Sa",
       "sector": "Consumer Staples",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "IFX GY Equity",
+      "name": "Infineon Technologies Ag",
+      "sector": "Information Technology",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4662,9 +4662,9 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "NDA FH Equity",
-      "name": "Nordea Bank",
-      "sector": "Financials",
+      "ticker": "RMS FP Equity",
+      "name": "Hermes International",
+      "sector": "Consumer Discretionary",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4676,9 +4676,9 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "RMS FP Equity",
-      "name": "Hermes International",
-      "sector": "Consumer Discretionary",
+      "ticker": "NDA FH Equity",
+      "name": "Nordea Bank",
+      "sector": "Financials",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4697,9 +4697,9 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "ARGX BB Equity",
-      "name": "Argenx",
-      "sector": "Health Care",
+      "ticker": "RHM GY Equity",
+      "name": "Rheinmetall Ag",
+      "sector": "Industrials",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4711,16 +4711,23 @@
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "RHM GY Equity",
-      "name": "Rheinmetall Ag",
-      "sector": "Industrials",
+      "ticker": "PRX NA Equity",
+      "name": "Prosus Nv Class N",
+      "sector": "Consumer Discretionary",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
     {
-      "ticker": "PRX NA Equity",
-      "name": "Prosus Nv Class N",
-      "sector": "Consumer Discretionary",
+      "ticker": "ARGX BB Equity",
+      "name": "Argenx",
+      "sector": "Health Care",
+      "region": "EU",
+      "index": "Euro Stoxx 50"
+    },
+    {
+      "ticker": "BN FP Equity",
+      "name": "Danone Sa",
+      "sector": "Consumer Staples",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -4735,13 +4742,6 @@
       "ticker": "ENI IM Equity",
       "name": "Eni",
       "sector": "Energy",
-      "region": "EU",
-      "index": "Euro Stoxx 50"
-    },
-    {
-      "ticker": "BN FP Equity",
-      "name": "Danone Sa",
-      "sector": "Consumer Staples",
       "region": "EU",
       "index": "Euro Stoxx 50"
     },
@@ -5590,16 +5590,16 @@
       "index": "DAX 40"
     },
     {
-      "ticker": "DB1 GY Equity",
-      "name": "Deutsche Boerse Ag",
-      "sector": "Financials",
+      "ticker": "RHM GY Equity",
+      "name": "Rheinmetall Ag",
+      "sector": "Industrials",
       "region": "EU",
       "index": "DAX 40"
     },
     {
-      "ticker": "RHM GY Equity",
-      "name": "Rheinmetall Ag",
-      "sector": "Industrials",
+      "ticker": "DB1 GY Equity",
+      "name": "Deutsche Boerse Ag",
+      "sector": "Financials",
       "region": "EU",
       "index": "DAX 40"
     },
@@ -5758,16 +5758,16 @@
       "index": "DAX 40"
     },
     {
-      "ticker": "HOT GY Equity",
-      "name": "Hochtief Ag",
-      "sector": "Industrials",
+      "ticker": "QIA GY Equity",
+      "name": "Qiagen Nv",
+      "sector": "Health Care",
       "region": "EU",
       "index": "DAX 40"
     },
     {
-      "ticker": "QIA GY Equity",
-      "name": "Qiagen Nv",
-      "sector": "Health Care",
+      "ticker": "HOT GY Equity",
+      "name": "Hochtief Ag",
+      "sector": "Industrials",
       "region": "EU",
       "index": "DAX 40"
     },
@@ -5779,16 +5779,16 @@
       "index": "DAX 40"
     },
     {
-      "ticker": "BNR GY Equity",
-      "name": "Brenntag",
-      "sector": "Industrials",
+      "ticker": "ZAL GY Equity",
+      "name": "Zalando",
+      "sector": "Consumer Discretionary",
       "region": "EU",
       "index": "DAX 40"
     },
     {
-      "ticker": "ZAL GY Equity",
-      "name": "Zalando",
-      "sector": "Consumer Discretionary",
+      "ticker": "BNR GY Equity",
+      "name": "Brenntag",
+      "sector": "Industrials",
       "region": "EU",
       "index": "DAX 40"
     },
