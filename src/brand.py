@@ -381,11 +381,15 @@ input, textarea,
 }
 /* multiselect chips (Send-to recipients, sector filters): terminal chip — gold wash,
    gold border, gold text (the handoff's selected-chip pattern; no solid fills).
-   border 2px, NOT 1px: Chrome FLOORS border widths to whole device pixels (1px and
-   1.5px both become exactly 1 device px at 125% Windows scale), and a 1-device-px
-   border whose edge lands on a fractional position anti-aliases to near-invisible —
-   chips randomly "lost" their left border. 2px always paints >=1 solid device px. */
-[data-baseweb="tag"] { background:$btn_gold !important; border:2px solid $label_ring !important; max-width:none !important; flex-shrink:0 !important; padding-left:12px !important; overflow:visible !important; }
+   An inset box-shadow, NOT `border`: Chrome rasterizes a border as 4 INDEPENDENT edge
+   rectangles, each individually floored to whole device pixels — at some DPI/zoom
+   combinations one edge (usually the left) floors to 0 while its neighbours floor to 1,
+   so the border reads as missing on that one side only. A box-shadow is painted as ONE
+   continuous stroke, immune to that per-edge rounding split, at any scale/zoom. Widening
+   border-width (1px -> 2px) papered over this at 125% but not at every zoom level. */
+[data-baseweb="tag"] { background:$btn_gold !important; border:none !important;
+    box-shadow:inset 0 0 0 1.5px $label_ring !important;
+    max-width:none !important; flex-shrink:0 !important; padding-left:12px !important; overflow:visible !important; }
 [data-baseweb="tag"], [data-baseweb="tag"] span, [data-baseweb="tag"] * { color:$gold !important; }
 /* show the WHOLE recipient — no width cap and NEVER shrink, so the text can't clip; chips wrap instead */
 [data-baseweb="tag"] span, [data-baseweb="tag"] div {
@@ -393,10 +397,12 @@ input, textarea,
 [data-baseweb="tag"] svg { fill:$gold !important; color:$gold !important; }
 /* Higher-specificity twin of the above — BaseWeb's component CSS loads AFTER this theme and
    was re-clipping the chip's first character; this selector ([select] [tag] = 0,2,x) outranks
-   BaseWeb's class rules so the full recipient shows. */
+   BaseWeb's class rules so the full recipient shows. Border/box-shadow redeclared here too —
+   BaseWeb's own same-or-higher-specificity rule for THIS nested case can otherwise win. */
 [data-baseweb="select"] [data-baseweb="tag"] {
     overflow:visible !important; max-width:none !important; flex-shrink:0 !important;
     padding-left:14px !important; background:$btn_gold !important;
+    border:none !important; box-shadow:inset 0 0 0 1.5px $label_ring !important;
     /* real margin off the field's left edge: when BaseWeb's runtime CSS drags the chip box
        left (the first-character clip, above), padding only saves the TEXT — the box's left
        corner still gets cut. A margin keeps the whole box inside the field either way. */
