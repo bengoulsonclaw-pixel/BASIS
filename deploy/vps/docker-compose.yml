@@ -6,6 +6,9 @@ services:
       - ./app:/app
     environment:
       - TZ=Europe/London
+      # snapshot mode: read the git-synced parquets (real pulled data); without
+      # this the datafeed defaults to "mock" and the sidebar shows DEMO MODE.
+      - DATAFEED_MODE=snapshot
     labels:
       - traefik.enable=true
       - traefik.http.routers.basis.entrypoints=websecure
