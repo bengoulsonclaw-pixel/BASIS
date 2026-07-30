@@ -1,0 +1,10 @@
+{
+  "convreport": {
+    "frequency": "daily",
+    "time": "07:30"
+  },
+  "eq_convreport": {
+    "frequency": "weekly",
+    "time": "07:30"
+  }
+}

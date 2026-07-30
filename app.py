@@ -3186,7 +3186,7 @@ def _ta_reports(meta, prod=None, scope="ficc", conf_set=None) -> None:
     if st.session_state.get(_pdf_key):
         st.download_button(f"⬇️ Download {_fname}", data=st.session_state[_pdf_key],
                            file_name=_fname, mime="application/pdf", key=f"conv_pdf_dl{k}")
-        email_report_ui(_pdf_key, _pdf_key, st.session_state.get(_pdf_key),
+        email_report_ui(_pdf_key, "eq_convreport" if eq else "convreport", st.session_state.get(_pdf_key),
                         subject=f"{_report_label} Report", attachment_name=_fname)
     cc2.caption(f"The merged **{_report_label}** report — opens with the conviction leaderboard and the "
                 "stacked-signals summary, then the strongest constructive & cautious setups by "
@@ -4732,6 +4732,79 @@ def _alert_toggle_cb(key: str, kind: str) -> None:
     alerts.set_alert_flag(key, kind, bool(st.session_state.get(wkey)))
 
 
+# ── Technical Analysis Report — configurable schedule (FICC + Equities) ─────────────────────
+# Unlike every other auto-email (a fixed schedule baked into its Windows task, just on/off
+# here), the TA report's frequency AND time are user-configurable. The ⏰ popover below
+# replaces the plain toggle for these two rows only; Save creates/updates the Windows task
+# (WEEKLY on Monday, or WEEKLY on all 5 weekdays) via convreport_scheduled_email.py --scope,
+# then reuses automation.set_report_enabled for the same on/off gate every other report uses.
+_TA_SCHEDULE_FILE = ROOT / "data" / "ta_report_schedule.json"
+_TA_REPORT_CLI = ROOT / "convreport_scheduled_email.py"
+_TA_SCOPE_OF = {"convreport": "ficc", "eq_convreport": "equities"}
+
+
+def _ta_schedule_cfg(ekey: str) -> dict:
+    try:
+        d = json.loads(_TA_SCHEDULE_FILE.read_text(encoding="utf-8-sig"))
+        c = d.get(ekey) or {}
+    except Exception:
+        c = {}
+    return {"frequency": c.get("frequency", "weekly"), "time": c.get("time", "07:30")}
+
+
+def _ta_schedule_apply(ekey: str, on: bool, frequency: str, hhmm: str) -> tuple[bool, str]:
+    task_name = automation.REPORTS[ekey]["tasks"][0]
+    days = "MON" if frequency == "weekly" else "MON,TUE,WED,THU,FRI"
+    tr = f'"{sys.executable}" "{_TA_REPORT_CLI}" --scope {_TA_SCOPE_OF[ekey]}'
+    r = subprocess.run(["schtasks", "/Create", "/F", "/TN", task_name, "/TR", tr,
+                        "/SC", "WEEKLY", "/D", days, "/ST", hhmm],
+                       capture_output=True, text=True)
+    err = (r.stderr or r.stdout or "").strip()
+    if r.returncode != 0:
+        return False, err
+    automation.set_report_enabled(ekey, on)        # enable/disable the task + the flag file
+    d = {}
+    try:
+        d = json.loads(_TA_SCHEDULE_FILE.read_text(encoding="utf-8-sig"))
+    except Exception:
+        pass
+    d[ekey] = {"frequency": frequency, "time": hhmm}
+    _TA_SCHEDULE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _TA_SCHEDULE_FILE.write_text(json.dumps(d, indent=2), encoding="utf-8")
+    return True, ""
+
+
+def _ta_schedule_control(col, ekey: str, label: str, nrec: int) -> None:
+    is_on = _report_states_cached().get(ekey) == "on"
+    cfg = _ta_schedule_cfg(ekey)
+    btn_lbl = (f"⏰ {'Weekly' if cfg['frequency'] == 'weekly' else 'Daily'} · {cfg['time']}"
+               if is_on else "⏰ Off")
+    with col.popover(btn_lbl, use_container_width=True,
+                     help=f"Schedule an automatic {label} email — daily or weekly, any time. "
+                          "Runs even when BASIS is closed, via Windows Task Scheduler."):
+        _freq_lbl = st.radio("Frequency", ["Weekly (Monday)", "Daily (weekdays)"],
+                             index=0 if cfg["frequency"] == "weekly" else 1, key=f"ta_freq_{ekey}")
+        _cur_t = dtime(*(int(x) for x in cfg["time"].split(":")))
+        _t = st.time_input("Send at (laptop time)", value=_cur_t, step=300, key=f"ta_time_{ekey}")
+        _on = st.toggle("Automatic email on", value=is_on, key=f"ta_on_{ekey}")
+        if st.button("Save", key=f"ta_save_{ekey}", type="primary", use_container_width=True):
+            if _on and nrec == 0:
+                st.error(f"Add at least one recipient for **{label}** below before switching this on.")
+            else:
+                freq = "weekly" if "Weekly" in _freq_lbl else "daily"
+                ok, err = _ta_schedule_apply(ekey, _on, freq, _t.strftime("%H:%M"))
+                if ok:
+                    _report_states_cached.clear()
+                    st.session_state["_al_msg"] = (
+                        "ok", f"Saved — {label}: "
+                              + (f"ON, {freq}, {_t.strftime('%H:%M')}." if _on else "off."))
+                    st.rerun()
+                else:
+                    st.error(f"Couldn't update the scheduled task:\n\n{err or 'no output'}")
+        st.caption("The laptop must be on (and not asleep) at send time. Runs the same report "
+                   "build as the page above, using whatever's saved as its default there.")
+
+
 def _render_alert_settings() -> None:
     """Per-report control of the three alerts: 📧 automatic email, 🚩 the Home 'REPORT DAY' banner,
     and 🔔 the release-time popup. Email defaults OFF and needs a recipient; banner & popup default
@@ -4767,6 +4840,11 @@ def _render_alert_settings() -> None:
         ekey = meta["email"]
         if not ekey:
             c[1].markdown("<div style='padding-top:.35rem;color:#8a8f98'>—</div>", unsafe_allow_html=True)
+        elif ekey in _TA_SCOPE_OF:
+            # Configurable schedule (frequency + time), not a plain toggle — creates its own
+            # Windows task on Save, so it's never "n/a" even before one exists.
+            nrec = len(data.get(automation.REPORTS[ekey]["recipients"], []))
+            _ta_schedule_control(c[1], ekey, meta["label"], nrec)
         elif email_states.get(ekey, "missing") == "missing":
             c[1].markdown("<div style='padding-top:.35rem;color:#8a8f98'>n/a</div>", unsafe_allow_html=True)
         else:

@@ -19,7 +19,8 @@ _MC_MAIN = Path(os.getenv("BASIS_MC_DIR", r"C:\Users\Ben\OneDrive\Personal\AI\Fu
 REPORTS = {
     "morning_coffee": "Morning Coffee report",
     "cot": "COT Positioning report",
-    "convreport": "Technical Analysis Report",
+    "convreport": "Technical Analysis Report — FICC",
+    "eq_convreport": "Technical Analysis Report — Equities",
     "digest": "Daily signal digest",
     "opec": "OPEC MOMR synopsis",
     "usda_reaction": "USDA Reaction (Acreage & Grain Stocks)",
