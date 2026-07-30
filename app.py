@@ -6979,11 +6979,6 @@ with st.sidebar:
         _nav_button(f"{_n_mod:02d} · Correlations", "Product Correlations")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Trade Testing", "Fed Path")
-        st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
-        _nav_button("Strategy Builder", "Strategy Builder")
-        st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
-        _nav_button("Alert Settings", "Recipients")
-        _nav_button("Data Health", "Data health")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
@@ -6994,6 +6989,12 @@ with st.sidebar:
         _nav_button("04 · Single Stock Correlations", "eq:Correlations")
         _nav_button("05 · Index Dispersion", "eq:Dispersion")
         _nav_button("06 · Client ETFs", "eq:ETFs")
+    # Cross-asset / System: shared across BOTH desks, not FICC-only.
+    st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
+    _nav_button("Strategy Builder", "Strategy Builder")
+    st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
+    _nav_button("Alert Settings", "Recipients")
+    _nav_button("Data Health", "Data health")
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
