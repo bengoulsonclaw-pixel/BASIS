@@ -72,6 +72,8 @@
   /* name flexes + wraps if very long (equity names run long); the status stays intact on the right,
      both kept INSIDE the bar — the old `float:right` spilled past the bar on long names. */
   .banner .mkt { min-width: 0; overflow-wrap: anywhere; }
+  /* the Bloomberg ticker in brackets after the name — exact case, lighter, secondary to the name */
+  .banner .tkr { text-transform: none; font-weight: 400; opacity: .9; }
   .banner .sig { text-transform: none; flex: 0 0 auto; white-space: nowrap; }
   .banner .sig.long { color: #8BE6A0; }
   .banner .sig.short { color: #FF9A8B; }

@@ -131,7 +131,7 @@
 
     {% macro pick_block(p) %}
     <div class="section">
-      <div class="banner"><span class="mkt">{{ p.market }}</span>
+      <div class="banner"><span class="mkt">{{ p.market }} <span class="tkr">({{ p.instruments }})</span></span>
         <span class="sig {% if p.net_dir > 0 %}long{% else %}short{% endif %}">
           {{ 'Constructive' if p.net_dir > 0 else 'Cautious' }} &middot; {{ p.n }}/{{ p.total }}
           &middot; Conviction {{ '%.0f'|format(p.conviction) }}

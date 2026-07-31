@@ -1,0 +1,28 @@
+{
+ "pub": "wgc",
+ "edition": "Q2 2026",
+ "url": "https://www.gold.org/goldhub/research/gold-demand-trends/gold-demand-trends-q2-2026",
+ "published": "30 Jul 2026",
+ "label": "WGC Gold Demand Trends",
+ "publisher": "World Gold Council",
+ "headline": "This took demand for the first half year to 2,522t (+2% y/y), with a record value of US$380bn.",
+ "bullets": [
+  "1 Gold ETFs came under selling pressure in Q2 (-45t).",
+  "Bar and coin investment held steady y/y (307t) in Q2.",
+  "Central banks made significant gold purchases in Q2 (289t).",
+  "Jewellery demand fell to its lowest quarterly volume since the pandemic (278t), as high gold prices and broader inflationary pressures continued to constrain affordability.",
+  "In comparison, spending on gold jewellery was up 14% y/y at US$40bn, confirming gold\u2019s continued importance in share of wallet.",
+  "Technology usage of gold again firmed slightly (80t) as AI-related demand offset weakness in the consumer electronics market."
+ ],
+ "figures": [
+  {
+   "label": "Total gold demand",
+   "value": "1,269t"
+  },
+  {
+   "label": "Central-bank net buying",
+   "value": "289t"
+  }
+ ],
+ "built": "2026-07-30"
+}
