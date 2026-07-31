@@ -866,11 +866,15 @@ def _data_badge(snap, side: str = "FICC") -> None:
     missing data — keep the loud warning box. On the Equities desk the badge shows the
     EQUITIES pull stamp (manifest `equities_pulled`), not the FICC snapshot's."""
     if side == "Equities":
-        eqp = (snap or {}).get("equities_pulled", "")
-        if eqp:
-            st.caption(f"📦 Equities: pulled **{_to_et(eqp)}**")
+        _running, _started = _eq_pull_running()
+        if _running:
+            st.caption(f"⏳ Equities: **pull running** — started {_started}")
         else:
-            st.caption("📦 Equities: no pull recorded yet — pages run on the last cached data")
+            eqp = (snap or {}).get("equities_pulled", "")
+            if eqp:
+                st.caption(f"📦 Equities: pulled **{_to_et(eqp)}**")
+            else:
+                st.caption("📦 Equities: no pull recorded yet — pages run on the last cached data")
         return
     if MODE == "bloomberg":
         st.caption("🟢 Live Bloomberg")
@@ -1797,6 +1801,49 @@ def _equities_heatmap(index_keys) -> None:
 _EQ_AUTOPULL_TASK = "BASIS Equities Auto Pull"
 _EQ_AUTOPULL_FILE = ROOT / "data" / "eq_autopull.json"
 _EQ_AUTOPULL_BAT = ROOT / "run_eq_autopull.bat"
+_EQ_PULL_LOCK = ROOT / "data" / "snapshot" / ".eq_pull.lock"
+
+
+def _eq_pull_running() -> tuple[bool, str]:
+    """(is_running, HH:MM it started) from the equities pull lock file (written by
+    snapshot.py's run_equities() for BOTH the manual button and the unattended scheduled
+    Auto-pull). Self-expires after 20 min so a killed/crashed pull can't wedge the banner on
+    forever (a normal pull finishes in ~5-7 min)."""
+    try:
+        if not _EQ_PULL_LOCK.exists():
+            return False, ""
+        mtime = _EQ_PULL_LOCK.stat().st_mtime
+        age_min = (time.time() - mtime) / 60
+        if 0 <= age_min < 20:
+            return True, datetime.fromtimestamp(mtime).strftime("%H:%M")
+    except Exception:
+        pass
+    return False, ""
+
+
+def _autorefresh_fragment(seconds: int):
+    """@st.fragment(run_every=seconds), degrading to a plain no-op wrapper on a Streamlit
+    build without fragments — defined standalone (not reusing the later `_fragment` alias)
+    so it's usable by functions defined earlier in the module than that alias is."""
+    fn = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None)
+    if fn is None:
+        return lambda f: f
+    try:
+        return fn(run_every=seconds)
+    except TypeError:
+        return fn
+
+
+@_autorefresh_fragment(10)
+def _eq_pull_banner() -> None:
+    """A live-updating bar while an equities pull (manual or scheduled Auto-pull) is running,
+    on the Equities home page. Auto-refreshes itself every 10s and clears on its own once the
+    pull's lock file is gone — no click needed to notice it start or finish."""
+    running, started = _eq_pull_running()
+    if running:
+        st.info(f"⏳ **Equities pull running** — started {started}, typically ~5–7 min "
+                "(membership + Yahoo quotes/history, fundamentals when due). This clears "
+                "on its own when it finishes.", icon="⏳")
 
 
 def _eq_autopull_cfg() -> dict:
@@ -1872,6 +1919,7 @@ def render_equities_home() -> None:
                               "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
     sel = sel or _keys
     st.subheader("Data")
+    _eq_pull_banner()
     c0, c1, c2, c3 = st.columns([1.15, 1.55, 1.55, 2.75])
     _eq_autopull_control(c0)
     try:                                   # mirror snapshot.py's equities pull switches

@@ -131,73 +131,89 @@ def run_equities() -> dict:
         return {"ok": False, "disabled": True,
                 "reason": "equities constituent + fundamentals pull disabled"}
 
-    eq, fr = {}, {}
-    if PULL_EQUITY_CONSTITUENTS:
-        try:
-            from src import equities
-            eq = equities.build_snapshot()
-            print(f"  Equities: {eq.get('n_memberships', 0)} constituents / {eq.get('n_unique', 0)} "
-                  f"unique across {len(eq.get('indices', {}))} indices"
-                  if eq.get("ok") else f"  Equities snapshot skipped: {eq.get('reason')}")
-        except Exception as e:
-            print(f"  (Equities snapshot skipped: {e})")
-
-    if PULL_FUNDAMENTALS:
-        # Company fundamentals — WEEKLY-guarded append to data/equities/fundamentals.parquet
-        # (fundamentals move slowly; a fresh-enough last pull is left alone). Guarded the same
-        # way: a failure never blocks the pull, a dead pull never wipes the DB.
-        try:
-            from src import eqfunda
-            fr = eqfunda.maybe_refresh(max_age_days=7)
-            if fr.get("skipped"):
-                print(f"  Fundamentals: last pull {fr.get('last_pull')} is {fr.get('age_days')}d old — kept.")
-            elif fr.get("ok"):
-                print(f"  Fundamentals: {fr.get('n_tickers', 0)} names appended ({fr.get('last_pull')}).")
-            else:
-                print(f"  Fundamentals pull skipped: {fr.get('reason')}")
-        except Exception as e:
-            print(f"  (Fundamentals pull skipped: {e})")
-
-    # Technical Analysis — refresh the equity OHLCV backfill + re-run every technical strategy, so the
-    # Equities → Technical Analysis page (and its reports) are current each pull. Runs AFTER the
-    # membership refresh above (it reads the just-updated universe). Settlement-based: yfin.get_ohlcv
-    # drops any still-forming bar, so a pre-open run uses settled closes. Guarded like the rest — a
-    # failure leaves the last good signals in place (the page never blanks) and never blocks the pull.
+    # Lock file so the APP can show a "pull running" banner regardless of who triggered this
+    # (the manual button's subprocess, or the unattended scheduled Auto-pull task) — self-expires
+    # on the reading side, so a killed/crashed process can't leave the banner stuck forever.
+    _eq_lock = SNAP / ".eq_pull.lock"
     try:
-        from src import eqta
-        _tks = eqta.universe_tickers()
-        if not _tks:
-            print("  Technical Analysis: no equity universe cached yet — skipped.")
-        else:
-            _cl, _ = eqta.backfill(_tks)
-            if _cl is None or getattr(_cl, "empty", True):
-                print("  Technical Analysis: Yahoo returned no prices — existing signals kept.")
-            else:
-                _sig = eqta.run()
-                print(f"  Technical Analysis: {_cl.shape[1]} names priced "
-                      f"(latest settled close {_cl.index.max():%Y-%m-%d}), {len(_sig)} signals.")
-    except Exception as e:
-        print(f"  (Technical Analysis refresh skipped: {e})")
-
-    # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit).
-    # On the Yahoo source the quotes/history/fundamentals legs cost ZERO Bloomberg hits —
-    # only the membership meta pull (name/sector per constituent) touches the Terminal.
-    from src import equities as _eq
-    if _eq._use_yf():
-        print("  Bloomberg hits this pull: ZERO — membership from the free ETF holdings "
-              "files, quotes/history/fundamentals from Yahoo Finance.")
-    else:
-        est = int(eq.get("n_unique", 0) or 0) * 3 + int(fr.get("n_tickers", 0) or 0) * 30
-        if est:
-            print(f"  Estimated Bloomberg hits this pull: ~{est:,} (security x field, rough)")
-
-    if eq.get("ok"):                       # record the pull in the shared manifest
         SNAP.mkdir(parents=True, exist_ok=True)
-        m = _existing_manifest()
-        m["equities"] = eq.get("indices", {})
-        m["equities_pulled"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-        (SNAP / "manifest.json").write_text(json.dumps(m, indent=2))
-    return eq
+        _eq_lock.write_text(pd.Timestamp.now().isoformat())
+    except Exception:
+        pass
+
+    try:
+        eq, fr = {}, {}
+        if PULL_EQUITY_CONSTITUENTS:
+            try:
+                from src import equities
+                eq = equities.build_snapshot()
+                print(f"  Equities: {eq.get('n_memberships', 0)} constituents / {eq.get('n_unique', 0)} "
+                      f"unique across {len(eq.get('indices', {}))} indices"
+                      if eq.get("ok") else f"  Equities snapshot skipped: {eq.get('reason')}")
+            except Exception as e:
+                print(f"  (Equities snapshot skipped: {e})")
+
+        if PULL_FUNDAMENTALS:
+            # Company fundamentals — WEEKLY-guarded append to data/equities/fundamentals.parquet
+            # (fundamentals move slowly; a fresh-enough last pull is left alone). Guarded the same
+            # way: a failure never blocks the pull, a dead pull never wipes the DB.
+            try:
+                from src import eqfunda
+                fr = eqfunda.maybe_refresh(max_age_days=7)
+                if fr.get("skipped"):
+                    print(f"  Fundamentals: last pull {fr.get('last_pull')} is {fr.get('age_days')}d old — kept.")
+                elif fr.get("ok"):
+                    print(f"  Fundamentals: {fr.get('n_tickers', 0)} names appended ({fr.get('last_pull')}).")
+                else:
+                    print(f"  Fundamentals pull skipped: {fr.get('reason')}")
+            except Exception as e:
+                print(f"  (Fundamentals pull skipped: {e})")
+
+        # Technical Analysis — refresh the equity OHLCV backfill + re-run every technical strategy, so the
+        # Equities → Technical Analysis page (and its reports) are current each pull. Runs AFTER the
+        # membership refresh above (it reads the just-updated universe). Settlement-based: yfin.get_ohlcv
+        # drops any still-forming bar, so a pre-open run uses settled closes. Guarded like the rest — a
+        # failure leaves the last good signals in place (the page never blanks) and never blocks the pull.
+        try:
+            from src import eqta
+            _tks = eqta.universe_tickers()
+            if not _tks:
+                print("  Technical Analysis: no equity universe cached yet — skipped.")
+            else:
+                _cl, _ = eqta.backfill(_tks)
+                if _cl is None or getattr(_cl, "empty", True):
+                    print("  Technical Analysis: Yahoo returned no prices — existing signals kept.")
+                else:
+                    _sig = eqta.run()
+                    print(f"  Technical Analysis: {_cl.shape[1]} names priced "
+                          f"(latest settled close {_cl.index.max():%Y-%m-%d}), {len(_sig)} signals.")
+        except Exception as e:
+            print(f"  (Technical Analysis refresh skipped: {e})")
+
+        # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit).
+        # On the Yahoo source the quotes/history/fundamentals legs cost ZERO Bloomberg hits —
+        # only the membership meta pull (name/sector per constituent) touches the Terminal.
+        from src import equities as _eq
+        if _eq._use_yf():
+            print("  Bloomberg hits this pull: ZERO — membership from the free ETF holdings "
+                  "files, quotes/history/fundamentals from Yahoo Finance.")
+        else:
+            est = int(eq.get("n_unique", 0) or 0) * 3 + int(fr.get("n_tickers", 0) or 0) * 30
+            if est:
+                print(f"  Estimated Bloomberg hits this pull: ~{est:,} (security x field, rough)")
+
+        if eq.get("ok"):                       # record the pull in the shared manifest
+            SNAP.mkdir(parents=True, exist_ok=True)
+            m = _existing_manifest()
+            m["equities"] = eq.get("indices", {})
+            m["equities_pulled"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+            (SNAP / "manifest.json").write_text(json.dumps(m, indent=2))
+        return eq
+    finally:
+        try:
+            _eq_lock.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def run(include_equities: bool = False, fetch_only: bool = False,
