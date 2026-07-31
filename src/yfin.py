@@ -25,10 +25,17 @@ No Streamlit here. No imports from the other src modules (they import us).
 """
 from __future__ import annotations
 
+import os
 from concurrent import futures
 
 import numpy as np
 import pandas as pd
+
+# Hard offline switch (env BASIS_YF_OFFLINE=1): every fetch helper returns empty
+# immediately so callers drop straight to their cache fallbacks. Set on the VPS —
+# Yahoo blocks datacenter IPs, answering every symbol with "possibly delisted",
+# which starved the Equities pages while a perfectly good synced cache sat on disk.
+OFFLINE = bool(os.getenv("BASIS_YF_OFFLINE"))
 
 # Bloomberg exchange code -> Yahoo suffix. US composite + venue codes map to ''.
 _US_CODES = {"US", "UW", "UN", "UA", "UB", "UC", "UD", "UF", "UM", "UP",
@@ -107,6 +114,8 @@ _CHUNK = 250        # symbols per yf.download — one giant batch (2000+) quietl
 def _close_frame(symbols: list, **kwargs) -> pd.DataFrame:
     """Chunked yf.download -> date x yahoo-symbol close frame (tz-naive index). A failed
     chunk contributes nothing rather than killing the whole pull."""
+    if OFFLINE:
+        return pd.DataFrame()
     import yfinance as yf
     frames = []
     for i in range(0, len(symbols), _CHUNK):
@@ -135,6 +144,8 @@ def _close_frame(symbols: list, **kwargs) -> pd.DataFrame:
 def _ohlcv_frames(symbols: list, **kwargs):
     """Chunked yf.download -> (close, volume) frames, date x yahoo-symbol. Mirrors _close_frame
     but keeps Volume too (the OBV / MFI strategies need it). A failed chunk contributes nothing."""
+    if OFFLINE:
+        return pd.DataFrame(), pd.DataFrame()
     import yfinance as yf
     cframes, vframes = [], []
     for i in range(0, len(symbols), _CHUNK):
@@ -302,6 +313,8 @@ def _fund_values(info: dict) -> tuple:
 
 
 def _info_one(sym: str) -> dict:
+    if OFFLINE:
+        return {}
     import yfinance as yf
     try:
         return yf.Ticker(sym).info or {}

@@ -9,6 +9,9 @@ services:
       # snapshot mode: read the git-synced parquets (real pulled data); without
       # this the datafeed defaults to "mock" and the sidebar shows DEMO MODE.
       - DATAFEED_MODE=snapshot
+      # Yahoo blocks datacenter IPs (every symbol comes back "possibly delisted"),
+      # which starved the Equities pages — force cache-only reads on the VPS.
+      - BASIS_YF_OFFLINE=1
     labels:
       - traefik.enable=true
       - traefik.http.routers.basis.entrypoints=websecure

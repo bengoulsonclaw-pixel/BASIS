@@ -488,7 +488,10 @@ def get_quotes(tickers) -> pd.DataFrame:
                     return cov
         try:
             q = yfin.get_quotes(tickers)
-            if q["last"].notna().any():
+            # Require REAL coverage before trusting a live pull: a blocked/rate-limited
+            # Yahoo (e.g. from a datacenter IP) answers most names empty — accepting a
+            # 5%-filled frame here starved the pages while a good cache sat on disk.
+            if int(q["last"].notna().sum()) >= max(3, len(tickers) // 4):
                 return q
         except Exception:
             pass                                   # offline / Yahoo down -> old chain
