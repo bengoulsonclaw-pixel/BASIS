@@ -219,7 +219,7 @@ def run(include_equities: bool = False, fetch_only: bool = False,
     try:
         if lock.exists():
             age_min = (pd.Timestamp.now() - pd.Timestamp(lock.stat().st_mtime, unit="s")).total_seconds() / 60
-            if age_min < 45:                      # a live pull; stale locks self-expire
+            if 0 <= age_min < 45:                 # a live pull; stale AND future-dated (clock-skew) locks self-expire
                 print(f"Another snapshot pull is already running (lock is {age_min:.0f} min old) "
                       "— this one is exiting. Wait for it to finish.")
                 return _existing_manifest()
