@@ -17,8 +17,11 @@ echo Clearing any previous BASIS instance on port 8501...
 powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"
 
 echo Starting BASIS on http://localhost:8501  (close this window to stop)
-REM Open the browser a few seconds later, once the server has had time to bind
-REM (avoids the "can't connect" flash from opening the URL too early).
-start "" /min powershell -NoProfile -Command "Start-Sleep -Seconds 4; Start-Process 'http://localhost:8501'"
+REM Open a few seconds later, once the server has had time to bind (avoids the
+REM "can't connect" flash from opening the URL too early) — as a chromeless
+REM Chrome APP WINDOW (--app=), so it looks/feels like its own program instead
+REM of a browser tab: no address bar, own taskbar icon. Falls back to a normal
+REM browser tab if Chrome isn't found at either usual install path.
+start "" /min powershell -NoProfile -Command "Start-Sleep -Seconds 4; $c='C:\Program Files\Google\Chrome\Application\chrome.exe'; if (-not (Test-Path $c)) { $c='C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' }; if (Test-Path $c) { Start-Process -FilePath $c -ArgumentList '--app=http://localhost:8501','--window-size=1440,900' } else { Start-Process 'http://localhost:8501' }"
 ".venv\Scripts\python.exe" -m streamlit run "app.py" --server.port 8501 --server.headless true --browser.gatherUsageStats false
 pause
