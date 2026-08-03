@@ -7,6 +7,9 @@
   table { font-size: 7.5pt; }
   thead th, tbody td { padding: 1.4mm 1.6mm; }
   .chartbook .section { margin-top: 3mm; }
+  .chartbook .section.keep { break-inside: avoid; page-break-inside: avoid; }
+  .chartnote { font-size: 8.5pt; line-height: 1.32; color: #2A2E35; margin: 1.6mm 0 0; }
+  .chartnote b { color: #111; }
   .newpage { break-before: page; page-break-before: always; }
   p.outcomes { margin-top: 2.5mm; }
   p.outcomes b { color: #111; }
@@ -51,7 +54,7 @@
       (put-heavy) or <b>&le; {{ lo }}</b> (call-heavy).
     </p>
 
-    <p class="summary outcomes">{{ commentary | safe }}</p>
+    {{ commentary | safe }}
 
     <div class="section">
       <div class="banner">Put/Call Heatmap &mdash; whole book (OI basis)</div>
@@ -73,23 +76,26 @@
       <div class="section"><div class="chart"><img src="{{ activity_bar }}" alt="yesterday's options activity"></div></div>
     </div>
 
-    <div class="section newpage">
-      <div class="banner">Positioning by OI Put/Call Percentile &mdash; whole book (current)</div>
-      <div class="chart"><img src="{{ rank }}" alt="put/call percentile ranked bar"></div>
-    </div>
-
     {% if rows %}
     <div class="newpage">
     <div class="banner">Products of Interest &mdash; put/call extremes, shifts &amp; divergences</div>
     <p class="summary" style="margin-top:2mm">
-      <b>How to read this.</b> The <b>OI P/C percentile</b> places each market's open-interest put/call ratio
-      within its own trailing-year range: <b>0</b> = the most call-heavy it has been in a year, <b>100</b> =
-      the most put-heavy. A market is flagged <b class="rich">put-heavy</b> when its percentile is
-      <b>&ge; {{ hi }}</b> and <b class="cheap">call-heavy</b> when <b>&le; {{ lo }}</b>. <b>&Delta;1d</b> is the
-      z-score of today's one-day change in the OI ratio (a fresh shift when |z| &ge; {{ spike_z }});
-      <b>Flow&minus;OI</b> is the volume-percentile minus the OI-percentile (a divergence when
-      |&middot;| &ge; {{ diverge }} &mdash; today's flow running ahead of standing positioning). Heavy put
-      demand is defensive / bearish and heavy call demand bullish; extremes are frequently read contrarian.
+      <b>How to read this.</b> Every row is a market currently at a put/call extreme.
+      <b>OI&nbsp;P/C</b> is the put/call ratio on <b>open interest</b> (positions held overnight);
+      <b>Vol&nbsp;P/C</b> is the same on <b>today's volume</b> (what actually traded). Above <b>1.0</b> means
+      more puts than calls, below <b>1.0</b> more calls.
+      <b>OI&nbsp;%ile</b> ranks today's OI ratio against its own past year: <b>100</b> = the most
+      <b class="rich">put-heavy</b> (defensive) it has been all year, <b>0</b> = the most
+      <b class="cheap">call-heavy</b> (bullish) &mdash; we flag it put-heavy at <b>&ge; {{ hi }}</b> and
+      call-heavy at <b>&le; {{ lo }}</b>.
+      <b>&Delta;1d</b> flags positioning that <b>moved sharply today</b> &mdash; how big today's one-day
+      change in the ratio is next to its normal daily swing, badged when the jump is unusually large
+      (<b>|z| &ge; {{ spike_z }}</b>).
+      <b>Flow&minus;OI</b> flags when <b>today's trading is running ahead of standing positioning</b>: the
+      volume ranking minus the OI ranking, badged when the gap is <b>&ge; {{ diverge }}</b> points &mdash; the
+      day's flow leaning far more one way than the open book.
+      As a rule of thumb, heavy put demand is defensive and heavy call demand bullish &mdash; though
+      extremes are frequently read as a contrarian signal.
     </p>
     <table>
       <thead>
@@ -121,40 +127,12 @@
       one-day shift or flow-vs-positioning divergence is flagged at the current thresholds.</p>
     {% endif %}
 
-    {% if activity %}
-    <div class="banner newpage">Options Activity &mdash; whole book, by daily volume</div>
+    <div class="banner newpage">Put/Call Charts &mdash; the {{ n_charts }} most notable</div>
     <p class="summary" style="margin-top:2mm">
-      Total option contracts <b>traded over the last ~1 year</b> (~252 sessions), split <b>calls</b> vs
-      <b>puts</b>, with the <b>average traded per day</b> &mdash; sorted most-active first, so the
-      heaviest-traded books sit at the top. The volume put/call (puts &divide; calls of that flow) is shown
-      for context. K = thousand · M = million contracts.
-    </p>
-    <table>
-      <thead>
-        <tr>
-          <th>Market</th><th>Asset</th>
-          <th class="center">Total calls (1y)</th><th class="center">Total puts (1y)</th>
-          <th class="center">Avg / day</th><th class="center">Vol P/C</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in activity %}
-        <tr>
-          <td class="market">{{ r.market }}</td>
-          <td>{{ r.asset }}</td>
-          <td class="center">{{ r.calls }}</td>
-          <td class="center">{{ r.puts }}</td>
-          <td class="center"><b>{{ r.avg }}</b></td>
-          <td class="center">{{ r.pc_vol }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
-    <div class="banner newpage">Put/Call Charts &mdash; every market</div>
-    <p class="summary" style="margin-top:2mm">
-      Per market, three stacked panels over ~6 months: <b>(1)</b> the <b style="color:#0A0A0A">OI put/call</b>
+      Detailed charts for the <b>{{ n_charts }} most extreme</b>
+      {% if n_interest > n_charts %}of the {{ n_interest }} products of interest (the rest are in the table
+      above; every market is in the heatmap){% else %}products of interest{% endif %}. Each has three stacked
+      panels over ~6 months: <b>(1)</b> the <b style="color:#0A0A0A">OI put/call</b>
       ratio (black) and <b style="color:#1F5FA8">volume put/call</b> (blue) with the underlying
       <b style="color:#C62828">price</b> on the right axis (dashed line = parity, 1.0); <b>(2)</b> the OI P/C
       percentile, with shaded put-heavy (red) / call-heavy (green) zones; <b>(3)</b> <b>daily volume</b> &mdash;
@@ -163,11 +141,20 @@
     </p>
     <div class="chartbook">
       {% for p in products %}
-      <div class="section"><div class="chart"><img src="{{ p.img }}" alt="put/call chart"></div></div>
+      <div class="section keep">
+        <div class="chart"><img src="{{ p.img }}" alt="put/call chart"></div>
+        {% if p.note %}{{ p.note | safe }}{% endif %}
+      </div>
       {% endfor %}
     </div>
 
     <div class="report-footer">
+    {% for p in products_last %}
+    <div class="section keep" style="margin-top:0">
+      <div class="chart"><img src="{{ p.img }}" alt="put/call chart"></div>
+      {% if p.note %}{{ p.note | safe }}{% endif %}
+    </div>
+    {% endfor %}
     <div class="foot-disclaimer">
     <hr class="rule">
     <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>

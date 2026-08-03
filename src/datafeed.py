@@ -746,10 +746,12 @@ _PUTCALL_KEYS = list(PUTCALL_FIELDS)   # put_oi, call_oi, put_vol, call_vol
 # SX5E/SX7E/DAX Index/UKX Index, which carry the put/call directly, so they need no
 # mapping — only CAC and Nikkei are present solely as futures.) Sources per OMON,
 # user-supplied 2026-06-19.
-PUTCALL_SOURCE = {
-    "CAA Index": "CAC Index",   # CAC 40     → CAC cash-index options
-    "NKA Index": "NKY Index",   # Nikkei 225 → NKY cash-index options
-}
+# EMPTY as of 2026-06-20: was {CAA Index→CAC Index, NKA Index→NKY Index}, but the CAC/NKY cash
+# indices are now in the universe directly (self-sourcing their put/call like SX5E/DAX/UKX), so
+# routing the FUTURES generics CAA/NKA to the same cash chain duplicated the CAC 40 / Nikkei rows.
+# The futures generics have no listed put/call of their own (gen1 CA1/NK1 return nothing), so with
+# no override they fall out cleanly and only the cash tickers remain.
+PUTCALL_SOURCE = {}
 # Default for everything else: pull put/call from the future's 1st-GENERIC (xx1), which serves
 # far deeper option history than the active 'A' generic (verified live 2026-06-20 via
 # diag_putcall.py — the same finding that fixed the COT price DB). PUTCALL_KEEP_ACTIVE = the

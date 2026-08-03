@@ -15,7 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime, date, timedelta, time as dtime
+from datetime import datetime, date, timedelta, time as dtime, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
@@ -92,17 +92,20 @@ MORNING_COFFEE_CLI = MORNING_COFFEE_DIR / "main.py"
 
 
 def _to_et(local_str) -> str:
-    """Convert the snapshot's machine-local 'YYYY-MM-DD HH:MM:SS' capture time to
-    'H:MM AM ET · DD Mon YYYY'. This box runs on UTC-5, so it's converted to actual
-    New York time (DST-aware), matching the Morning Coffee heatmap stamp."""
+    """Convert a snapshot capture time to 'H:MM AM ET · DD Mon YYYY' in New York time (DST-aware).
+    Timestamps tagged with an explicit offset (the UTC pull time '…+00:00') are honored as-is;
+    legacy naive 'YYYY-MM-DD HH:MM[:SS]' stamps are read as this box's local time (UTC-5)."""
     try:
-        raw = str(local_str)[:19]
+        raw = str(local_str).strip()
+        if not raw:
+            return ""
         try:
-            dt = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
         except ValueError:                      # minute-precision stamps (signals as_of)
             dt = datetime.strptime(raw[:16], "%Y-%m-%d %H:%M")
-        et = dt.replace(tzinfo=datetime.now().astimezone().tzinfo).astimezone(
-            ZoneInfo("America/New_York"))
+        if dt.tzinfo is None:                   # legacy naive stamp -> machine-local (UTC-5)
+            dt = dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
+        et = dt.astimezone(ZoneInfo("America/New_York"))
         t = et.strftime("%I:%M %p").lstrip("0")
         mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][et.month - 1]
@@ -4224,8 +4227,14 @@ def render_data_health() -> None:
         created = snap.get("created", "")
         age_txt, age_h = "—", None
         try:
-            dt = datetime.strptime(str(created)[:19], "%Y-%m-%d %H:%M:%S")
-            age_h = (datetime.now() - dt).total_seconds() / 3600
+            s = str(created).strip().replace("Z", "+00:00")
+            try:
+                dt = datetime.fromisoformat(s)
+            except ValueError:
+                dt = datetime.strptime(s[:19], "%Y-%m-%d %H:%M:%S")
+            if dt.tzinfo is None:                # legacy naive stamp = UTC (the live.parquet mtime)
+                dt = dt.replace(tzinfo=timezone.utc)
+            age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
             age_txt = f"{age_h:.0f}h ago" if age_h < 48 else f"{age_h / 24:.1f} days ago"
         except Exception:
             pass

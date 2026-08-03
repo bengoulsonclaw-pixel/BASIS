@@ -16,6 +16,10 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
+import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 from reportkit import pretty_date, data_uri, png, render_pdf, BLACK
@@ -43,6 +47,7 @@ ASSET_ORDER = ["Indices", "STIRs", "Bonds", "FX", "Energy", "Metals", "Agricultu
 SPIKE_Z = 2.0
 DIVERGENCE = 35.0
 THIN_DAYS = 120          # < this many days of put/call history → flag (its average is still building)
+CHART_TOP = 10           # per-product charts: only the N most-extreme products of interest (rest in the table)
 
 CHART_DPI = 160
 
@@ -402,19 +407,177 @@ def _activity_lead(detail: pd.DataFrame) -> str:
     return lead
 
 
+AI_POLISH = Path(__file__).resolve().parent.parent / "ai_polish.py"
+
+PC_SYSTEM = (
+    "You are a senior futures-options strategist writing a desk's daily put/call note for professional "
+    "clients. You are given a JSON array: the FIRST element is an OPENING brief listing candidate "
+    "standouts; every REMAINING element is a PER-CHART brief for one product (its put/call positioning "
+    "and how its underlying has moved recently).\n\n"
+    "FIRST element (the opening): pick ONLY the one to three products that GENUINELY stand out today — an "
+    "extreme put/call reading paired with a notable move in the underlying (e.g. a market at its most "
+    "call-heavy in a year right after a sharp sell-off). Write ONE tight, punchy paragraph (3-5 "
+    "sentences) naming just those and, for each, the recent underlying move that may be driving the "
+    "options positioning. Then a short closing line pointing the reader to the product charts that follow "
+    "(e.g. 'Below, a closer look at the names worth watching today.'). Do NOT recite the whole book, "
+    "medians, market counts, tilt, or long lists — a reader will switch off. If nothing truly stands out, "
+    "say so in a sentence.\n\n"
+    "EACH REMAINING element (a per-chart note): write TWO concise, plain-English sentences — what that "
+    "product's put/call positioning shows (put-heavy = defensive / hedging, call-heavy = bullish, and "
+    "where it sits versus its own trailing year) and how the underlying's recent price action may be "
+    "driving that call or put demand. Vary how each one opens; do not start them all the same way.\n\n"
+    "ALL elements: keep EVERY number, percentage, ratio and percentile EXACTLY as given and wrap the key "
+    "figures in **bold**; keep every product name. Neutral and OBSERVATIONAL — client-safe, NOT advice: "
+    "never say buy, sell, long, short, recommend or 'we like', and never tell the reader to act. It is "
+    "fine to note heavy put demand is defensive, heavy call demand bullish, and that extremes are often "
+    "read contrarian. Invent nothing that is not in the brief.\n\n"
+    "Return ONLY a JSON array of strings, the SAME length and order as the input (element 0 = the "
+    "opening; the rest = one note per chart, in order). **bold** allowed; nothing else.")
+
+
+def _mc_python() -> str:
+    """The Morning Coffee interpreter (has anthropic + ANTHROPIC_API_KEY); '' if not found."""
+    base = Path(r"C:\Users\Ben\AppData\Local\Python")
+    for exe in sorted(base.glob("pythoncore-*-64/python.exe"), reverse=True):
+        if exe.exists():
+            return str(exe)
+    import shutil
+    return shutil.which("python") or ""
+
+
+def _md2html(md: str, cls: str = "summary outcomes") -> str:
+    """Split a markdown blob into <p class="{cls}"> paragraphs, converting **bold**."""
+    out = []
+    for para in re.split(r"\n\s*\n", md.strip()):
+        para = para.strip()
+        if not para:
+            continue
+        para = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", html.escape(para))
+        out.append(f'<p class="{cls}">{para}</p>')
+    return "\n".join(out)
+
+
+def _recent_moves(hist: pd.DataFrame) -> dict:
+    """Per-ticker % move in the underlying over the last 1 / 3 / 5 sessions (None where too short)."""
+    moves = {}
+    if hist.empty or "price" not in hist.columns:
+        return moves
+    for t, g in hist.groupby("ticker", sort=False):
+        p = pd.to_numeric(g.sort_values("date")["price"], errors="coerce").dropna()
+        if len(p) < 2:
+            continue
+        def mv(k, p=p):
+            return (p.iloc[-1] / p.iloc[-1 - k] - 1.0) * 100.0 if (len(p) > k and p.iloc[-1 - k]) else None
+        moves[t] = {"d1": mv(1), "d3": mv(3), "d5": mv(5)}
+    return moves
+
+
+def _move_phrase(m: dict) -> str:
+    """'+1.2% on the day, +3.4% over 3 sessions, +5.1% over the last week' from a moves dict."""
+    parts = []
+    for k, lbl in (("d1", "on the day"), ("d3", "over 3 sessions"), ("d5", "over the last week")):
+        v = (m or {}).get(k)
+        if v is not None and np.isfinite(v):
+            parts.append(f"{v:+.1f}% {lbl}")
+    return "underlying " + ", ".join(parts) if parts else "underlying move n/a"
+
+
+def _opening_brief(detail: pd.DataFrame, hist: pd.DataFrame, hi: float, lo: float) -> str:
+    """Terse candidate-standout brief for the opening: the few most-extreme put- and call-heavy names
+    with each one's ~3-session underlying move, for the model to pick the genuine standouts from."""
+    d = detail.copy()
+    oi = pd.to_numeric(d["oi_pctl"], errors="coerce")
+    d = d[oi.notna()].copy()
+    if d.empty:
+        return ""
+    oi = pd.to_numeric(d["oi_pctl"], errors="coerce")
+    moves = _recent_moves(hist)
+
+    def _line(r):
+        mv = moves.get(r.ticker, {}).get("d3")
+        mvt = f", underlying {mv:+.1f}% over 3 sessions" if (mv is not None and np.isfinite(mv)) else ""
+        return f"  - {r.market} ({r.asset}): OI put/call {r.pc_oi:.2f}, {int(r.oi_pctl)} %ile{mvt}"
+
+    puts = d[oi >= hi].sort_values("oi_pctl", ascending=False).head(4)
+    calls = d[oi <= lo].sort_values("oi_pctl").head(4)
+    lines = ["CANDIDATE STANDOUTS — pick only the ones that GENUINELY stand out (extreme reading + a "
+             "notable underlying move); ignore the rest."]
+    if len(puts):
+        lines.append("Put-heavy (defensive / hedging):")
+        lines += [_line(r) for r in puts.itertuples(index=False)]
+    if len(calls):
+        lines.append("Call-heavy (bullish):")
+        lines += [_line(r) for r in calls.itertuples(index=False)]
+    return "\n".join(lines)
+
+
+def _chart_brief(r, moves: dict) -> str:
+    """Deterministic per-chart note (also the fallback text): positioning + the underlying's recent move."""
+    d = int(getattr(r, "direction", 0) or 0)
+    lean = ("put-heavy (defensive / hedging)" if d < 0
+            else "call-heavy (bullish)" if d > 0 else "mid-range")
+    return (f"{r.market} ({r.asset}): OI put/call {r.pc_oi:.2f}, {int(r.oi_pctl)} percentile — {lean}. "
+            f"{_move_phrase(moves.get(r.ticker, {})).capitalize()}.")
+
+
+def _ai_pack(detail: pd.DataFrame, hist: pd.DataFrame, hi: float, lo: float,
+             chart_briefs: list, timeout: int = 200):
+    """One Fable call producing the punchy opening AND a per-chart note for each charted product.
+    Returns (opening_html, [note_html, ...]) aligned to chart_briefs. Falls back to the deterministic
+    template / briefs on ANY failure so the report never depends on the model being reachable."""
+    fb_open = f'<p class="summary outcomes">{commentary(detail, hi, lo)}</p>'
+    fb_notes = [_md2html(b, "chartnote") for b in chart_briefs]
+    try:
+        opening_brief = _opening_brief(detail, hist, hi, lo)
+        mc = _mc_python()
+        if not opening_brief or not mc or not AI_POLISH.exists():
+            return fb_open, fb_notes
+        texts = [opening_brief] + list(chart_briefs)
+        with tempfile.TemporaryDirectory() as td:
+            inp, outp, sysf = Path(td) / "in.json", Path(td) / "out.json", Path(td) / "sys.txt"
+            inp.write_text(json.dumps(texts, ensure_ascii=False), encoding="utf-8")
+            sysf.write_text(PC_SYSTEM, encoding="utf-8")
+            r = subprocess.run([mc, str(AI_POLISH), str(inp), str(outp), str(sysf)],
+                               capture_output=True, text=True, timeout=timeout)
+            if r.returncode == 0 and outp.exists():
+                got = json.loads(outp.read_text(encoding="utf-8"))
+                if isinstance(got, list) and len(got) == len(texts):
+                    op = got[0]
+                    open_html = (_md2html(op) if isinstance(op, str) and op.strip()
+                                 and op.strip() != opening_brief else fb_open)   # echo == failed
+                    note_html = []
+                    for got_note, brief in zip(got[1:], chart_briefs):
+                        ok = (isinstance(got_note, str) and got_note.strip()
+                              and got_note.strip() != brief)
+                        note_html.append(_md2html(got_note if ok else brief, "chartnote"))
+                    return open_html, note_html
+    except Exception:
+        pass
+    return fb_open, fb_notes
+
+
 def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str,
-                cutoff: float = DEFAULT_CUTOFF, light: bool = False) -> str:
+                cutoff: float = DEFAULT_CUTOFF, light: bool = False, ai: bool = True) -> str:
     hi, lo = cutoff, 100.0 - cutoff
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     detail = _reflag(detail, hi, lo)
+    moves = _recent_moves(hist)
 
-    products = []
-    for r in detail.itertuples(index=False):
+    # Detailed charts for only the top-N standouts (the most-extreme products of interest);
+    # the rest of the book is covered by the whole-book heatmap + the products-of-interest table.
+    _chg = pd.to_numeric(detail["oi_chg_z"], errors="coerce")
+    _div = pd.to_numeric(detail["divergence"], errors="coerce")
+    _interest = detail[(detail["direction"] != 0) | (_chg.abs() >= SPIKE_Z) | (_div.abs() >= DIVERGENCE)]
+    _interest = _interest.assign(_ext=(pd.to_numeric(_interest["oi_pctl"], errors="coerce") - 50).abs())
+    _interest = _interest.sort_values("_ext", ascending=False).head(CHART_TOP)
+    imgs, chart_briefs = [], []
+    for r in _interest.itertuples(index=False):
         g = (hist[hist["ticker"] == r.ticker].sort_values("date").tail(DISPLAY_DAYS)
              if not hist.empty else pd.DataFrame())
         if g.empty:
             continue
-        products.append({"img": _png(product_fig(g, hi, lo, r.market, r.asset, r.avg_day))})
+        imgs.append(_png(product_fig(g, hi, lo, r.market, r.asset, r.avg_day)))
+        chart_briefs.append(_chart_brief(r, moves))
 
     def _f2(v):
         return "—" if pd.isna(v) else f"{v:.2f}"
@@ -428,9 +591,10 @@ def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str,
     def _fd(v):
         return "—" if pd.isna(v) else f"{v:+.0f}"
 
-    chg = pd.to_numeric(detail["oi_chg_z"], errors="coerce")
-    div = pd.to_numeric(detail["divergence"], errors="coerce")
-    interest = detail[(detail["direction"] != 0) | (chg.abs() >= SPIKE_Z) | (div.abs() >= DIVERGENCE)]
+    # Table lists the genuine positioning EXTREMES only (put-heavy / call-heavy). A fresh 1-day
+    # shift or a flow-vs-OI divergence on one of those rows still shows as a badge, but no longer
+    # pulls non-extreme names into the table.
+    interest = detail[detail["direction"] != 0]
     rows = [{
         "market": r.market, "asset": r.asset, "signal": r.signal, "direction": int(r.direction),
         "pc_oi": _f2(r.pc_oi), "oi_pctl": _f0(r.oi_pctl),
@@ -440,26 +604,33 @@ def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str,
         "diverge": bool(pd.notna(r.divergence) and abs(r.divergence) >= DIVERGENCE),
     } for r in interest.itertuples(index=False)]
 
-    # Whole-book options activity — total puts/calls traded + average per day, most
-    # active first, so the heaviest-traded books are obvious at a glance.
-    act = detail.dropna(subset=["avg_day"]).sort_values("avg_day", ascending=False)
-    activity = [{
-        "market": r.market, "asset": r.asset,
-        "calls": _human(r.tot_call), "puts": _human(r.tot_put), "avg": _human(r.avg_day),
-        "pc_vol": _f2(r.pc_vol),
-    } for r in act.itertuples(index=False)]
-
     try:
         prev_day = pd.to_datetime(hist["date"]).max().strftime("%d %b %Y") if not hist.empty else asof
     except Exception:
         prev_day = asof
+    if ai:
+        opening_html, note_htmls = _ai_pack(detail, hist, hi, lo, chart_briefs)
+    else:
+        opening_html = f'<p class="summary outcomes">{commentary(detail, hi, lo)}</p>'
+        note_htmls = [_md2html(b, "chartnote") for b in chart_briefs]
+    products = [{"img": img, "note": nh} for img, nh in zip(imgs, note_htmls)]
+    # Closing page: render the LAST chart INSIDE the report-footer, above the bottom-pinned
+    # disclaimer, so the final page carries a chart AND the disclaimer (no near-blank page). One
+    # chart+note + the disclaimer fit a page; two would overflow — so we show an ODD number of
+    # charts (drop the least-extreme if even) to leave the closing page a single chart.
+    if len(products) >= 2:
+        if len(products) % 2 == 0:
+            products = products[:-1]
+        products_main, products_last = products[:-1], products[-1:]
+    else:
+        products_main, products_last = [], products
 
     return env.get_template("pcreport.html").render(
-        asof=pretty_date(asof), commentary=commentary(detail, hi, lo),
+        asof=pretty_date(asof), commentary=opening_html,
         activity_bar=_png(activity_fig(detail)), prev_day=prev_day, act_lead=_activity_lead(detail),
         heatmap=_png(heatmap_fig(hist, detail)),
-        rank=_png(rank_fig(detail, hi, lo)),
-        products=products, rows=rows, activity=activity,
+        products=products_main, products_last=products_last,
+        rows=rows, n_charts=len(products_main) + len(products_last), n_interest=len(rows),
         n_markets=int(pd.to_numeric(detail["oi_pctl"], errors="coerce").notna().sum()),
         n_put=int((detail["direction"] < 0).sum()),
         n_call=int((detail["direction"] > 0).sum()),
@@ -471,8 +642,8 @@ def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str,
 
 
 def build_pdf(detail: pd.DataFrame, hist: pd.DataFrame, asof: str, out_path,
-              cutoff: float = DEFAULT_CUTOFF, light: bool = False) -> str:
-    return render_pdf(render_html(detail, hist, asof, cutoff, light), out_path)
+              cutoff: float = DEFAULT_CUTOFF, light: bool = False, ai: bool = True) -> str:
+    return render_pdf(render_html(detail, hist, asof, cutoff, light, ai), out_path)
 
 
 def main():
@@ -485,6 +656,8 @@ def main():
                     help="put-heavy cutoff on the OI P/C percentile (call-heavy = 100 − this)")
     ap.add_argument("--quality", choices=["screen", "email"], default="screen",
                     help="screen = crisp 160dpi charts; email = lighter 96dpi for a smaller attachment")
+    ap.add_argument("--no-ai", action="store_true",
+                    help="skip the Fable opening commentary and use the deterministic template instead")
     args = ap.parse_args()
     CHART_DPI = 160 if args.quality == "screen" else 96
     detail = pd.read_parquet(args.detail_parquet)
@@ -498,7 +671,8 @@ def main():
                 hist = hist[hist["ticker"].isin(_e)]
     except Exception:
         pass
-    build_pdf(detail, hist, args.asof, args.out_pdf, args.threshold, light=(args.quality == "email"))
+    build_pdf(detail, hist, args.asof, args.out_pdf, args.threshold,
+              light=(args.quality == "email"), ai=not args.no_ai)
     print(f"Wrote {args.out_pdf}")
 
 

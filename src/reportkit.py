@@ -9,8 +9,14 @@ import base64
 from io import BytesIO
 from pathlib import Path
 
+import logging as _logging
 import matplotlib
 matplotlib.use("Agg")
+# Silence the benign 'findfont: Font family Arial not found' fallback noise. Arial is a
+# standard Windows font, but while matplotlib rebuilds its font cache (e.g. after a version
+# bump) every lookup transiently logs that warning — which floods a report's stderr and can
+# mask the real error if a run does fail. This only hushes the fallback logging, not errors.
+_logging.getLogger("matplotlib.font_manager").setLevel(_logging.ERROR)
 import matplotlib.pyplot as plt
 import pandas as pd
 

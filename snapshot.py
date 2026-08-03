@@ -380,8 +380,11 @@ def _compute_phase(include_equities: bool = False) -> dict:
     prices = pd.read_parquet(SNAP / "prices.parquet")
     iv = pd.read_parquet(SNAP / "implied_vol.parquet")
     live = pd.read_parquet(SNAP / "live.parquet")
-    pulled_at = pd.Timestamp((SNAP / "live.parquet").stat().st_mtime, unit="s"
-                             ).strftime("%Y-%m-%d %H:%M:%S")
+    # live.parquet's mtime is an absolute epoch, so tag it as UTC with an explicit offset —
+    # readers (report + app) then convert to the viewer's timezone unambiguously, instead of
+    # mistaking this UTC instant for machine-local time (which pushed the stamp ~5h forward).
+    pulled_at = pd.Timestamp((SNAP / "live.parquet").stat().st_mtime, unit="s", tz="UTC"
+                             ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
     _dc = [c for c in prices.columns if str(c).lower() in ("date", "index")]
     _idx = pd.to_datetime(prices[_dc[0]]) if _dc else pd.to_datetime(prices.index)
     try:      # source = how the data was FETCHED (persisted by the fetch phase); the
