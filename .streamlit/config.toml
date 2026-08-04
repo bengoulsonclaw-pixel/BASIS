@@ -10,3 +10,9 @@ backgroundColor = "#1C2026"
 secondaryBackgroundColor = "#272D36"
 textColor = "#ECEEF1"
 font = "sans serif"
+
+[server]
+# Serves ./static/* at /app/static/* — used for the PWA manifest + its icons
+# (brand.apply() injects the <link rel="manifest"> into <head>), so Chrome can
+# offer a real "Install BASIS" with its own cached icon instead of a plain tab.
+enableStaticServing = true

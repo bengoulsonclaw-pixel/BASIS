@@ -625,6 +625,28 @@ def apply() -> None:
     _sync_native_theme()
     st.markdown(_CSS.safe_substitute(palette()), unsafe_allow_html=True)
     _apply_altair_theme()
+    _inject_manifest()
+
+
+def _inject_manifest() -> None:
+    """Add <link rel="manifest"> (+ theme-color) to the OUTER document's <head> — the
+    PWA manifest that lets Chrome offer a real "Install BASIS", which gets its own
+    cached icon everywhere (window, taskbar, Start Menu) instead of the generic Chrome
+    icon a plain --app=URL shortcut gets. Streamlit has no official API for <head>
+    injection, so this reaches out from a components.html iframe via window.parent —
+    the same technique the world-clock rail already uses to sync CSS vars onto the
+    outer page (see _world_clocks in app.py). Guarded so a rerun never adds a duplicate
+    <link>. Needs [server] enableStaticServing = true (.streamlit/config.toml) so
+    /app/static/manifest.json + its icons actually resolve."""
+    import streamlit.components.v1 as components
+    components.html(
+        "<script>try{var d=window.parent.document;"
+        "if(!d.querySelector('link[rel=\"manifest\"]')){"
+        "var l=d.createElement('link');l.rel='manifest';l.href='/app/static/manifest.json';"
+        "d.head.appendChild(l);"
+        "var m=d.createElement('meta');m.name='theme-color';m.content='#0F1216';"
+        "d.head.appendChild(m);"
+        "}}catch(e){}</script>", height=0)
 
 
 def _sync_native_theme() -> None:
