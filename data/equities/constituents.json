@@ -4296,13 +4296,6 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "V US Equity",
-      "name": "Visa Inc Class A Shares",
-      "sector": "Financials",
-      "region": "US",
-      "index": "Dow Jones 30"
-    },
-    {
       "ticker": "GOOGL US Equity",
       "name": "Alphabet Inc Cl A",
       "sector": "Communication",
@@ -4310,8 +4303,8 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "JPM US Equity",
-      "name": "Jpmorgan Chase + Co",
+      "ticker": "V US Equity",
+      "name": "Visa Inc Class A Shares",
       "sector": "Financials",
       "region": "US",
       "index": "Dow Jones 30"
@@ -4320,6 +4313,13 @@
       "ticker": "SHW US Equity",
       "name": "Sherwin Williams Co/The",
       "sector": "Materials",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "JPM US Equity",
+      "name": "Jpmorgan Chase + Co",
+      "sector": "Financials",
       "region": "US",
       "index": "Dow Jones 30"
     },
@@ -4373,16 +4373,16 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "IBM US Equity",
-      "name": "Intl Business Machines Corp",
-      "sector": "Information Technology",
+      "ticker": "BA US Equity",
+      "name": "Boeing Co/The",
+      "sector": "Industrials",
       "region": "US",
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "BA US Equity",
-      "name": "Boeing Co/The",
-      "sector": "Industrials",
+      "ticker": "IBM US Equity",
+      "name": "Intl Business Machines Corp",
+      "sector": "Information Technology",
       "region": "US",
       "index": "Dow Jones 30"
     },
