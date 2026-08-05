@@ -17,6 +17,7 @@ data/automation.json / data/email_recipients.json already work. Passwords are bc
 from __future__ import annotations
 
 import json
+import os
 import secrets
 import time
 from datetime import datetime, timezone
@@ -29,6 +30,13 @@ ROOT = Path(__file__).parent.parent
 USERS_FILE = ROOT / "data" / "users.json"
 COOKIE_KEY_FILE = ROOT / "data" / ".auth_cookie_key.txt"
 SEND_LOG_FILE = ROOT / "data" / "email_send_log.jsonl"
+
+# Login is opt-in per deployment, not baked into the app: your local Terminal (this same app.py,
+# run straight off your machine) stays exactly as it always was -- zero login, full access, one
+# implicit admin. Only a deployment that explicitly sets BASIS_REQUIRE_LOGIN=1 (the VPS site --
+# see deploy/vps/docker-compose.yml) enforces the login/role system below.
+REQUIRE_LOGIN = os.environ.get("BASIS_REQUIRE_LOGIN", "0") == "1"
+LOCAL_ADMIN = {"email": "local", "name": "Local Terminal", "role": "admin"}
 
 # Colleague accounts must use a work email on one of these domains (checked on add, not just at
 # login) — set this to your firm's domain(s) before handing out real accounts. Empty = no
@@ -110,7 +118,11 @@ def _credentials() -> dict:
 
 # ----- session / gating -----------------------------------------------------------------------
 def current_user() -> dict | None:
-    """The logged-in user's {email, name, role}, or None if not authenticated."""
+    """The logged-in user's {email, name, role}, or None if not authenticated. On a deployment
+    that doesn't require login (REQUIRE_LOGIN False -- your local Terminal), always the implicit
+    local admin -- there's no session to check."""
+    if not REQUIRE_LOGIN:
+        return LOCAL_ADMIN
     if not st.session_state.get("authentication_status"):
         return None
     email = st.session_state.get("username")
@@ -121,6 +133,8 @@ def current_user() -> dict | None:
 
 
 def is_admin() -> bool:
+    if not REQUIRE_LOGIN:
+        return True
     u = current_user()
     return bool(u and u["role"] == ROLE_ADMIN)
 
@@ -147,8 +161,11 @@ def _render_bootstrap_admin() -> None:
 
 
 def require_login() -> dict:
-    """Gate the whole app behind login. Call once, at the very top of app.py, before anything
-    else renders — stops the script until a valid session exists. Returns the logged-in user."""
+    """Gate the whole app behind login -- but only on a deployment that opts in (REQUIRE_LOGIN;
+    see the module docstring). Call once, at the very top of app.py, before anything else
+    renders — stops the script until a valid session exists. Returns the logged-in user."""
+    if not REQUIRE_LOGIN:
+        return LOCAL_ADMIN
     if not load_users():
         _render_bootstrap_admin()
         st.stop()

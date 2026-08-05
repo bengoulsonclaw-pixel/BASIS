@@ -7165,9 +7165,11 @@ with st.sidebar:
         st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
         _nav_button("Alert Settings", "Recipients")
         _nav_button("Data Health", "Data health")
-        _nav_button("Colleague Accounts", "User Admin")
-    st.caption(f"Logged in as **{CURRENT_USER['name']}**")
-    auth.render_logout_button()
+        if auth.REQUIRE_LOGIN:
+            _nav_button("Colleague Accounts", "User Admin")
+    if auth.REQUIRE_LOGIN:
+        st.caption(f"Logged in as **{CURRENT_USER['name']}**")
+        auth.render_logout_button()
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))

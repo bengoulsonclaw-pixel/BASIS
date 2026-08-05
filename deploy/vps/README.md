@@ -12,8 +12,17 @@ its zone has A `@` -> 2.24.221.3 and CNAME `www` -> basisterminal.com.
 data stores committed to git — the "DEMO MODE" badge in the sidebar is expected.
 Data freshness = the laptop's last push (the 22:00 nightly backup task, plus any
 session pushes). Bloomberg pulls, scheduled reports and emails all stay on the
-laptop. Per the Bloomberg licence, the site is for Ben's own use — do not hand
-out logins.
+laptop.
+
+**Per-user login (`src/auth.py`, `BASIS_REQUIRE_LOGIN=1` in docker-compose.yml).**
+The site now has real per-user accounts — an admin role (full access, same as
+before) and a colleague role (view + generate + email-to-self only, no config
+edits — see `data/users.json`, gitignored/local to the VPS). The old single
+shared Traefik password is gone; login is handled inside the app.
+**Before adding any real colleague account: confirm with whoever manages the
+Bloomberg licence that colleagues viewing Bloomberg-derived data this way is
+permitted** — this was originally "Ben's own use only" per that licence, and
+that question hasn't been resolved yet as of this rollout.
 
 ## Layout on the VPS (srv1608260.hstgr.cloud / 2.24.221.3, root via SSH key)
 

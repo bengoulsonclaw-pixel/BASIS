@@ -12,15 +12,20 @@ services:
       # Yahoo blocks datacenter IPs (every symbol comes back "possibly delisted"),
       # which starved the Equities pages — force cache-only reads on the VPS.
       - BASIS_YF_OFFLINE=1
+      # Turns on the per-user login/role system (src/auth.py) -- colleague accounts, view-only
+      # gating, "email me" self-send. Off by default so a plain local `streamlit run app.py`
+      # (your Terminal) stays login-free; only this deployment opts in.
+      - BASIS_REQUIRE_LOGIN=1
     labels:
       - traefik.enable=true
       - traefik.http.routers.basis.entrypoints=websecure
       - traefik.http.routers.basis.rule=Host(`basisterminal.com`) || Host(`www.basisterminal.com`) || Host(`basis.srv1608260.hstgr.cloud`)
       - traefik.http.routers.basis.tls.certresolver=letsencrypt
-      - traefik.http.routers.basis.middlewares=basis-rate,basis-auth
-      - traefik.http.middlewares.basis-auth.basicauth.users=Ben:$$apr1$$G/ke85dp$$c0vEIsMPGUCJEJda0fV58.
-      # Rate limit (per source IP) slows password brute-forcing without
-      # bothering a real user's page loads.
+      # Was basis-rate,basis-auth: the old single shared Traefik password (Ben-only, per the
+      # licence note below) has been replaced by per-user login inside the app itself, so
+      # colleagues can reach the site without needing that personal credential. Rate limiting
+      # (brute-force protection on the app's own login form) stays.
+      - traefik.http.routers.basis.middlewares=basis-rate
       - traefik.http.middlewares.basis-rate.ratelimit.average=25
       - traefik.http.middlewares.basis-rate.ratelimit.burst=50
       - traefik.http.services.basis.loadbalancer.server.port=8501
