@@ -1,17 +1,17 @@
 {
-  "created": "2026-08-04T10:51:00+00:00",
-  "as_of": "2026-08-03",
+  "created": "2026-08-05T19:29:10+00:00",
+  "as_of": "2026-08-04",
   "source": "bloomberg",
   "n_tickers": 88,
   "price_rows": 399,
   "iv_markets": 77,
   "oi_markets": 11,
   "oi_as_of": "2026-06-22 13:30:56",
-  "live_as_of": "2026-08-04T10:51:00+00:00",
+  "live_as_of": "2026-08-05T19:29:10+00:00",
   "live_n": 88,
   "equities": {
     "S&P 500": 504,
-    "Nasdaq 100": 103,
+    "Nasdaq 100": 102,
     "Dow Jones 30": 30,
     "Euro Stoxx 50": 50,
     "FTSE 100": 100,
@@ -19,5 +19,5 @@
     "CAC 40": 32,
     "Russell 2000": 1962
   },
-  "equities_pulled": "2026-08-04 08:10:27"
+  "equities_pulled": "2026-08-05 09:56:06"
 }

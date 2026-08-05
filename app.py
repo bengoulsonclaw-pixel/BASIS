@@ -51,6 +51,7 @@ from src import equities
 from src import eqfunda
 from src import eqcorr
 from src import eqdisp
+from src import auth
 from src.universe import INSTRUMENTS
 
 ROOT = Path(__file__).parent
@@ -329,6 +330,11 @@ st.set_page_config(
 # the CSS for the active theme; the sun/moon toggle in the masthead flips it.
 brand.apply()
 
+# Per-user login gate — must run before anything else renders. Stops the script here until a
+# valid session exists; everything below only ever runs for an authenticated user. See src/auth.py.
+CURRENT_USER = auth.require_login()
+IS_ADMIN = auth.is_admin()
+
 
 @st.cache_data
 def load_signals():
@@ -395,15 +401,28 @@ def _recipient_picker(state_key: str, recipients_key: str):
 
 
 def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_name, intro_html=None):
-    """Shared 'Email this report' block — a recipient dropdown + confirm + send button. Emails
-    the given report PDF bytes to the picked recipients via the generic desk sender."""
+    """Shared 'Email this report' block. Admins get the full recipient picker (desk/report contact
+    lists, unchanged). Colleagues get a single-click send to their own logged-in address only —
+    the recipient comes straight from the authenticated session, never from anything a colleague's
+    session can edit, so there is no path from this UI to an arbitrary address."""
     if not pdf_bytes:
         return
+    user = CURRENT_USER
     st.markdown("**Email this report**")
-    to_list = _recipient_picker(state_key, recipients_key)
-    c1, c2 = st.columns([1, 4])
-    confirm = c1.checkbox("Confirm", key=f"{state_key}_confirm")
-    if c2.button("📤 Email report now", disabled=not (confirm and to_list), key=f"{state_key}_send"):
+    if IS_ADMIN:
+        to_list = _recipient_picker(state_key, recipients_key)
+        c1, c2 = st.columns([1, 4])
+        confirm = c1.checkbox("Confirm", key=f"{state_key}_confirm")
+        clicked = c2.button("📤 Email report now", disabled=not (confirm and to_list),
+                            key=f"{state_key}_send")
+    else:
+        to_list = [user["email"]]
+        st.caption(f"Sends a copy to **{user['email']}** — your own address only.")
+        on_cooldown = not auth.can_send(user["email"])
+        if on_cooldown:
+            st.caption("Please wait a moment before sending again.")
+        clicked = st.button("📤 Generate PDF and email me", disabled=on_cooldown, key=f"{state_key}_send")
+    if clicked:
         with st.spinner("Sending…"):
             try:
                 import cot_scheduled_email as _mail
@@ -414,6 +433,7 @@ def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_na
                         _p, subject=subject,
                         intro_html=intro_html or f"<p>Please find the attached {attachment_name}.</p>",
                         attachment_name=attachment_name, report_key=recipients_key, to_override=to_list)
+                auth.record_send(user["email"], recipients_key)
                 st.success("Emailed to " + ", ".join(sent) + ".")
             except Exception as _e:
                 st.error(f"Email failed:\n\n{_e}")
@@ -857,6 +877,8 @@ def _render_group_tabs(active_page: str) -> None:
     members = _TAB_MEMBERS_OF.get(active_page)
     if not members:
         return
+    if not IS_ADMIN:
+        members = [m for m in members if m[1] not in _ADMIN_ONLY_DESTS]
     cols = st.columns(len(members))
     for col, (label, dest) in zip(cols, members):
         col.button(label, key=f"gtab_{dest}", use_container_width=True, on_click=_go, args=(dest,),
@@ -1317,6 +1339,12 @@ def render_sector_filter() -> None:
 
     on = _sf_enabled()
     st.markdown(f"#### 🗂️  Sectors & products — {len(on)}/{len(INSTRUMENTS)} instruments on")
+    if not IS_ADMIN:
+        # This filter is one shared file (data/sector_filter.json) read by every session, not a
+        # per-user preference -- a colleague toggling it would change what everyone else sees, so
+        # it's admin-only. Colleagues just see the current selection.
+        st.caption("Set by your admin -- controls which markets show up across every report page.")
+        return
     with st.container():
         st.caption("Hit a group to switch the whole sector on or off. Open its dropdown to drill in "
                    "by region / asset class and toggle individual contracts.")
@@ -1634,7 +1662,7 @@ def render_home() -> None:
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
     # with the old row faded beneath it for the whole computation.
-    if c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
+    if IS_ADMIN and c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
                  help="Two phases: the Terminal is only needed for the FETCH (~3–5 min) — "
                       "the banner tells you when you can close it — then the maths (own-vol "
                       "curve, COT, signals) runs Terminal-free. Equities have their own pull "
@@ -1646,10 +1674,10 @@ def render_home() -> None:
             st.session_state["ficc_pull_confirm"] = True
         else:
             st.session_state["ficc_pull_go"] = True
-    if c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
+    if IS_ADMIN and c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
                  help="Recompute all strategies from the current data — instant in snapshot mode."):
         st.session_state["rerun_signals_go"] = True
-    if st.session_state.get("ficc_pull_confirm"):
+    if IS_ADMIN and st.session_state.get("ficc_pull_confirm"):
         st.warning(f"⚡ Snapshot **already pulled today** ({_to_et((snap or {}).get('created', ''))}). "
                    "Pulling again re-spends the day's Bloomberg data allowance on near-identical "
                    "data — worth it only if the first pull was bad or markets have moved a lot.")
@@ -1659,9 +1687,9 @@ def render_home() -> None:
             st.session_state["ficc_pull_go"] = True
         if _g2.button("Cancel", key="ficc_pull_cancel"):
             st.session_state.pop("ficc_pull_confirm", None); st.rerun()
-    if st.session_state.pop("ficc_pull_go", False):
+    if IS_ADMIN and st.session_state.pop("ficc_pull_go", False):
         _run_ficc_pull()
-    if st.session_state.pop("rerun_signals_go", False):
+    if IS_ADMIN and st.session_state.pop("rerun_signals_go", False):
         with st.spinner("Recomputing all signals…"):
             run_daily.run()
         load_signals.clear(); st.rerun()
@@ -1924,13 +1952,14 @@ def render_equities_home() -> None:
     st.subheader("Data")
     _eq_pull_banner()
     c0, c1, c2, c3 = st.columns([1.15, 1.55, 1.55, 2.75])
-    _eq_autopull_control(c0)
+    if IS_ADMIN:
+        _eq_autopull_control(c0)
     try:                                   # mirror snapshot.py's equities pull switches
         from snapshot import PULL_EQUITY_CONSTITUENTS as _EQ_ON, PULL_FUNDAMENTALS as _EQF_ON
     except Exception:
         _EQ_ON = _EQF_ON = True
     _eq_pull_on = bool(_EQ_ON or _EQF_ON)
-    if c1.button("📥 Pull equities data", use_container_width=True, key="eq_pull",
+    if IS_ADMIN and c1.button("📥 Pull equities data", use_container_width=True, key="eq_pull",
                  disabled=not _eq_pull_on,
                  help=("The Equities side's own data pull — overnight quotes/history and the "
                        "(weekly-guarded) fundamentals refresh come FREE from Yahoo Finance; "
@@ -2247,7 +2276,7 @@ def render_eq_fundamentals() -> None:
                "fundamentals database, so trends accumulate over time.")
     _eqf_pull_note()
     c1, c2 = st.columns([1, 2])
-    if c1.button("📥 Pull fundamentals", use_container_width=True, key="eqf_pull",
+    if IS_ADMIN and c1.button("📥 Pull fundamentals", use_container_width=True, key="eqf_pull",
                  help="Force a FULL manual pull (~30 fields per constituent, needs the Terminal) "
                       "and append to the database. Rarely needed — the Equities pull refreshes "
                       "fundamentals on a cycle (core weekly · Russell 2000 monthly)."):
@@ -2390,7 +2419,7 @@ def render_eq_etfs() -> None:
     st.caption("The funds the desk's clients trade — overnight moves sized in σ of each "
                "fund's own ~1-month daily vol, plus the fund tearsheet. All data rides "
                "**free Yahoo Finance** (zero Bloomberg hits).")
-    if st.button("🔄 Refresh ETF data", key="eqetf_refresh",
+    if IS_ADMIN and st.button("🔄 Refresh ETF data", key="eqetf_refresh",
                  help="Re-pull quotes and the fund tearsheet from Yahoo (free)."):
         st.session_state["eqetf_go"] = True
     if st.session_state.pop("eqetf_go", False):
@@ -3142,7 +3171,7 @@ def _ta_reports(meta, prod=None, scope="ficc", conf_set=None) -> None:
                                  "Claude (numbers & levels kept exact, neutral tone); falls back to "
                                  "the plain template if the model isn't reachable. Adds ~30–90s.")
     # One place to fix the report's build settings — and the WEEKLY email obeys the same saved values.
-    if cc1.button("📌 Set as default", key=f"conv_defaults_save{k}",
+    if IS_ADMIN and cc1.button("📌 Set as default", key=f"conv_defaults_save{k}",
                   help="Save this Selection / How many / AI-polish (and the quality bar) as the "
                        "startup default — the weekly emailed report runs on exactly these."):
         save_ta_report_defaults(scope, mode=_conv_mode, top_n=int(_conv_top), ai_polish=bool(_conv_ai),
@@ -3163,7 +3192,7 @@ def _ta_reports(meta, prod=None, scope="ficc", conf_set=None) -> None:
                  "universe, every strategy page, the hub scoring and the other reports. (This is not "
                  "the Home ‘Sectors & products’ filter, which switches a market off app-wide.)")
         _rx1, _rx2 = st.columns([1, 2.4])
-        if _rx1.button("💾 Save as default", key=f"rep_excl_save{k}",
+        if IS_ADMIN and _rx1.button("💾 Save as default", key=f"rep_excl_save{k}",
                        help="Persist this list — used by the weekly emailed report and on every launch."):
             universe.save_report_excluded(_excl, scope)
             st.toast(f"{len(_excl)} product(s) excluded from the report.", icon="🚫")
@@ -3506,11 +3535,13 @@ def render_ta_overview() -> None:
     if _all_filtered_off():                              # the Sectors & products filter hides everything
         st.warning("🗂️ **All sectors are switched off** in the Sectors & products filter (🏠 Home) — "
                    "nothing is enabled to analyse, so this page looks empty. Your data is fine.")
-        if st.button("🗂️  Turn all sectors back on", key="ta_filter_reset", type="primary"):
+        if IS_ADMIN and st.button("🗂️  Turn all sectors back on", key="ta_filter_reset", type="primary"):
             universe.save_filter(set(), set())
             for _s in _sf_sections():
                 st.session_state.pop(_s[3], None)        # clear stale empty pills so they re-seed on
             st.rerun()
+        elif not IS_ADMIN:
+            st.caption("Ask your admin to reset it, or visit Home — it self-heals on load.")
         return
     with st.expander("🎯 Confluence set — which methods feed the score, by axis", expanded=True):
         st.caption("The five independent **axes** of technical analysis. Tick the method(s) that feed "
@@ -3530,7 +3561,7 @@ def render_ta_overview() -> None:
             _conf.extend(_picked)
         st.session_state["conf_set"] = _conf          # the union — the report-generate handler reads this
         _cs1, _cs2 = st.columns([1, 2.4])
-        if _cs1.button("💾 Save as default", key="conf_save",
+        if IS_ADMIN and _cs1.button("💾 Save as default", key="conf_save",
                        help="Persist this set — used by the weekly report and on every launch."):
             tascore.save_confluence_set(_conf or tascore.CONFLUENCE_DEFAULT)
             st.toast("Confluence set saved.", icon="🎯")
@@ -3983,7 +4014,7 @@ def render_eq_ta_overview() -> None:
                 key=f"conf_ax_eq::{_ax}",
                 help=f"The {_ax.lower()} axis — {len(_methods)} method(s) available. Blank = out of the score.")
             _conf.extend(_picked)
-        if st.button("💾 Save as default", key="conf_save_eq",
+        if IS_ADMIN and st.button("💾 Save as default", key="conf_save_eq",
                      help="Persist this equities confluence set — independent of the FICC one."):
             tascore.save_confluence_set(_conf or tascore.CONFLUENCE_DEFAULT, scope="equities")
             st.toast("Equities confluence set saved.", icon="🎯")
@@ -4126,7 +4157,7 @@ def render_eq_strategy(strat: str) -> None:
                  "the trigger for the table below, and is independent of this strategy's FICC trigger.")
         st.info(f"**Trigger:** {spec['trigger'](threshold)}")
         _td1, _td2 = st.columns([0.74, 0.26])
-        if _td2.button("📌 Set default", key=f"eqthr_def_{strat}", use_container_width=True,
+        if IS_ADMIN and _td2.button("📌 Set default", key=f"eqthr_def_{strat}", use_container_width=True,
                        help="Save this as the EQUITIES default trigger for this strategy (independent of FICC)."):
             save_trigger_default(f"eq:{strat}", float(threshold))
             st.toast(f"Saved {threshold:g} as the equities default trigger for {strat}.", icon="📌")
@@ -4475,7 +4506,7 @@ def render_block_sizes() -> None:
     edited = st.data_editor(
         df, use_container_width=True, height=min(1400, 42 + 35 * len(df)), hide_index=True,
         key="blocksizes_editor",
-        disabled=["sector", "product", "ticker", "exchange"],
+        disabled=True if not IS_ADMIN else ["sector", "product", "ticker", "exchange"],
         column_config={
             "sector": st.column_config.TextColumn("Sector", width="small"),
             "product": st.column_config.TextColumn("Product"),
@@ -4493,7 +4524,7 @@ def render_block_sizes() -> None:
         },
     )
     bc1, bc2 = st.columns([1, 4])
-    if bc1.button("💾 Save block sizes", type="primary", key="save_blocksizes_btn"):
+    if IS_ADMIN and bc1.button("💾 Save block sizes", type="primary", key="save_blocksizes_btn"):
         blocksizes.save_map({r["ticker"]: {"fut": str(r.get("fut") or "").strip(),
                                            "opt": str(r.get("opt") or "").strip(),
                                            "strat": str(r.get("strat") or "").strip(),
@@ -4679,7 +4710,7 @@ def render_fut_yield() -> None:
                                 for tk, e in ctd.items()])
         _ed = st.data_editor(
             _ctd_df, hide_index=True, use_container_width=True, key="fy_ctd_editor",
-            disabled=["ticker", "product"],
+            disabled=True if not IS_ADMIN else ["ticker", "product"],
             column_config={
                 "product": st.column_config.TextColumn("Product"),
                 "coupon": st.column_config.NumberColumn("CTD coupon %", format="%.3f", step=0.125),
@@ -4690,7 +4721,7 @@ def render_fut_yield() -> None:
                 "cf": st.column_config.NumberColumn("Conversion factor", format="%.4f",
                                                     help="0 = recompute from the CTD terms."),
             })
-        if st.button("💾 Save CTD assumptions", key="fy_ctd_save"):
+        if IS_ADMIN and st.button("💾 Save CTD assumptions", key="fy_ctd_save"):
             out = {}
             for r in _ed.to_dict("records"):
                 e = {"coupon": float(r["coupon"]), "years": float(r["years"]),
@@ -5015,54 +5046,55 @@ def render_opec() -> None:
     st.caption(f"**2026 release calendar:** {OPEC_2026_DATES}  ·  ~04:00 ET (10:00 Vienna).")
     st.divider()
 
-    # --- recipient list (the "opec" report key) ---------------------------------------
-    st.markdown("#### Recipients")
-    st.caption("These addresses receive the OPEC synopsis. Changes save immediately and are also "
-               "used by the unattended scheduled job.")
-    data = recipients.load_all()
-    addrs = list(data.get("opec", []))
-    if not addrs:
-        st.caption("_None set — falls back to the desk default._")
-    for i, addr in enumerate(addrs):
-        c1, c2 = st.columns([0.85, 0.15])
-        c1.write(addr)
-        if c2.button("Remove", key=f"opec_rm_{i}", use_container_width=True):
-            addrs.pop(i); data["opec"] = addrs; recipients.save_all(data); st.rerun()
-    with st.form(key="opec_addform", clear_on_submit=True):
-        fc1, fc2 = st.columns([0.78, 0.22])
-        new = fc1.text_input("Add address", label_visibility="collapsed", placeholder="name@firm.com")
-        if fc2.form_submit_button("➕ Add", use_container_width=True):
-            e = (new or "").strip()
-            if "@" not in e or "." not in e.split("@")[-1]:
-                st.warning("Enter a valid email address (e.g. name@firm.com).")
-            elif e in addrs:
-                st.info(f"{e} is already on the list.")
-            else:
-                addrs.append(e); data["opec"] = addrs; recipients.save_all(data); st.rerun()
-    st.divider()
+    if IS_ADMIN:
+        # --- recipient list (the "opec" report key) -----------------------------------
+        st.markdown("#### Recipients")
+        st.caption("These addresses receive the OPEC synopsis. Changes save immediately and are also "
+                   "used by the unattended scheduled job.")
+        data = recipients.load_all()
+        addrs = list(data.get("opec", []))
+        if not addrs:
+            st.caption("_None set — falls back to the desk default._")
+        for i, addr in enumerate(addrs):
+            c1, c2 = st.columns([0.85, 0.15])
+            c1.write(addr)
+            if c2.button("Remove", key=f"opec_rm_{i}", use_container_width=True):
+                addrs.pop(i); data["opec"] = addrs; recipients.save_all(data); st.rerun()
+        with st.form(key="opec_addform", clear_on_submit=True):
+            fc1, fc2 = st.columns([0.78, 0.22])
+            new = fc1.text_input("Add address", label_visibility="collapsed", placeholder="name@firm.com")
+            if fc2.form_submit_button("➕ Add", use_container_width=True):
+                e = (new or "").strip()
+                if "@" not in e or "." not in e.split("@")[-1]:
+                    st.warning("Enter a valid email address (e.g. name@firm.com).")
+                elif e in addrs:
+                    st.info(f"{e} is already on the list.")
+                else:
+                    addrs.append(e); data["opec"] = addrs; recipients.save_all(data); st.rerun()
+        st.divider()
 
-    # --- actions ----------------------------------------------------------------------
-    st.markdown("#### Run now")
-    st.caption("The scheduled job already does this automatically on release days; these are for "
-               "an on-demand run or a test. Fetching opens a brief Chrome window.")
-    a1, a2, a3 = st.columns(3)
-    if a1.button("📤 Fetch latest & send", type="primary", use_container_width=True,
-                 help="Fetch the latest MOMR, build the synopsis and email the recipient list now."):
-        _run_opec(["--force-send"], "Fetching the latest MOMR, building and sending…")
-    if a2.button("👁️ Rebuild preview (no send)", use_container_width=True,
-                 help="Rebuild the PDF from the last downloaded report without emailing."):
-        _run_opec(["--from-inbox", "--dry-run"], "Rebuilding the synopsis from the last download…", timeout=120)
-    desk1 = (recipients.get("opec") or ["benjamin.goulson@xpi.com.br"])[0]
-    if a3.button("✉️ Send test to me", use_container_width=True,
-                 help=f"Fetch + build, then email only {desk1}."):
-        _run_opec(["--force-send", "--to", desk1], f"Building and sending a test to {desk1}…")
+        # --- actions ------------------------------------------------------------------
+        st.markdown("#### Run now")
+        st.caption("The scheduled job already does this automatically on release days; these are for "
+                   "an on-demand run or a test. Fetching opens a brief Chrome window.")
+        a1, a2, a3 = st.columns(3)
+        if a1.button("📤 Fetch latest & send", type="primary", use_container_width=True,
+                     help="Fetch the latest MOMR, build the synopsis and email the recipient list now."):
+            _run_opec(["--force-send"], "Fetching the latest MOMR, building and sending…")
+        if a2.button("👁️ Rebuild preview (no send)", use_container_width=True,
+                     help="Rebuild the PDF from the last downloaded report without emailing."):
+            _run_opec(["--from-inbox", "--dry-run"], "Rebuilding the synopsis from the last download…", timeout=120)
+        desk1 = (recipients.get("opec") or ["benjamin.goulson@xpi.com.br"])[0]
+        if a3.button("✉️ Send test to me", use_container_width=True,
+                     help=f"Fetch + build, then email only {desk1}."):
+            _run_opec(["--force-send", "--to", desk1], f"Building and sending a test to {desk1}…")
+        if st.session_state.get("opec_log"):
+            with st.expander("Last run log", expanded=False):
+                st.code(st.session_state["opec_log"][-4000:])
 
     if pdfs:
         st.download_button("⬇️  Download the latest synopsis PDF", data=pdfs[0].read_bytes(),
                            file_name=pdfs[0].name, mime="application/pdf")
-    if st.session_state.get("opec_log"):
-        with st.expander("Last run log", expanded=False):
-            st.code(st.session_state["opec_log"][-4000:])
 
 
 PM_CLI = ROOT / "precious_metals_scheduled_email.py"
@@ -5154,38 +5186,43 @@ def render_precious_metals() -> None:
             st.warning(f"Draft — placeholder data in: {', '.join(mock)}. "
                        "The PDF carries the same banner until these sources are wired live.")
 
-    st.markdown("#### Run now")
-    a1, a2, a3 = st.columns(3)
-    if a1.button("👁️ Rebuild preview (no send)", use_container_width=True,
-                 help="Refresh the data pulls and rebuild the PDF without emailing."):
-        _run_pm(["--dry-run"], "Rebuilding the Precious Metals monitor…")
-    desk1 = (recipients.get("precious_metals") or ["benjamin.goulson@xpi.com.br"])[0]
-    if a2.button("✉️ Email to me", use_container_width=True,
-                 help=f"Rebuild, then email only {desk1} for proofreading."):
-        _run_pm(["--force-send", "--to", desk1], f"Building and sending to {desk1}…")
-    if a3.button("📤 Build & send to list", type="primary", use_container_width=True,
-                 help="Rebuild and email the full recipient list now."):
-        _run_pm(["--force-send"], "Building and sending to the recipient list…")
+    if IS_ADMIN:
+        st.markdown("#### Run now")
+        a1, a2, a3 = st.columns(3)
+        if a1.button("👁️ Rebuild preview (no send)", use_container_width=True,
+                     help="Refresh the data pulls and rebuild the PDF without emailing."):
+            _run_pm(["--dry-run"], "Rebuilding the Precious Metals monitor…")
+        desk1 = (recipients.get("precious_metals") or ["benjamin.goulson@xpi.com.br"])[0]
+        if a2.button("✉️ Email to me", use_container_width=True,
+                     help=f"Rebuild, then email only {desk1} for proofreading."):
+            _run_pm(["--force-send", "--to", desk1], f"Building and sending to {desk1}…")
+        if a3.button("📤 Build & send to list", type="primary", use_container_width=True,
+                     help="Rebuild and email the full recipient list now."):
+            _run_pm(["--force-send"], "Building and sending to the recipient list…")
+        if st.session_state.get("pm_log"):
+            with st.expander("Last run log", expanded=False):
+                st.code(st.session_state["pm_log"][-4000:])
 
     if PM_PDF.exists():
         st.download_button("⬇️  Download the latest monitor PDF", data=PM_PDF.read_bytes(),
                            file_name=PM_PDF.name, mime="application/pdf")
-    if st.session_state.get("pm_log"):
-        with st.expander("Last run log", expanded=False):
-            st.code(st.session_state["pm_log"][-4000:])
 
     # --- release synopses (WGC GDT / WPIC PQ) -----------------------------------------
     st.divider()
     st.markdown("#### Release synopses — WGC Gold Demand Trends · WPIC Platinum Quarterly")
     st.caption("A daily job watches for new editions and emails a one-page synopsis on "
                "release day (toggle on the Recipients page). Latest built synopses:")
-    r1, r2 = st.columns(2)
-    if r1.button("🔎 Check releases & rebuild (no send)", use_container_width=True,
-                 help="Detect the latest editions, fetch, parse and rebuild the synopses."):
-        _run_pm_rel(["--dry-run"], "Checking WGC / WPIC and rebuilding synopses…")
-    if r2.button("✉️ Email latest synopses to me", use_container_width=True,
-                 help=f"Rebuild and email the current editions to {desk1}."):
-        _run_pm_rel(["--force-send", "--to", desk1], f"Building and sending to {desk1}…")
+    if IS_ADMIN:
+        r1, r2 = st.columns(2)
+        if r1.button("🔎 Check releases & rebuild (no send)", use_container_width=True,
+                     help="Detect the latest editions, fetch, parse and rebuild the synopses."):
+            _run_pm_rel(["--dry-run"], "Checking WGC / WPIC and rebuilding synopses…")
+        if r2.button("✉️ Email latest synopses to me", use_container_width=True,
+                     help=f"Rebuild and email the current editions to {desk1}."):
+            _run_pm_rel(["--force-send", "--to", desk1], f"Building and sending to {desk1}…")
+        if st.session_state.get("pm_rel_log"):
+            with st.expander("Last synopsis run log", expanded=False):
+                st.code(st.session_state["pm_rel_log"][-4000:])
     rel_pdfs = sorted(PM_REL_DIR.glob("*_Synopsis.pdf"), key=lambda p: p.stat().st_mtime,
                       reverse=True)[:4]
     if rel_pdfs:
@@ -5193,9 +5230,6 @@ def render_precious_metals() -> None:
         for col, p in zip(cols, rel_pdfs):
             col.download_button(f"⬇️ {p.stem.replace('_', ' ')}", data=p.read_bytes(),
                                 file_name=p.name, mime="application/pdf", key=f"pmrel_{p.name}")
-    if st.session_state.get("pm_rel_log"):
-        with st.expander("Last synopsis run log", expanded=False):
-            st.code(st.session_state["pm_rel_log"][-4000:])
 
     pages = _pm_page_images()
     if pages:
@@ -5805,7 +5839,7 @@ def render_vol_backtester() -> None:
                    "run, from the FX futures in the universe), so mixed-currency pairs ratio "
                    "and net correctly in dollars.")
         _dc1, _dc2 = st.columns([1, 3])
-        if _dc1.button("📌 Set as default", key="vbt_set_def", use_container_width=True,
+        if IS_ADMIN and _dc1.button("📌 Set as default", key="vbt_set_def", use_container_width=True,
                        help="Save lots, both costs and the exit buffer as this page's "
                             "startup defaults — they load on every launch."):
             save_trigger_default("VolBT lots", float(buy_lots))
@@ -7127,9 +7161,14 @@ with st.sidebar:
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
     _nav_button("Strategy Builder", "Strategy Builder")
-    st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
-    _nav_button("Alert Settings", "Recipients")
-    _nav_button("Data Health", "Data health")
+    if IS_ADMIN:
+        st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
+        _nav_button("Alert Settings", "Recipients")
+        _nav_button("Data Health", "Data health")
+        _nav_button("Colleague Accounts", "User Admin")
+    if auth.REQUIRE_LOGIN:
+        st.caption(f"Logged in as **{CURRENT_USER['name']}**")
+        auth.render_logout_button()
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
@@ -7154,16 +7193,9 @@ with st.container(key="basis_topbar"):
     with _tb_tg:
         brand.theme_toggle()           # fills the space right of the clocks
     brand.masthead(_crumb, toggle=False)
-try:      # quote rail: the day's biggest movers from the same frame as Overnight moves
-    _rail = _ficc_moves_frame()
-    if not _rail.empty:
-        _rail = _rail.reindex(_rail["sigma"].abs().sort_values(ascending=False).index).head(8)
-        brand.ticker_rail([
-            {"sym": r["Market"], "last": f"{r['last']:g}",
-             "chg": f"{r['pct']:+.2f}%", "up": r["pct"] >= 0}
-            for _, r in _rail.iterrows()])
-except Exception:
-    pass
+# Top-of-page market ticker rail removed 2026-07-31 (Ben: no on-screen value). The masthead
+# + world clocks + theme toggle above are the top bar now. (brand.ticker_rail is left in place
+# but unused.)
 
 # Nav clicks flag a scroll reset — the destination page should open at the top (Streamlit
 # otherwise keeps the previous page's scroll position across the rerun). A TIME WINDOW, not
@@ -7295,7 +7327,15 @@ def render_universe():
 # Destinations shared across BOTH desks (Cross-asset / System sidebar sections) — reachable from
 # either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
 # chain below rather than being swallowed by its else-branch back into the Equities home page.
-_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health"}
+_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "User Admin"}
+
+# Defense-in-depth: even though colleague sessions never see the nav buttons/tabs that set `active`
+# to one of these admin-only destinations, refuse to render them for a non-admin session regardless
+# of how `active` got set. Redirects to Home rather than erroring, since this should never happen
+# in normal use.
+_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "User Admin"}
+if active in _ADMIN_ONLY_DESTS and not IS_ADMIN:
+    active = st.session_state.active = "Home"
 
 # ----- EQUITIES side: its own home (and future pages), dispatched before the FICC pipeline so the
 # futures report-popup + group-tab switcher never run on the Equities side -----------------------
@@ -7362,6 +7402,8 @@ if active == "Recipients":
     render_recipients(); st.stop()
 if active == "Universe":
     render_universe(); st.stop()
+if active == "User Admin":
+    auth.render_user_admin(); st.stop()
 
 # ----- a strategy page is active ------------------------------------------
 st.header(active)
@@ -7399,7 +7441,7 @@ if threshold is not None:
     trigger_text = spec["trigger"](threshold)
     st.info(f"**Trigger:** {trigger_text}")
     _td1, _td2 = st.columns([0.74, 0.26])
-    if _td2.button("📌 Set default", key=f"thr_def_{active}", use_container_width=True,
+    if IS_ADMIN and _td2.button("📌 Set default", key=f"thr_def_{active}", use_container_width=True,
                    help="Save this trigger as the default for this strategy — it loads on every "
                         "launch until you set it again."):
         save_trigger_default(active, float(threshold))
@@ -8279,7 +8321,7 @@ if active == "AG Fundamentals":
     from src import agdata
 
     a_refresh, a_note = st.columns([1, 3])
-    if a_refresh.button("↻ Refresh AG data (USDA / NASS)",
+    if IS_ADMIN and a_refresh.button("↻ Refresh AG data (USDA / NASS)",
                         help="Refresh the USDA report calendar and pull NASS grain stocks. "
                              "The calendar works with no key; stocks need the free NASS_API_KEY."):
         with st.spinner("Refreshing USDA ag data…"):
@@ -8312,7 +8354,7 @@ if active == "COT Reports":
     from src import cotdata, cotstudy, cotseasonality
 
     c_refresh, c_note = st.columns([1, 3])
-    if c_refresh.button("↻ Refresh COT data (CFTC API)",
+    if IS_ADMIN and c_refresh.button("↻ Refresh COT data (CFTC API)",
                         help="Fetch the latest weekly Commitments of Traders from the free CFTC API "
                              "(~20–40s, needs internet — no Bloomberg / Terminal)."):
         with st.spinner("Fetching CFTC Commitments of Traders…"):
@@ -8354,7 +8396,7 @@ if active == "COT Reports":
             f"Latest report **{asof_dt:%d %b %Y}** · **{n_long}** crowded long · **{n_short}** crowded "
             f"short across {int(detail['cot_index'].notna().sum())} markets.")
     _cd1, _cd2 = st.columns([0.74, 0.26])
-    if _cd2.button("📌 Set default", key="cot_cutoff_def", use_container_width=True,
+    if IS_ADMIN and _cd2.button("📌 Set default", key="cot_cutoff_def", use_container_width=True,
                    help="Save this cutoff as the default for the COT page — it loads on every launch."):
         save_trigger_default("COT Reports", int(cutoff))
         st.toast(f"Saved {int(cutoff)} as the default COT cutoff.", icon="📌")
@@ -8647,7 +8689,7 @@ if active == "Put/Call Ratios":
             "(defensive / hedging demand) — often read contrarian-bullish; low = unusually **call-heavy** "
             "(bullish) — contrarian-bearish. Volume P/C (today's flow) is shown alongside the headline.")
     _pd1, _pd2 = st.columns([0.74, 0.26])
-    if _pd2.button("📌 Set default", key="pc_cutoff_def", use_container_width=True,
+    if IS_ADMIN and _pd2.button("📌 Set default", key="pc_cutoff_def", use_container_width=True,
                    help="Save this cutoff as the default for the Put/Call page — it loads on every launch."):
         save_trigger_default("Put/Call Ratios", int(cutoff))
         st.toast(f"Saved {int(cutoff)} as the default Put/Call cutoff.", icon="📌")
@@ -9026,7 +9068,7 @@ if active == "Open Interest":
     _snap = _load_snap()
     _oi_asof = (_snap or {}).get("oi_as_of") or "never"
     oc1, oc2 = st.columns([1, 2])
-    if oc1.button("↻ Refresh OI data", key="oi_refresh",
+    if IS_ADMIN and oc1.button("↻ Refresh OI data", key="oi_refresh",
                   help="Pull the 11 fixed-income option chains live from Bloomberg (Terminal must be up). "
                        "Meant to run weekly — Mondays. The report and heatmaps read this cached data."):
         with st.spinner("Pulling the 11 fixed-income option chains from Bloomberg… (~1–2 min)"):
@@ -9122,7 +9164,7 @@ if active == "Open Interest":
                        f"Open_Interest_{_safe}.pdf", f"Rendering open-interest heatmap… ({INSTRUMENTS[sel][0]})")
     # Whole-book (every product) is an AD-HOC cross-asset export — only when "all products" is on,
     # since it pulls every chain live (heavy). The page's default deliverable is the FI book above.
-    if _all_products and st.button("📚 Whole-book PDF (all products · ad-hoc · pulls every chain live)"):
+    if IS_ADMIN and _all_products and st.button("📚 Whole-book PDF (all products · ad-hoc · pulls every chain live)"):
         _oi_render_pdf(_oi_input_frame(_oi_order, 6, 13), "book",
                        "Open_Interest_Whole_Book.pdf", "Rendering open-interest heatmaps… (whole book)")
 

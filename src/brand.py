@@ -477,7 +477,7 @@ code, pre, kbd { background:$surface2; color:$text; }
     padding:.3rem .7rem; min-height:0; line-height:1.1; font-weight:600;
 }
 .st-key-basis_theme_toggle button:hover { border-color:$gold; color:$gold; }
-.st-key-basis_theme_toggle button p { font-size:.82rem; }
+.st-key-basis_theme_toggle button p { font-size:1.15rem; line-height:1; margin:0; }
 
 /* hover tooltips (portal-rendered) — match the palette in both themes */
 div:has(> .stTooltipContent), .stTooltipContent { background:$surface2 !important; }
@@ -531,8 +531,11 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 .st-key-basis_masthead .stButton>button { min-height:30px; padding:.15rem .5rem; }
 /* the theme toggle (on the top bar's clocks row) — right padding keeps it clear of
    Streamlit's floating ⋮ menu button in the corner */
-.st-key-basis_theme_toggle { padding-right:48px; }
-.st-key-basis_theme_toggle button { min-height:30px; padding:.15rem .55rem; }
+.st-key-basis_theme_toggle { display:flex; align-items:center; justify-content:center; padding-right:44px; }
+.st-key-basis_theme_toggle button {
+    width:34px !important; min-width:34px; height:34px; min-height:34px; padding:0;
+    display:flex; align-items:center; justify-content:center;   /* sharp corners: matches the app's other buttons */
+}
 
 /* ticker rail */
 .bt-rail {
