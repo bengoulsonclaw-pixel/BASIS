@@ -12,6 +12,12 @@ RUN grep -vE '^(--extra-index-url|blpapi|xbbg)' /tmp/requirements.txt > /tmp/req
 RUN pip install --no-cache-dir --index-url https://blpapi.bloomberg.com/repository/releases/python/simple/ blpapi || true
 RUN pip install --no-cache-dir xbbg || true
 
+# Report PDFs (src/reportkit.py) render via headless Chromium. The playwright pip package alone
+# doesn't include the browser binary or the OS-level shared libraries it needs to actually run
+# (this base image is missing them) -- --with-deps installs both the apt packages and the
+# Chromium build in one step, so PDF generation works out of the box on the VPS.
+RUN python -m playwright install --with-deps chromium
+
 WORKDIR /app
 EXPOSE 8501
 CMD ["python", "-m", "streamlit", "run", "app.py", \
