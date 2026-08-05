@@ -32,6 +32,7 @@ ROOT = Path(__file__).parent.parent
 USERS_FILE = ROOT / "data" / "users.json"
 COOKIE_KEY_FILE = ROOT / "data" / ".auth_cookie_key.txt"
 SEND_LOG_FILE = ROOT / "data" / "email_send_log.jsonl"
+SETTINGS_FILE = ROOT / "data" / "auth_settings.json"
 
 # Login is opt-in per deployment, not baked into the app: your local Terminal (this same app.py,
 # run straight off your machine) stays exactly as it always was -- zero login, full access, one
@@ -39,11 +40,6 @@ SEND_LOG_FILE = ROOT / "data" / "email_send_log.jsonl"
 # see deploy/vps/docker-compose.yml) enforces the login/role system below.
 REQUIRE_LOGIN = os.environ.get("BASIS_REQUIRE_LOGIN", "0") == "1"
 LOCAL_ADMIN = {"email": "local", "name": "Local Terminal", "role": "admin"}
-
-# Colleague accounts must use a work email on one of these domains (checked on add, not just at
-# login) — set this to your firm's domain(s) before handing out real accounts. Empty = no
-# restriction, which is only safe while you're the only account that exists.
-ALLOWED_EMAIL_DOMAINS: list[str] = []
 
 ROLE_ADMIN = "admin"
 ROLE_COLLEAGUE = "colleague"
@@ -63,11 +59,29 @@ def save_users(users: dict) -> None:
     USERS_FILE.write_text(json.dumps(users, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def load_allowed_domains() -> list[str]:
+    """Colleague accounts must use a work email on one of these domains (checked on add, not
+    just at login) — set from the Colleague Accounts panel. Empty = no restriction, which is
+    only safe while you're the only account that exists."""
+    if not SETTINGS_FILE.exists():
+        return []
+    try:
+        return json.loads(SETTINGS_FILE.read_text(encoding="utf-8")).get("allowed_email_domains", [])
+    except Exception:
+        return []
+
+
+def save_allowed_domains(domains: list[str]) -> None:
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_FILE.write_text(json.dumps({"allowed_email_domains": domains}, indent=2), encoding="utf-8")
+
+
 def domain_allowed(email: str) -> bool:
-    if not ALLOWED_EMAIL_DOMAINS:
+    domains = load_allowed_domains()
+    if not domains:
         return True
     email = email.strip().lower()
-    return any(email.endswith("@" + d.lower().lstrip("@")) for d in ALLOWED_EMAIL_DOMAINS)
+    return any(email.endswith("@" + d.lower().lstrip("@")) for d in domains)
 
 
 def add_user(email: str, name: str, password: str, role: str) -> None:
@@ -77,7 +91,7 @@ def add_user(email: str, name: str, password: str, role: str) -> None:
     if not email or "@" not in email or "." not in email.split("@")[-1]:
         raise ValueError("Enter a valid email address.")
     if not domain_allowed(email):
-        raise ValueError(f"Email must be on an allowed domain ({', '.join(ALLOWED_EMAIL_DOMAINS)}).")
+        raise ValueError(f"Email must be on an allowed domain ({', '.join(load_allowed_domains())}).")
     if role not in (ROLE_ADMIN, ROLE_COLLEAGUE):
         raise ValueError("Invalid role.")
     if len(password or "") < 8:
@@ -212,12 +226,27 @@ def render_user_admin() -> None:
         if rm and st.button(f"Remove {rm}", key="user_admin_rm_btn"):
             remove_user(rm)
             st.rerun()
+    domains = load_allowed_domains()
+    with st.expander("⚙️ Email domain restriction" + (f" — {', '.join('@' + d for d in domains)}"
+                                                       if domains else " — none set"),
+                     expanded=False):
+        st.caption("Only email addresses on these domains can be added below. Leave blank to "
+                   "allow any address (fine while you're the only account that exists).")
+        _dom_text = st.text_input(
+            "Allowed domains — comma-separated (e.g. yourbroker.com)",
+            value=", ".join(domains), key="allowed_domains_input")
+        if st.button("Save", key="save_allowed_domains"):
+            new_domains = [d.strip().lstrip("@").lower() for d in _dom_text.split(",") if d.strip()]
+            save_allowed_domains(new_domains)
+            st.success("Saved.")
+            st.rerun()
+
     st.markdown("**Add an account**" if not REQUIRE_LOGIN else "**Add a colleague**")
-    if ALLOWED_EMAIL_DOMAINS:
-        st.caption(f"Email must end in: {', '.join('@' + d for d in ALLOWED_EMAIL_DOMAINS)}")
+    if domains:
+        st.caption(f"Email must end in: {', '.join('@' + d for d in domains)}")
     else:
-        st.caption("⚠️ No email domain restriction is configured (ALLOWED_EMAIL_DOMAINS in "
-                   "src/auth.py) — any email address can be added right now.")
+        st.caption("⚠️ No email domain restriction set (see above) — any email address can be "
+                   "added right now.")
     with st.form("add_colleague", clear_on_submit=True):
         name = st.text_input("Name")
         email = st.text_input("Work email — becomes their username and their only "

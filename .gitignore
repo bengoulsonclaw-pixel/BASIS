@@ -52,6 +52,7 @@ data/wasde_consensus.json
 data/users.json
 data/.auth_cookie_key.txt
 data/email_send_log.jsonl
+data/auth_settings.json
 
 # ── OS / editor cruft ─────────────────────────────────────────────────────────
 .DS_Store
