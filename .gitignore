@@ -46,6 +46,13 @@ data/automation.json
 data/email_recipients.json
 data/wasde_consensus.json
 
+# ── Colleague-access accounts / login secrets — local to each install, never synced.
+#    Ben provisions colleagues directly on each environment (local + VPS) via the in-app
+#    admin panel; the VPS's own users.json/cookie key never round-trips through git. ──────
+data/users.json
+data/.auth_cookie_key.txt
+data/email_send_log.jsonl
+
 # ── OS / editor cruft ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

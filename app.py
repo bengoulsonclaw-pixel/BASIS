@@ -51,6 +51,7 @@ from src import equities
 from src import eqfunda
 from src import eqcorr
 from src import eqdisp
+from src import auth
 from src.universe import INSTRUMENTS
 
 ROOT = Path(__file__).parent
@@ -329,6 +330,11 @@ st.set_page_config(
 # the CSS for the active theme; the sun/moon toggle in the masthead flips it.
 brand.apply()
 
+# Per-user login gate — must run before anything else renders. Stops the script here until a
+# valid session exists; everything below only ever runs for an authenticated user. See src/auth.py.
+CURRENT_USER = auth.require_login()
+IS_ADMIN = auth.is_admin()
+
 
 @st.cache_data
 def load_signals():
@@ -395,15 +401,28 @@ def _recipient_picker(state_key: str, recipients_key: str):
 
 
 def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_name, intro_html=None):
-    """Shared 'Email this report' block — a recipient dropdown + confirm + send button. Emails
-    the given report PDF bytes to the picked recipients via the generic desk sender."""
+    """Shared 'Email this report' block. Admins get the full recipient picker (desk/report contact
+    lists, unchanged). Colleagues get a single-click send to their own logged-in address only —
+    the recipient comes straight from the authenticated session, never from anything a colleague's
+    session can edit, so there is no path from this UI to an arbitrary address."""
     if not pdf_bytes:
         return
+    user = CURRENT_USER
     st.markdown("**Email this report**")
-    to_list = _recipient_picker(state_key, recipients_key)
-    c1, c2 = st.columns([1, 4])
-    confirm = c1.checkbox("Confirm", key=f"{state_key}_confirm")
-    if c2.button("📤 Email report now", disabled=not (confirm and to_list), key=f"{state_key}_send"):
+    if IS_ADMIN:
+        to_list = _recipient_picker(state_key, recipients_key)
+        c1, c2 = st.columns([1, 4])
+        confirm = c1.checkbox("Confirm", key=f"{state_key}_confirm")
+        clicked = c2.button("📤 Email report now", disabled=not (confirm and to_list),
+                            key=f"{state_key}_send")
+    else:
+        to_list = [user["email"]]
+        st.caption(f"Sends a copy to **{user['email']}** — your own address only.")
+        on_cooldown = not auth.can_send(user["email"])
+        if on_cooldown:
+            st.caption("Please wait a moment before sending again.")
+        clicked = st.button("📤 Generate PDF and email me", disabled=on_cooldown, key=f"{state_key}_send")
+    if clicked:
         with st.spinner("Sending…"):
             try:
                 import cot_scheduled_email as _mail
@@ -414,6 +433,7 @@ def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_na
                         _p, subject=subject,
                         intro_html=intro_html or f"<p>Please find the attached {attachment_name}.</p>",
                         attachment_name=attachment_name, report_key=recipients_key, to_override=to_list)
+                auth.record_send(user["email"], recipients_key)
                 st.success("Emailed to " + ", ".join(sent) + ".")
             except Exception as _e:
                 st.error(f"Email failed:\n\n{_e}")
@@ -857,6 +877,8 @@ def _render_group_tabs(active_page: str) -> None:
     members = _TAB_MEMBERS_OF.get(active_page)
     if not members:
         return
+    if not IS_ADMIN:
+        members = [m for m in members if m[1] not in _ADMIN_ONLY_DESTS]
     cols = st.columns(len(members))
     for col, (label, dest) in zip(cols, members):
         col.button(label, key=f"gtab_{dest}", use_container_width=True, on_click=_go, args=(dest,),
@@ -1634,7 +1656,7 @@ def render_home() -> None:
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
     # with the old row faded beneath it for the whole computation.
-    if c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
+    if IS_ADMIN and c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
                  help="Two phases: the Terminal is only needed for the FETCH (~3–5 min) — "
                       "the banner tells you when you can close it — then the maths (own-vol "
                       "curve, COT, signals) runs Terminal-free. Equities have their own pull "
@@ -1646,10 +1668,10 @@ def render_home() -> None:
             st.session_state["ficc_pull_confirm"] = True
         else:
             st.session_state["ficc_pull_go"] = True
-    if c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
+    if IS_ADMIN and c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
                  help="Recompute all strategies from the current data — instant in snapshot mode."):
         st.session_state["rerun_signals_go"] = True
-    if st.session_state.get("ficc_pull_confirm"):
+    if IS_ADMIN and st.session_state.get("ficc_pull_confirm"):
         st.warning(f"⚡ Snapshot **already pulled today** ({_to_et((snap or {}).get('created', ''))}). "
                    "Pulling again re-spends the day's Bloomberg data allowance on near-identical "
                    "data — worth it only if the first pull was bad or markets have moved a lot.")
@@ -1659,9 +1681,9 @@ def render_home() -> None:
             st.session_state["ficc_pull_go"] = True
         if _g2.button("Cancel", key="ficc_pull_cancel"):
             st.session_state.pop("ficc_pull_confirm", None); st.rerun()
-    if st.session_state.pop("ficc_pull_go", False):
+    if IS_ADMIN and st.session_state.pop("ficc_pull_go", False):
         _run_ficc_pull()
-    if st.session_state.pop("rerun_signals_go", False):
+    if IS_ADMIN and st.session_state.pop("rerun_signals_go", False):
         with st.spinner("Recomputing all signals…"):
             run_daily.run()
         load_signals.clear(); st.rerun()
@@ -7127,9 +7149,13 @@ with st.sidebar:
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
     _nav_button("Strategy Builder", "Strategy Builder")
-    st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
-    _nav_button("Alert Settings", "Recipients")
-    _nav_button("Data Health", "Data health")
+    if IS_ADMIN:
+        st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
+        _nav_button("Alert Settings", "Recipients")
+        _nav_button("Data Health", "Data health")
+        _nav_button("Colleague Accounts", "User Admin")
+    st.caption(f"Logged in as **{CURRENT_USER['name']}**")
+    auth.render_logout_button()
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
@@ -7154,16 +7180,9 @@ with st.container(key="basis_topbar"):
     with _tb_tg:
         brand.theme_toggle()           # fills the space right of the clocks
     brand.masthead(_crumb, toggle=False)
-try:      # quote rail: the day's biggest movers from the same frame as Overnight moves
-    _rail = _ficc_moves_frame()
-    if not _rail.empty:
-        _rail = _rail.reindex(_rail["sigma"].abs().sort_values(ascending=False).index).head(8)
-        brand.ticker_rail([
-            {"sym": r["Market"], "last": f"{r['last']:g}",
-             "chg": f"{r['pct']:+.2f}%", "up": r["pct"] >= 0}
-            for _, r in _rail.iterrows()])
-except Exception:
-    pass
+# Top-of-page market ticker rail removed 2026-07-31 (Ben: no on-screen value). The masthead
+# + world clocks + theme toggle above are the top bar now. (brand.ticker_rail is left in place
+# but unused.)
 
 # Nav clicks flag a scroll reset — the destination page should open at the top (Streamlit
 # otherwise keeps the previous page's scroll position across the rerun). A TIME WINDOW, not
@@ -7295,7 +7314,15 @@ def render_universe():
 # Destinations shared across BOTH desks (Cross-asset / System sidebar sections) — reachable from
 # either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
 # chain below rather than being swallowed by its else-branch back into the Equities home page.
-_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health"}
+_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "User Admin"}
+
+# Defense-in-depth: even though colleague sessions never see the nav buttons/tabs that set `active`
+# to one of these admin-only destinations, refuse to render them for a non-admin session regardless
+# of how `active` got set. Redirects to Home rather than erroring, since this should never happen
+# in normal use.
+_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "User Admin"}
+if active in _ADMIN_ONLY_DESTS and not IS_ADMIN:
+    active = st.session_state.active = "Home"
 
 # ----- EQUITIES side: its own home (and future pages), dispatched before the FICC pipeline so the
 # futures report-popup + group-tab switcher never run on the Equities side -----------------------
@@ -7362,6 +7389,8 @@ if active == "Recipients":
     render_recipients(); st.stop()
 if active == "Universe":
     render_universe(); st.stop()
+if active == "User Admin":
+    auth.render_user_admin(); st.stop()
 
 # ----- a strategy page is active ------------------------------------------
 st.header(active)
