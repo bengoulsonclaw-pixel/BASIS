@@ -7165,8 +7165,7 @@ with st.sidebar:
         st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
         _nav_button("Alert Settings", "Recipients")
         _nav_button("Data Health", "Data health")
-        if auth.REQUIRE_LOGIN:
-            _nav_button("Colleague Accounts", "User Admin")
+        _nav_button("Colleague Accounts", "User Admin")
     if auth.REQUIRE_LOGIN:
         st.caption(f"Logged in as **{CURRENT_USER['name']}**")
         auth.render_logout_button()

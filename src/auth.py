@@ -9,10 +9,12 @@ Accounts are provisioned manually by an admin from the in-app "Colleague account
 colleague's work email, and that's the only address the "email me" buttons will ever send to
 (see ``email_report_ui`` in app.py).
 
-Storage is local to each install (data/users.json, gitignored — see .gitignore) and is never
-synced through git: a colleague added on the live VPS only exists there, matching how
-data/automation.json / data/email_recipients.json already work. Passwords are bcrypt-hashed
-(via streamlit_authenticator's Hasher) before they ever touch disk.
+Storage is local to each install (data/users.json, gitignored — see .gitignore, never committed
+through git, same as data/automation.json / data/email_recipients.json). Accounts are managed
+from the local Terminal, then pushed to the live VPS over SSH with an explicit button
+(``push_users_to_vps``) — the VPS's own copy is overwritten wholesale, so it's the local file
+that's the source of truth. Passwords are bcrypt-hashed (via streamlit_authenticator's Hasher)
+before they ever touch disk, in transit, or on the VPS.
 """
 from __future__ import annotations
 
@@ -210,7 +212,7 @@ def render_user_admin() -> None:
         if rm and st.button(f"Remove {rm}", key="user_admin_rm_btn"):
             remove_user(rm)
             st.rerun()
-    st.markdown("**Add a colleague**")
+    st.markdown("**Add an account**" if not REQUIRE_LOGIN else "**Add a colleague**")
     if ALLOWED_EMAIL_DOMAINS:
         st.caption(f"Email must end in: {', '.join('@' + d for d in ALLOWED_EMAIL_DOMAINS)}")
     else:
@@ -222,12 +224,59 @@ def render_user_admin() -> None:
                               "'email me' destination")
         pw = st.text_input("Temporary password", type="password",
                            help="Share this with them directly; there's no self-service reset yet.")
-        if st.form_submit_button("Add colleague", type="primary"):
+        # Only offered locally -- e.g. to seed your OWN admin account before the first push to the
+        # VPS, so you claim it instead of leaving a public bootstrap screen for whoever visits first.
+        role = ROLE_COLLEAGUE
+        if not REQUIRE_LOGIN:
+            role = ROLE_ADMIN if st.radio(
+                "Role", ["Colleague", "Admin"], horizontal=True, key="add_acct_role",
+                help="Admin = full access, same as your local Terminal. Colleague = view/generate/"
+                     "email-to-self only.") == "Admin" else ROLE_COLLEAGUE
+        if st.form_submit_button("Add account" if not REQUIRE_LOGIN else "Add colleague",
+                                 type="primary"):
             try:
-                add_user(email, name, pw, ROLE_COLLEAGUE)
-                st.success(f"Added {email.strip().lower()}.")
+                add_user(email, name, pw, role)
+                st.success(f"Added {email.strip().lower()} ({role}).")
             except ValueError as e:
                 st.error(str(e))
+
+    if not REQUIRE_LOGIN:
+        # Only shown on the local Terminal -- accounts are managed here, then pushed to the VPS.
+        # (On the VPS itself this file already IS the live account list, so there's nothing to push.)
+        st.divider()
+        st.markdown("**Live site**")
+        st.caption("Changes above are local until you push them — basisterminal.com won't see a "
+                   "new or removed colleague until you do.")
+        if st.button("🚀 Push accounts to basisterminal.com", type="primary", key="push_users_vps"):
+            with st.spinner("Pushing to the VPS…"):
+                ok, msg = push_users_to_vps()
+            (st.success if ok else st.error)(msg)
+
+
+# ----- push local account changes to the live VPS -----------------------------------------------
+# Accounts are managed from the local Terminal (this file's admin panel), never by visiting the
+# live site directly. This copies the local account file over SSH -- the VPS app picks it up on
+# its very next page load (load_users() always reads fresh off disk, no restart needed). A manual,
+# explicit action, never fired automatically, since it reaches a real production machine.
+VPS_SSH_KEY = Path.home() / ".ssh" / "basis_vps"
+VPS_HOST = "root@2.24.221.3"
+VPS_USERS_PATH = "/docker/basis/app/data/users.json"
+
+
+def push_users_to_vps() -> tuple[bool, str]:
+    import subprocess
+    if not VPS_SSH_KEY.exists():
+        return False, f"SSH key not found at {VPS_SSH_KEY}."
+    try:
+        r = subprocess.run(
+            ["scp", "-i", str(VPS_SSH_KEY), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+             str(USERS_FILE), f"{VPS_HOST}:{VPS_USERS_PATH}"],
+            capture_output=True, text=True, timeout=30)
+        if r.returncode == 0:
+            return True, "Pushed — live on basisterminal.com now."
+        return False, (r.stderr or r.stdout or "scp failed").strip()
+    except Exception as e:
+        return False, str(e)
 
 
 # ----- self-send rate limit + audit log -------------------------------------------------------
