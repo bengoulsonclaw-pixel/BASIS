@@ -542,6 +542,46 @@ def save_ta_report_defaults(scope: str = "ficc", **kw) -> None:
     f.write_text(json.dumps(d, indent=2, sort_keys=True), encoding="utf-8")
 
 
+# ── TA Backtester defaults (data/tabt_defaults.json / eq_tabt_defaults.json) ─────────────────
+# One file PER BOOK, same convention as the TA report defaults above — FICC and Equities keep
+# independent thresholds/exit rules since the two books trade very differently.
+TABT_FILES = {"ficc": _TA_REPORT_DIR / "tabt_defaults.json",
+             "equities": _TA_REPORT_DIR / "eq_tabt_defaults.json"}
+TABT_DEFAULTS = {
+    "strategies": [],          # [] = "not set" — the page seeds from the book's confluence set
+    "min_conviction": 30.0,
+    "min_score": 60.0,
+    "direction": "both",       # both | long | short
+    "exit_rule": "reversal",   # reversal | score_drop | hold_days
+    "hold_days": 10.0,
+    "stop_pct": 0.0,
+    "take_pct": 0.0,
+    "size": 0.0,               # 0.0 = "not set" — the page falls back to 1 lot / 100 shares
+}
+
+
+def tabt_defaults(scope: str = "ficc") -> dict:
+    """The saved TA Backtester settings for `scope` ('ficc' | 'equities'), falling back to
+    TABT_DEFAULTS. Unknown keys in the file are ignored, so an old/partial file can't break the page."""
+    out = dict(TABT_DEFAULTS)
+    try:
+        f = TABT_FILES.get(scope, TABT_FILES["ficc"])
+        saved = json.loads(f.read_text(encoding="utf-8"))
+        out.update({k: v for k, v in saved.items() if k in TABT_DEFAULTS})
+    except Exception:
+        pass
+    return out
+
+
+def save_tabt_defaults(scope: str = "ficc", **kw) -> None:
+    """Persist any subset of the TA Backtester settings for `scope` (merged over what's saved)."""
+    d = tabt_defaults(scope)
+    d.update({k: v for k, v in kw.items() if k in TABT_DEFAULTS})
+    f = TABT_FILES.get(scope, TABT_FILES["ficc"])
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(d, indent=2, sort_keys=True), encoding="utf-8")
+
+
 def fi_action(signal, direction, ticker) -> str:
     """Append the FUTURES action to a fixed-income technical signal so the row says BOTH the
     yield read and what to do to profit. FI runs on yields, so a rising-yield signal

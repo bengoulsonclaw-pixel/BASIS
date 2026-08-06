@@ -28,7 +28,8 @@ from src.datafeed import (MODE, get_live_quote, get_history, get_history_ta,
                           get_implied_vol_history, get_realized_vol_history,
                           get_term_structure, stale_iv_reasons)
 from src.specs import (SPECS, reflag_rows, trigger_default, save_trigger_default,
-                       ta_report_defaults, save_ta_report_defaults)
+                       ta_report_defaults, save_ta_report_defaults,
+                       tabt_defaults, save_tabt_defaults)
 from src import universe
 from src import brand
 from src import recipients
@@ -38,6 +39,7 @@ from src import econ
 from src import gitbackup
 from src import fedpath
 from src import volbt
+from src import tabt
 from src import sectorcorr
 from src import worldclock
 from src import prodsearch
@@ -861,7 +863,8 @@ _GROUP_TABS = {
                            ("🧮 Fut / Yield", "Fut Yield"),
                            ("🌐 Universe", "Universe")],
     "Trade Testing":      [("🏛️ Fed Path", "Fed Path"),
-                           ("🧪 Vol Backtester", "Vol Backtester")],
+                           ("🧪 Vol Backtester", "Vol Backtester"),
+                           ("🎯 TA Backtester", "TA Backtester")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
@@ -6383,6 +6386,272 @@ def _osb_atm_curve(ticker: str, mode: str) -> dict:
     return out
 
 
+def render_ta_backtester(scope: str = "ficc") -> None:
+    """TA Signal Backtester: pick a product, a score/conviction bar, and either one individual
+    technical strategy or the whole confluence score, then walk history day by day taking the SAME
+    signal the live TA pages would have shown on each date — so it can never quietly drift from what
+    the dashboard actually says. `scope` ('ficc' | 'equities') runs the identical page over either
+    book, same convention as `_ta_reports` (per-scope widget keys, universe, and history source)."""
+    import altair as alt
+
+    eq = scope == "equities"
+    k = f"_{scope}"
+    st.subheader("🎯  TA Signal Backtester")
+    st.markdown("""
+        <style>
+          div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] > div {
+              font-size: 1.05rem !important; line-height: 1.3 !important;
+              white-space: normal !important; overflow-wrap: anywhere; }
+        </style>""", unsafe_allow_html=True)
+    st.caption(
+        "Would following our technical-analysis signals have made or lost money? Walks the "
+        "chosen product's history day by day, takes the SAME signal the live TA pages would have "
+        "shown on that date (one strategy on its own, or the whole confluence score), and marks a "
+        "position to market until your exit rule closes it. Not investment advice — a historical "
+        "read of the signal, not a guarantee of future performance."
+    )
+
+    def _usd(v: float) -> str:
+        return f"-${abs(v):,.0f}" if v < -0.5 else f"${abs(v):,.0f}"
+
+    def _usd_md(v: float) -> str:
+        # st.caption/st.markdown treat a $...$ PAIR as inline LaTeX — escape whenever two
+        # dollar amounts might land in the same caption string (a single $ alone is safe).
+        return _usd(v).replace("$", r"\$")
+
+    if eq:
+        from src import eqta
+        _emeta = eqta.member_meta()
+        tickers = sorted(_emeta.keys(), key=lambda t: str(_emeta.get(t, {}).get("name") or t))
+        def _lab(t): return f"{_emeta.get(t, {}).get('name') or t}  ·  {t}"
+    else:
+        tickers = sorted(universe.TREND_UNIVERSE, key=lambda t: universe.name(t))
+        def _lab(t): return f"{universe.name(t)}  ·  {t}"
+    if not tickers:
+        st.info("No products in the universe yet.")
+        return
+
+    _dflt = tabt_defaults(scope)                  # saved settings — seeds every control below
+
+    ticker = st.selectbox("Product", tickers, format_func=_lab, key=f"tabt_tk{k}")
+
+    # --- strategy picker, by axis — the SAME structure as the TA hub's confluence set, and the
+    # same scoring rules: several methods ticked within one axis are de-duplicated (strongest
+    # counts full, the next ½, then ⅓ …), agreement ACROSS axes counts in full.
+    _avail = set(tabt.strategies_for_scope(scope))
+    with st.expander("🎯 Strategies in the score — pick per axis (same rules as the TA hub)",
+                     expanded=True):
+        st.caption("Tick one method to backtest it on its own, or several to backtest their "
+                   "combined score. Methods ticked within the **same axis** are de-duplicated "
+                   "(strongest counts full, the next **½**, then **⅓** …) so a single dimension "
+                   "can't vote twice; agreement **across** axes counts in full — exactly how the "
+                   "TA hub and the report score.")
+        # .get(): survives a Streamlit hot-reload where the cached src.specs module predates
+        # the "strategies" key (imported modules aren't re-imported on rerun — only app.py is).
+        _saved_bt = set(_dflt.get("strategies") or tascore.confluence_set(scope))
+        picked = []
+        _acols = st.columns(len(tascore.TA_AXES))
+        for _col, (_ax, _methods) in zip(_acols, tascore.TA_AXES.items()):
+            _opts = [m for m in _methods if m in _avail]
+            if not _opts:
+                continue
+            _picked = _col.multiselect(
+                _ax, options=_opts, default=[m for m in _opts if m in _saved_bt],
+                key=f"tabt_ax{k}::{_ax}",
+                help=f"The {_ax.lower()} axis — {len(_opts)} method(s) available. "
+                     "Blank = this dimension sits out of the score.")
+            picked.extend(_picked)
+        if not picked:
+            st.warning("Pick at least one strategy — nothing is in the score right now.")
+        elif tascore.has_intra_axis_dup(picked):
+            st.caption("↕️ De-dup active: you've ticked more than one method in an axis, so within "
+                       "it the strongest counts full and the rest at ½, ⅓ … — the axis still only "
+                       "votes once.")
+    if not eq and "Mean Reversion" in picked and not tabt.pair_for(ticker):
+        st.caption("Mean Reversion is pair-based and this product isn't part of a configured pair "
+                   "(see the Universe page's rich-cheap monitor) — it will sit out of this "
+                   "backtest's score.")
+
+    t1, t2, t3 = st.columns(3)
+    min_conviction = t1.number_input("Min conviction", 0, 100, int(_dflt["min_conviction"]), 5,
+                                     key=f"tabt_mc{k}",
+                                     help="Average strength of the flagging strategy/strategies "
+                                          "(0-100) required to open a trade.")
+    min_score = t2.number_input("Min |score|", 0, 600, int(_dflt["min_score"]), 10, key=f"tabt_ms{k}",
+                                help="Signed conviction score required to open a trade — for a "
+                                     "single strategy this equals its own conviction; for "
+                                     "Confluence it also demands breadth (several strategies "
+                                     "agreeing), same as the TA report's quality bar.")
+    _DIR_OPTS = ["Both", "Long only", "Short only"]
+    _DIR_IX = {"both": 0, "long": 1, "short": 2}
+    direction_lbl = t3.radio("Direction", _DIR_OPTS, key=f"tabt_dir{k}", horizontal=True,
+                             index=_DIR_IX.get(_dflt["direction"], 0))
+    direction = {"Both": "both", "Long only": "long", "Short only": "short"}[direction_lbl]
+
+    d1, d2 = st.columns(2)
+    end = d2.date_input("To", value=date.today() - timedelta(days=5),
+                        max_value=date.today() - timedelta(days=5), key=f"tabt_end{k}")
+    start = d1.date_input("From", value=end - timedelta(days=182),
+                          max_value=end - timedelta(days=30), key=f"tabt_start{k}")
+
+    e1, e2 = st.columns([2, 1])
+    _EXIT = {"reversal": "Signal reversal — exit when the signal flips direction",
+             "score_drop": "Score drop — exit once it no longer clears the bar above",
+             "hold_days": "Fixed holding period — exit N trading days after entry"}
+    _exit_keys = list(_EXIT)
+    exit_lbl = e1.radio("Exit rule", _exit_keys, format_func=_EXIT.get, key=f"tabt_exit{k}",
+                        horizontal=False,
+                        index=_exit_keys.index(_dflt["exit_rule"]) if _dflt["exit_rule"] in _exit_keys else 0)
+    hold_days = (e2.number_input("Holding days (N)", 1, 250, int(_dflt["hold_days"]), 1,
+                                 key=f"tabt_hold{k}")
+                if exit_lbl == "hold_days" else None)
+
+    with st.expander("Stop-loss / take-profit overlay (optional) + position size"):
+        st.caption("Layered ON TOP of the exit rule above — whichever triggers first closes the "
+                   "trade. Leave either at 0 to disable that side.")
+        o1, o2, o3 = st.columns(3)
+        stop_pct = o1.number_input("Stop-loss (%, 0 = off)", 0.0, 100.0, float(_dflt["stop_pct"]), 0.5,
+                                   key=f"tabt_stop{k}")
+        take_pct = o2.number_input("Take-profit (%, 0 = off)", 0.0, 200.0, float(_dflt["take_pct"]), 0.5,
+                                   key=f"tabt_take{k}")
+        _dflt_size = _dflt["size"] or (100.0 if eq else 1.0)
+        size = o3.number_input("Shares" if eq else "Lots", 1.0, 1_000_000.0, _dflt_size, 1.0,
+                               key=f"tabt_size{k}")
+
+    dc1, dc2 = st.columns([1, 3])
+    if IS_ADMIN and dc1.button("📌 Set as default", key=f"tabt_set_def{k}", use_container_width=True,
+                  help="Save the strategy picks, thresholds, direction, exit rule and overlay as "
+                       "this book's startup default for the TA Backtester — they load on every launch."):
+        save_tabt_defaults(scope, strategies=list(picked),
+                           min_conviction=float(min_conviction), min_score=float(min_score),
+                           direction=direction, exit_rule=exit_lbl,
+                           hold_days=float(hold_days or _dflt["hold_days"]),
+                           stop_pct=float(stop_pct), take_pct=float(take_pct), size=float(size))
+        st.toast("TA Backtester defaults saved for this book.", icon="📌")
+    _dflt = tabt_defaults(scope)   # re-read — reflects a just-saved value on this same rerun
+    _dflt_strats = _dflt.get("strategies") or list(tascore.confluence_set(scope))
+    dc2.caption(f"📌 Default: **{len(_dflt_strats)}** strategies"
+               + ("" if _dflt.get("strategies") else " (the book's confluence set)")
+               + f", conviction **{_dflt['min_conviction']:g}**, score **{_dflt['min_score']:g}**, "
+               f"**{_dflt['direction']}**, exit **{_dflt['exit_rule'].replace('_', ' ')}**"
+               + (f" ({_dflt['hold_days']:g}d)" if _dflt["exit_rule"] == "hold_days" else "")
+               + (f", stop/take {_dflt['stop_pct']:g}%/{_dflt['take_pct']:g}%"
+                  if _dflt["stop_pct"] or _dflt["take_pct"] else ""))
+
+    st.caption("A wide date range (or **Compare all strategies**, which backtests every strategy "
+              "at once) can take a while — each day re-checks the live signal logic, not a shortcut "
+              "approximation. Narrow the date range for a quicker look.")
+
+    kwargs = dict(min_conviction=float(min_conviction), min_score=float(min_score),
+                 direction=direction, start=start, end=end, exit_rule=exit_lbl,
+                 hold_days=int(hold_days) if hold_days else None,
+                 stop_pct=float(stop_pct) or None, take_pct=float(take_pct) or None,
+                 size=float(size))
+
+    b1, b2 = st.columns(2)
+    if b1.button("▶  Run backtest", type="primary", key=f"tabt_run{k}", disabled=not picked):
+        try:
+            with st.spinner("Walking the signal day by day…"):
+                st.session_state[f"tabt_res{k}"] = tabt.run_backtest(scope, ticker, list(picked), **kwargs)
+            st.session_state.pop(f"tabt_cmp{k}", None)
+        except ValueError as e:
+            st.session_state.pop(f"tabt_res{k}", None)
+            st.error(str(e))
+    if b2.button("📊  Compare all strategies", key=f"tabt_cmp_btn{k}"):
+        try:
+            with st.spinner("Backtesting every strategy on this product — this can take a few "
+                            "minutes over a wide date range…"):
+                st.session_state[f"tabt_cmp{k}"] = tabt.compare_strategies(scope, ticker, **kwargs)
+            st.session_state.pop(f"tabt_res{k}", None)
+        except ValueError as e:
+            st.session_state.pop(f"tabt_cmp{k}", None)
+            st.error(str(e))
+
+    cmp_df = st.session_state.get(f"tabt_cmp{k}")
+    if cmp_df is not None:
+        for w in cmp_df.attrs.get("warnings", []):
+            st.warning(w)
+        st.markdown(f"#### Every strategy vs Confluence — {_lab(ticker)}, "
+                    f"{start:%d %b %Y} → {end:%d %b %Y}")
+        bars = alt.Chart(cmp_df).mark_bar().encode(
+            x=alt.X("total_pnl:Q", title="Total P&L ($)"),
+            y=alt.Y("strategy:N", sort="-x", title=None),
+            color=alt.condition("datum.total_pnl >= 0", alt.value("#46C58A"), alt.value("#EC6A57")),
+            tooltip=[alt.Tooltip("strategy:N"), alt.Tooltip("total_pnl:Q", format="+,.0f"),
+                    alt.Tooltip("n_trades:Q", title="trades"),
+                    alt.Tooltip("win_rate:Q", format=".0f", title="win rate %")])
+        brand.show_chart(bars.properties(height=32 * max(len(cmp_df), 4) + 40))
+        view = cmp_df.assign(
+            **{"Total P&L": cmp_df["total_pnl"].map(_usd),
+               "Trades": cmp_df["n_trades"],
+               "Win rate": cmp_df["win_rate"].map(lambda v: "—" if pd.isna(v) else f"{v:.0f}%"),
+               "Avg win": cmp_df["avg_win"].map(_usd),
+               "Avg loss": cmp_df["avg_loss"].map(_usd),
+               "Profit factor": cmp_df["profit_factor"].map(
+                   lambda v: "∞" if v == np.inf else ("—" if pd.isna(v) else f"{v:.2f}")),
+               "Max drawdown": cmp_df["max_drawdown"].map(_usd),
+               "Avg hold (days)": cmp_df["avg_holding_days"].map(
+                   lambda v: "—" if pd.isna(v) else f"{v:.0f}")}
+        )[["strategy", "Total P&L", "Trades", "Win rate", "Avg win", "Avg loss",
+           "Profit factor", "Max drawdown", "Avg hold (days)"]].rename(columns={"strategy": "Strategy"})
+        st.dataframe(view, hide_index=True, use_container_width=True)
+        return
+
+    res = st.session_state.get(f"tabt_res{k}")
+    if res is None:
+        return
+    for w in res.warnings:
+        st.warning(w)
+    s = res.summary
+    if s["n_trades"] == 0:
+        st.info("No trades cleared the bar over this window — try a lower conviction/score "
+               "threshold, a wider date range, or a different strategy.")
+        return
+    _strat_note = (picked[0] if len(picked) == 1
+                  else f"{len(picked)}-strategy score ({', '.join(picked)})" if picked else "—")
+    st.markdown(f"#### {_lab(ticker)} — {_strat_note} — {start:%d %b %Y} → {end:%d %b %Y}")
+    st.caption(f"Min conviction {min_conviction:g} · Min |score| {min_score:g} · "
+              f"{direction_lbl} · exit: {_EXIT[exit_lbl]}"
+              + (f" · stop {stop_pct:g}% / take {take_pct:g}%" if stop_pct or take_pct else ""))
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Total P&L", _usd(s["total_pnl"]))
+    m1.caption(f"max drawdown {_usd(s['max_drawdown'])}")
+    m2.metric("Trades", f"{s['n_trades']}")
+    m2.caption(f"avg hold {s['avg_holding_days']:.0f}d")
+    m3.metric("Win rate", f"{s['win_rate']:.0f}%")
+    m3.caption(f"avg win {_usd_md(s['avg_win'])} · avg loss {_usd_md(s['avg_loss'])}")
+    m4.metric("Profit factor", "∞" if s["profit_factor"] == np.inf
+              else ("—" if pd.isna(s["profit_factor"]) else f"{s['profit_factor']:.2f}"))
+    m4.caption("gross win ÷ gross loss")
+    m5.metric("Size", f"{size:g} {'shares' if eq else 'lots'}")
+    m5.caption("USD P&L" if eq else "USD P&L (FX-converted where needed)")
+
+    cv = res.daily.reset_index()
+    ccol = "#46C58A" if s["total_pnl"] >= 0 else "#EC6A57"
+    cv_area = alt.Chart(cv).mark_area(opacity=0.2, color=ccol).encode(
+        x=alt.X("date:T", title=None), y=alt.Y("cum_pnl:Q", title="cumulative P&L ($)"))
+    cv_line = alt.Chart(cv).mark_line(color=ccol, strokeWidth=2.1, interpolate="step-after").encode(
+        x="date:T", y="cum_pnl:Q",
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("cum_pnl:Q", format="+,.0f"),
+                alt.Tooltip("position:Q", title="position")])
+    brand.show_chart((cv_area + cv_line).properties(height=280, title="Cumulative P&L"))
+
+    st.markdown("##### Trade blotter")
+    tv = res.trades.assign(
+        **{"Entry": res.trades["entry_date"].astype(str), "Exit": res.trades["exit_date"].astype(str),
+           "Dir": res.trades["direction"],
+           "Entry px": res.trades["entry_price"].map(lambda v: f"{v:,.3f}"),
+           "Exit px": res.trades["exit_price"].map(lambda v: f"{v:,.3f}"),
+           "Reason": res.trades["exit_reason"],
+           "Conviction": res.trades["entry_conviction"].map(lambda v: f"{v:.0f}"),
+           "Hold (d)": res.trades["holding_days"],
+           "P&L": res.trades["pnl"].map(_usd),
+           "P&L %": res.trades["pnl_pct"].map(lambda v: f"{v:+.1f}%")}
+    )[["Entry", "Exit", "Dir", "Entry px", "Exit px", "Reason", "Conviction",
+       "Hold (d)", "P&L", "P&L %"]]
+    st.dataframe(tv, hide_index=True, use_container_width=True, height=min(400, 40 + 35 * len(tv)))
+
+
 def render_strategy_builder() -> None:
     """Multi-leg option strategy builder (the optioncreator.com workflow): build a
     position from Buy/Sell x Call/Put/Future legs, read net debit/credit, max
@@ -7158,6 +7427,7 @@ with st.sidebar:
         _nav_button("04 · Single Stock Correlations", "eq:Correlations")
         _nav_button("05 · Index Dispersion", "eq:Dispersion")
         _nav_button("06 · Client ETFs", "eq:ETFs")
+        _nav_button("07 · TA Backtester", "eq:TA Backtester")
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
     _nav_button("Strategy Builder", "Strategy Builder")
@@ -7361,6 +7631,8 @@ if side == "Equities" and active not in _SHARED_DESTS:
         render_eq_dispersion()
     elif active == "eq:Technical Analysis":
         render_eq_ta_overview()
+    elif active == "eq:TA Backtester":
+        render_ta_backtester("equities")
     elif active.startswith("eq:") and active[3:] in tascore.TA_STRATEGIES:
         render_eq_strategy(active[3:])           # per-strategy Equities page (trigger + chart + table)
     else:
@@ -7395,6 +7667,8 @@ if active == "Fed Path":
     render_fed_path(); st.stop()
 if active == "Vol Backtester":
     render_vol_backtester(); st.stop()
+if active == "TA Backtester":
+    render_ta_backtester("ficc"); st.stop()
 if active == "Strategy Builder":
     render_strategy_builder(); st.stop()
 if active == "Product Correlations":
