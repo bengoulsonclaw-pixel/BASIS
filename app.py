@@ -7166,6 +7166,7 @@ with st.sidebar:
         _nav_button("Alert Settings", "Recipients")
         _nav_button("Data Health", "Data health")
         _nav_button("Colleague Accounts", "User Admin")
+        _nav_button("Colleague Activity", "User Activity")
     if auth.REQUIRE_LOGIN:
         st.caption(f"Logged in as **{CURRENT_USER['name']}**")
         auth.render_logout_button()
@@ -7327,15 +7328,23 @@ def render_universe():
 # Destinations shared across BOTH desks (Cross-asset / System sidebar sections) — reachable from
 # either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
 # chain below rather than being swallowed by its else-branch back into the Equities home page.
-_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "User Admin"}
+_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "User Admin",
+                 "User Activity"}
 
 # Defense-in-depth: even though colleague sessions never see the nav buttons/tabs that set `active`
 # to one of these admin-only destinations, refuse to render them for a non-admin session regardless
 # of how `active` got set. Redirects to Home rather than erroring, since this should never happen
 # in normal use.
-_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "User Admin"}
+_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "User Admin", "User Activity"}
 if active in _ADMIN_ONLY_DESTS and not IS_ADMIN:
     active = st.session_state.active = "Home"
+
+# "What did they look at" for the Colleague Activity page -- logs once per navigation (when the
+# destination actually changes), not on every widget interaction within a page. No-op on the local
+# Terminal (auth.REQUIRE_LOGIN False), where there's no session to attribute a view to.
+if auth.REQUIRE_LOGIN and st.session_state.get("_last_logged_page") != active:
+    st.session_state["_last_logged_page"] = active
+    auth.record_page_view(CURRENT_USER["email"], active)
 
 # ----- EQUITIES side: its own home (and future pages), dispatched before the FICC pipeline so the
 # futures report-popup + group-tab switcher never run on the Equities side -----------------------
@@ -7404,6 +7413,8 @@ if active == "Universe":
     render_universe(); st.stop()
 if active == "User Admin":
     auth.render_user_admin(); st.stop()
+if active == "User Activity":
+    auth.render_activity(); st.stop()
 
 # ----- a strategy page is active ------------------------------------------
 st.header(active)

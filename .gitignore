@@ -53,6 +53,7 @@ data/users.json
 data/.auth_cookie_key.txt
 data/email_send_log.jsonl
 data/auth_settings.json
+data/usage_log.jsonl
 
 # ── OS / editor cruft ─────────────────────────────────────────────────────────
 .DS_Store

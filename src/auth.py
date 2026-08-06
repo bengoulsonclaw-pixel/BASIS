@@ -201,6 +201,11 @@ def require_login() -> dict:
         if st.session_state.get("authentication_status") is False:
             st.error("Email or password is incorrect.")
         st.stop()
+    if not st.session_state.get("_login_logged"):
+        # Once per browser session (not every rerun) -- fires whether they typed a password or
+        # came in on the 14-day cookie, since either way it's a real visit worth counting.
+        record_login(user["email"])
+        st.session_state["_login_logged"] = True
     return user
 
 
@@ -307,6 +312,121 @@ def push_users_to_vps() -> tuple[bool, str]:
         return False, (r.stderr or r.stdout or "scp failed").strip()
     except Exception as e:
         return False, str(e)
+
+
+# ----- pull activity from the live VPS -----------------------------------------------------------
+VPS_USAGE_LOG_PATH = "/docker/basis/app/data/usage_log.jsonl"
+
+
+def pull_usage_log_from_vps() -> tuple[bool, str]:
+    """Copy the VPS's usage log down to the local Terminal for viewing -- the reverse of
+    push_users_to_vps(). Colleagues only ever log in on the live site (local has no login), so
+    this is the one thing that flows VPS-to-local rather than the other way around."""
+    import subprocess
+    if not VPS_SSH_KEY.exists():
+        return False, f"SSH key not found at {VPS_SSH_KEY}."
+    try:
+        r = subprocess.run(
+            ["scp", "-i", str(VPS_SSH_KEY), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+             f"{VPS_HOST}:{VPS_USAGE_LOG_PATH}", str(USAGE_LOG_FILE)],
+            capture_output=True, text=True, timeout=30)
+        if r.returncode == 0:
+            return True, "Pulled — showing the latest activity from basisterminal.com."
+        err = (r.stderr or r.stdout or "scp failed").strip()
+        if "No such file" in err:
+            return False, "No activity recorded on the live site yet."
+        return False, err
+    except Exception as e:
+        return False, str(e)
+
+
+# ----- usage tracking: who logged in, when, and what they looked at -----------------------------
+def record_login(email: str) -> None:
+    _append_usage_event(email, "login")
+
+
+def record_page_view(email: str, page: str) -> None:
+    _append_usage_event(email, "page_view", page=page)
+
+
+def _append_usage_event(email: str, event: str, **extra) -> None:
+    try:
+        USAGE_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with USAGE_LOG_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "email": email, "event": event, **extra,
+            }) + "\n")
+    except Exception:
+        pass   # usage tracking is best-effort — never block the app over it
+
+
+def _load_usage_events() -> list[dict]:
+    if not USAGE_LOG_FILE.exists():
+        return []
+    out = []
+    for line in USAGE_LOG_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(json.loads(line))
+        except Exception:
+            pass
+    return out
+
+
+def render_activity() -> None:
+    st.subheader("📊 Colleague activity")
+    st.caption("Who has logged in, how often, and which pages they've used.")
+    if not REQUIRE_LOGIN:
+        # Colleagues only ever log in on the live site -- local has no login, so this data only
+        # ever accumulates on the VPS. Pull it down to view it, same pattern as pushing accounts.
+        _mtime = (datetime.fromtimestamp(USAGE_LOG_FILE.stat().st_mtime, tz=timezone.utc)
+                  .isoformat(timespec="minutes")) if USAGE_LOG_FILE.exists() else None
+        st.caption(f"Last pulled: {_mtime or 'never'}")
+        if st.button("🔄 Pull latest activity from basisterminal.com", type="primary",
+                     key="pull_activity"):
+            with st.spinner("Pulling…"):
+                ok, msg = pull_usage_log_from_vps()
+            (st.success if ok else st.error)(msg)
+            if ok:
+                st.rerun()
+        st.divider()
+
+    events = _load_usage_events()
+    if not events:
+        st.info("No activity recorded yet.")
+        return
+
+    import pandas as pd
+    df = pd.DataFrame(events)
+    df["ts"] = pd.to_datetime(df["ts"])
+    names = {e: u["name"] for e, u in load_users().items()}
+    df["name"] = df["email"].map(lambda e: names.get(e, e))
+
+    st.markdown("**Summary**")
+    logins = df[df["event"] == "login"]
+    if logins.empty:
+        st.caption("No logins recorded yet.")
+    else:
+        summary = (logins.groupby(["name", "email"])["ts"]
+                   .agg(logins="count", last_seen="max", first_seen="min")
+                   .reset_index().sort_values("last_seen", ascending=False))
+        st.dataframe(summary, use_container_width=True, hide_index=True)
+
+    st.markdown("**Most-viewed pages**")
+    views = df[df["event"] == "page_view"]
+    if views.empty:
+        st.caption("No page views recorded yet.")
+    else:
+        pivot = (views.groupby(["name", "page"]).size().reset_index(name="views")
+                 .sort_values(["name", "views"], ascending=[True, False]))
+        st.dataframe(pivot, use_container_width=True, hide_index=True)
+
+    with st.expander("Raw recent events", expanded=False):
+        st.dataframe(df.sort_values("ts", ascending=False).head(200),
+                    use_container_width=True, hide_index=True)
 
 
 # ----- self-send rate limit + audit log -------------------------------------------------------
