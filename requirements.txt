@@ -18,6 +18,9 @@ pypdfium2==5.9.0      # in-app PDF preview — rasterises report pages; add its 
 tzdata               # zoneinfo timezone DB (needed on Windows for the Market Hours timeline + COT scheduler)
 yfinance==1.5.2      # free Yahoo Finance pulls for the Equities side (quotes/history/fundamentals) — src/yfin.py
 streamlit-authenticator==0.4.2  # colleague login (cookie session + bcrypt hashing) — src/auth.py
+google-auth==2.55.1             # Gmail OAuth token load/refresh — cot_scheduled_email.py sends
+google-api-python-client==2.198.0  # Gmail API client (send/modify) — same, was installed locally
+                                     # but never pinned here, so the VPS never had it either
 
 # --- Bloomberg live data ---------------------------------------------------------------
 # Included in the offline wheels\ bundle, so the install line above picks them up too.
