@@ -647,7 +647,7 @@ def _inject_manifest() -> None:
         "if(!d.querySelector('link[rel=\"manifest\"]')){"
         "var l=d.createElement('link');l.rel='manifest';l.href='/app/static/manifest.json';"
         "d.head.appendChild(l);"
-        "var m=d.createElement('meta');m.name='theme-color';m.content='#0F1216';"
+        "var m=d.createElement('meta');m.name='theme-color';m.content='#F5C518';"
         "d.head.appendChild(m);"
         "}}catch(e){}</script>", height=0)
 
