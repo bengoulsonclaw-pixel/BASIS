@@ -4,6 +4,13 @@ services:
     restart: unless-stopped
     volumes:
       - ./app:/app
+      # cot_scheduled_email.py (every "email this report" / "email me" button) reads its Gmail
+      # sender config + OAuth token from BASIS_MC_DIR/{main.py,token.json} -- normally the local
+      # Morning Coffee project folder. /docker/basis/mc_config/ is a VPS-only, non-git-tracked
+      # stand-in: main.py has just the 3 needed assignments (not the real Morning Coffee app),
+      # token.json is the real (already-authorized) Gmail OAuth token -- no client secret needed
+      # for ongoing sends, just this. Never committed; scp'd directly, same as data/users.json.
+      - ./mc_config:/mc_config
     environment:
       - TZ=Europe/London
       # snapshot mode: read the git-synced parquets (real pulled data); without
@@ -16,6 +23,7 @@ services:
       # gating, "email me" self-send. Off by default so a plain local `streamlit run app.py`
       # (your Terminal) stays login-free; only this deployment opts in.
       - BASIS_REQUIRE_LOGIN=1
+      - BASIS_MC_DIR=/mc_config
     labels:
       - traefik.enable=true
       - traefik.http.routers.basis.entrypoints=websecure

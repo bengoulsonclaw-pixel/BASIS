@@ -12,8 +12,9 @@ its zone has A `@` -> 2.24.221.3 and CNAME `www` -> basisterminal.com.
 **View-only by design.** No Bloomberg exists on the VPS, so the app runs on the
 data stores committed to git — the "DEMO MODE" badge in the sidebar is expected.
 Data freshness = the laptop's last push (the 22:00 nightly backup task, plus any
-session pushes). Bloomberg pulls, scheduled reports and emails all stay on the
-laptop.
+session pushes). Bloomberg pulls and scheduled/unattended report jobs still stay
+on the laptop — but as of 2026-08-05, on-demand emailing ("email this report" /
+"email me") also works live from the site (see `/docker/basis/mc_config/` below).
 
 **Per-user login (`src/auth.py`, `BASIS_REQUIRE_LOGIN=1` in docker-compose.yml).**
 The site now has real per-user accounts — an admin role (full access, same as
@@ -39,6 +40,15 @@ that question hasn't been resolved yet as of this rollout.
   root@2.24.221.3 /docker/basis/sync.sh`). Before 2026-08-05 this copy step
   didn't exist and the two could silently drift — a docker-compose.yml edit
   sat unused for a full deploy cycle before anyone noticed.
+- `/docker/basis/mc_config/` — `main.py` (just the 3 assignments
+  `cot_scheduled_email.load_email_cfg()` AST-parses — NOT the real Morning
+  Coffee app) + `token.json` (the real, already-authorized Gmail OAuth token —
+  no client secret needed for ongoing sends, `Credentials.from_authorized_user_file`
+  handles refresh from the token alone). Mounted into the container at
+  `/mc_config` (`BASIS_MC_DIR` in docker-compose.yml). **Never git-tracked** —
+  scp'd directly from the laptop, same as `data/users.json`. If the local Gmail
+  token is ever re-minted (`gmail_auth.py` in Futures_Movements), re-copy
+  `token.json` here manually; nothing keeps it in sync automatically.
 - Routing: the pre-existing Hostinger Traefik container (host mode, ports
   80/443, Let's Encrypt) picks the container up from its compose labels.
   OpenClaw runs on the same box — do not touch `/docker/openclaw-*` or
@@ -57,6 +67,9 @@ mkdir -p /docker/basis && git clone git@github.com:bengoulsonclaw-pixel/BASIS.gi
 cp /docker/basis/app/deploy/vps/docker-compose.yml /docker/basis/docker-compose.yml
 cp /docker/basis/app/deploy/vps/Dockerfile /docker/basis/Dockerfile
 cp /docker/basis/app/deploy/vps/sync.sh /docker/basis/sync.sh && chmod +x /docker/basis/sync.sh
+# For live emailing to work: mkdir /docker/basis/mc_config, then scp a main.py with just
+# _EMAIL_FROM/_EMAIL_APP_PW/_EMAIL_TO and the real Futures_Movements/token.json into it
+# (see "Layout on the VPS" above) -- optional, the site works fine without it (email just fails).
 cd /docker/basis && docker compose up -d --build
 docker exec basis-basis-1 python run_daily.py && docker restart basis-basis-1
 (crontab -l; echo '*/15 * * * * /docker/basis/sync.sh >> /var/log/basis_sync.log 2>&1') | crontab -
