@@ -33,6 +33,7 @@ USERS_FILE = ROOT / "data" / "users.json"
 COOKIE_KEY_FILE = ROOT / "data" / ".auth_cookie_key.txt"
 SEND_LOG_FILE = ROOT / "data" / "email_send_log.jsonl"
 SETTINGS_FILE = ROOT / "data" / "auth_settings.json"
+USAGE_LOG_FILE = ROOT / "data" / "usage_log.jsonl"
 
 # Login is opt-in per deployment, not baked into the app: your local Terminal (this same app.py,
 # run straight off your machine) stays exactly as it always was -- zero login, full access, one
