@@ -143,7 +143,14 @@ def _close_frame(symbols: list, **kwargs) -> pd.DataFrame:
 
 def _ohlcv_frames(symbols: list, **kwargs):
     """Chunked yf.download -> (close, volume) frames, date x yahoo-symbol. Mirrors _close_frame
-    but keeps Volume too (the OBV / MFI strategies need it). A failed chunk contributes nothing."""
+    but keeps Volume too (the OBV / MFI strategies need it). A failed chunk contributes nothing.
+
+    auto_adjust=True: this is the TA/backtest price path, so closes are split AND
+    dividend adjusted (total-return, back-adjusted the same way the futures deep store
+    is). Yahoo's raw close leaves a small artificial down-gap at every ex-div date,
+    which TA reads as real weakness and which silently drops dividend income from
+    backtest longs. Today's close is identical either way (adjustments apply backwards);
+    display paths keep raw closes via _close_frame."""
     if OFFLINE:
         return pd.DataFrame(), pd.DataFrame()
     import yfinance as yf
@@ -151,7 +158,7 @@ def _ohlcv_frames(symbols: list, **kwargs):
     for i in range(0, len(symbols), _CHUNK):
         chunk = symbols[i:i + _CHUNK]
         try:
-            px = yf.download(chunk, progress=False, auto_adjust=False, threads=True, **kwargs)
+            px = yf.download(chunk, progress=False, auto_adjust=True, threads=True, **kwargs)
         except Exception:
             continue
         if px is None or px.empty:
@@ -179,6 +186,8 @@ def _ohlcv_frames(symbols: list, **kwargs):
 def get_ohlcv(tickers, sessions: int = 504, drop_forming: bool = True):
     """(close, volume) frames, each date x BLOOMBERG ticker, ~`sessions` trading days back — the
     equities technical-analysis backfill (close feeds every strategy; volume feeds OBV / MFI).
+    Closes are split + dividend ADJUSTED (total-return — see _ohlcv_frames); today's close
+    matches the screen, historical levels are back-adjusted.
 
     `drop_forming` (default) removes the CURRENT calendar day's still-forming bar, so a pull taken
     while ANY exchange is mid-session uses only SETTLED closes — the suite is settlement-based, and a

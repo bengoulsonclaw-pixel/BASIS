@@ -30,7 +30,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from . import tascore, universe, volbt, yfin
+from . import deepstore, tascore, universe, volbt, yfin
 from .datafeed import get_history, get_history_ta, get_volume_history
 from .strategies import (trend, ma_crossover, ma_crossover_swing, support_resistance,
                          fibonacci, flag_breakout, breakout_retest, momentum, bollinger,
@@ -57,10 +57,15 @@ EXIT_RULES = ["reversal", "score_drop", "hold_days"]
 
 @dataclass
 class Result:
-    daily: pd.DataFrame        # date-indexed: price, position (+1/-1/0), unrealized_pnl, cum_pnl
+    daily: pd.DataFrame        # date-indexed: price, signal_level (yield for FI), score,
+                               # conviction, position (+1/-1/0), unrealized_pnl, cum_pnl
     trades: pd.DataFrame       # the blotter: one row per closed trade
-    summary: dict
+    summary: dict              # stats + the run's own parameters (strategies, bars, exit rule, …)
     warnings: list = field(default_factory=list)
+    series: pd.Series | None = None    # full-depth signal-space history (incl. the pre-start
+                                       # warm-up buffer) — the page's indicator overlays need the
+                                       # lookback so MAs/clouds are correct from the window's left edge
+    volume: pd.Series | None = None    # matching volume series, when the run pulled one
 
 
 def pair_for(ticker: str):
@@ -233,15 +238,20 @@ def _fx_multiplier(ticker: str, asof, buf_start, end_ts) -> tuple:
         return 1.0, ccy
     src = volbt.FX_USD.get(ccy)
     if src:
-        try:
-            fxh = get_history([src], start=buf_start, end=end_ts)
-            if src in fxh.columns:
-                s = fxh[src].dropna()
-                s = s[s.index <= pd.Timestamp(asof)]
-                if len(s):
-                    return float(s.iloc[-1]), ccy
-        except Exception:
-            pass
+        # Deep-backtest starts predate the 400-day live window, so try the deep store's
+        # RAW '1' series first (actual traded rate at `asof` — never the roll-adjusted
+        # one, whose historical levels are continuation fiction), then the live feed.
+        for fetch in (lambda: deepstore.get_raw([src], start=buf_start, end=end_ts),
+                      lambda: get_history([src], start=buf_start, end=end_ts)):
+            try:
+                fxh = fetch()
+                if src in fxh.columns:
+                    s = fxh[src].dropna()
+                    s = s[s.index <= pd.Timestamp(asof)]
+                    if len(s):
+                        return float(s.iloc[-1]), ccy
+            except Exception:
+                pass
     return 1.0, ccy
 
 
@@ -262,6 +272,7 @@ def _load_history(scope: str, ticker: str, strategies: list, start, end):
         close, vol = yfin.get_ohlcv(tickers, sessions=sessions)
         signal_hist = pnl_hist = close.reindex(columns=tickers)
         vol_hist = vol.reindex(columns=tickers) if needs_volume else None
+        deep_used = []
     else:
         pair_needed = "Mean Reversion" in strategies
         tickers = (sorted({t for p in universe.PAIRS for t in (p["a"], p["b"])} | {ticker})
@@ -269,15 +280,19 @@ def _load_history(scope: str, ticker: str, strategies: list, start, end):
         signal_hist = get_history_ta(tickers, start=buf_start, end=end_ts)
         pnl_hist = get_history(tickers, start=buf_start, end=end_ts)
         vol_hist = get_volume_history(tickers, start=buf_start, end=end_ts) if needs_volume else None
+        # Deep-store upgrade: ~10y roll-adjusted '1'-generic history where the store has
+        # it (falls straight through untouched when the store is absent — VPS / demo).
+        deep_used, pnl_hist, signal_hist, vol_hist = deepstore.overlay(
+            tickers, buf_start, end_ts, pnl_hist, signal_hist, vol_hist)
 
     if ticker not in pnl_hist.columns or pnl_hist[ticker].dropna().empty:
         raise ValueError(f"no price history for {ticker}")
-    return signal_hist, pnl_hist, vol_hist, tickers, buf_start, end_ts
+    return signal_hist, pnl_hist, vol_hist, tickers, buf_start, end_ts, deep_used
 
 
 def _setup(scope: str, ticker: str, strategies: list, start, end, exit_rule, hold_days):
     _validate_exit(exit_rule, hold_days)
-    signal_hist, pnl_hist, vol_hist, tickers, buf_start, end_ts = _load_history(
+    signal_hist, pnl_hist, vol_hist, tickers, buf_start, end_ts, deep_used = _load_history(
         scope, ticker, strategies, start, end)
     idx = pnl_hist[ticker].dropna().index
     days = idx[(idx >= pd.Timestamp(start)) & (idx <= end_ts)]
@@ -285,6 +300,16 @@ def _setup(scope: str, ticker: str, strategies: list, start, end, exit_rule, hol
         raise ValueError(f"no trading dates between {start} and {end}")
     eq = scope == "equities"
     warnings = []
+    if ticker in deep_used:
+        warnings.append("Deep history in use — prices are the '1' first-generic continuation "
+                        "series, roll-adjusted (difference/panama, anchored to the latest "
+                        "settle). Point moves and P&L are exact across rolls; absolute levels "
+                        "before the most recent roll differ from what the screen showed at "
+                        "the time.")
+    if (days[0] - pd.Timestamp(start)).days > 7:
+        warnings.append(f"History in the current data mode only reaches back to "
+                        f"{days[0].date()} — the backtest starts there, not at your "
+                        f"requested {start}.")
     if eq:
         size_mult, ccy = 1.0, "USD"
     else:
@@ -334,6 +359,10 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
         raw = _raw_frames(ticker, strategies, hist_slice, vol_slice)
         return _score_set(raw, strategies, ticker, sign)
 
+    # signal-space series (yields for FICC fixed income) — what the chart shows so trades can be
+    # read against the series the strategies actually scored on, not just the futures price
+    sig_series = signal_hist[ticker] if ticker in signal_hist.columns else pd.Series(dtype=float)
+
     pos, rows, trades, realized = None, [], [], 0.0
     for i, d in enumerate(days):
         price = float(pnl_hist.loc[d, ticker])
@@ -347,13 +376,32 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
             trades.append(trade)
             realized += trade["pnl"]
         unreal = (price - pos["entry_price"]) * pos["direction"] * size_mult * size if pos else 0.0
-        rows.append({"date": d, "price": price, "position": (pos["direction"] if pos else 0),
+        rows.append({"date": d, "price": price,
+                    "signal_level": float(sig_series.get(d, np.nan)),
+                    "score": (sig["score"] if sig else np.nan),
+                    "conviction": (sig["conviction"] if sig else np.nan),
+                    "position": (pos["direction"] if pos else 0),
                     "unrealized_pnl": unreal, "cum_pnl": realized + unreal})
 
     daily = pd.DataFrame(rows).set_index("date")
     trades_df = pd.DataFrame(trades)
-    return Result(daily=daily, trades=trades_df,
-                  summary=_summarize(trades_df, daily, ccy), warnings=warnings)
+    summary = _summarize(trades_df, daily, ccy)
+    # the run's own parameters, so the page renders results from what actually RAN, not from
+    # whatever the widgets say by the time the user reads them
+    summary.update({
+        "scope": scope, "ticker": ticker, "strategies": list(strategies),
+        "min_conviction": float(min_conviction), "min_score": float(min_score),
+        "direction": direction, "exit_rule": exit_rule,
+        "hold_days": (int(hold_days) if hold_days else None),
+        "stop_pct": (float(stop_pct) if stop_pct else 0.0),
+        "take_pct": (float(take_pct) if take_pct else 0.0),
+        "start": days[0].date(), "end": days[-1].date(),
+        "fi": bool(scope != "equities" and universe.is_fixed_income(ticker)),
+    })
+    vol_series = (vol_hist[ticker].dropna()
+                  if vol_hist is not None and ticker in vol_hist.columns else None)
+    return Result(daily=daily, trades=trades_df, summary=summary, warnings=warnings,
+                  series=sig_series.dropna(), volume=vol_series)
 
 
 def compare_strategies(scope: str, ticker: str, *, min_conviction: float = 0.0,

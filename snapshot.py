@@ -314,6 +314,16 @@ def _fetch_phase() -> dict | None:
     except Exception as e:
         print(f"  (COT price DB update skipped: {e})")
 
+    # Extend the deep '1'-generic price store (TA Backtester's ~10y roll-adjusted
+    # history, src/deepstore.py). Self-healing like the COT DB: the first run (or any
+    # truncated ticker) backfills the full depth, after that it's a ~10-day tail.
+    try:
+        from src import deepstore
+        dstore = deepstore.update(log=print)
+        print(f"  Deep price store: {dstore.shape[0]} dates x {dstore.shape[1]} markets")
+    except Exception as e:
+        print(f"  (deep price store update skipped: {e})")
+
     # Our own constant-90d STIR ATM curve (settlement-inverted, src/stircurve.py) — top up
     # the last ~2 weeks so settles finalise and expiries roll. Backfilled 13 months 2026-07-22.
     try:
