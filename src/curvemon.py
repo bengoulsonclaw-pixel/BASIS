@@ -119,12 +119,9 @@ SPREADS = [
      "kind_of_spread": "ratio",
      "legs": [(1, "raw", "GCA Comdty"), (1, "raw", "PLA Comdty")], "scale": 1.0,
      "desc": "Gold over platinum, front futures — precious vs industrial-precious."},
-    # HG trades in ¢/lb on the deep '1' chain (659.10, not 6.59) — scale 1, and the
-    # $-per-unit is stated explicitly (25,000 lb × 1¢ = $250; volbt's 25000/pt assumes
-    # a $/lb quote and would be 100× off here).
+    # HG quotes in ¢/lb (659.10, not 6.59) — volbt's point value is per ¢-point ($250).
     {"key": "hg_cal", "name": "Copper M1−M2", "group": "Metals", "unit": "¢/lb", "dp": 2,
      "legs": [(1, "raw", "HGA Comdty"), (-1, "front2", "HGA Comdty")], "scale": 1.0,
-     "pv_unit": 250.0,
      "desc": "COMEX copper prompt spread — positive = backwardation (tight metal)."},
 ]
 

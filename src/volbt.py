@@ -50,10 +50,17 @@ SQRT252 = math.sqrt(252.0)
 # them, so an unknown ticker is a visible warning, never a silent bad ratio.
 # Non-USD contracts are carried at 1 local-currency point = 1 "$" (FX-conversion
 # free) — fine for ratios and for P&L read as local currency.
+#
+# UNITS: "1.0 price point" means one point OF THE FEED'S OWN QUOTE — and Bloomberg
+# quotes several contracts in CENTS (HG/XB/HO in USd, most FX futures in cents per
+# unit, JY in cents per 100 yen), where the value per point is contract-size ÷ 100
+# (÷10,000 for JY), NOT the contract size. Verified against FUT_VAL_PT live on
+# 2026-08-08 (every entry below matches Bloomberg's own value-of-1-point; the old
+# table carried contract SIZES for the cent-quoted names — 100× off).
 POINT_VALUE = {
     "ESA Index": 50.0, "NQA Index": 20.0, "RTYA Index": 50.0, "DMA Index": 5.0,
-    "VGA Index": 10.0, "GXA Index": 25.0, "CAA Index": 10.0, "Z A Index": 10.0,
-    "SMA Index": 10.0, "NKA Index": 500.0, "XPA Index": 25.0, "KMA Index": 250000.0,
+    "VGA Index": 10.0, "GXA Index": 25.0, "CAA Index": 50.0, "Z A Index": 10.0,
+    "SMA Index": 10.0, "NKA Index": 1000.0, "XPA Index": 25.0, "KMA Index": 250000.0,
     "SX5E Index": 10.0, "DAX Index": 25.0, "UKX Index": 10.0, "SX7E Index": 50.0,
     "USA Comdty": 1000.0, "WNA Comdty": 1000.0, "UXYA Comdty": 1000.0,
     "TYA Comdty": 1000.0, "FVA Comdty": 1000.0, "TUA Comdty": 2000.0,
@@ -61,18 +68,18 @@ POINT_VALUE = {
     "DUA Comdty": 1000.0, "OATA Comdty": 1000.0, "G A Comdty": 1000.0,
     "SFRA Comdty": 2500.0, "SERA Comdty": 4167.0, "FFA Comdty": 4167.0,
     "ERA Comdty": 2500.0, "SFIA Comdty": 2500.0, "TKYA Comdty": 2500.0,
-    "CLA Comdty": 1000.0, "COA Comdty": 1000.0, "XBA Comdty": 42000.0,
-    "HOA Comdty": 42000.0, "NGA Comdty": 10000.0, "QSA Comdty": 100.0,
-    "GCA Comdty": 100.0, "SIA Comdty": 5000.0, "HGA Comdty": 25000.0,
+    "CLA Comdty": 1000.0, "COA Comdty": 1000.0, "XBA Comdty": 420.0,
+    "HOA Comdty": 420.0, "NGA Comdty": 10000.0, "QSA Comdty": 100.0,
+    "GCA Comdty": 100.0, "SIA Comdty": 5000.0, "HGA Comdty": 250.0,
     "PLA Comdty": 50.0, "PAA Comdty": 100.0,
     "C A Comdty": 50.0, "S A Comdty": 50.0, "W A Comdty": 50.0, "KWA Comdty": 50.0,
     "SMA Comdty": 100.0, "BOA Comdty": 600.0, "RRA Comdty": 2000.0,
     "KCA Comdty": 375.0, "SBA Comdty": 1120.0, "CTA Comdty": 500.0,
     "CCA Comdty": 10.0, "JOA Comdty": 150.0, "DFA Comdty": 10.0,
     "LCA Comdty": 400.0, "LHA Comdty": 400.0, "FCA Comdty": 500.0,
-    "ECA Curncy": 125000.0, "BPA Curncy": 62500.0, "JYA Curncy": 12500000.0,
-    "SFA Curncy": 125000.0, "CDA Curncy": 100000.0, "ADA Curncy": 100000.0,
-    "NVA Curncy": 100000.0, "PEA Curncy": 500000.0,
+    "ECA Curncy": 125000.0, "BPA Curncy": 625.0, "JYA Curncy": 1250.0,
+    "SFA Curncy": 1250.0, "CDA Curncy": 1000.0, "ADA Curncy": 1000.0,
+    "NVA Curncy": 1000.0, "PEA Curncy": 5000.0,
 }
 
 # ── contract currencies (non-USD only; anything absent = USD) ───────────────
@@ -96,6 +103,18 @@ CCY = {
 # USD per 1 unit of ccy — CME FX futures generics (all quoted American terms).
 FX_USD = {"EUR": "ECA Curncy", "GBP": "BPA Curncy", "JPY": "JYA Curncy",
           "CHF": "SFA Curncy", "AUD": "ADA Curncy", "CAD": "CDA Curncy"}
+# Bloomberg quote convention of each generic: divide its price by this to get USD
+# per 1 unit of the currency. ECA quotes dollars (1.1581); BPA/SFA/ADA/CDA quote
+# CENTS (134.99 = $1.3499/GBP); JYA quotes cents per 100 yen (63.65 = $0.006365/¥).
+# Verified via QUOTE_UNITS live 2026-08-08 — using the raw price as USD-per-unit
+# made every GBP/JPY/CHF leg's USD conversion 100–10,000× too large.
+FX_QUOTE_DIV = {"ECA Curncy": 1.0, "BPA Curncy": 100.0, "JYA Curncy": 10000.0,
+                "SFA Curncy": 100.0, "ADA Curncy": 100.0, "CDA Curncy": 100.0}
+
+
+def fx_usd_rate(src: str, px: float) -> float:
+    """USD per 1 currency unit from an FX_USD generic's quoted price."""
+    return float(px) / FX_QUOTE_DIV.get(src, 1.0)
 
 
 def currency(ticker: str) -> str:
@@ -418,7 +437,7 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
                     fxs = fxh[src].dropna()
                     fxs = fxs[fxs.index <= days[0]]
                     if len(fxs):
-                        rate = float(fxs.iloc[-1])
+                        rate = fx_usd_rate(src, fxs.iloc[-1])
             except Exception:
                 rate = np.nan
         if np.isfinite(rate) and rate > 0:

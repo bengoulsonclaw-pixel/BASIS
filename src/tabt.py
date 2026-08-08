@@ -296,7 +296,7 @@ def _fx_multiplier(ticker: str, asof, buf_start, end_ts) -> tuple:
                     s = fxh[src].dropna()
                     s = s[s.index <= pd.Timestamp(asof)]
                     if len(s):
-                        return float(s.iloc[-1]), ccy
+                        return volbt.fx_usd_rate(src, s.iloc[-1]), ccy
             except Exception:
                 pass
     return 1.0, ccy
