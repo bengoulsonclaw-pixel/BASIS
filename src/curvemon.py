@@ -39,7 +39,7 @@ import pandas as pd
 from . import deepstore, universe
 from .volbt import point_value
 
-REV = 4               # bump when the book/row schema changes — busts the page's st.cache_data
+REV = 5               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
@@ -68,10 +68,13 @@ BENCHMARKS = {"us_2s10s", "us_5s30s", "de_2s10s", "de_10s30s"}
 
 
 def _curve_specs() -> list:
-    """Tenor-pair outer loop, market inner — so the table reads like for like
-    (US 2s10s directly next to Germany 2s10s), short end down to the long end."""
+    """Tenor-pair outer loop, market inner — so the table reads like for like:
+    each tenor pair is a US / Germany / US−Germany-box triplet, short end down
+    to the long end."""
     out = []
     tenors = ["2", "5", "10", "30"]
+    (ak, aname, alad), (bk, bname, blad) = _CURVE_LADDERS[0], _CURVE_LADDERS[1]
+    alad, blad = dict(alad), dict(blad)
     for i in range(len(tenors)):
         for j in range(i + 1, len(tenors)):
             ta, tb = tenors[i], tenors[j]
@@ -89,16 +92,18 @@ def _curve_specs() -> list:
                             f"{fb.split()[0][:-1]} / {fa.split()[0][:-1]})."
                             + (" The benchmark quote for this market's curve." if bench else ""),
                 })
+            out.append({
+                "key": f"box_{ta}s{tb}s", "name": f"{aname} − {bname} {ta}s{tb}s box",
+                "group": "Rates — Curve", "unit": "bp", "dp": 1,
+                "legs": [(1, "yield", alad[tb]), (-1, "yield", alad[ta]),
+                         (-1, "yield", blad[tb]), (1, "yield", blad[ta])], "scale": 100.0,
+                "desc": f"{aname} {ta}s{tb}s minus {bname} {ta}s{tb}s — is the curve steeper "
+                        f"here or there; four futures legs.",
+            })
     return out
 
 
 SPREADS = _curve_specs() + [
-    {"key": "box_2s10s", "name": "US − Germany 2s10s box", "group": "Rates — Curve", "unit": "bp", "dp": 1,
-     "legs": [(1, "yield", "TYA Comdty"), (-1, "yield", "TUA Comdty"),
-              (-1, "yield", "RXA Comdty"), (1, "yield", "DUA Comdty")], "scale": 100.0,
-     "desc": "US 2s10s minus German 2s10s — relative curve shape between the two markets, "
-             "four futures legs."},
-
     # Rates — cross-market 10Y spreads, in bp
     {"key": "ust_bund",  "name": "10Y Treasury − Bund", "group": "Rates — Cross-market", "unit": "bp", "dp": 1,
      "legs": [(1, "yield", "TYA Comdty"), (-1, "yield", "RXA Comdty")], "scale": 100.0,
