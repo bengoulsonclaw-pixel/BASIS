@@ -764,15 +764,22 @@ def panel_header(title: str, right: str = "") -> None:
 
 
 def terminal_table(rows: list[dict], columns: list[dict]) -> None:
-    """Handoff-spec HTML table. columns = [{key, label, align?, color?, zbar?}]:
-    color=True paints +green/−red from the raw value; zbar=True renders the
-    centered z-range bar (value in σ, clamped at ±2)."""
+    """Handoff-spec HTML table. columns = [{key, label, align?, color?, zbar?, pbar?,
+    help?, keep_case?}]: color=True paints +green/−red from the raw value; zbar=True
+    renders the centered z-range bar (value in σ, clamped at ±2); pbar=True a 0–100
+    percentile bar (left-anchored fill, centre tick = the median, gold fill inside the
+    top/bottom decile); help adds a hover tooltip to the header; keep_case skips the
+    upper-casing for symbol labels (±2σ would otherwise render as ±2Σ)."""
     pal = palette()
     up, down = ("#46C58A", "#EC6A57") if pal["name"] == "dark" else ("#0F7A45", "#C0392B")
     out = ['<div class="bt-tablewrap"><table class="bt-table"><thead><tr>']
     for c in columns:
         cls = ' class="num"' if c.get("align") == "right" or c.get("color") else ""
-        out.append(f'<th{cls}>{c["label"].upper()}</th>')
+        lbl = c["label"] if c.get("keep_case") else c["label"].upper()
+        ttl = ""
+        if c.get("help"):
+            ttl = f' title="{str(c["help"]).replace(chr(34), "&quot;")}" style="cursor:help"'
+        out.append(f'<th{cls}{ttl}>{lbl}</th>')
     out.append('</tr></thead><tbody>')
     for r in rows:
         out.append('<tr>')
@@ -786,6 +793,14 @@ def terminal_table(rows: list[dict], columns: list[dict]) -> None:
                 out.append(f'<td class="zcell"><div class="zbar">'
                            f'<div class="ztick"></div>'
                            f'<div class="zfill" style="{side};width:{w:.0f}%"></div></div></td>')
+                continue
+            if c.get("pbar"):
+                p = 0.0 if v is None or v != v else max(0.0, min(100.0, float(v)))
+                colr = pal["gold"] if (p <= 10.0 or p >= 90.0) else pal["faint"]
+                out.append(f'<td class="zcell"><div class="zbar">'
+                           f'<div class="ztick"></div>'
+                           f'<div class="zfill" style="left:0;width:{p:.0f}%;'
+                           f'background:{colr}"></div></div></td>')
                 continue
             txt = "—" if v is None or (isinstance(v, float) and v != v) else str(v)
             style = ""

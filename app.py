@@ -56,6 +56,7 @@ from src import eqdisp
 from src import curvemon
 from src import seasmon
 from src import auth
+from src import health
 from src.universe import INSTRUMENTS
 
 ROOT = Path(__file__).parent
@@ -4340,29 +4341,44 @@ def render_eq_strategy(strat: str) -> None:
                             subject=f"{strat} — Equities Technical Analysis", attachment_name=_fn)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _health_bundle():
+    """One gathered pass over every store the 🩺 Data health page reports (the engine
+    re-reads parquets, so cache it briefly — the Refresh button clears it)."""
+    frames = health.snapshot_frames()
+    deep = health.deep_health()
+    stale = health.stale_surfaces()
+    caches = health.cache_health()
+    board = health.checks(frames=frames, deep=deep, stale=stale, caches=caches)
+    return frames, deep, stale, caches, board
+
+
 def render_data_health() -> None:
     st.subheader("\U0001FA7A Data health")
     snap = _load_snap()
     df, _meta = load_signals()
+    hc1, hc2 = st.columns([0.8, 0.2])
+    hc1.caption("Every store the app rides — the morning snapshot, the deep price store, the "
+                "vol surfaces, the accruing caches — checked in one place, so a bad pull shows "
+                "up here instead of as a mysteriously thin report downstream.")
+    if hc2.button("↻ Refresh checks", use_container_width=True, key="dh_refresh"):
+        _health_bundle.clear()
+    frames, deep, stale, caches, board = _health_bundle()
+
+    # ---- status board — worst first --------------------------------------------------
+    _sev = {"bad": 0, "warn": 1, "ok": 2}
+    _icon = {"bad": st.error, "warn": st.warning, "ok": st.success}
+    for c in sorted(board, key=lambda c: _sev.get(c["level"], 3)):
+        _icon.get(c["level"], st.info)(f"**{c['area']}** — {c['message']}")
 
     st.markdown("##### Snapshot")
     if not snap:
         st.warning("No snapshot manifest — the app is on demo/mock data.")
     else:
-        created = snap.get("created", "")
-        age_txt, age_h = "—", None
-        try:
-            s = str(created).strip().replace("Z", "+00:00")
-            try:
-                dt = datetime.fromisoformat(s)
-            except ValueError:
-                dt = datetime.strptime(s[:19], "%Y-%m-%d %H:%M:%S")
-            if dt.tzinfo is None:                # legacy naive stamp = UTC (the live.parquet mtime)
-                dt = dt.replace(tzinfo=timezone.utc)
-            age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
-            age_txt = f"{age_h:.0f}h ago" if age_h < 48 else f"{age_h / 24:.1f} days ago"
-        except Exception:
-            pass
+        _created = health.parse_stamp(snap.get("created"))
+        age_h = (pd.Timestamp.now(tz="UTC") - _created).total_seconds() / 3600 if _created is not None else None
+        age_txt = ("—" if age_h is None
+                   else f"{age_h:.0f}h ago" if age_h < 48 else f"{age_h / 24:.1f} days ago")
         m = st.columns(4)
         m[0].metric("Source", str(snap.get("source", "?")))
         m[1].metric("Settle date", str(snap.get("as_of", "?")))
@@ -4373,13 +4389,74 @@ def render_data_health() -> None:
         m2[1].metric("OI chains", str(snap.get("oi_markets", "—")))
         m2[2].metric("Price rows", str(snap.get("price_rows", "—")))
         m2[3].metric("Live quotes", str(snap.get("live_n", "—")))
-        if snap.get("source") != "bloomberg":
-            st.warning(f"Snapshot source is **{snap.get('source', '?')}** (demo) — pull a live "
-                       "Bloomberg snapshot on Home for real data.")
-        elif age_h is not None and age_h > 24:
-            st.warning(f"Snapshot is ~{age_txt} — pull a fresh one on Home for today's data.")
-        else:
-            st.success("Snapshot looks current.")
+    if not frames.empty:
+        with st.expander(f"Per-frame detail — {len(frames)} files in data/snapshot/"):
+            show = frames.copy()
+            show["written"] = show["written"].map(lambda t: _to_et(t.isoformat()) if pd.notna(t) else "—")
+            show.columns = ["Frame", "Rows", "Markets", "Last data date", "Written", "Age (h)", "MB"]
+            brand.themed_dataframe(show, {"Age (h)": "{:.1f}", "MB": "{:.2f}"}, na_rep="—")
+            st.caption("Core pull frames should share one *Written* stamp — a frame hours behind "
+                       "the rest means that leg of the fetch failed and the old file was kept. "
+                       "The history stores below them accrue daily and are covered in *Caches*.")
+
+    st.markdown("##### Deep price store")
+    cov = deep["coverage"]
+    if cov.empty:
+        st.info("Deep store is empty — the TA Backtester runs on the live feed's ~400 sessions "
+                "until the next Bloomberg pull backfills it (src/deepstore.py, automatic).")
+    else:
+        n_uni = len(list(universe.INSTRUMENTS))
+        d1 = st.columns(4)
+        d1[0].metric("Tickers held", f"{len(cov)}/{n_uni}")
+        d1[1].metric("Truncated", str(len(deep["truncated"])),
+                     help=f"Held below {deep['min_days']} days — re-backfills on the next pull.")
+        d1[2].metric("Median depth", f"{int(cov['days'].median()):,}d")
+        d1[3].metric("Last settle", str(deep["store_last"].date()) if deep["store_last"] is not None else "—")
+        _probs = cov[cov["flag"].ne("")]
+        with st.expander(f"Per-ticker coverage — {len(_probs)} flagged"):
+            show = cov.copy()
+            show.columns = ["Ticker", "Market", "First", "Last", "Days", "Rolls", "Flag"]
+            brand.themed_dataframe(show, {"Days": "{:,.0f}", "Rolls": "{:,.0f}"}, na_rep="—",
+                                   height=420)
+            st.caption("*truncated* = held below the self-heal floor (re-backfills next pull); "
+                       "*stale* = trails the store and is silently skipped by the backtester's "
+                       "deep-history overlay. Blank = healthy.")
+
+    st.markdown("##### Vol surfaces")
+    if stale.empty:
+        st.success("No frozen or dead implied-vol surfaces — every market's vol book is live.")
+    else:
+        st.caption(f"**{stale['ticker'].nunique()} market(s)** with a stale surface — frozen at one "
+                   "value or no longer publishing. The vol/skew/term strategies already leave these "
+                   "unscored (`datafeed.stale_iv_reasons`); listed here so a dead surface is a known "
+                   "fact, not a surprise.")
+        show = stale.copy()
+        show.columns = ["Ticker", "Market", "Surface", "Reason"]
+        brand.themed_dataframe(show, {})
+
+    st.markdown("##### Caches & history stores")
+    if not caches.empty:
+        show = caches.copy()
+        show.columns = ["Store", "Last data date", "Products", "File age (h)"]
+        brand.themed_dataframe(show, {"Products": "{:,.0f}", "File age (h)": "{:.1f}"}, na_rep="—")
+        st.caption("Every accruing store the daily pull feeds. A *Last data date* stuck behind the "
+                   "snapshot settle means that leg of the pull has been failing quietly.")
+
+    st.markdown("##### Regression suite")
+    tr = health.last_test_run()
+    if not tr:
+        st.info("Never run on this box. Run **run_tests.bat** (repo root), or push code — the "
+                "pre-push git hook runs the suite and blocks the push if it's red.")
+    else:
+        r1 = st.columns(4)
+        r1[0].metric("Result", "🟢 green" if tr.get("ok") else ("⏭ skipped" if tr.get("skipped") else "🔴 RED"))
+        r1[1].metric("When", _to_et(str(tr.get("when", ""))) or "—")
+        r1[2].metric("Tests", str(tr.get("summary", "—")))
+        r1[3].metric("Duration", f"{tr.get('duration_s', 0):.0f}s")
+        st.caption("Golden-file tests over the scoring/backtest/adjustment engines (tascore, tabt, "
+                   "volbt, deepstore) — `tests\\` in the repo. They run automatically before any "
+                   "push that touches code; re-baseline deliberate behaviour changes with "
+                   "`run_tests.bat --regen`.")
 
     st.markdown("##### Coverage by strategy")
     if df is None or df.empty or "strategy" not in df:
@@ -7789,14 +7866,30 @@ def render_curve_monitor() -> None:
     # "Term" = the engine's book order: tenor pairs short-to-long, markets adjacent
 
     _cols = [
-        {"key": "name", "label": "Spread"},
-        {"key": "level_txt", "label": "Level", "align": "right"},
-        {"key": "chg1d", "label": "1d Δ", "color": True, "fmt": "{:+,.2f}"},
-        {"key": "z", "label": "Z", "align": "right", "fmt": "{:+.2f}"},
-        {"key": "zpic", "label": "±2σ", "zbar": True},
-        {"key": "pctl", "label": "10y %ile", "align": "right", "fmt": "{:.0f}"},
-        {"key": "hl", "label": "½-life", "align": "right"},
-        {"key": "signal", "label": "Signal"},
+        {"key": "name", "label": "Spread",
+         "help": "The relationship being tracked — hover each name for its definition"},
+        {"key": "level_txt", "label": "Level", "align": "right",
+         "help": "Today's level of the spread, in its native unit"},
+        {"key": "chg1d", "label": "1d Δ", "color": True, "fmt": "{:+,.2f}",
+         "help": "Change on the day, same unit (green up / red down)"},
+        {"key": "z", "label": "Z", "align": "right", "fmt": "{:+.2f}",
+         "help": "How stretched vs the recent regime: standard deviations from the rolling "
+                 "mean over the chosen z-score window"},
+        {"key": "zpic", "label": "±2σ", "zbar": True, "keep_case": True,
+         "help": "The z-score drawn on a ±2σ scale from the centre tick — a full-length bar "
+                 "is at or beyond the flag threshold"},
+        {"key": "pctl", "label": "10y %ile", "align": "right", "fmt": "{:.0f}",
+         "help": "How stretched vs the whole stored decade: share of ~10 years of sessions "
+                 "with the spread at or below today (0 = decade low, 100 = decade high)"},
+        {"key": "pctl", "label": "10y range", "pbar": True,
+         "help": "The same percentile drawn 0–100 — tick = the decade's median; the fill "
+                 "turns gold inside the top or bottom decile"},
+        {"key": "hl", "label": "½-life", "align": "right",
+         "help": "Ornstein–Uhlenbeck half-life: the typical number of sessions a stretch has "
+                 "taken to close half-way back to the mean"},
+        {"key": "signal", "label": "Signal",
+         "help": "Rich / Cheap once |z| clears the flag threshold — an observation against "
+                 "the spread's own history, not a recommendation"},
     ]
     for g in [g for g in curvemon.GROUPS if g in set(mon["group"])]:
         sub = mon[mon["group"] == g]
@@ -7956,6 +8049,11 @@ def _seas_spread_products(mode: str):
 @st.cache_data(show_spinner=False, ttl=1800)
 def _seas_spread(ticker: str, mode: str):
     return seasmon.spread_seasonal(ticker)
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_spread_screener(mode: str):
+    return seasmon.spread_screener()
 
 
 def _seas_fmt(unit: str) -> str:
@@ -8203,8 +8301,75 @@ def render_seasonality_spreads() -> None:
         st.info("No stored second-generic history yet — the deep price store hasn't been "
                 "built on this machine (it backfills on the next Bloomberg session).")
         return
+
+    # ---- spread screener: stretch vs season + seasonality strength ----------
+    scr = _seas_spread_screener(MODE)
+    top_stretch = None
+    if scr is not None and not scr.empty:
+        _sc0, _sc1 = st.columns([2.6, 1.2], vertical_alignment="bottom")
+        _spa = [a for a in universe.ASSET_CLASSES if a in set(scr["asset"])]
+        # dividend / carry / roll mechanics dominate index, bond and FX calendars —
+        # real seasonality lives in the physical + rate books, so those are the default
+        _phys = [a for a in _spa if a in ("STIRs", "Energy", "Metals", "Agriculture", "Softs")]
+        sp_assets = _sc0.multiselect("Sectors", _spa, default=_phys or _spa,
+                                     key="seas_sp_assets")
+        sp_sort = _sc1.radio("Rank by", ["Stretched now", "Most seasonal"], horizontal=True,
+                             key="seas_sp_sort", label_visibility="collapsed")
+        view = scr[scr["asset"].isin(sp_assets)] if sp_assets else scr
+        if sp_sort == "Most seasonal":
+            view = view.sort_values("strength", ascending=False)
+        if not view.empty:
+            flagged = view[view["signal"] != "—"].head(6)
+            if not flagged.empty:
+                st.markdown("**Stretched vs season now:** " + " · ".join(
+                    f"{r['name']} **{r['z']:+.1f}σ** "
+                    f"({'rich' if r['z'] > 0 else 'cheap'} for this time of year)"
+                    for _, r in flagged.iterrows()))
+            most = view.sort_values("strength", ascending=False).head(4)
+            st.markdown("**Most seasonal books:** " + " · ".join(
+                f"{r['name']} **{r['strength']:.0f}%** (peak {r['peak']} · trough {r['trough']})"
+                for _, r in most.iterrows()))
+            brand.panel_header("Spread screener",
+                               right=f"{len(view)} spreads · vs this week's 10y norm")
+            rows = []
+            for _, r in view.iterrows():
+                rows.append({
+                    "name": r["name"], "legs": r["legs"],
+                    "now": f"{r['now']:,.2f} {r['unit']}", "norm": f"{r['norm']:,.2f}",
+                    "dev": float(r["dev"]), "zpic": 0.0 if pd.isna(r["z"]) else float(r["z"]),
+                    "z": None if pd.isna(r["z"]) else float(r["z"]),
+                    "ssn": None if pd.isna(r["strength"]) else float(r["strength"]),
+                    "peak": r["peak"], "trough": r["trough"],
+                })
+            brand.terminal_table(rows, [
+                {"key": "name", "label": "Product"},
+                {"key": "legs", "label": "Spread"},
+                {"key": "now", "label": "Now", "align": "right"},
+                {"key": "norm", "label": "Wk norm", "align": "right"},
+                {"key": "dev", "label": "Δ vs norm", "color": True, "fmt": "{:+,.2f}"},
+                {"key": "zpic", "label": "±2σ", "zbar": True},
+                {"key": "z", "label": "Seas z", "align": "right", "fmt": "{:+.1f}"},
+                {"key": "ssn", "label": "Ssn %", "align": "right", "fmt": "{:.0f}"},
+                {"key": "peak", "label": "Peak", "align": "right"},
+                {"key": "trough", "label": "Trough", "align": "right"},
+            ])
+            st.caption(
+                "**Wk norm / Seas z** — today's spread against the SAME week of year across "
+                "the stored years (±1 week to absorb roll-date drift, current year excluded "
+                f"from its own norm); |z| ≥ {seasmon.SEAS_Z_FLAG:g}σ flags rich/cheap **for "
+                "this time of year** — the unconditional read is the Curve / RV monitor's "
+                "job. **Ssn %** — how much of the spread's behaviour is calendar: typical "
+                "seasonal swing vs year-to-year noise at the same week (robust to blowup "
+                "years). **Peak / Trough** — the months the profile typically tops (most "
+                "backwardated) and bottoms (deepest contango): NG peaks in winter withdrawal, "
+                "troughs in injection season. Index / bond / FX calendars are one click away "
+                "above, but their spreads are mostly dividend, carry and roll mechanics — "
+                "read their rows with that in mind. Descriptive history, not a signal.")
+            top_stretch = view.iloc[0]["ticker"]
+
+    st.divider()
     brand.panel_header("Front calendar spread", right="1st − 2nd futures · actual settles")
-    _last = st.session_state.get("seas_tkr")
+    _last = top_stretch or st.session_state.get("seas_tkr")
     sp_default = _last if _last in sps else ("NGA Comdty" if "NGA Comdty" in sps else sps[0])
     sp_tkr = st.selectbox("Spread product", sps, index=sps.index(sp_default),
                           format_func=lambda t: f"{universe.name(t)}  ·  "
