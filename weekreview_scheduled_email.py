@@ -71,8 +71,10 @@ def main():
     intro = (f"<p>Please find this week's <b>Weekly Review</b> ({asof}) — the cross-module "
              "wrap of what the desk's screens are flagging going into the week: volatility "
              "dislocations, curve extremes, positioning reads, technical setups past the "
-             "quality bar, correlation breaks, opening seasonal windows and metals flows, "
-             "plus the week's releases and the calendar ahead. Each line is that module's "
+             "quality bar, correlation breaks, opening seasonal windows and metals flows — "
+             "with the technical scorecard folded in (how the signal book's earlier calls "
+             "actually resolved), plus the week's releases and the calendar ahead. Each line "
+             "is that module's "
              "own threshold speaking — observations of the screens, not recommendations.</p>")
     to = send_report_email(out_pdf, f"BASIS Weekly Review — {asof}", intro,
                            "Weekly_Review.pdf", report_key="weekreview",

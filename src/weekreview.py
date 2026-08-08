@@ -201,19 +201,43 @@ def collect_technical() -> list:
                                f"**{p['conviction']:.0f}**, score {p['score']:+.0f}."))
     except Exception:
         traceback.print_exc()
-    try:
-        from src import sigledger, sigscore
-        led = sigledger.load()
-        r21 = sigscore.resolved_cohort(led, 21)
-        r21 = r21[r21["strategy"] != sigledger.CONFLUENCE]
-        if len(r21):
-            out.append(_bullet("TECH", "scorecard:hit21",
-                               f"On the track record, the signal book hit **{r21['hit21'].mean() * 100:.0f}%** "
-                               f"on the **{len(r21):,}** calls judged at 21 sessions this week "
-                               f"(full detail in the Weekly Signal Scorecard)."))
-    except Exception:
-        pass
     return out
+
+
+SCORECARD_CALLS = 3          # best/worst resolved calls shown in the folded-in scorecard
+
+
+def scorecard_section() -> dict | None:
+    """The Weekly Signal Scorecard folded in as this report's technical section —
+    everything computed by sigscore's own functions, nothing re-derived. Returns None
+    (section absent) if the ledger is missing."""
+    from src import sigledger, sigscore
+    led = sigledger.load()
+    if led is None or led.empty:
+        return None
+    wk = sigscore.week_slice(led)
+    core_wk = wk[wk["strategy"] != sigledger.CONFLUENCE]
+    n_resolved = sum(len(sigscore.resolved_cohort(led, h)) for h in sigledger.HORIZONS)
+    r21 = sigscore.resolved_cohort(led, 21)
+    r21 = r21[r21["strategy"] != sigledger.CONFLUENCE]
+    hit21_wk = r21["hit21"].mean() * 100.0 if len(r21) else None
+    hi = led["date"].max()
+    y1 = led[(led["date"] >= hi - pd.DateOffset(years=1))
+             & (led["strategy"] != sigledger.CONFLUENCE)]
+    hit21_1y = y1["hit21"].mean() * 100.0 if y1["hit21"].notna().any() else None
+    best, worst = sigscore.call_rows(led)
+    return {
+        "n_week": f"{len(core_wk):,}",
+        "longs": f"{int((core_wk['direction'] > 0).sum()):,}",
+        "shorts": f"{int((core_wk['direction'] < 0).sum()):,}",
+        "n_resolved": f"{n_resolved:,}",
+        "hit21_wk": f"{hit21_wk:.1f}%" if hit21_wk is not None else "—",
+        "hit21_wk_bg": sigscore._cell_bg(hit21_wk, 50.0, 8.0) if hit21_wk is not None else "",
+        "hit21_1y": f"{hit21_1y:.1f}%" if hit21_1y is not None else "—",
+        "verdicts": sigscore.verdict_rows(led),
+        "best_calls": best[:SCORECARD_CALLS], "worst_calls": worst[:SCORECARD_CALLS],
+        "trend": sigscore.trend_png(led),
+    }
 
 
 def collect_corr_breaks() -> list:
@@ -462,11 +486,20 @@ def intro_text(bullets: list, counts: dict, n_new: int, drop_rows: list,
 def render_html(asof: str = "", ai_polish: bool = True, update_baseline: bool = False) -> str:
     bullets, counts = collect_all()
     drop_rows, come_rows = releases_digest()
+    try:
+        scorecard = scorecard_section()
+    except Exception:
+        print("[weekreview] scorecard section failed:", file=sys.stderr)
+        traceback.print_exc()
+        scorecard = None
     prev = load_last()
     streaks = apply_streaks(bullets, prev)
     n_new = sum(1 for b in bullets if b.get("badge") == "new this week")
 
     intro = intro_text(bullets, counts, n_new, drop_rows, come_rows)
+    if scorecard and scorecard["hit21_wk"] != "—":
+        intro += (f" On the track record, the signal book hit **{scorecard['hit21_wk']}** on the "
+                  f"calls judged at 21 sessions this week — the full scorecard is inside.")
     if ai_polish:
         from reportkit import ai_rewrite
         intro = ai_rewrite([intro], INTRO_SYSTEM)[0]
@@ -483,6 +516,7 @@ def render_html(asof: str = "", ai_polish: bool = True, update_baseline: bool = 
         intro=_md2html(intro),
         bullets=bullets, n_bullets=len(bullets), n_new=n_new,
         n_modules=len(counts), has_prev=bool(prev),
+        scorecard=scorecard,
         drop_rows=drop_rows, come_rows=come_rows,
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )

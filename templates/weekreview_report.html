@@ -21,6 +21,10 @@
   .badge { font-size: 6.3pt; color: #8a6d1a; white-space: nowrap; }
   .badge.new { color: #1e8449; font-weight: 700; }
   .headline { font-size: 7.3pt; color: #555; }
+  .twocol { display: flex; gap: 4mm; }
+  .twocol > div { flex: 1; }
+  .ok { color: #1e8449; font-weight: 700; }
+  .bad { color: #c0392b; font-weight: 700; }
   .chartdesc { font-size: 7pt; color: #777; margin: 0.5mm 0 2mm; }
 </style>
 </head>
@@ -76,6 +80,73 @@
     <div class="banner">Worth a look this week</div>
     <p class="chartdesc">A quiet week &mdash; nothing on the book is past its module&rsquo;s
       flagging bar as of the latest session.</p>
+    {% endif %}
+
+    {% if scorecard %}
+    <div class="banner">Technical scorecard &mdash; how the signal book is performing</div>
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Signals this week</div>
+        <div class="val">{{ scorecard.n_week }}</div><div class="note">{{ scorecard.longs }} long &middot; {{ scorecard.shorts }} short</div></div>
+      <div class="kpi"><div class="lab">Verdicts landed</div>
+        <div class="val">{{ scorecard.n_resolved }}</div><div class="note">calls resolved at 5 / 10 / 21 sessions</div></div>
+      <div class="kpi" {% if scorecard.hit21_wk_bg %}style="{{ scorecard.hit21_wk_bg }}"{% endif %}><div class="lab">Judged at 21 sessions</div>
+        <div class="val">{{ scorecard.hit21_wk }}</div><div class="note">this week&rsquo;s resolved cohort</div></div>
+      <div class="kpi"><div class="lab">Book, trailing 1y</div>
+        <div class="val">{{ scorecard.hit21_1y }}</div><div class="note">hit rate at 21 sessions</div></div>
+    </div>
+
+    {% if scorecard.verdicts %}
+    <table>
+      <thead><tr><th>Judged at</th><th class="center">Calls resolved</th>
+        <th class="center">Hit rate</th><th class="center">Mean &sigma;-move</th>
+        <th class="center">Composite hit rate</th></tr></thead>
+      <tbody>
+        {% for v in scorecard.verdicts %}
+        <tr><td class="market">{{ v.h }} sessions</td><td class="center">{{ v.n }}</td>
+          <td class="center" style="{{ v.hit_bg }}">{{ v.hit }}</td>
+          <td class="center">{{ v.sig }}</td>
+          <td class="center" style="{{ v.conf_bg }}">{{ v.conf_hit }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if scorecard.best_calls or scorecard.worst_calls %}
+    <div class="twocol">
+      <div>
+        <div class="banner">Resolved at 21 sessions &mdash; sharpest hits <span class="sig long">&#9650;</span></div>
+        <table>
+          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
+          <tbody>
+            {% for r in scorecard.best_calls %}
+            <tr><td>{{ r.date }}</td><td class="market">{{ r.market }}</td><td>{{ r.signal }}</td>
+              <td class="center"><span class="{{ 'ok' if r.ok else 'bad' }}">{{ '&#10003;'|safe if r.ok else '&#10007;'|safe }}</span> {{ r.sig }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="banner">&mdash; and the clearest misses <span class="sig short">&#9660;</span></div>
+        <table>
+          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
+          <tbody>
+            {% for r in scorecard.worst_calls %}
+            <tr><td>{{ r.date }}</td><td class="market">{{ r.market }}</td><td>{{ r.signal }}</td>
+              <td class="center"><span class="{{ 'ok' if r.ok else 'bad' }}">{{ '&#10003;'|safe if r.ok else '&#10007;'|safe }}</span> {{ r.sig }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if scorecard.trend %}
+    <div class="section"><div class="chart"><img src="{{ scorecard.trend }}" alt="Weekly hit rate"></div></div>
+    {% endif %}
+    <p class="chartdesc">The Weekly Signal Scorecard, folded in: the signal ledger re-runs the
+      TA hub&rsquo;s own triggers over every cached session and judges each call in signal space
+      at 5, 10 and 21 sessions &mdash; hits AND misses, because showing the misses is what makes
+      the hits believable. Directional accuracy only: no exits, sizing, costs or P&amp;L.</p>
     {% endif %}
 
     {% if drop_rows %}
