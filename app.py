@@ -7291,6 +7291,17 @@ def render_signal_ledger() -> None:
               lg_ok.sort_values(f"hit{horizon}", ascending=False)["strategy"].iloc[0]
               if len(lg_ok) else "—")
 
+    # ---- regime read — auto-written era comparison, recomputed with every rebuild ----
+    _rr = sigledger.regime_read(out)
+    if _rr:
+        with st.container(border=True):
+            st.markdown("##### 🧭 Regime read — what's working now vs what worked before")
+            st.markdown(_rr["text"])
+            st.caption(f"Written by the ledger itself from the full unfiltered book "
+                       f"(21-session horizon, min-sample gated) as of "
+                       f"{_rr['asof'].date()} — it re-writes with every morning snapshot, "
+                       f"so when signal leadership rotates, this paragraph rotates with it.")
+
     # ---- league table --------------------------------------------------------------
     by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
     lg = sigledger.league(view, "strategy" if by == "Strategy" else "market")

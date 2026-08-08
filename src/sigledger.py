@@ -166,6 +166,68 @@ def league(out: pd.DataFrame, by: str = "strategy") -> pd.DataFrame:
     return g.sort_values(f"hit{HORIZONS[-1]}", ascending=False).reset_index(drop=True)
 
 
+def regime_read(out: pd.DataFrame, recent_years: int = 2, horizon: int = 21,
+                min_n_past: int = 400, min_n_recent: int = 120) -> dict | None:
+    """The page's auto-written "what's working in THIS era vs what worked before" note —
+    deterministic prose recomputed from the ledger itself, so when the regime turns the
+    paragraph turns with it (Ben's ask 2026-08-08: a talking point he'd otherwise forget).
+
+    Splits the ledger at `recent_years` before its last date, takes 21-session hit rates
+    per strategy in each era (min-n gated so thin samples can't lead the narrative), and
+    names: the current era's leaders, the prior era's leaders, and the biggest warmers /
+    coolers between the two (≥3pp swing, measured in both eras). The composite gets its
+    own sentence. Returns {"text": ..., "asof", "cut"} or None while the ledger is too
+    short to split into two meaningful eras. Client-safe phrasing: observations with
+    dates and sample sizes, never advice."""
+    if out is None or out.empty:
+        return None
+    hcol = f"hit{horizon}"
+    lo, hi = out["date"].min(), out["date"].max()
+    cut = hi - pd.DateOffset(years=recent_years)
+    if cut <= lo + pd.DateOffset(years=1):
+        return None                                     # not enough history for a "prior era"
+    core = out[out["strategy"] != CONFLUENCE]
+    eras = {}
+    for key, sub, mn in (("now", core[core["date"] >= cut], min_n_recent),
+                         ("past", core[core["date"] < cut], min_n_past)):
+        g = sub.groupby("strategy").agg(n=(hcol, "count"), hit=(hcol, "mean"))
+        g["hit"] = g["hit"] * 100.0
+        eras[key] = g[g["n"] >= mn]
+    now, past = eras["now"], eras["past"]
+    if now.empty or past.empty:
+        return None
+
+    def _fmt(g, names):
+        return ", ".join(f"{s} ({g.loc[s, 'hit']:.0f}%, n={int(g.loc[s, 'n']):,})" for s in names)
+
+    lead_now = list(now.sort_values("hit", ascending=False).head(3).index)
+    lead_past = list(past.sort_values("hit", ascending=False).head(3).index)
+    both = now.join(past, lsuffix="_now", rsuffix="_past", how="inner")
+    both["delta"] = both["hit_now"] - both["hit_past"]
+    risers = both[both["delta"] >= 3.0].sort_values("delta", ascending=False)
+    faders = both[both["delta"] <= -3.0].sort_values("delta")
+
+    y0, y1 = cut.year, hi.year
+    text = (f"**Current era ({y0}–{y1}, last {recent_years}y):** the book's most reliable reads "
+            f"at {horizon} sessions have been {_fmt(now, lead_now)}. "
+            f"**Prior era ({lo.year}–{y0}):** leadership sat with {_fmt(past, lead_past)}.")
+    if len(risers):
+        text += (" **Warming into this era:** "
+                 + ", ".join(f"{s} (+{both.loc[s, 'delta']:.0f}pp vs its prior-era hit rate)"
+                             for s in risers.index[:3]) + ".")
+    if len(faders):
+        text += (" **Cooling:** "
+                 + ", ".join(f"{s} ({both.loc[s, 'delta']:.0f}pp)"
+                             for s in faders.index[:3]) + ".")
+    conf = out[(out["strategy"] == CONFLUENCE) & (out["date"] >= cut)]
+    if conf[hcol].notna().sum() >= min_n_recent:
+        text += (f" The combined confluence read is hitting {conf[hcol].mean() * 100:.0f}% "
+                 f"over the current era.")
+    text += (" Signal leadership rotates with the market regime — when this paragraph "
+             "changes, that rotation is the story.")
+    return {"text": text, "asof": hi, "cut": cut}
+
+
 def heat(out: pd.DataFrame, horizon: int) -> pd.DataFrame:
     """strategy × market hit-% grid (long form: strategy, market, n, hit) at `horizon`."""
     if out is None or out.empty:
