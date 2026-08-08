@@ -7657,13 +7657,15 @@ def render_strategy_builder() -> None:
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
-def _cm_monitor(window: int, threshold: float, mode: str):
-    """The curve/RV spread book, cached so widget reruns don't re-read the deep store."""
+def _cm_monitor(window: int, threshold: float, mode: str, rev: int = 0):
+    """The curve/RV spread book, cached so widget reruns don't re-read the deep store
+    (`rev` = curvemon.REV keys the cache to the engine's book/schema version, so an
+    engine change never serves a stale frame for the rest of the TTL)."""
     return curvemon.monitor(window, threshold)
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
-def _cm_chart(key: str, window: int, threshold: float, years, mode: str):
+def _cm_chart(key: str, window: int, threshold: float, years, mode: str, rev: int = 0):
     return curvemon.spread_chart_data(key, window, threshold, years=years)
 
 
@@ -7690,7 +7692,7 @@ def render_curve_monitor() -> None:
                                       0.25, key="cm_thr"))
     groups = c2.multiselect("Groups", curvemon.GROUPS, default=curvemon.GROUPS, key="cm_groups")
 
-    mon = _cm_monitor(window, threshold, MODE)
+    mon = _cm_monitor(window, threshold, MODE, curvemon.REV)
     if mon is None or mon.empty:
         st.info("No spread history yet — the deep price store hasn't been built on this "
                 "machine (it backfills on the next Bloomberg session).")
@@ -7743,7 +7745,7 @@ def render_curve_monitor() -> None:
     brand.panel_header("Spread detail",
                        right=f"window {window}d · flag ±{threshold:g}σ")
     d0, d1 = st.columns([2.2, 1.4])
-    _bench_of = dict(zip(mon["name"], mon.get("bench", False)))
+    _bench_of = (dict(zip(mon["name"], mon["bench"])) if "bench" in mon.columns else {})
     sel_name = d0.selectbox("Spread", mon["name"].tolist(), key="cm_sel",
                             format_func=lambda n: f"★ {n}" if _bench_of.get(n) else n,
                             label_visibility="collapsed")
@@ -7751,7 +7753,7 @@ def render_curve_monitor() -> None:
                    label_visibility="collapsed")
     row = mon[mon["name"] == sel_name].iloc[0]
     years = {"Full": None, "5y": 5.0, "2y": 2.0, "1y": 1.0}[rng]
-    cd, info = _cm_chart(row["key"], window, threshold, years, MODE)
+    cd, info = _cm_chart(row["key"], window, threshold, years, MODE, curvemon.REV)
     if cd.empty:
         st.info("No history for this spread.")
         return
@@ -7808,7 +7810,7 @@ def render_curve_monitor() -> None:
                 focus = mon.reindex(mon["z"].abs().sort_values(ascending=False).index).head(4)
                 charts = []
                 for _, r in focus.iterrows():
-                    cdf, cinfo = _cm_chart(r["key"], window, threshold, None, MODE)
+                    cdf, cinfo = _cm_chart(r["key"], window, threshold, None, MODE, curvemon.REV)
                     if cdf.empty:
                         continue
                     charts.append({
@@ -7901,7 +7903,7 @@ def render_seasonality() -> None:
         return
 
     # ---- month screener -----------------------------------------------------
-    c0, c1 = st.columns([1.1, 2.7])
+    c0, c1, c2 = st.columns([1.1, 2.35, 0.6], vertical_alignment="bottom")
     mo_sel = c0.selectbox("Month", seasmon.MONTH_LABELS, index=date.today().month - 1,
                           key="seas_month",
                           help="Which calendar month to screen the book on. Defaults to the "
@@ -7912,7 +7914,18 @@ def render_seasonality() -> None:
         st.info("Not enough stored years to screen this month.")
         return
     assets = [a for a in universe.ASSET_CLASSES if a in set(scr["asset"])]
-    sel_assets = c1.multiselect("Sectors", assets, default=assets, key="seas_assets")
+    _saved = [a for a in seasmon.default_sectors() if a in assets]
+    sel_assets = c1.multiselect("Sectors", assets, default=_saved or assets, key="seas_assets")
+    if IS_ADMIN and c2.button("📌 Set default", key="seas_set_def", use_container_width=True,
+                              help="Save the current sector picks as this page's startup "
+                                   "selection — they load on every launch. Set default with "
+                                   "every sector (or none) selected to reset to all."):
+        seasmon.save_default_sectors([] if set(sel_assets) >= set(assets) else sel_assets)
+        st.toast("Seasonality sector default saved.", icon="📌")
+    _saved = seasmon.default_sectors()     # re-read — reflects a just-saved value this rerun
+    if _saved:
+        st.caption("📌 Startup default: **" + " + ".join(_saved) + "** — the other sectors "
+                   "stay one click away above.")
     if sel_assets:
         scr = scr[scr["asset"].isin(sel_assets)]
 

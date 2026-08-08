@@ -39,6 +39,7 @@ import pandas as pd
 from . import deepstore, universe
 from .volbt import point_value
 
+REV = 2               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
