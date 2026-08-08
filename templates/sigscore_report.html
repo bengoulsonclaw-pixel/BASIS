@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 7.6pt; }
+  .kpis { display: flex; gap: 3mm; margin: 3mm 0 1mm; }
+  .kpi { flex: 1; border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+         padding: 2mm 3mm; background: #FafafA; }
+  .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .val { font-size: 13pt; font-weight: 700; color: #111; }
+  .kpi .note { font-size: 6.5pt; color: #888; }
+  .twocol { display: flex; gap: 4mm; }
+  .twocol > div { flex: 1; }
+  .regime { border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+            background: #FafafA; padding: 2mm 3mm; font-size: 8pt; line-height: 1.45;
+            margin: 2mm 0; }
+  .ok { color: #1e8449; font-weight: 700; }
+  .bad { color: #c0392b; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Weekly Signal Scorecard</h1>
+      <div class="sub">Week of {{ week_span }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      The desk&rsquo;s technical-signal accountability wrap: every signal the TA book flagged this
+      week, the verdicts that landed on earlier calls (each judged 5, 10 and 21 sessions after it
+      fired, in the product&rsquo;s own terms &mdash; yields for fixed income, spreads for pairs,
+      prices elsewhere), and which signal families are carrying the book in this regime. A
+      historical read of the signals&rsquo; accuracy &mdash; not P&amp;L, and not a recommendation.
+    </p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Signals this week</div>
+        <div class="val">{{ n_week }}</div><div class="note">{{ longs }} long &middot; {{ shorts }} short &middot; {{ n_conf }} composite reads</div></div>
+      <div class="kpi"><div class="lab">Verdicts landed</div>
+        <div class="val">{{ n_resolved }}</div><div class="note">calls resolved at 5 / 10 / 21 sessions</div></div>
+      <div class="kpi" {% if hit5_week_bg %}style="{{ hit5_week_bg }}"{% endif %}><div class="lab">Last week&rsquo;s calls</div>
+        <div class="val">{{ hit5_week }}</div><div class="note">hit rate at 5 sessions</div></div>
+      <div class="kpi"><div class="lab">Book, trailing 1y</div>
+        <div class="val">{{ hit21_1y }}</div><div class="note">hit rate at 21 sessions</div></div>
+    </div>
+
+    {% if verdicts %}
+    <div class="banner">Verdicts in this week &mdash; how earlier calls resolved</div>
+    <table>
+      <thead><tr><th>Judged at</th><th class="center">Calls resolved</th>
+        <th class="center">Hit rate</th><th class="center">Mean &sigma;-move</th>
+        <th class="center">Composite hit rate</th></tr></thead>
+      <tbody>
+        {% for v in verdicts %}
+        <tr><td class="market">{{ v.h }} sessions</td><td class="center">{{ v.n }}</td>
+          <td class="center" style="{{ v.hit_bg }}">{{ v.hit }}</td>
+          <td class="center">{{ v.sig }}</td>
+          <td class="center" style="{{ v.conf_bg }}">{{ v.conf_hit }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if best_calls or worst_calls %}
+    <div class="twocol">
+      <div>
+        <div class="banner">Sharpest resolved calls <span class="sig long">&#9650;</span></div>
+        <table>
+          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">5d move</th></tr></thead>
+          <tbody>
+            {% for r in best_calls %}
+            <tr><td>{{ r.date }}</td><td class="market">{{ r.market }}</td><td>{{ r.signal }}</td>
+              <td class="center"><span class="{{ 'ok' if r.ok else 'bad' }}">{{ '&#10003;'|safe if r.ok else '&#10007;'|safe }}</span> {{ r.sig }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="banner">Calls that missed <span class="sig short">&#9660;</span></div>
+        <table>
+          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">5d move</th></tr></thead>
+          <tbody>
+            {% for r in worst_calls %}
+            <tr><td>{{ r.date }}</td><td class="market">{{ r.market }}</td><td>{{ r.signal }}</td>
+              <td class="center"><span class="{{ 'ok' if r.ok else 'bad' }}">{{ '&#10003;'|safe if r.ok else '&#10007;'|safe }}</span> {{ r.sig }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="chartdesc" style="font-size:7pt;color:#777;">Composite (confluence) calls only, ranked
+      by the size of the subsequent 5-session move in trailing-&sigma; units &mdash; the clearest
+      rights and wrongs of the calls judged this week.</p>
+    {% endif %}
+
+    <div class="banner">The book&rsquo;s accuracy, week by week</div>
+    <div class="section"><div class="chart"><img src="{{ trend }}" alt="Weekly hit rate"></div></div>
+
+    {% if regime %}
+    <div class="regime"><b>&#129517; Regime read.</b> {{ regime }}</div>
+    {% endif %}
+
+    <div class="banner">Strategy hit rates &mdash; trailing year</div>
+    <div class="section"><div class="chart"><img src="{{ strat_bar }}" alt="Strategy hit rates, 1y"></div></div>
+
+    {% if league %}
+    <div class="banner">Era league &mdash; hit rate by lookback window (21 sessions)</div>
+    <table>
+      <thead><tr><th>Strategy</th><th>Category</th><th class="center">Signals</th>
+        {% for lab in league_labels %}<th class="center">{{ lab }}</th>{% endfor %}
+        <th class="center">&Delta; 1y vs full</th></tr></thead>
+      <tbody>
+        {% for r in league %}
+        <tr><td class="market">{{ r.strategy }}</td><td>{{ r.category }}</td>
+          <td class="center">{{ r.n }}</td>
+          {% for c in r.cells %}<td class="center" style="{{ c.bg }}">{{ c.txt }}</td>{% endfor %}
+          <td class="center" style="{{ r.delta_bg }}">{{ r.delta }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="chartdesc" style="font-size:7pt;color:#777;">Each column is the hit rate over that
+      trailing window, all ending this week &mdash; one row tells a strategy&rsquo;s whole regime
+      story. Blank cells have too few signals in that window to read.</p>
+    {% endif %}
+
+    <div class="report-footer">
+    {% if fresh %}
+    <div class="banner">This week&rsquo;s strongest fresh composite reads &mdash; verdicts pending</div>
+    <table>
+      <thead><tr><th>Fired</th><th>Product</th><th>Read</th>
+        <th class="center">Composite score</th><th class="center">Level at signal</th></tr></thead>
+      <tbody>
+        {% for r in fresh %}
+        <tr class="{% if r.signal == 'Long' %}long{% else %}short{% endif %}">
+          <td>{{ r.date }}</td><td class="market">{{ r.market }}</td>
+          <td class="sig">{{ r.signal }}</td>
+          <td class="center">{{ r.score }}</td><td class="center">{{ r.level }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="chartdesc" style="font-size:7pt;color:#777;">The week&rsquo;s highest-conviction
+      confluence composites (several independent strategy families agreeing on one product).
+      These are observations of where the signal book leans, not recommendations; their 5, 10 and
+      21-session verdicts will appear in the coming weeks&rsquo; scorecards.</p>
+    {% endif %}
+
+    <div class="foot-disclaimer">
+    <hr class="rule">
+    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
+    <div class="fine">
+      Method: the ledger re-runs the TA hub&rsquo;s own triggers over every cached session
+      ({{ ledger_span }}, {{ n_ledger }} flagged signals) and judges each signal in signal space
+      &mdash; benchmark yields for fixed income (a &ldquo;Long&rdquo; there means rising yields),
+      pair spreads for Mean Reversion, prices elsewhere &mdash; at 5, 10 and 21 sessions.
+      &ldquo;Hit&rdquo; = the move went the signal&rsquo;s way; &sigma;-moves normalise by the
+      product&rsquo;s trailing 21-session daily volatility so moves compare fairly across markets.
+      Hit rates are directional accuracy only: no exits, sizing, costs or P&amp;L. Settlement
+      data. Past performance of a signal process is not indicative of future results. Generated
+      by the internal Strategy Monitor for information only &mdash; not investment advice or a
+      solicitation. Source data subject to your market-data licence; verify redistribution
+      rights before external use.
+    </div>
+    </div>
+    </div>
+  </div>
+</body>
+</html>

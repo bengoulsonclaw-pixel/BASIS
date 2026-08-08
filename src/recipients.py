@@ -26,6 +26,7 @@ REPORTS = {
     "usda_reaction": "USDA Reaction (Acreage & Grain Stocks)",
     "wasde": "USDA WASDE report",
     "sectorcorr": "Product Correlations alert",
+    "sigscore": "Weekly Signal Scorecard",
     "curve": "Curve / RV Monitor report",
     "precious_metals": "Precious Metals Fundamentals monitor",
     "pm_releases": "Precious Metals release synopses (WGC / WPIC)",
@@ -52,7 +53,7 @@ def _defaults() -> dict:
     desk = _desk_default()
     return {"morning_coffee": list(desk), "cot": list(desk), "digest": [desk[0]],
             "opec": list(desk), "usda_reaction": list(desk),
-            "wasde": list(desk), "sectorcorr": [desk[0]],
+            "wasde": list(desk), "sectorcorr": [desk[0]], "sigscore": [desk[0]],
             # proofread flow: the monitor goes to the desk only; Ben forwards
             # the checked copy to clients himself.
             "precious_metals": [desk[0]], "pm_releases": [desk[0]]}

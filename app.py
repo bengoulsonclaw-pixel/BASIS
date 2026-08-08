@@ -7560,6 +7560,36 @@ def render_signal_ledger() -> None:
     st.caption(f"Ledger spans {out['date'].min().date()} → {out['date'].max().date()} · "
                f"{len(out):,} flagged signals · rebuilt with each morning snapshot.")
 
+    # ---- weekly scorecard PDF ------------------------------------------------------
+    st.markdown("##### 🗂️ Weekly Signal Scorecard")
+    st.caption("The client-ready weekly wrap of this page: signals flagged this week, the "
+               "verdicts that landed on earlier calls, the book's accuracy trend and the era "
+               "league. Also available as a scheduled Monday-morning email "
+               "(Recipients → Scheduled reports).")
+    if st.button("🧾 Build Weekly Signal Scorecard (PDF)", key="sl_pdf_btn"):
+        with st.spinner("Building the scorecard…"):
+            try:
+                _out = ROOT / "data" / "Weekly_Signal_Scorecard.pdf"
+                r = subprocess.run(
+                    [sys.executable, str(ROOT / "src" / "sigscore.py"), str(_out),
+                     "--asof", str(out["date"].max().date())],
+                    capture_output=True, text=True, timeout=300)
+                if r.returncode == 0 and _out.exists():
+                    st.session_state["sl_pdf"] = _out.read_bytes()
+                else:
+                    st.error("Report failed:\n\n"
+                             + (r.stderr or r.stdout or "unknown error")[-2000:])
+            except Exception as e:
+                st.error(f"Report failed: {e}")
+    if st.session_state.get("sl_pdf"):
+        st.download_button("⬇️  Download Weekly_Signal_Scorecard.pdf",
+                           data=st.session_state["sl_pdf"],
+                           file_name="Weekly_Signal_Scorecard.pdf", mime="application/pdf",
+                           key="sl_pdf_dl")
+        email_report_ui("sl_email", "sigscore", st.session_state["sl_pdf"],
+                        subject="BASIS — Weekly Signal Scorecard",
+                        attachment_name="Weekly_Signal_Scorecard.pdf")
+
 
 def render_strategy_builder() -> None:
     """Multi-leg option strategy builder (the optioncreator.com workflow): build a
