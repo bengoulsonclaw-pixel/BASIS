@@ -39,7 +39,7 @@ import pandas as pd
 from . import deepstore, universe
 from .volbt import point_value
 
-REV = 3               # bump when the book/row schema changes — busts the page's st.cache_data
+REV = 4               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
@@ -82,7 +82,7 @@ def _curve_specs() -> list:
                 bench = key in BENCHMARKS
                 out.append({
                     "key": key, "name": f"{mname} {ta}s{tb}s", "group": "Rates — Curve",
-                    "unit": "bp", "dp": 1, "bench": bench,
+                    "unit": "bp", "dp": 1, "bench": bench, "mkt": mname,
                     "legs": [(1, "yield", fb), (-1, "yield", fa)], "scale": 100.0,
                     "desc": f"{mname} {tb}Y minus {ta}Y benchmark yield — how steep the curve "
                             f"is between those two points (futures legs "
@@ -271,7 +271,7 @@ def _row(spec: dict, s: pd.Series, window: int, threshold: float) -> dict | None
     return {
         "key": spec["key"], "name": spec["name"], "group": spec["group"],
         "unit": spec["unit"], "dp": spec["dp"], "desc": spec["desc"],
-        "bench": bool(spec.get("bench", False)),
+        "bench": bool(spec.get("bench", False)), "mkt": spec.get("mkt", ""),
         "level": level, "chg1d": float(s.iloc[-1] - s.iloc[-2]) if len(s) > 1 else float("nan"),
         "z": zi, "pctl": pctl, "mean": m, "sigma": sd,
         "hi": float(s.max()), "lo": float(s.min()),

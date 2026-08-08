@@ -7681,7 +7681,7 @@ def render_curve_monitor() -> None:
         "decade has shown). Levels are real market observables — actual front prices and "
         "benchmark yields, never back-adjusted continuations.")
 
-    c0, c1, c2 = st.columns([1.3, 1, 1.9])
+    c0, c1, c2, c3 = st.columns([1.15, 0.85, 1.6, 1.0])
     win_lbl = c0.selectbox("Z-score window",
                            ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"],
                            index=2, key="cm_window",
@@ -7691,6 +7691,10 @@ def render_curve_monitor() -> None:
     threshold = float(c1.number_input("Flag threshold (σ)", 0.5, 4.0, curvemon.Z_THRESHOLD,
                                       0.25, key="cm_thr"))
     groups = c2.multiselect("Groups", curvemon.GROUPS, default=curvemon.GROUPS, key="cm_groups")
+    sort_by = c3.radio("Sort", ["Term", "Country", "A–Z"], horizontal=True, key="cm_sort",
+                       help="Term = like-for-like, each tenor pair's two markets adjacent, "
+                            "short end to long end. Country = US block then Germany. "
+                            "A–Z = alphabetical. (The curve group is where they differ.)")
 
     mon = _cm_monitor(window, threshold, MODE, curvemon.REV)
     if mon is None or mon.empty:
@@ -7699,6 +7703,13 @@ def render_curve_monitor() -> None:
         return
     if groups:
         mon = mon[mon["group"].isin(groups)]
+    if sort_by == "A–Z":
+        mon = mon.sort_values("name", kind="stable")
+    elif sort_by == "Country" and "mkt" in mon.columns:
+        _mkt_rank = {"US": 0, "Germany": 1}      # ladder markets first, cross-market/box after
+        mon = mon.sort_values("mkt", key=lambda c: c.map(lambda m: _mkt_rank.get(m, 99)),
+                              kind="stable")
+    # "Term" = the engine's book order: tenor pairs short-to-long, markets adjacent
 
     flagged = mon[mon["signal"] != "—"]
     if not flagged.empty:
