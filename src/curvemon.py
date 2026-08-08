@@ -51,24 +51,47 @@ GROUPS = ["Rates — Curve", "Rates — Cross-market", "STIR Calendars", "Energy
 # kind_of_spread == "ratio" which divides the first leg by the second.
 # kinds: "yield" (benchmark %, deep), "raw" ('1' actual level), "front2" ('2' level).
 # scale multiplies the combined spread (100 turns % / price-points into bp).
-SPREADS = [
-    # Rates — the curve itself, in bp of benchmark yield
-    {"key": "us_2s10s",  "name": "US 2s10s",  "group": "Rates — Curve", "unit": "bp", "dp": 1,
-     "legs": [(1, "yield", "TYA Comdty"), (-1, "yield", "TUA Comdty")], "scale": 100.0,
-     "desc": "US 10Y minus 2Y benchmark yield — the classic curve trade, futures legs TY / TU."},
-    {"key": "us_5s30s",  "name": "US 5s30s",  "group": "Rates — Curve", "unit": "bp", "dp": 1,
-     "legs": [(1, "yield", "USA Comdty"), (-1, "yield", "FVA Comdty")], "scale": 100.0,
-     "desc": "US 30Y minus 5Y benchmark yield — the long-end steepener, futures legs US / FV."},
-    {"key": "de_2s10s",  "name": "Germany 2s10s", "group": "Rates — Curve", "unit": "bp", "dp": 1,
-     "legs": [(1, "yield", "RXA Comdty"), (-1, "yield", "DUA Comdty")], "scale": 100.0,
-     "desc": "Bund minus Schatz benchmark yield — the German curve, futures legs RX / DU."},
-    {"key": "de_10s30s", "name": "Germany 10s30s", "group": "Rates — Curve", "unit": "bp", "dp": 1,
-     "legs": [(1, "yield", "UBA Comdty"), (-1, "yield", "RXA Comdty")], "scale": 100.0,
-     "desc": "Buxl minus Bund benchmark yield — the German long end, futures legs UB / RX."},
+#
+# The rate-curve group carries the FULL 2/5/10/30 ladder for each market (every
+# pairwise spread, generated below); `bench` marks the pair that market's desk
+# actually quotes — US trades 2s10s and 5s30s (the 5Y is the policy pivot vs the
+# term-premium long end), the euro market quotes off the Bund so its long-end
+# steepener is 10s30s (Bund–Buxl). Starred on the page and in the PDF.
+_CURVE_LADDERS = [
+    ("us", "US", [("2", "TUA Comdty"), ("5", "FVA Comdty"),
+                  ("10", "TYA Comdty"), ("30", "USA Comdty")]),
+    ("de", "Germany", [("2", "DUA Comdty"), ("5", "OEA Comdty"),
+                       ("10", "RXA Comdty"), ("30", "UBA Comdty")]),
+]
+BENCHMARKS = {"us_2s10s", "us_5s30s", "de_2s10s", "de_10s30s"}
+
+
+def _curve_specs() -> list:
+    out = []
+    for mkey, mname, ladder in _CURVE_LADDERS:
+        for i in range(len(ladder)):
+            for j in range(i + 1, len(ladder)):
+                (ta, fa), (tb, fb) = ladder[i], ladder[j]
+                key = f"{mkey}_{ta}s{tb}s"
+                bench = key in BENCHMARKS
+                out.append({
+                    "key": key, "name": f"{mname} {ta}s{tb}s", "group": "Rates — Curve",
+                    "unit": "bp", "dp": 1, "bench": bench,
+                    "legs": [(1, "yield", fb), (-1, "yield", fa)], "scale": 100.0,
+                    "desc": f"{mname} {tb}Y minus {ta}Y benchmark yield — how steep the curve "
+                            f"is between those two points (futures legs "
+                            f"{fb.split()[0][:-1]} / {fa.split()[0][:-1]})."
+                            + (" The benchmark quote for this market's curve." if bench else ""),
+                })
+    return out
+
+
+SPREADS = _curve_specs() + [
     {"key": "box_2s10s", "name": "US − Germany 2s10s box", "group": "Rates — Curve", "unit": "bp", "dp": 1,
      "legs": [(1, "yield", "TYA Comdty"), (-1, "yield", "TUA Comdty"),
               (-1, "yield", "RXA Comdty"), (1, "yield", "DUA Comdty")], "scale": 100.0,
-     "desc": "US 2s10s minus German 2s10s — relative curve shape, four futures legs."},
+     "desc": "US 2s10s minus German 2s10s — relative curve shape between the two markets, "
+             "four futures legs."},
 
     # Rates — cross-market 10Y spreads, in bp
     {"key": "ust_bund",  "name": "10Y Treasury − Bund", "group": "Rates — Cross-market", "unit": "bp", "dp": 1,
@@ -242,6 +265,7 @@ def _row(spec: dict, s: pd.Series, window: int, threshold: float) -> dict | None
     return {
         "key": spec["key"], "name": spec["name"], "group": spec["group"],
         "unit": spec["unit"], "dp": spec["dp"], "desc": spec["desc"],
+        "bench": bool(spec.get("bench", False)),
         "level": level, "chg1d": float(s.iloc[-1] - s.iloc[-2]) if len(s) > 1 else float("nan"),
         "z": zi, "pctl": pctl, "mean": m, "sigma": sd,
         "hi": float(s.max()), "lo": float(s.min()),

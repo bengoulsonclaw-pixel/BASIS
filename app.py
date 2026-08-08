@@ -54,6 +54,7 @@ from src import eqfunda
 from src import eqcorr
 from src import eqdisp
 from src import curvemon
+from src import seasmon
 from src import auth
 from src.universe import INSTRUMENTS
 
@@ -7702,6 +7703,9 @@ def render_curve_monitor() -> None:
         st.markdown("**Stretched now:** " + " · ".join(
             f"{r['name']} **{r['signal']}** ({r['z']:+.1f}σ, {r['pctl']:.0f}th %ile of 10y)"
             for _, r in flagged.iterrows()))
+    st.caption("★ = the pair that market's desk actually quotes (US 2s10s & 5s30s; Germany "
+               "2s10s & 10s30s — the euro long end trades off the Bund). Hover any spread's "
+               "name for what it is.")
 
     _cols = [
         {"key": "name", "label": "Spread"},
@@ -7717,9 +7721,14 @@ def render_curve_monitor() -> None:
         sub = mon[mon["group"] == g]
         brand.panel_header(g, right=f"{len(sub)} spreads")
         rows = []
+        _esc = lambda s: str(s).replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+        _gold = brand.palette()["gold"]
         for _, r in sub.iterrows():
+            _star = (f' <span style="color:{_gold}" title="The benchmark quote for this '
+                     f'market&#39;s curve">★</span>') if r.get("bench") else ""
             rows.append({
-                "name": r["name"],
+                "name": (f'<span title="{_esc(r["desc"])}" style="cursor:help;border-bottom:'
+                         f'1px dotted rgba(128,128,128,.55)">{_esc(r["name"])}</span>{_star}'),
                 "level_txt": f"{r['level']:,.{int(r['dp'])}f} {r['unit']}",
                 "chg1d": None if pd.isna(r["chg1d"]) else float(r["chg1d"]),
                 "z": float(r["z"]), "zpic": float(r["z"]),
@@ -7734,7 +7743,9 @@ def render_curve_monitor() -> None:
     brand.panel_header("Spread detail",
                        right=f"window {window}d · flag ±{threshold:g}σ")
     d0, d1 = st.columns([2.2, 1.4])
+    _bench_of = dict(zip(mon["name"], mon.get("bench", False)))
     sel_name = d0.selectbox("Spread", mon["name"].tolist(), key="cm_sel",
+                            format_func=lambda n: f"★ {n}" if _bench_of.get(n) else n,
                             label_visibility="collapsed")
     rng = d1.radio("Range", ["Full", "5y", "2y", "1y"], horizontal=True, key="cm_rng",
                    label_visibility="collapsed")
@@ -7838,6 +7849,290 @@ def render_curve_monitor() -> None:
         email_report_ui("cm_email", "curve", st.session_state["cm_pdf"],
                         subject="BASIS — Curve / RV Monitor",
                         attachment_name="Curve_RV_Monitor.pdf")
+
+
+# ---------------------------------------------------------------------------
+# Seasonality — calendar patterns on the deep store
+# ---------------------------------------------------------------------------
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_changes(mode: str):
+    """Monthly + weekly change frames for the whole book — one deep-store read."""
+    frames = seasmon.load_frames(universe.TREND_UNIVERSE)
+    return seasmon.monthly_changes(frames), seasmon.weekly_changes(frames)
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_windows(ticker: str, mode: str):
+    _mo, wk = _seas_changes(mode)
+    return seasmon.best_windows(wk, ticker)
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_spread_products(mode: str):
+    return seasmon.spread_products()
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_spread(ticker: str, mode: str):
+    return seasmon.spread_seasonal(ticker)
+
+
+def _seas_fmt(unit: str) -> str:
+    """Signed number format for a seasonality unit — bp whole, % one decimal."""
+    return "{:+,.0f}" if unit == "bp" else "{:+,.1f}"
+
+
+def render_seasonality() -> None:
+    import altair as alt
+
+    st.subheader("📅  Seasonality — calendar patterns on ten years of history")
+    st.caption(
+        "How each product's calendar year has actually traded across the deep store: "
+        "per-month return heatmaps, a month screener over the whole book, the average-year "
+        "path with the current year overlaid, and the calendar windows a decade rewarded most "
+        "consistently. Price products are measured in **%** of the actual front level; fixed "
+        "income runs in **yield/rate space (bp)** — a positive month means the yield ROSE. "
+        "Everything here is a description of history, not a forecast.")
+
+    monthly, weekly = _seas_changes(MODE)
+    if monthly is None or monthly.empty:
+        st.info("No seasonal history yet — the deep price store hasn't been built on this "
+                "machine (it backfills on the next Bloomberg session).")
+        return
+
+    # ---- month screener -----------------------------------------------------
+    c0, c1 = st.columns([1.1, 2.7])
+    mo_sel = c0.selectbox("Month", seasmon.MONTH_LABELS, index=date.today().month - 1,
+                          key="seas_month",
+                          help="Which calendar month to screen the book on. Defaults to the "
+                               "current month; the in-progress month never joins the stats.")
+    month = seasmon.MONTH_LABELS.index(mo_sel) + 1
+    scr = seasmon.screener(monthly, month)
+    if scr.empty:
+        st.info("Not enough stored years to screen this month.")
+        return
+    assets = [a for a in universe.ASSET_CLASSES if a in set(scr["asset"])]
+    sel_assets = c1.multiselect("Sectors", assets, default=assets, key="seas_assets")
+    if sel_assets:
+        scr = scr[scr["asset"].isin(sel_assets)]
+
+    strong = scr[scr["bias"] != "—"].copy()
+    strong["_x"] = (strong["hit"] - 0.5).abs()
+    strong = strong.sort_values("_x", ascending=False).head(8)
+    if not strong.empty:
+        st.markdown(f"**Seasonal bias in {mo_sel}:** " + " · ".join(
+            f"{r['name']} **{r['bias']} {round(r['hit'] * r['n'])}/{r['n']}**"
+            for _, r in strong.iterrows()))
+
+    cur_month = month == date.today().month
+    for a in [a for a in assets if a in set(scr["asset"])]:
+        sub = scr[scr["asset"] == a]
+        unit = sub["unit"].iloc[0]
+        fmt = _seas_fmt(unit)
+        brand.panel_header(a, right=f"{len(sub)} products · {unit}")
+        rows = []
+        for _, r in sub.iterrows():
+            rows.append({
+                "name": r["name"],
+                "med": float(r["med"]), "hitpic": float((r["hit"] - 0.5) * 4),
+                "hit": f"{round(r['hit'] * r['n'])}/{r['n']} {r['bias']}".replace(" —", ""),
+                "mean": float(r["mean"]), "best": float(r["best"]), "worst": float(r["worst"]),
+                "this": None if pd.isna(r["this_year"]) else float(r["this_year"]),
+            })
+        brand.terminal_table(rows, [
+            {"key": "name", "label": "Product"},
+            {"key": "med", "label": f"Med {unit}", "color": True, "fmt": fmt},
+            {"key": "hitpic", "label": "Hit ±", "zbar": True},
+            {"key": "hit", "label": "Years up", "align": "right"},
+            {"key": "mean", "label": f"Mean {unit}", "align": "right", "fmt": fmt},
+            {"key": "best", "label": "Best", "align": "right", "fmt": fmt},
+            {"key": "worst", "label": "Worst", "align": "right", "fmt": fmt},
+            {"key": "this", "label": "This yr (MTD)" if cur_month else "This yr",
+             "color": True, "fmt": fmt},
+        ])
+    st.caption(
+        f"**Med / Mean / Best / Worst** = that month's change across the stored years "
+        f"(complete months only — the in-progress month is shown under *This yr* but never "
+        f"counted). **Years up** = years the month printed positive, with a bias arrow at "
+        f"{seasmon.HIT_STRONG:.0%} agreement or better; the centre bar pictures the same "
+        "hit rate. Fixed income is the change in the benchmark yield / STIR rate — for a "
+        "bond future, a ↑ month means yields typically rose (futures fell).")
+
+    # ---- product detail -----------------------------------------------------
+    st.divider()
+    tickers = list(scr["ticker"]) if not scr.empty else []
+    if not tickers:
+        return
+    default_t = "NGA Comdty" if "NGA Comdty" in tickers else tickers[0]
+    brand.panel_header("Product seasonality", right="ten-year detail")
+    tkr = st.selectbox("Product", tickers, index=tickers.index(default_t),
+                       format_func=lambda t: f"{universe.yield_name(t)}  ·  {t}",
+                       key="seas_tkr", label_visibility="collapsed")
+    unit = seasmon.unit_of(tkr)
+    fmt = _seas_fmt(unit)
+    mat, stats, meta = seasmon.monthly_matrix(monthly, tkr)
+    if mat is None or stats is None:
+        st.info("Not enough deep history for this product.")
+        return
+
+    srow = stats.loc[month]
+    m0, m1, m2, m3 = st.columns(4)
+    m0.metric(f"{mo_sel} median ({unit})", "—" if pd.isna(srow["med"]) else fmt.format(srow["med"]),
+              None if pd.isna(srow["hit"]) else
+              f"higher in {round(srow['hit'] * srow['n'])} of {int(srow['n'])} years",
+              delta_color="off")
+    _c = stats.dropna(subset=["med"])
+    if not _c.empty:
+        _b, _w = int(_c["med"].idxmax()), int(_c["med"].idxmin())
+        m1.metric("Strongest month", seasmon.MONTH_LABELS[_b - 1], fmt.format(_c.loc[_b, "med"]),
+                  delta_color="off")
+        m2.metric("Weakest month", seasmon.MONTH_LABELS[_w - 1], fmt.format(_c.loc[_w, "med"]),
+                  delta_color="off")
+    m3.metric("Years on the store", f"{meta['years']}")
+
+    # year × month heatmap
+    cc = brand.chart_colors()
+    pal = brand.palette()
+    hm = mat.reset_index().melt("year", var_name="month", value_name="val").dropna()
+    hm["mon"] = hm["month"].map(lambda m: seasmon.MONTH_LABELS[int(m) - 1])
+    hm["txt"] = hm["val"].map(lambda v: fmt.format(v))
+    if meta["partial"]:
+        py, pm = meta["partial"]
+        hm.loc[(hm["year"] == py) & (hm["month"] == pm), "txt"] += "*"
+    vmax = float(hm["val"].abs().quantile(0.90)) or 1.0
+    base = alt.Chart(hm).encode(
+        x=alt.X("mon:N", sort=seasmon.MONTH_LABELS, title=None,
+                axis=alt.Axis(labelAngle=0, orient="top", labelFontSize=12)),
+        y=alt.Y("year:O", sort="descending", title=None, axis=alt.Axis(labelFontSize=12)))
+    cells = base.mark_rect(stroke=pal["canvas"], strokeWidth=1.4).encode(
+        color=alt.Color("val:Q", legend=None,
+                        scale=alt.Scale(domain=[-vmax, 0, vmax],
+                                        range=[cc["short"], pal["surface"], cc["long"]],
+                                        clamp=True)),
+        tooltip=[alt.Tooltip("year:O"), alt.Tooltip("mon:N", title="Month"),
+                 alt.Tooltip("val:Q", title=f"Change ({unit})", format="+,.1f")])
+    labels = base.mark_text(fontSize=11.5, font="monospace").encode(
+        text="txt:N",
+        color=alt.condition(f"abs(datum.val) > {vmax * 0.55}",
+                            alt.value("#F2F4F6"), alt.value(pal["text"])))
+    brand.show_chart((cells + labels).properties(
+        height=max(230, 26 * mat.shape[0] + 40),
+        title=f"{universe.yield_name(tkr)} — monthly change ({unit}), year × month"))
+    _n = " · *current month to date (excluded from stats)" if meta["partial"] else ""
+    st.caption(f"Colour is clamped at ±{vmax:,.1f} {unit} (the 90th percentile of "
+               f"|monthly moves|) so one outlier month doesn't wash the map out{_n}.")
+
+    srows = []
+    for lbl, k in [("Median", "med"), ("Years up", "hit")]:
+        row = {"lbl": lbl}
+        for m in range(1, 13):
+            v = stats.loc[m, k]
+            if pd.isna(v):
+                row[seasmon.MONTH_LABELS[m - 1]] = "—"
+            elif k == "hit":
+                row[seasmon.MONTH_LABELS[m - 1]] = f"{round(v * stats.loc[m, 'n'])}/{int(stats.loc[m, 'n'])}"
+            else:
+                row[seasmon.MONTH_LABELS[m - 1]] = fmt.format(v)
+        srows.append(row)
+    brand.terminal_table(srows, [{"key": "lbl", "label": ""}] + [
+        {"key": lab, "label": lab, "align": "right"} for lab in seasmon.MONTH_LABELS])
+
+    # average-year path
+    spd, sinfo = seasmon.seasonal_path(weekly, tkr)
+    if not spd.empty:
+        _sx = alt.Chart(spd).encode(
+            x=alt.X("wdate:T", title=None,
+                    axis=alt.Axis(format="%b", tickCount="month", labelFontSize=12)))
+        _band = _sx.mark_area(color=cc["muted"], opacity=0.35).encode(
+            y=alt.Y("p25:Q", title=f"cumulative {unit}",
+                    axis=alt.Axis(labelFontSize=12, titleFontSize=13)),
+            y2="p75:Q")
+        _med = _sx.mark_line(color=cc["series"], strokeWidth=2.6).encode(
+            y="med:Q", tooltip=[alt.Tooltip("woy:Q", title="Week"),
+                                alt.Tooltip("med:Q", title=f"Median cum {unit}", format="+,.1f")])
+        _halo = _sx.mark_line(color=cc["halo"], strokeWidth=4.6).encode(y="current:Q")
+        _cur = _sx.mark_line(color=cc["accent"], strokeWidth=3).encode(
+            y="current:Q",
+            tooltip=[alt.Tooltip("woy:Q", title="Week"),
+                     alt.Tooltip("current:Q", title=f"{sinfo['cur_year']} cum {unit}",
+                                 format="+,.1f")])
+        _zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+            color=cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="y:Q")
+        brand.show_chart(alt.layer(_zero, _band, _med, _halo, _cur).properties(
+            height=240,
+            title=f"Average year — cumulative change from 1 Jan (median of {sinfo['years']}y "
+                  f"· band = 25–75% of years · gold = {sinfo['cur_year']})"))
+
+    # best windows
+    bw = _seas_windows(tkr, MODE)
+    if bw is not None and not bw.empty:
+        w0, w1 = st.columns(2)
+        for col, direction, head in ((w0, "Higher", "Historically higher windows"),
+                                     (w1, "Lower", "Historically lower windows")):
+            sub = bw[bw["dir"] == direction]
+            with col:
+                brand.panel_header(head, right=f"hit ≥ {seasmon.HIT_STRONG:.0%}")
+                if sub.empty:
+                    st.caption("No calendar window cleared the agreement bar here.")
+                    continue
+                brand.terminal_table(
+                    [{"win": r["label"], "wks": f"{int(r['weeks'])}w",
+                      "hit": f"{int(r['wins'])}/{int(r['n'])}",
+                      "med": float(r["med"]), "worst": float(r["worst"])}
+                     for _, r in sub.iterrows()],
+                    [{"key": "win", "label": "Window"},
+                     {"key": "wks", "label": "Len", "align": "right"},
+                     {"key": "hit", "label": "Years", "align": "right"},
+                     {"key": "med", "label": f"Med {unit}", "color": True, "fmt": fmt},
+                     {"key": "worst", "label": "Worst", "align": "right", "fmt": fmt}])
+        st.caption(
+            "Every 4–16-week calendar stretch (year-end wrap included) screened for the "
+            f"windows this product moved one way in ≥ {seasmon.HIT_STRONG:.0%} of the stored "
+            "years; overlapping echoes collapse to the strongest. **Worst** = the most adverse "
+            "single year inside the window — the reminder that even a 9-of-10 pattern has an "
+            "exception. Descriptive history, not a signal.")
+
+    # ---- calendar-spread seasonality ---------------------------------------
+    st.divider()
+    sps = _seas_spread_products(MODE)
+    if not sps:
+        return
+    brand.panel_header("Calendar-spread seasonality", right="1st − 2nd generic · actual levels")
+    sp_default = tkr if tkr in sps else ("NGA Comdty" if "NGA Comdty" in sps else sps[0])
+    sp_tkr = st.selectbox("Spread product", sps, index=sps.index(sp_default),
+                          format_func=lambda t: f"{universe.name(t)}  ·  {t}",
+                          key="seas_sp", label_visibility="collapsed")
+    spdf, spinfo = _seas_spread(sp_tkr, MODE)
+    if spdf.empty:
+        st.caption("Not enough stored second-generic history for this product.")
+        return
+    su = spinfo["unit"]
+    _sx = alt.Chart(spdf).encode(
+        x=alt.X("wdate:T", title=None,
+                axis=alt.Axis(format="%b", tickCount="month", labelFontSize=12)))
+    _band = _sx.mark_area(color=cc["muted"], opacity=0.35).encode(
+        y=alt.Y("p25:Q", title=f"1st − 2nd ({su})",
+                axis=alt.Axis(labelFontSize=12, titleFontSize=13)), y2="p75:Q")
+    _med = _sx.mark_line(color=cc["series"], strokeWidth=2.6).encode(
+        y="med:Q", tooltip=[alt.Tooltip("woy:Q", title="Week"),
+                            alt.Tooltip("med:Q", title=f"Median spread ({su})", format="+,.2f")])
+    _halo = _sx.mark_line(color=cc["halo"], strokeWidth=4.6).encode(y="current:Q")
+    _cur = _sx.mark_line(color=cc["accent"], strokeWidth=3).encode(
+        y="current:Q", tooltip=[alt.Tooltip("woy:Q", title="Week"),
+                                alt.Tooltip("current:Q", format="+,.2f",
+                                            title=f"{spinfo['cur_year']} spread ({su})")])
+    _zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+        color=cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="y:Q")
+    brand.show_chart(alt.layer(_zero, _band, _med, _halo, _cur).properties(
+        height=240,
+        title=f"{universe.name(sp_tkr)} — front calendar spread by week of year "
+              f"(median {spinfo['years']}y · band = 25–75% · gold = {spinfo['cur_year']})"))
+    st.caption(
+        "The front calendar spread (1st minus 2nd generic, **actual traded levels**) walked "
+        "through the calendar year — positive = backwardation, negative = contango; STIR "
+        "calendars are shown in bp. The contract pair changes as the year rolls forward: that "
+        "is the point — this is the shape the front of the curve typically takes each season "
+        "(injection vs withdrawal, harvest vs old-crop), with the current year in gold.")
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -8187,6 +8482,8 @@ with st.sidebar:
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Curve / RV", "Curve Monitor")
         _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Seasonality", "Seasonality")
+        _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Trade Testing", "Fed Path")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
@@ -8448,6 +8745,8 @@ if active == "Product Correlations":
     render_sector_correlations(); st.stop()
 if active == "Curve Monitor":
     render_curve_monitor(); st.stop()
+if active == "Seasonality":
+    render_seasonality(); st.stop()
 if active == "Data health":
     render_data_health(); st.stop()
 if active == "OPEC Report":

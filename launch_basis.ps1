@@ -53,17 +53,30 @@ if (-not $up) {
     exit 1
 }
 
-# --- open BASIS as its own app window (chromeless), tied to this supervisor ---
-# A DEDICATED browser profile makes the window its own OS process (it can't merge
-# into an already-running Chrome), so Wait-Process below reliably returns the
-# moment the BASIS window is closed. Chrome preferred, Edge as the fallback
-# (always present on Windows 11).
+# --- open BASIS as its own app window, tied to this supervisor ----------------
+# Preferred: the INSTALLED "BASIS" web app in the user's main Chrome profile —
+# that window carries the real BASIS taskbar icon AND BASIS's own gold title bar
+# (manifest theme_color); a plain --app window ignores both and paints the bar
+# with Chrome's default profile theme instead. The app id is derived by Chrome
+# from start_url http://localhost:8501 and stays stable across reinstalls. The
+# spawned process usually hands off to the already-running Chrome and exits at
+# once — harmless: the connection watcher below owns the server's lifetime.
 $browser = @("C:\Program Files\Google\Chrome\Application\chrome.exe",
              "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
              "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
              "C:\Program Files\Microsoft\Edge\Application\msedge.exe") |
     Where-Object { Test-Path $_ } | Select-Object -First 1
-if ($browser) {
+$appId  = "fkkhajlpfoflidlepdpofgkmlcgcobng"
+$pwaDir = Join-Path $env:LOCALAPPDATA `
+    "Google\Chrome\User Data\Default\Web Applications\Manifest Resources\$appId"
+if ($browser -and $browser -like "*chrome.exe" -and (Test-Path $pwaDir)) {
+    $win = Start-Process -FilePath $browser -PassThru -ArgumentList `
+        "--profile-directory=Default", "--app-id=$appId"
+} elseif ($browser) {
+    # BASIS app not installed (or Chrome missing): chromeless --app window on a
+    # dedicated profile. NB its title bar shows the browser's theme colour, not
+    # BASIS gold — install the app (⋮ > Cast, save and share > Install page as
+    # app) to get the branded window back.
     $profileDir = Join-Path $env:LOCALAPPDATA "BASIS\app-window-profile"
     New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
     $win = Start-Process -FilePath $browser -PassThru -ArgumentList `

@@ -73,7 +73,7 @@ def render_html(d: dict) -> str:
         for r in [r for r in d["rows"] if r["group"] == g]:
             dp = int(r["dp"])
             rows.append({
-                "name": r["name"],
+                "name": ("★ " if r.get("bench") else "") + r["name"],
                 "level": f"{_fmt(r['level'], dp)} {r['unit']}",
                 "chg": "—" if r["chg1d"] is None else f"{r['chg1d']:+,.{dp}f}",
                 "z": f"{r['z']:+.2f}",
