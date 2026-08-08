@@ -26,7 +26,7 @@ import os
 import subprocess
 import sys
 import tempfile
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 os.environ.setdefault("DATAFEED_MODE", "snapshot")   # evening run: the morning snapshot is the day's data
@@ -37,6 +37,29 @@ import pandas as pd                    # noqa: E402
 from src import sectorcorr, universe   # noqa: E402
 
 MARKER = ROOT / "data" / "signals" / "sectorcorr_emailed.txt"   # last date emailed (daily dedup)
+BREAK_LOG = ROOT / "data" / "signals" / "sectorcorr_break_log.json"   # rolling flag ledger (Weekly Review reads it)
+
+
+def _log_breaks(asof: date, extremes) -> None:
+    """Append today's flagged pairs to the rolling ledger so the Weekly Review can quote
+    'what the daily alert flagged this week' without recomputing five correlation matrices.
+    Kept to ~90 days; one entry per pair per day; never allowed to fail the alert."""
+    try:
+        try:
+            log = json.loads(BREAK_LOG.read_text(encoding="utf-8"))
+        except Exception:
+            log = []
+        cutoff = str(asof - timedelta(days=90))
+        log = [r for r in log if r.get("date", "") >= cutoff and r.get("date") != str(asof)]
+        for r in extremes.itertuples(index=False):
+            log.append({"date": str(asof), "a": r.a, "b": r.b,
+                        "corr_1y": round(float(r.corr_1y), 3), "corr_1m": round(float(r.corr_1m), 3),
+                        "diff": round(float(r.diff), 3), "pctl": round(float(r.pctl), 1),
+                        "kind": r.kind})
+        BREAK_LOG.parent.mkdir(parents=True, exist_ok=True)
+        BREAK_LOG.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception as e:
+        print(f"(break-log update failed, alert continues: {e})")
 REPORT_CLI = ROOT / "src" / "sectorcorrreport.py"
 OUT_PDF = ROOT / "data" / "Product_Correlations_email.pdf"
 
@@ -130,6 +153,7 @@ def main():
         return
 
     extremes = sectorcorr.percentile_extremes("realized", today)
+    _log_breaks(today, extremes)
     if extremes.empty:
         print(f"No correlation extremes as of {today} — nothing to alert. "
               "(Pairs need |1M − 1Y| ≥ 0.30 at the ≤5th / ≥95th percentile.)")

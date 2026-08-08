@@ -1,13 +1,17 @@
 {
+  "commission": 0.0,
   "direction": "both",
   "exit_rule": "reversal",
   "hold_days": 10.0,
   "min_conviction": 80.0,
   "min_score": 80.0,
   "size": 1.0,
+  "slippage_pts": 0.0,
   "stop_pct": 0.0,
   "strategies": [
-    "Ichimoku Cloud"
+    "Aroon",
+    "Fibonacci Retracement",
+    "Flag Breakout"
   ],
   "take_pct": 0.0
 }
