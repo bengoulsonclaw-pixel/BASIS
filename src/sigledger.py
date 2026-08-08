@@ -166,6 +166,32 @@ def league(out: pd.DataFrame, by: str = "strategy") -> pd.DataFrame:
     return g.sort_values(f"hit{HORIZONS[-1]}", ascending=False).reset_index(drop=True)
 
 
+WINDOWS = ((None, "Full"), (5, "5y"), (3, "3y"), (1, "1y"))  # windows_league columns
+
+
+def windows_league(out: pd.DataFrame, horizon: int = 21, min_n: int = 25) -> pd.DataFrame:
+    """Per-strategy hit rates across lookback windows SIDE BY SIDE (full / 5y / 3y / 1y,
+    each anchored to the ledger's last date) plus the 1y-vs-full swing in pp — the
+    regime-rotation story in one table instead of behind the window filter. Cells with
+    fewer than `min_n` evaluable signals in that window go NaN (blank), the same
+    thin-sample bar as the league. Sorted by the shortest window's hit rate: 'what's
+    working now' reads top-down."""
+    if out is None or out.empty:
+        return pd.DataFrame()
+    hcol = f"hit{horizon}"
+    hi = out["date"].max()
+    res = pd.DataFrame(index=pd.Index(sorted(out["strategy"].unique()), name="strategy"))
+    for yrs, label in WINDOWS:
+        sub = out if yrs is None else out[out["date"] >= hi - pd.DateOffset(years=yrs)]
+        g = sub.groupby("strategy")[hcol].agg(["count", "mean"])
+        res[label] = (g["mean"] * 100.0).where(g["count"] >= min_n)
+        res[f"n {label}"] = g["count"].reindex(res.index).fillna(0).astype(int)
+    first, last = WINDOWS[0][1], WINDOWS[-1][1]
+    res["delta"] = res[last] - res[first]
+    res = res.dropna(how="all", subset=[label for _, label in WINDOWS])
+    return res.sort_values(last, ascending=False).reset_index()
+
+
 def regime_read(out: pd.DataFrame, recent_years: int = 2, horizon: int = 21,
                 min_n_past: int = 400, min_n_recent: int = 120) -> dict | None:
     """The page's auto-written "what's working in THIS era vs what worked before" note —

@@ -7302,13 +7302,9 @@ def render_signal_ledger() -> None:
                        f"{_rr['asof'].date()} — it re-writes with every morning snapshot, "
                        f"so when signal leadership rotates, this paragraph rotates with it.")
 
-    # ---- league table --------------------------------------------------------------
-    by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
-    lg = sigledger.league(view, "strategy" if by == "Strategy" else "market")
-    lg = lg[lg["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
-    # Diverging cell shading — the same red→neutral→green code as the heatmap below, so
-    # "strength" reads identically everywhere on the page. rgba over the theme background
-    # keeps it legible in BOTH light and dark themes (no hard-coded cell text colours).
+    # ---- era league — every window side by side, the regime rotation at a glance ----
+    # Deliberately ignores the Window filter (it IS all the windows at once); the product
+    # filter and min-signals bar still apply.
     def _div_bg(v, centre: float, span: float) -> str:
         if pd.isna(v):
             return ""
@@ -7316,6 +7312,37 @@ def render_signal_ledger() -> None:
         r, g, b = (30, 132, 73) if x > 0 else (192, 57, 43)     # #1e8449 / #c0392b
         return f"background-color: rgba({r},{g},{b},{0.12 + 0.43 * abs(x):.2f})"
 
+    _base = out[out["market"].isin(set(mkts))] if mkts else out
+    wl = sigledger.windows_league(_base, horizon, min_n=int(min_n))
+    if not wl.empty:
+        _yrs = out["date"].max().year - out["date"].min().year
+        _wlbl = {"Full": f"Full {_yrs}y", "5y": "5y", "3y": "3y", "1y": "1y"}
+        st.markdown(f"##### Era league — hit rate by lookback window ({horizon}d)")
+        wl_cols = [_wlbl[label] for _, label in sigledger.WINDOWS]
+        wnum = pd.DataFrame({
+            "Strategy": wl["strategy"].to_numpy(),
+            "Signals": wl["n Full"].to_numpy(),
+            **{_wlbl[label]: wl[label].to_numpy() for _, label in sigledger.WINDOWS},
+            f"Δ 1y vs full": wl["delta"].to_numpy(),
+        })
+        wsty = (wnum.style
+                .format({"Signals": "{:,.0f}",
+                         **{c: "{:.1f}%" for c in wl_cols},
+                         "Δ 1y vs full": "{:+.1f}pp"}, na_rep="—")
+                .map(lambda v: _div_bg(v, 50.0, 5.0), subset=wl_cols)
+                .map(lambda v: _div_bg(v, 0.0, 5.0), subset=["Δ 1y vs full"]))
+        st.dataframe(wsty, hide_index=True, use_container_width=True,
+                     height=min(560, 40 + 35 * len(wnum)))
+        st.caption("Each column is the hit rate over that trailing window (all ending today), "
+                   "so one row tells a strategy's whole regime story — green all the way across "
+                   "is persistence, red-then-green is rotation into this era. Ignores the Window "
+                   "filter by design; products and min-signals still apply. Blank cells have "
+                   "fewer signals in that window than the min-signals bar.")
+
+    # ---- league table --------------------------------------------------------------
+    by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
+    lg = sigledger.league(view, "strategy" if by == "Strategy" else "market")
+    lg = lg[lg["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
     if lg.empty:
         st.info("No rows clear the min-signals bar — lower it to see thin samples.")
     else:
