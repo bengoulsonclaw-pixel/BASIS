@@ -30,6 +30,8 @@ ALERT_REPORTS = OrderedDict([
                     "email": "convreport", "alerts": []}),
     ("eq_convreport", {"label": "Technical Analysis Report — Equities", "group": "Desk & positioning",
                        "email": "eq_convreport", "alerts": []}),
+    ("sigscore", {"label": "Weekly Signal Scorecard", "group": "Desk & positioning",
+                  "email": "sigscore", "alerts": []}),
     ("cot", {"label": "CFTC COT positioning", "group": "Desk & positioning",
              "email": "cot", "alerts": ["CFTC COT"]}),
     # Not a calendar release: the banner fires whenever a product pair's 1M correlation sits at
