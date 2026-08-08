@@ -40,8 +40,9 @@ MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 # Display units for the classic calendar spreads (native points otherwise).
+# XB / HO quote in ¢/gal on Bloomberg (like HG in ¢/lb) — see the point-values memo.
 _SPREAD_UNITS = {"CLA Comdty": "$/bbl", "COA Comdty": "$/bbl", "NGA Comdty": "$/MMBtu",
-                 "FJSA Comdty": "€/MWh", "HOA Comdty": "$/gal", "XBA Comdty": "$/gal",
+                 "FJSA Comdty": "€/MWh", "HOA Comdty": "¢/gal", "XBA Comdty": "¢/gal",
                  "QSA Comdty": "$/t", "HGA Comdty": "¢/lb"}
 
 
