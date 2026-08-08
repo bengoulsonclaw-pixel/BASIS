@@ -6933,8 +6933,8 @@ def render_ta_backtester(scope: str = "ficc") -> None:
             **{"Total P&L": cmp_df["total_pnl"].map(_usd),
                "Trades": cmp_df["n_trades"],
                "Win rate": cmp_df["win_rate"].map(lambda v: "—" if pd.isna(v) else f"{v:.0f}%"),
-               "Avg win": cmp_df["avg_win"].map(_usd),
-               "Avg loss": cmp_df["avg_loss"].map(_usd),
+               "Avg win": cmp_df["avg_win"].map(lambda v: "—" if pd.isna(v) else _usd(v)),
+               "Avg loss": cmp_df["avg_loss"].map(lambda v: "—" if pd.isna(v) else _usd(v)),
                "Profit factor": cmp_df["profit_factor"].map(
                    lambda v: "∞" if v == np.inf else ("—" if pd.isna(v) else f"{v:.2f}")),
                "Max drawdown": cmp_df["max_drawdown"].map(_usd),
