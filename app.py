@@ -874,8 +874,7 @@ _GROUP_TABS = {
     "Market Information": [("📅 Reports Calendar", "Release Calendar"),
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
-                           ("🧮 Fut / Yield", "Fut Yield"),
-                           ("🌐 Universe", "Universe")],
+                           ("🧮 Fut / Yield", "Fut Yield")],
     "Trade Testing":      [("🏛️ Fed Path", "Fed Path"),
                            ("🧪 Vol Backtester", "Vol Backtester"),
                            ("🎯 TA Backtester", "TA Backtester"),
@@ -1661,7 +1660,7 @@ def render_home() -> None:
     # (world clocks moved to the fixed top bar — rendered on every page)
     render_sector_filter()
     st.subheader("Data")
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4 = st.columns(4)
     c4.button("☕  Morning Coffee", use_container_width=True, key="home_mc",
               on_click=_go, args=("Morning Coffee",),
               help="The morning report — overnight moves, levels and the day ahead.")
@@ -1761,28 +1760,6 @@ def render_home() -> None:
                            file_name="bloomberg_snapshot.xlsx", use_container_width=True,
                            key="home_xlsx_dl",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    if c5.button("🗂️  Weekly Scorecard", use_container_width=True, key="home_scorecard",
-                 disabled=not (ROOT / "data" / "signal_cache"
-                               / "ledger_outcomes.parquet").exists(),
-                 help="Build this week's Signal Scorecard PDF — the client-ready weekly wrap "
-                      "of the Signal Ledger (hit-rate verdicts, era league, heatmap, watch "
-                      "list). Also on the 📒 Signal Ledger page."):
-        with st.spinner("Building the Weekly Signal Scorecard…"):
-            _sc_out = ROOT / "data" / "Weekly_Signal_Scorecard.pdf"
-            _sc = subprocess.run(
-                [sys.executable, str(ROOT / "src" / "sigscore.py"), str(_sc_out)],
-                capture_output=True, text=True, timeout=600)
-            if _sc.returncode == 0 and _sc_out.exists():
-                st.session_state["home_scorecard_pdf"] = _sc_out.read_bytes()
-            else:
-                st.error("Scorecard failed:\n\n"
-                         + (_sc.stderr or _sc.stdout or "no output")[-2000:])
-    if st.session_state.get("home_scorecard_pdf"):
-        st.download_button("⬇️  Download Weekly_Signal_Scorecard.pdf",
-                           data=st.session_state["home_scorecard_pdf"],
-                           file_name="Weekly_Signal_Scorecard.pdf", mime="application/pdf",
-                           use_container_width=True, key="home_scorecard_dl")
-
     st.divider()
     _overnight_moves(snap)
     _econ_figures()
@@ -3375,6 +3352,37 @@ def _ta_reports(meta, prod=None, scope="ficc", conf_set=None) -> None:
                 "objective / invalidation levels. Neutral, client-safe language"
                 + ("; ~2,600 single-name equities off free yfinance data." if eq
                    else "; fixed income read on yields."))
+
+    if not eq:
+        # --- Weekly Signal Scorecard — the TA book's track record, filed with its reports ---
+        sc1, sc2 = st.columns([1, 3])
+        _ledger_ok = (ROOT / "data" / "signal_cache" / "ledger_outcomes.parquet").exists()
+        if sc1.button("🗂️ Generate Weekly Signal Scorecard (PDF)", key="ta_scorecard",
+                      disabled=not _ledger_ok):
+            with st.spinner("Building the Weekly Signal Scorecard…"):
+                _sc_out = ROOT / "data" / "Weekly_Signal_Scorecard.pdf"
+                _sc = subprocess.run(
+                    [sys.executable, str(ROOT / "src" / "sigscore.py"), str(_sc_out)],
+                    capture_output=True, text=True, timeout=600)
+                if _sc.returncode == 0 and _sc_out.exists():
+                    st.session_state["ta_scorecard_pdf"] = _sc_out.read_bytes()
+                else:
+                    st.error("Scorecard failed:\n\n"
+                             + (_sc.stderr or _sc.stdout or "no output")[-2000:])
+        if st.session_state.get("ta_scorecard_pdf"):
+            st.download_button("⬇️ Download Weekly_Signal_Scorecard.pdf",
+                               data=st.session_state["ta_scorecard_pdf"],
+                               file_name="Weekly_Signal_Scorecard.pdf", mime="application/pdf",
+                               key="ta_scorecard_dl")
+            email_report_ui("ta_sc_email", "sigscore", st.session_state["ta_scorecard_pdf"],
+                            subject="BASIS — Weekly Signal Scorecard",
+                            attachment_name="Weekly_Signal_Scorecard.pdf")
+        sc2.caption("The **Weekly Signal Scorecard** — the client-facing track record of THIS page's "
+                    "signals: the week's flagged signals, the verdicts that landed on earlier calls at "
+                    "5/10/21 sessions (hits and misses), the era league, the strategy × product hit-rate "
+                    "map and a watch list where a live composite read meets a real track record. Data "
+                    "from the 📒 Signal Ledger; also available as a scheduled Monday email "
+                    "(Alert Settings). Ad-hoc builds here never roll the weekly-delta baseline.")
 
 
 @st.cache_data(show_spinner=False)
@@ -7581,35 +7589,9 @@ def render_signal_ledger() -> None:
     st.caption(f"Ledger spans {out['date'].min().date()} → {out['date'].max().date()} · "
                f"{len(out):,} flagged signals · rebuilt with each morning snapshot.")
 
-    # ---- weekly scorecard PDF ------------------------------------------------------
-    st.markdown("##### 🗂️ Weekly Signal Scorecard")
-    st.caption("The client-ready weekly wrap of this page: signals flagged this week, the "
-               "verdicts that landed on earlier calls, the book's accuracy trend and the era "
-               "league. Also available as a scheduled Monday-morning email "
-               "(Recipients → Scheduled reports).")
-    if st.button("🧾 Build Weekly Signal Scorecard (PDF)", key="sl_pdf_btn"):
-        with st.spinner("Building the scorecard…"):
-            try:
-                _out = ROOT / "data" / "Weekly_Signal_Scorecard.pdf"
-                r = subprocess.run(
-                    [sys.executable, str(ROOT / "src" / "sigscore.py"), str(_out),
-                     "--asof", str(out["date"].max().date())],
-                    capture_output=True, text=True, timeout=300)
-                if r.returncode == 0 and _out.exists():
-                    st.session_state["sl_pdf"] = _out.read_bytes()
-                else:
-                    st.error("Report failed:\n\n"
-                             + (r.stderr or r.stdout or "unknown error")[-2000:])
-            except Exception as e:
-                st.error(f"Report failed: {e}")
-    if st.session_state.get("sl_pdf"):
-        st.download_button("⬇️  Download Weekly_Signal_Scorecard.pdf",
-                           data=st.session_state["sl_pdf"],
-                           file_name="Weekly_Signal_Scorecard.pdf", mime="application/pdf",
-                           key="sl_pdf_dl")
-        email_report_ui("sl_email", "sigscore", st.session_state["sl_pdf"],
-                        subject="BASIS — Weekly Signal Scorecard",
-                        attachment_name="Weekly_Signal_Scorecard.pdf")
+    st.caption("🗂️ The **Weekly Signal Scorecard** — this page's numbers as a client PDF — "
+               "is built from the 📈 Technical Analysis page's report controls (and as a "
+               "scheduled Monday email via Alert Settings).")
 
 
 def render_strategy_builder() -> None:
@@ -8990,7 +8972,7 @@ with st.sidebar:
         pass
     if _side == "FICC":
         st.markdown('<div class="bt-sect">FICC modules</div>', unsafe_allow_html=True)
-        # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield / Universe)
+        # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield)
         # collapses to one entry; Trade Testing (Fed Path + Vol Backtester) does the same, numbered
         # in after the strategy groups. Both carry the tab-row switcher (_render_group_tabs).
         # Morning Coffee is reached from the Home page's Data row.
@@ -9040,6 +9022,7 @@ with st.sidebar:
         st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
         _nav_button("Alert Settings", "Recipients")
         _nav_button("Data Health", "Data health")
+        _nav_button("Universe", "Universe")
         _nav_button("Colleague Accounts", "User Admin")
         _nav_button("Colleague Activity", "User Activity")
     if auth.REQUIRE_LOGIN:

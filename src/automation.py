@@ -51,7 +51,7 @@ REPORTS = {
                         "schedule": "Monthly, 5th at 07:00 (after LBMA vault data lands)",
                         "tasks": ["Precious Metals Monitor (monthly)"],
                         "recipients": "precious_metals"},
-    "sigscore": {"label": "Weekly Signal Scorecard",
+    "sigscore": {"label": "Weekly Signal Scorecard — Technical",
                  "schedule": "Mondays 07:45 — the prior trading week's signal verdicts",
                  "tasks": ["BASIS Weekly Signal Scorecard"],
                  "recipients": "sigscore"},
