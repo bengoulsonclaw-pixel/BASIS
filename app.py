@@ -7128,7 +7128,11 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     # PATTERN LEVELS AS OF EACH ENTRY — the read that actually pulled the trigger. The
     # full-width dashed rules above are TODAY's levels (last-180-session swing etc.), which
     # say nothing about a trade taken a year ago; here each trade gets the levels recomputed
-    # from history up to ITS entry day, drawn as solid segments spanning just that trade.
+    # from history up to ITS entry day. Drawn in CYAN (a colour nothing else on this chart
+    # uses — Ben's call: colour, not line style, separates then-vs-now) and only over ±5
+    # sessions around the entry, so with many trades each cluster stays pinned to its own
+    # marker instead of span-length segments overlapping each other.
+    _ENTRY_LVL_COLOR = "#4DD0E1"
     _PAT = {"Fibonacci Retracement", "Support & Resistance", "Breakout & Retest"} & set(_rs)
     if _PAT and len(_tr) and _pf is not None and len(_pf):
         from src.strategies import (fibonacci as _fbn2, support_resistance as _sr2,
@@ -7138,35 +7142,37 @@ def render_ta_backtester(scope: str = "ficc") -> None:
             _h2 = pd.DataFrame({_rtk: _pf.loc[:pd.Timestamp(_t2.entry_date)]})
             if len(_h2) < 60:
                 continue
-            _x0, _x1 = _t2.entry_date, _t2.exit_date
+            _ei = _win_index.searchsorted(pd.Timestamp(_t2.entry_date))
+            _x0 = _win_index[max(0, _ei - 5)]
+            _x1 = _win_index[min(len(_win_index) - 1, _ei + 5)]
             try:
+                _when = pd.Timestamp(_t2.entry_date).strftime("%d %b %y")
                 if "Fibonacci Retracement" in _PAT:
                     _, _fi4 = _fbn2.fib_chart_data(_rtk, history=_h2)
                     for _L4 in ((_fi4 or {}).get("levels") or []):
                         if _L4.get("key") and np.isfinite(_L4["price"]):
                             _seg_rows.append({"start": _x0, "end": _x1, "y": _L4["price"],
-                                              "what": f"Fib {_L4['ratio']:.3f} at entry"})
+                                              "what": f"Fib {_L4['ratio']:.3f} at {_when} entry"})
                 if "Support & Resistance" in _PAT:
                     _, _si4 = _sr2.sr_chart_data(_rtk, history=_h2)
                     for _L4 in ((_si4 or {}).get("levels") or []):
                         if np.isfinite(_L4["price"]):
                             _seg_rows.append({"start": _x0, "end": _x1, "y": _L4["price"],
-                                              "what": f"{_L4['kind']} at entry"})
+                                              "what": f"{_L4['kind']} at {_when} entry"})
                 if "Breakout & Retest" in _PAT:
                     _, _bi4 = _br2.retest_chart_data(_rtk, history=_h2)
                     _lv4 = (_bi4 or {}).get("level")
                     if _lv4 is not None and np.isfinite(_lv4):
                         _seg_rows.append({"start": _x0, "end": _x1, "y": _lv4,
-                                          "what": "retest level at entry"})
+                                          "what": f"retest level at {_when} entry"})
             except Exception:
                 pass
         if _seg_rows:
             layers.append(alt.Chart(pd.DataFrame(_seg_rows)).mark_rule(
-                color=_cc["accent"], strokeWidth=2.4, opacity=0.95).encode(
+                color=_ENTRY_LVL_COLOR, strokeWidth=2.4, opacity=0.95).encode(
                 x="start:T", x2="end:T", y="y:Q",
                 tooltip=[alt.Tooltip("what:N", title=""),
-                        alt.Tooltip("y:Q", title="Level", format=",.2f"),
-                        alt.Tooltip("start:T", title="Entry")]))
+                        alt.Tooltip("y:Q", title="Level", format=",.2f")]))
 
     brand.show_chart(alt.layer(*layers).resolve_scale(y="shared").properties(
         height=340, title=f"{_ytitle}, the picked strategies' indicators & every trade"))
@@ -7188,11 +7194,12 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     if _full_ovs:
         _cap += f" Drawn over the full window: {', '.join(_full_ovs)}."
     if _eow_ovs:
-        _cap += (f" {', '.join(_eow_ovs).capitalize()} are drawn twice: **dashed full-width** = "
-                 "today's read (context for now), **solid gold segments** = the levels as they "
-                 "stood **at each trade's entry**, drawn across that trade — the read that "
-                 "actually pulled the trigger. (Flag channel and Elliott count stay end-of-window "
-                 "snapshots.)")
+        _cap += (f" {', '.join(_eow_ovs).capitalize()} are drawn twice: **gold/green/red dashed "
+                 "full-width** = today's read (context for now), **cyan segments** = the levels "
+                 "as they stood **at each trade's entry**, pinned ±5 sessions around that entry "
+                 "marker — the read that actually pulled the trigger (hover a segment for which "
+                 "level and which entry). Flag channel and Elliott count stay end-of-window "
+                 "snapshots.")
     _cap += (" Shaded bands = days a position was on (green long / red short). ▲ / ▼ = entries, "
              "✕ = exits — hover any marker for conviction, score, reason and P&L.")
     if _fi_chart:
