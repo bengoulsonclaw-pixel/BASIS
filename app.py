@@ -6921,16 +6921,28 @@ def render_ta_backtester(scope: str = "ficc") -> None:
         st.markdown(f"#### Every strategy vs Confluence — {_lab(ticker)}, "
                     f"{start:%d %b %Y} → {end:%d %b %Y}"
                     + (" (net of costs)" if _cmp_costs else ""))
+        # tag each row with its axis ("sector" of technical analysis) — short forms keep the
+        # y labels readable; Confluence spans them all
+        _AX_SHORT = {"Trend": "Trend", "Momentum / Oscillators": "Momentum", "Volume": "Volume",
+                     "Support & Resistance": "S&R", "Patterns & Breakouts": "Patterns"}
+        cmp_df = cmp_df.assign(
+            axis=[("all axes" if s2 == "Confluence"
+                   else _AX_SHORT.get(tascore.axis_of(s2), tascore.axis_of(s2)))
+                  for s2 in cmp_df["strategy"]])
+        cmp_df = cmp_df.assign(
+            label=[f"{s2}  ·  {a2}" for s2, a2 in zip(cmp_df["strategy"], cmp_df["axis"])])
         bars = alt.Chart(cmp_df).mark_bar().encode(
             x=alt.X("total_pnl:Q", title="Total P&L ($)" + (" net" if _cmp_costs else "")),
-            y=alt.Y("strategy:N", sort="-x", title=None),
+            y=alt.Y("label:N", sort="-x", title=None),
             color=alt.condition("datum.total_pnl >= 0", alt.value("#46C58A"), alt.value("#EC6A57")),
-            tooltip=[alt.Tooltip("strategy:N"), alt.Tooltip("total_pnl:Q", format="+,.0f"),
+            tooltip=[alt.Tooltip("strategy:N"), alt.Tooltip("axis:N", title="Axis"),
+                    alt.Tooltip("total_pnl:Q", format="+,.0f"),
                     alt.Tooltip("n_trades:Q", title="trades"),
                     alt.Tooltip("win_rate:Q", format=".0f", title="win rate %")])
         brand.show_chart(bars.properties(height=32 * max(len(cmp_df), 4) + 40))
         view = cmp_df.assign(
-            **{"Total P&L": cmp_df["total_pnl"].map(_usd),
+            **{"Axis": cmp_df["axis"],
+               "Total P&L": cmp_df["total_pnl"].map(_usd),
                "Trades": cmp_df["n_trades"],
                "Win rate": cmp_df["win_rate"].map(lambda v: "—" if pd.isna(v) else f"{v:.0f}%"),
                "Avg win": cmp_df["avg_win"].map(lambda v: "—" if pd.isna(v) else _usd(v)),
@@ -6942,7 +6954,7 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                          else pd.Series(0.0, index=cmp_df.index)).map(_usd),
                "Avg hold (days)": cmp_df["avg_holding_days"].map(
                    lambda v: "—" if pd.isna(v) else f"{v:.0f}")}
-        )[["strategy", "Total P&L", "Trades", "Win rate", "Avg win", "Avg loss",
+        )[["strategy", "Axis", "Total P&L", "Trades", "Win rate", "Avg win", "Avg loss",
            "Profit factor", "Max drawdown"] + (["Costs"] if _cmp_costs else [])
           + ["Avg hold (days)"]].rename(columns={"strategy": "Strategy"})
         st.dataframe(view, hide_index=True, use_container_width=True)
