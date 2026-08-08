@@ -148,6 +148,56 @@ SPECS = {
             "ratio; it annotates rather than gates the signal."
         ),
     },
+    "Donchian Channel": {
+        "default": 80.0, "min": 50.0, "max": 100.0, "step": 5.0,
+        "label": "Trigger — flag when |channel position| ≥",
+        "metric_label": "channel position (0-100)",
+        "hi": ("Bullish channel breakout", 1), "lo": ("Bearish channel breakout", -1),
+        "trigger": lambda t: (f"channel position ≥ {t:g} (at/near a new 20-day high → bullish "
+                              f"breakout) or ≤ −{t:g} (a new 20-day low → bearish). 100 = sitting on "
+                              "the band; beyond 100 = already broken out. Lower the trigger to catch "
+                              "approaches to the channel edge earlier."),
+        "math": (
+            "**Donchian channel breakout — the classic turtle / price-channel signal.**\n\n"
+            "The *Donchian channel* is simply the highest and lowest close over the last **20 "
+            "sessions**. A close through the top is the canonical long entry, through the bottom the "
+            "short — the core signal of most systematic trend-followers.\n\n"
+            "Per product, on the close series, the channel is taken over the **prior** 20 closes "
+            "(excluding today, so a new high is genuinely new), and we score where today's close "
+            "sits across it:\n\n"
+            "> `position = (close − lower) ÷ (upper − lower)`\n\n"
+            "reported as a signed 0–100 **channel position**: `metric = 100 × (2·position − 1)` — "
+            "**−100 on the lower band, +100 on the upper band**, beyond ±100 already broken out. The "
+            "objective is the channel height projected from the broken band; the invalidation is the "
+            "opposite band.\n\n"
+            "Signed by side it reads symmetrically: `metric ≥ +t` → **bullish breakout**, "
+            "`metric ≤ −t` → **bearish breakout**; markets rank nearest-breakout first. _Close-based_, "
+            "so it runs identically on the futures book and the equity universe."
+        ),
+    },
+    "Aroon": {
+        "default": 50.0, "min": 25.0, "max": 100.0, "step": 5.0,
+        "label": "Trigger — flag when |Aroon oscillator| ≥",
+        "metric_label": "Aroon oscillator",
+        "hi": ("Uptrend (Aroon)", 1), "lo": ("Downtrend (Aroon)", -1),
+        "trigger": lambda t: (f"Aroon oscillator ≥ {t:g} (Up dominates → strong uptrend) or ≤ −{t:g} "
+                              "(Down dominates → downtrend); |value| is trend strength, near 0 = no "
+                              "trend / chop. Lower the trigger to include gentler trends."),
+        "math": (
+            "**Aroon — trend strength from how recently price made a new extreme.**\n\n"
+            "Over the last **25 sessions** Aroon measures the time since the highest and lowest "
+            "close:\n\n"
+            "> `Aroon Up = 100 × (25 − sessions since the 25-day high) ÷ 25`\n\n"
+            "> `Aroon Down = 100 × (25 − sessions since the 25-day low) ÷ 25`\n\n"
+            "A trend that keeps printing fresh highs pins **Aroon Up near 100, Down near 0** (and the "
+            "mirror for downtrends); a market going nowhere makes neither, so both drift low. The "
+            "**Aroon oscillator = Up − Down** runs −100…+100 and is the signed **metric**: strongly "
+            "positive = a healthy uptrend, strongly negative = a downtrend, near zero = no trend.\n\n"
+            "It reads symmetrically: `osc ≥ +t` → **uptrend**, `osc ≤ −t` → **downtrend**; |osc| ranks "
+            "trend strength. _Close-based_, so it runs identically on the futures book and the equity "
+            "universe."
+        ),
+    },
     "Volatility": {
         "default": 1.5, "min": 0.5, "max": 4.0, "step": 0.1, "label": "Trigger — flag when |z| ≥",
         "metric_label": "spread z (1y)",

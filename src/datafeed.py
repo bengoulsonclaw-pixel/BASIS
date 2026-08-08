@@ -70,16 +70,141 @@ def _read_snapshot(name: str):
     return df.sort_index()
 
 
-def get_history(tickers, start=None, end=None, field: str = DEFAULT_FIELD) -> pd.DataFrame:
-    """Return a DataFrame indexed by date, one column per ticker."""
+def get_history(tickers, start=None, end=None, field: str = DEFAULT_FIELD,
+                raw: bool = False) -> pd.DataFrame:
+    """Return a DataFrame indexed by date, one column per ticker.
+
+    Since 2026-08-07 (Ben's call: the WHOLE app reads the deep data) the returned frame
+    is upgraded column-wise to the deep price store's panama-adjusted series wherever the
+    store genuinely helps — see _deep_upgrade. The 36 'A'-truncated products (Treasuries,
+    Bunds, SOFR…) get full history inside the window instead of a stub, and every series
+    is roll-gap-free. The adjustment anchors to the latest stored settle, so recent values
+    match the feed except during 'A'-vs-'1' roll-divergence windows (the 'A' generic rolls
+    on volume days before the '1' front expires — during those windows this serves the
+    front contract's settle, the standard continuation-chart convention). Mock mode stays
+    synthetic. `raw=True` skips the upgrade — for consumers that must show the ACTUAL
+    traded/published levels of the past (client PDFs, snapshot persistence, point-in-time
+    FX), where a back-adjusted level is continuation fiction."""
     tickers = list(tickers)
     if MODE == "bloomberg":
-        return _bloomberg_history(tickers, start, end, field)
+        out = _bloomberg_history(tickers, start, end, field)
+        if raw or field != DEFAULT_FIELD:
+            return out
+        return _deep_upgrade(out, tickers, start=start, end=end)
     if MODE == "snapshot":
         snap = _read_snapshot("prices.parquet")
         if snap is not None:
-            return snap.reindex(columns=tickers)
+            out = snap.reindex(columns=tickers)
+            if raw or field != DEFAULT_FIELD:
+                return out
+            return _deep_upgrade(out, tickers, start=start, end=end)
     return _mock_history(tickers, start, end, field)
+
+
+# ---------------------------------------------------------------------------
+# DEEP-STORE UPGRADE (2026-08-07). The deep '1'-generic store (src/deepstore.py) was
+# built for the TA Backtester; Ben then asked for the WHOLE app to read it — the live
+# 'A' feed only serves history for as long as the current active contract has been
+# listed, which starved 36 products' long-window indicators (200d MAs unable to
+# compute on any Treasury/Bund). These helpers swap feed columns for the deep store's
+# panama-adjusted series INSIDE the feed's own date window, so frame shapes and every
+# caller's contract are unchanged — the values just stop being truncated stubs with
+# roll gaps. Whole columns only (feed 'A' and adjusted '1' are different series;
+# splicing would re-introduce the gaps), except the live TAIL: dates beyond the
+# store's last settle (bounded by the freshness guard, normally 0-1 days) keep the
+# feed's values so "today" never goes missing on a live page.
+# ---------------------------------------------------------------------------
+_DEEP_CACHE: dict = {"sig": None, "adj": None, "vol": None}
+
+
+def _deep_frames():
+    """(adjusted_prices, volume) from the deep store, cached against ALL four chain
+    files' (mtime, size) — the adjustment reads front2/contract too, so a sig on
+    prices alone could serve stale rolls after a partial store write."""
+    try:
+        from . import deepstore
+        sig = []
+        for n in ("prices", "front2", "contract", "volume"):
+            p = deepstore._path(n)
+            if p.exists():
+                st = p.stat()
+                sig.append((n, st.st_mtime_ns, st.st_size))
+        if not sig:
+            return None, None
+        sig = tuple(sig)
+        if _DEEP_CACHE["sig"] != sig:
+            uni = list(INSTRUMENTS)
+            _DEEP_CACHE["adj"] = deepstore.get_adjusted(uni)
+            _DEEP_CACHE["vol"] = deepstore.get_volume(uni)
+            _DEEP_CACHE["sig"] = sig
+        return _DEEP_CACHE["adj"], _DEEP_CACHE["vol"]
+    except Exception:
+        return None, None
+
+
+def _deep_upgrade(out, tickers, kind: str = "price", start=None, end=None):
+    """Column-wise upgrade of a feed frame to the deep store. Per-ticker guards mirror
+    deepstore.overlay(): the store must reach at least as far back as the feed AND be no
+    staler than FRESH_TOLERANCE_DAYS at the recent end — otherwise that column keeps the
+    feed. The frame's index is EXTENDED to what the store can serve inside the requested
+    [start, end] span (a single starved ticker's live-Bloomberg frame is otherwise stuck
+    at the 'A' contract's own listing window even though the store holds the full span);
+    with no explicit span the feed's own window is kept, so default-call shapes never
+    change. Price columns are as-of ffilled onto the index — the feed is ffilled too, and
+    a raw reindex would re-punch exchange-holiday holes that kill rolling realized-vol
+    windows. Volume is a flow and is never ffilled. Whole columns only; the live TAIL
+    beyond the store's last settle (bounded by the freshness guard) keeps feed values.
+    No-op in mock mode / no store on disk."""
+    if MODE == "mock" or out is None or getattr(out, "empty", True):
+        return out
+    adj, vol = _deep_frames()
+    deep = vol if kind == "volume" else adj
+    if deep is None or deep.empty:
+        return out
+    try:
+        from .deepstore import FRESH_TOLERANCE_DAYS as _tol
+    except Exception:
+        _tol = 7
+    feed = {t: out[t].dropna() for t in tickers if t in out.columns}
+    ups = []
+    for t in tickers:
+        if t not in deep.columns or t not in feed:
+            continue
+        f, d = feed[t], deep[t].dropna()
+        if f.empty or d.empty:
+            continue
+        if d.index.min() > f.index.min():
+            continue                                  # store adds no depth here
+        if (f.index.max() - d.index.max()).days > _tol:
+            continue                                  # store gone stale — keep the feed
+        ups.append(t)
+    if not ups:
+        return out
+    lo = pd.Timestamp(start) if start is not None else out.index.min()
+    hi = pd.Timestamp(end) if end is not None else out.index.max()
+    if kind == "price":
+        # difference-adjustment can drag a heavy-contango product's old levels through
+        # ZERO (NGA: monthly rolls, min −0.9 even inside a 400d window) — %-returns,
+        # logs and MA-gap maths all break on that. Keep the feed for such columns.
+        ups = [t for t in ups
+               if not deep[t].loc[(deep.index >= lo) & (deep.index <= hi)].dropna().le(0).any()]
+        if not ups:
+            return out
+    ext = deep.index[(deep.index >= lo) & (deep.index <= hi)]
+    idx = out.index.union(ext).sort_values()
+    if len(idx) != len(out.index):
+        out = out.reindex(idx)
+    for t in ups:
+        d = deep[t].dropna()
+        if kind == "volume":
+            merged = d.reindex(out.index)                     # flows keep their gaps
+        else:
+            merged = d.reindex(out.index, method="ffill")     # as-of, like the feed
+        tail = out.index[out.index > d.index.max()]           # live days the store hasn't seen
+        if len(tail):
+            merged.loc[tail] = feed[t].reindex(tail)
+        out[t] = merged
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -208,15 +333,20 @@ def _bloomberg_yield(tickers, start, end) -> pd.DataFrame:
 # gaps are left NaN (never ffilled) and the flag code treats a missing series as simply
 # "no volume confirmation available" rather than failing.
 # ---------------------------------------------------------------------------
-def get_volume_history(tickers, start=None, end=None) -> pd.DataFrame:
-    """Daily contract volume, date-indexed, one column per ticker."""
+def get_volume_history(tickers, start=None, end=None, raw: bool = False) -> pd.DataFrame:
+    """Daily contract volume, date-indexed, one column per ticker. Upgraded to the deep
+    store's '1'-chain volume under the same guards as get_history (same aggregate field,
+    just served deep instead of only as far back as the active contract's listing);
+    `raw=True` skips the upgrade (snapshot persistence keeps the pristine feed)."""
     tickers = list(tickers)
     if MODE == "bloomberg":
-        return _bloomberg_volume(tickers, start, end)
+        out = _bloomberg_volume(tickers, start, end)
+        return out if raw else _deep_upgrade(out, tickers, kind="volume", start=start, end=end)
     if MODE == "snapshot":
         snap = _read_snapshot("volume.parquet")
         if snap is not None:
-            return snap.reindex(columns=tickers)
+            out = snap.reindex(columns=tickers)
+            return out if raw else _deep_upgrade(out, tickers, kind="volume", start=start, end=end)
     return _mock_volume(tickers, start, end)
 
 

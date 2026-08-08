@@ -293,7 +293,11 @@ def get_ta(tickers, start=None, end=None) -> pd.DataFrame:
     """Deep signal-space history — datafeed.get_history_ta semantics on the deep store:
     STIRs as 100 − adjusted price, bond futures as their deep benchmark yield, everything
     else the adjusted price. A bond with no deep yield series is DROPPED (never served as
-    a price — the FI strategies and sign convention assume yield space)."""
+    a price — the FI strategies and sign convention assume yield space). Non-FI columns
+    are TRIMMED to their positive tail: difference-adjustment drags heavy-contango
+    products (NGA) through zero deep in the past, and %-based signal maths (momentum,
+    MA gaps, logs) is meaningless across a zero crossing — P&L space (get_adjusted) keeps
+    the full depth, where point moves stay exact regardless of level."""
     out = get_adjusted(tickers, start, end)
     if out.empty:
         return out
@@ -306,6 +310,11 @@ def get_ta(tickers, start=None, end=None) -> pd.DataFrame:
                 out[t] = ylds[t].reindex(out.index).ffill()
             else:
                 out = out.drop(columns=[t])
+        else:
+            s = out[t].dropna()
+            bad = s.index[s.le(0)]
+            if len(bad):
+                out.loc[out.index <= bad.max(), t] = np.nan
     return out
 
 

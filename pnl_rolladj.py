@@ -106,7 +106,9 @@ def main() -> int:
     if args.only:
         prods = [t.strip() for t in args.only.split(",")]
 
-    front = get_history(prods, start=start).sort_index()      # for point values + the front-generic comparison
+    front = get_history(prods, start=start, raw=True).sort_index()  # the DISTORTED front-generic leg — the
+                                                                    # whole point of this script is comparing
+                                                                    # it against the roll-adjusted series
     raw = _pd(blp.bdp(prods, ["FUT_VAL_PT", "CRNCY"]))
     mult = raw.pivot(index="ticker", columns="field", values="value").reindex(prods)
     mult.columns = [c.lower() for c in mult.columns]

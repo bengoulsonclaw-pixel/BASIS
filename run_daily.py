@@ -14,7 +14,8 @@ import pandas as pd
 from src import universe, tascore, specs
 from src.strategies import (mean_reversion, trend, ma_crossover, ma_crossover_swing,
                             flag_breakout, support_resistance, fibonacci, breakout_retest,
-                            momentum, bollinger, elliott_wave, ichimoku, obv, mfi, carry,
+                            momentum, bollinger, elliott_wave, ichimoku, obv, mfi,
+                            donchian, aroon, carry,
                             volatility, skew, termstructure, cot, putcall, ag_fundamentals)
 
 SIGNALS_DIR = Path(__file__).parent / "data" / "signals"
@@ -23,8 +24,8 @@ META_FILE = SIGNALS_DIR / "meta.json"
 
 STRATEGIES = [mean_reversion, trend, ma_crossover, ma_crossover_swing, flag_breakout,
               support_resistance, fibonacci, breakout_retest, momentum, bollinger,
-              elliott_wave, ichimoku, obv, mfi, carry, volatility, skew, termstructure,
-              cot, putcall, ag_fundamentals]
+              elliott_wave, ichimoku, obv, mfi, donchian, aroon, carry, volatility, skew,
+              termstructure, cot, putcall, ag_fundamentals]
 
 
 def run() -> pd.DataFrame:

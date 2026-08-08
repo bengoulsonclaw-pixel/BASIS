@@ -50,6 +50,8 @@ from src.strategies.elliott_wave import elliott_chart_data    # noqa: E402
 from src.strategies.ichimoku import ichimoku_chart_data       # noqa: E402
 from src.strategies.obv import obv_chart_data                 # noqa: E402
 from src.strategies.mfi import mfi_chart_data                 # noqa: E402
+from src.strategies.donchian import donchian_chart_data       # noqa: E402
+from src.strategies.aroon import aroon_chart_data             # noqa: E402
 import matplotlib.ticker as mticker                           # noqa: E402
 
 TEMPLATES = ROOT / "templates"
@@ -66,6 +68,7 @@ _CHART_FN = {
     "Momentum (RSI/MACD)": momentum_chart_data, "Bollinger Squeeze": bollinger_chart_data,
     "Elliott Wave": elliott_chart_data, "Ichimoku Cloud": ichimoku_chart_data,
     "On-Balance Volume": obv_chart_data, "Money Flow Index": mfi_chart_data,
+    "Donchian Channel": donchian_chart_data, "Aroon": aroon_chart_data,
 }
 
 
@@ -145,7 +148,7 @@ def _gather(tk: str, strats: set) -> dict:
 def _levels(gathered: dict) -> dict:
     """Aggregate the actionable levels (objective / invalidation / reward:risk) from the
     strategies that carry them — prefer Flag Breakout, then Fibonacci."""
-    for s in ("Flag Breakout", "Fibonacci Retracement", "Elliott Wave"):
+    for s in ("Flag Breakout", "Fibonacci Retracement", "Elliott Wave", "Donchian Channel"):
         info = (gathered.get(s) or {}).get("info") or {}
         tgt, stop, rr = info.get("target"), info.get("stop"), info.get("rr")
         if tgt is not None and stop is not None and np.isfinite(tgt) and np.isfinite(stop):
@@ -320,6 +323,20 @@ def _phrase(strategy: str, info: dict, is_fi: bool) -> str:
         if strategy == "Ichimoku Cloud":
             lbl = str(g("label", "an Ichimoku read")).lower()
             return f"an Ichimoku {lbl}" if not lbl.startswith(("cloud", "bull", "bear")) else lbl
+        if strategy == "Donchian Channel":
+            w = int(g("window", 20))
+            pos, d = g("pos"), g("direction", 0)
+            if d > 0:
+                return (f"a fresh {w}-day channel high" if pos is not None and pos >= 1
+                        else f"pressing the top of its {w}-day range")
+            if d < 0:
+                return (f"a fresh {w}-day channel low" if pos is not None and pos <= 0
+                        else f"pressing the bottom of its {w}-day range")
+            return f"a stretch across its {w}-day price channel"
+        if strategy == "Aroon":
+            osc = g("osc", g("metric", 0)) or 0
+            side = "up" if osc >= 0 else "down"
+            return (f"Aroon confirming a {side}trend (Up {g('up', 0):.0f} / Down {g('down', 0):.0f})")
     except Exception:
         pass
     return _SHORT.get(strategy, strategy)
@@ -386,8 +403,9 @@ def _panels_for(gathered):
     mom = _has("Momentum (RSI/MACD)", "rsi")
     mfi = _has("Money Flow Index", "mfi")
     obv = _has("On-Balance Volume", "obv")
+    aroon = _has("Aroon", "aroon_up")
     panels = ((["osc"] if (mom or mfi) else []) + (["macd"] if mom else [])
-              + (["obv"] if obv else []))
+              + (["obv"] if obv else []) + (["aroon"] if aroon else []))
     return panels, mom, mfi, obv
 
 
@@ -482,6 +500,17 @@ def _chart_png(tk: str, gathered: dict, net_dir: int, pf=None, lv=None) -> str:
         mid = pf.rolling(20).mean(); sd = pf.rolling(20).std()
         up = (mid + 2 * sd).reindex(win.index); lo = (mid - 2 * sd).reindex(win.index)
         ax.fill_between(win.index, lo, up, color="#B0BEC5", alpha=0.18, linewidth=0, label="Bollinger 2σ")
+
+    # Donchian channel — the prior-N high/low bands whose break is the signal
+    dcd = (gathered.get("Donchian Channel") or {}).get("cdata")
+    if dcd is not None and not getattr(dcd, "empty", True):
+        try:
+            dch = dcd[dcd["date"] >= win.index[0]][["date", "upper", "lower"]].dropna()
+            if not dch.empty:
+                ax.plot(dch["date"], dch["upper"], ls="--", lw=1.3, color="#5C6BC0", label="Donchian")
+                ax.plot(dch["date"], dch["lower"], ls="--", lw=1.3, color="#5C6BC0")
+        except Exception:
+            pass
 
     # flag channel + breakout + pole
     flag = (gathered.get("Flag Breakout") or {})
@@ -621,6 +650,17 @@ def _chart_png(tk: str, gathered: dict, net_dir: int, pf=None, lv=None) -> str:
         axo.set_ylabel("OBV", fontsize=7)
         axo.yaxis.set_major_formatter(mticker.FuncFormatter(
             lambda v, _p: f"{v / 1e6:,.0f}M" if abs(v) >= 1e6 else f"{v / 1e3:,.0f}k"))
+    if "aroon" in _sub:                                # Aroon Up/Down 0–100 (trend strength & freshness)
+        axa = _sub["aroon"]
+        _acd = (gathered.get("Aroon") or {}).get("cdata")
+        if _acd is not None and not getattr(_acd, "empty", True):
+            da = _acd[_acd["date"] >= win.index[0]]
+            axa.plot(da["date"], da["aroon_up"], lw=1.1, color=CHEAP, label="Aroon Up")
+            axa.plot(da["date"], da["aroon_down"], lw=1.1, color=RICH, label="Aroon Down")
+        axa.axhline(50, color="#888888", lw=0.7, ls=":")
+        axa.set_ylim(0, 100)
+        axa.set_ylabel("Aroon", fontsize=7)
+        axa.legend(fontsize=5.4, ncol=2, loc="upper left", frameon=False)
     for _a in _sub.values():
         _a.tick_params(labelsize=6.5)
         _a.grid(True, color="#ECECEC", lw=0.6)
@@ -780,7 +820,8 @@ _TAG = {"Mean Reversion": "MeanRev", "Trend": "Trend", "MA Crossover": "MA×", "
         "Flag Breakout": "Flag", "Support & Resistance": "S/R", "Fibonacci Retracement": "Fib",
         "Breakout & Retest": "Retest", "Momentum (RSI/MACD)": "Mom", "Bollinger Squeeze": "BBands",
         "Elliott Wave": "Elliott", "Ichimoku Cloud": "Ichimoku",
-        "On-Balance Volume": "OBV", "Money Flow Index": "MFI"}
+        "On-Balance Volume": "OBV", "Money Flow Index": "MFI",
+        "Donchian Channel": "Donch", "Aroon": "Aroon"}
 
 
 def _enrich(pick: dict, baseline: set) -> dict:

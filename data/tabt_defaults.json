@@ -3,8 +3,11 @@
   "exit_rule": "reversal",
   "hold_days": 10.0,
   "min_conviction": 80.0,
-  "min_score": 250.0,
+  "min_score": 80.0,
   "size": 1.0,
   "stop_pct": 0.0,
+  "strategies": [
+    "Ichimoku Cloud"
+  ],
   "take_pct": 0.0
 }

@@ -20,7 +20,7 @@ import pandas as pd
 from src import yfin, equities
 from src.strategies import (trend, ma_crossover, ma_crossover_swing,
                             support_resistance, fibonacci, flag_breakout, breakout_retest, momentum,
-                            bollinger, elliott_wave, ichimoku, obv, mfi)
+                            bollinger, elliott_wave, ichimoku, obv, mfi, donchian, aroon)
 # flag_breakout now runs on equities too: compute_table()/find_opportunities() take an injected
 # history+volume and skip the FICC visual-report cache (persist=False), so they don't clobber futures.
 
@@ -33,7 +33,7 @@ META_FILE = _DIR / "eqta_meta.json"
 # Close-only strategies, then the volume-aware ones (OBV/MFI need volume; flag/breakout use it
 # for the dry-up / breakout-volume check when present).
 _CLOSE_STRATS = [trend, ma_crossover, ma_crossover_swing, support_resistance, fibonacci,
-                 momentum, bollinger, elliott_wave, ichimoku]
+                 momentum, bollinger, elliott_wave, ichimoku, donchian, aroon]  # both price-only
 _VOL_STRATS = [flag_breakout, breakout_retest, obv, mfi]   # flag/breakout use volume for the dry-up check
 
 

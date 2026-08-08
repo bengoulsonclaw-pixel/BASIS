@@ -30,7 +30,7 @@ TA_STRATEGIES = [
     "Mean Reversion", "Trend", "MA Crossover", "MA Swing", "Flag Breakout",
     "Support & Resistance", "Fibonacci Retracement", "Breakout & Retest",
     "Momentum (RSI/MACD)", "Bollinger Squeeze", "Elliott Wave", "Ichimoku Cloud",
-    "On-Balance Volume", "Money Flow Index",
+    "On-Balance Volume", "Money Flow Index", "Donchian Channel", "Aroon",
 ]
 
 # ── the five axes of technical analysis ──────────────────────────────────────────────────────
@@ -40,11 +40,12 @@ TA_STRATEGIES = [
 # next ½, ⅓, …) so a single dimension can't vote twice. The app groups the confluence picker by these
 # axes, and the report prints which method(s) represent each axis. Order = the axes' display order.
 TA_AXES = {
-    "Trend": ["Trend", "MA Crossover", "MA Swing", "Ichimoku Cloud"],
+    "Trend": ["Trend", "MA Crossover", "MA Swing", "Ichimoku Cloud", "Aroon"],
     "Momentum / Oscillators": ["Momentum (RSI/MACD)", "Mean Reversion"],
     "Volume": ["On-Balance Volume", "Money Flow Index"],
     "Support & Resistance": ["Support & Resistance", "Fibonacci Retracement"],
-    "Patterns & Breakouts": ["Flag Breakout", "Breakout & Retest", "Bollinger Squeeze", "Elliott Wave"],
+    "Patterns & Breakouts": ["Flag Breakout", "Breakout & Retest", "Bollinger Squeeze",
+                             "Elliott Wave", "Donchian Channel"],
 }
 assert {s for methods in TA_AXES.values() for s in methods} == set(TA_STRATEGIES), \
     "TA_AXES must partition TA_STRATEGIES — every method in exactly one axis"
@@ -147,6 +148,8 @@ STRENGTH_SCALE = {
     "Ichimoku Cloud": 100.0,        # Ichimoku score 0–100
     "On-Balance Volume": 100.0,     # OBV score 0–100
     "Money Flow Index": 100.0,      # MFI score 0–100
+    "Donchian Channel": 100.0,      # channel position 0–100 (100 = on the band)
+    "Aroon": 100.0,                 # |Aroon oscillator| 0–100
 }
 DEFAULT_SCALE = 100.0
 

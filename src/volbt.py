@@ -411,7 +411,9 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
         src = FX_USD.get(ccy)
         if src:
             try:
-                fxh = get_history([src], start=start_hist, end=end_ts)
+                # raw=True: the entry-date FX RATE must be what actually traded that day —
+                # a roll-adjusted continuation level is fiction for a point-in-time lookup.
+                fxh = get_history([src], start=start_hist, end=end_ts, raw=True)
                 if src in fxh.columns:
                     fxs = fxh[src].dropna()
                     fxs = fxs[fxs.index <= days[0]]

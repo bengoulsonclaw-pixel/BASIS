@@ -62,3 +62,6 @@ desktop.ini
 
 # ── Browser automation profile (cookies / session data — never commit) ───────
 data/.pm_chrome_profile/
+
+# Local server logs (written by launch_basis.ps1)
+logs/

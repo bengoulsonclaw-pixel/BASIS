@@ -265,7 +265,10 @@ def _fetch_phase() -> dict | None:
     # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit): the FICC
     # pull touches ~20 fields per contract across prices/yields/vols/skew/term/put-call/live.
     print(f"  Estimated Bloomberg hits this pull: ~{len(tickers) * 20:,} (security x field, rough)")
-    prices = get_history(tickers)
+    # raw=True: the snapshot must persist the PRISTINE feed — the deep-store upgrade
+    # happens on READ (datafeed._deep_upgrade), so raw 'A' history stays recoverable
+    # and outside readers of prices.parquet (Morning Coffee fallback) see real settles.
+    prices = get_history(tickers, raw=True)
     # GUARD — never overwrite a good snapshot with nothing. When the Bloomberg Terminal is
     # closed / logged out the pull returns an EMPTY price frame; because prices.parquet is
     # every report's offline fallback, saving that empties the whole book (exactly how the
@@ -280,7 +283,7 @@ def _fetch_phase() -> dict | None:
               "in?) — KEPT the existing snapshot; nothing was overwritten.")
         return None
     ylds = get_yield_history(tickers)                 # benchmark yields for bond futures (FI TA)
-    volume = get_volume_history(tickers)              # daily contract volume (flag confirmation)
+    volume = get_volume_history(tickers, raw=True)    # daily contract volume (flag confirmation)
     iv = get_implied_vol_history(tickers)
     skew = get_skew_components(tickers)
     ts = get_term_structure(tickers)

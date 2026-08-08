@@ -156,9 +156,12 @@ def find_opportunities(history: pd.DataFrame | None = None) -> pd.DataFrame:
     return df.reindex(order).reset_index(drop=True)
 
 
-def ichimoku_chart_data(ticker: str, history: pd.DataFrame | None = None):
+def ichimoku_chart_data(ticker: str, history: pd.DataFrame | None = None,
+                        window: int | None = None):
     """(price_df, info). price_df ['date','price']. info carries the five lines as record
-    lists (cloud incl. the 26-session forward projection) + the scalar read."""
+    lists (cloud incl. the 26-session forward projection) + the scalar read. `window` = how
+    many sessions of lines/cloud to return (default LOOKBACK, the hub-chart convention —
+    the TA Backtester passes its own backtest span so the cloud covers the whole window)."""
     if history is None:
         history = get_history([ticker])
     if ticker not in history.columns:
@@ -166,7 +169,7 @@ def ichimoku_chart_data(ticker: str, history: pd.DataFrame | None = None):
     d = _analyse(history[ticker])
     if d is None:
         return None, None
-    s = d["series"].tail(LOOKBACK)
+    s = d["series"].tail(int(window) if window else LOOKBACK)
     L = d["lines"]
     idx = s.index
     price_df = pd.DataFrame({"date": idx, "price": s.to_numpy(dtype=float)})

@@ -122,7 +122,10 @@ def _pct(series: pd.Series, days: int) -> float | None:
 def fetch_prices(years: int = 5) -> dict:
     """Daily settle history for the four metals through the datafeed seam."""
     start = pd.Timestamp.today().normalize() - pd.DateOffset(years=years)
-    px = datafeed.get_history([m["ticker"] for m in METALS], start=start)
+    # raw=True: this feeds a CLIENT document — historical gold/silver levels must match
+    # the published prints, not a roll-adjusted continuation (which lags spot by roughly
+    # the contango: ~8-10% two years back on gold).
+    px = datafeed.get_history([m["ticker"] for m in METALS], start=start, raw=True)
     return {"live": datafeed.MODE != "mock", "px": px}
 
 

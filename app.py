@@ -2975,6 +2975,7 @@ _STRAT_SHORT = {
     "Fibonacci Retracement": "Fib", "Breakout & Retest": "Retest",
     "Momentum (RSI/MACD)": "Mom", "Bollinger Squeeze": "BBands", "Elliott Wave": "Elliott",
     "Ichimoku Cloud": "Ichimoku", "On-Balance Volume": "OBV", "Money Flow Index": "MFI",
+    "Donchian Channel": "Donch", "Aroon": "Aroon",
     "Volatility": "Vol", "Skew Volatility": "Skew",
     "Vol Term Structure": "Term", "COT Reports": "COT", "Put/Call Ratios": "P/C",
     "AG Fundamentals": "AG",
@@ -3056,10 +3057,10 @@ def _ta_quicknav(current: str | None = None, eq: bool = False) -> None:
     Analysis hub. Shown on the hub and at the top of each technical-strategy page so the user
     can flip between them without the sidebar; the current page's button is highlighted. `eq`
     routes to the Equities per-strategy pages (`eq:<strategy>`) instead of the FICC ones."""
-    cols = st.columns(5)
+    cols = st.columns(8)                                # 16 strategies → a neat 2 rows of 8
     for i, s in enumerate(tascore.TA_STRATEGIES):
         dest = f"eq:{s}" if eq else s
-        cols[i % 5].button(
+        cols[i % 8].button(
             _STRAT_SHORT.get(s, s), key=f"tanav_{'eq_' if eq else ''}{current or 'hub'}_{s}",
             use_container_width=True, type="primary" if s == current else "secondary",
             on_click=_go, args=(dest,))
@@ -3301,10 +3302,12 @@ def _ta_gallery_data(tk, strset_key, as_of):
     or the signals change. The heavy `*_chart_data` calls live here, behind the cache."""
     from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
                                 breakout_retest as _br, momentum as _mom, fibonacci as _fbn,
-                                elliott_wave as _ew, ichimoku as _ich, obv as _obv, mfi as _mfi)
+                                elliott_wave as _ew, ichimoku as _ich, obv as _obv, mfi as _mfi,
+                                donchian as _dc, aroon as _ar)
     strset = set(strset_key)
     out = {"pf": None, "flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None,
-           "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None}
+           "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None,
+           "donchian": None, "aroon": None}
     try:
         out["pf"] = get_history_ta([tk])[tk].dropna()
     except Exception:
@@ -3371,6 +3374,20 @@ def _ta_gallery_data(tk, strset_key, as_of):
                 out["mfi"] = _md[["date", "mfi"]].dropna()
         except Exception:
             pass
+    if "Donchian Channel" in strset and out["pf"] is not None:   # price-axis channel → same series as chart
+        try:
+            _dcd, _di = _dc.donchian_chart_data(tk, history=pd.DataFrame({tk: out["pf"]}))
+            if _dcd is not None and not _dcd.empty:
+                out["donchian"] = _dcd[["date", "upper", "lower"]].dropna()
+        except Exception:
+            pass
+    if "Aroon" in strset and out["pf"] is not None:             # own 0–100 panel (Aroon Up/Down)
+        try:
+            _acd, _ai = _ar.aroon_chart_data(tk, history=pd.DataFrame({tk: out["pf"]}))
+            if _acd is not None and not _acd.empty:
+                out["aroon"] = _acd[["date", "aroon_up", "aroon_down"]].dropna()
+        except Exception:
+            pass
     return out
 
 
@@ -3400,10 +3417,12 @@ def _eq_ta_gallery_data(tk, strset_key, as_of):
     from src import eqta
     from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
                                 breakout_retest as _br, momentum as _mom, fibonacci as _fbn,
-                                elliott_wave as _ew, ichimoku as _ich, obv as _obv, mfi as _mfi)
+                                elliott_wave as _ew, ichimoku as _ich, obv as _obv, mfi as _mfi,
+                                donchian as _dc, aroon as _ar)
     strset = set(strset_key)
     out = {"pf": None, "flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None,
-           "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None}
+           "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None,
+           "donchian": None, "aroon": None}
     close, vol = eqta.load_history()
     if close.empty or tk not in close.columns:
         return out
@@ -3468,6 +3487,20 @@ def _eq_ta_gallery_data(tk, strset_key, as_of):
             _md, _mi2 = _mfi.mfi_chart_data(tk, history=hist, volume=volf)
             if _md is not None and not _md.empty:
                 out["mfi"] = _md[["date", "mfi"]].dropna()
+        except Exception:
+            pass
+    if "Donchian Channel" in strset:                # price-axis channel bands (prior-N high/low)
+        try:
+            _dcd, _di = _dc.donchian_chart_data(tk, history=hist)
+            if _dcd is not None and not _dcd.empty:
+                out["donchian"] = _dcd[["date", "upper", "lower"]].dropna()
+        except Exception:
+            pass
+    if "Aroon" in strset:                           # own 0–100 panel (Aroon Up/Down)
+        try:
+            _acd, _ai = _ar.aroon_chart_data(tk, history=hist)
+            if _acd is not None and not _acd.empty:
+                out["aroon"] = _acd[["date", "aroon_up", "aroon_down"]].dropna()
         except Exception:
             pass
     return out
@@ -3726,6 +3759,14 @@ def render_ta_overview() -> None:
                 if np.isfinite(pv):
                     layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
                         color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+            if _g.get("donchian") is not None:              # Donchian channel — prior-N high/low bands
+                _dch = _g["donchian"][_g["donchian"]["date"] >= win.index[0]]
+                if not _dch.empty:
+                    _db = alt.Chart(_dch).encode(x="date:T")
+                    layers += [_db.mark_line(color="#5C6BC0", strokeDash=[5, 3], strokeWidth=1.7).encode(
+                                   y=alt.Y("upper:Q", scale=alt.Scale(zero=False))),
+                               _db.mark_line(color="#5C6BC0", strokeDash=[5, 3], strokeWidth=1.7).encode(
+                                   y=alt.Y("lower:Q", scale=alt.Scale(zero=False)))]
             # Elliott wave count: the labelled 0..5 pivots as a purple markered line over the price
             # (clipped to the shown window), matching the report chart. Drawn last → sits on top.
             if _g.get("elliott"):
@@ -3792,6 +3833,24 @@ def render_ta_overview() -> None:
                     x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
                     y=alt.Y("obv:Q", title="OBV", scale=alt.Scale(zero=False),
                             axis=alt.Axis(labelFontSize=10))).properties(height=110, title="On-Balance Volume"))
+
+            if _g.get("aroon") is not None:                 # Aroon Up/Down sub-panel (0–100)
+                _ar = _g["aroon"][_g["aroon"]["date"] >= win.index[0]]
+                if not _ar.empty:
+                    _arl = _ar.melt("date", value_vars=["aroon_up", "aroon_down"],
+                                    var_name="Line", value_name="val")
+                    _arl["Line"] = _arl["Line"].map({"aroon_up": "Aroon Up", "aroon_down": "Aroon Down"})
+                    _g50 = alt.Chart(pd.DataFrame({"y": [50.0]})).mark_rule(
+                        color=_cc["muted"], strokeDash=[4, 3]).encode(y="y:Q")
+                    _arc = alt.Chart(_arl).mark_line(strokeWidth=1.9).encode(
+                        x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
+                        y=alt.Y("val:Q", title="Aroon", scale=alt.Scale(domain=[0, 100]),
+                                axis=alt.Axis(values=[0, 50, 100], labelFontSize=11)),
+                        color=alt.Color("Line:N", scale=alt.Scale(domain=["Aroon Up", "Aroon Down"],
+                                                                  range=[_cc["long"], _cc["short"]]),
+                                        legend=alt.Legend(orient="top", title=None, labelFontSize=11)))
+                    brand.show_chart(alt.layer(_g50, _arc).resolve_scale(y="shared").properties(
+                        height=120, title="Aroon (25) — Up vs Down"))
 
     # --- full flagged leaderboard, ranked by product conviction score ---
     st.markdown("##### All flagged signals")
@@ -3919,6 +3978,14 @@ def _ta_render_gallery(gallery, gallery_data_fn, as_of) -> None:
             if np.isfinite(pv):
                 layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
                     color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+        if _g.get("donchian") is not None:              # Donchian channel — prior-N high/low bands
+            _dch = _g["donchian"][_g["donchian"]["date"] >= win.index[0]]
+            if not _dch.empty:
+                _db = alt.Chart(_dch).encode(x="date:T")
+                layers += [_db.mark_line(color="#5C6BC0", strokeDash=[5, 3], strokeWidth=1.7).encode(
+                               y=alt.Y("upper:Q", scale=alt.Scale(zero=False))),
+                           _db.mark_line(color="#5C6BC0", strokeDash=[5, 3], strokeWidth=1.7).encode(
+                               y=alt.Y("lower:Q", scale=alt.Scale(zero=False)))]
         if _g.get("elliott"):
             _piv = pd.DataFrame([p for p in _g["elliott"] if p["date"] >= win.index[0]])
             if len(_piv) >= 2:
@@ -3977,6 +4044,24 @@ def _ta_render_gallery(gallery, gallery_data_fn, as_of) -> None:
                 x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
                 y=alt.Y("obv:Q", title="OBV", scale=alt.Scale(zero=False),
                         axis=alt.Axis(labelFontSize=10))).properties(height=110, title="On-Balance Volume"))
+
+        if _g.get("aroon") is not None:                 # Aroon Up/Down sub-panel (0–100)
+            _ar = _g["aroon"][_g["aroon"]["date"] >= win.index[0]]
+            if not _ar.empty:
+                _arl = _ar.melt("date", value_vars=["aroon_up", "aroon_down"],
+                                var_name="Line", value_name="val")
+                _arl["Line"] = _arl["Line"].map({"aroon_up": "Aroon Up", "aroon_down": "Aroon Down"})
+                _g50 = alt.Chart(pd.DataFrame({"y": [50.0]})).mark_rule(
+                    color=_cc["muted"], strokeDash=[4, 3]).encode(y="y:Q")
+                _arc = alt.Chart(_arl).mark_line(strokeWidth=1.9).encode(
+                    x=alt.X("date:T", title=None, axis=alt.Axis(labelFontSize=11)),
+                    y=alt.Y("val:Q", title="Aroon", scale=alt.Scale(domain=[0, 100]),
+                            axis=alt.Axis(values=[0, 50, 100], labelFontSize=11)),
+                    color=alt.Color("Line:N", scale=alt.Scale(domain=["Aroon Up", "Aroon Down"],
+                                                              range=[_cc["long"], _cc["short"]]),
+                                    legend=alt.Legend(orient="top", title=None, labelFontSize=11)))
+                brand.show_chart(alt.layer(_g50, _arc).resolve_scale(y="shared").properties(
+                    height=120, title="Aroon (25) — Up vs Down"))
 
 
 def render_eq_ta_overview() -> None:
@@ -6386,6 +6471,86 @@ def _osb_atm_curve(ticker: str, mode: str) -> dict:
     return out
 
 
+@st.cache_data(show_spinner=False, ttl=900)
+def _tabt_overlays(tk: str, strats: tuple, hist: pd.DataFrame, vol: pd.DataFrame | None,
+                   sessions: int = 0) -> dict:
+    """Indicator overlays for the backtester's 'why it traded' chart — the SAME per-strategy chart
+    payloads the TA hub gallery draws (each strategy's *_chart_data), computed on the backtest's own
+    injected history so FICC fixed income overlays sit on the yield series the signals scored on,
+    and equities on their yfinance closes. Cached: the heavy chart_data calls only rerun when the
+    backtest itself changes, not on every widget touch."""
+    from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
+                                breakout_retest as _br, momentum as _mom, fibonacci as _fbn,
+                                elliott_wave as _ew, ichimoku as _ich, obv as _obv, mfi as _mfi)
+    strset = set(strats)
+    out = {"flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None,
+           "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None}
+    if "Flag Breakout" in strset:
+        try:
+            _fcd, _fi = _fb.flag_chart_data(tk, history=hist, volume=vol)
+            if _fcd is not None and not _fcd.empty and _fi:
+                out["flag"] = (_fcd[["date", "upper", "lower", "breakout"]].dropna(), _fi)
+        except Exception:
+            pass
+    if "Support & Resistance" in strset:
+        try:
+            _, _isr = _sr.sr_chart_data(tk, history=hist)
+            out["sr_levels"] = (_isr or {}).get("levels", []) or []
+        except Exception:
+            pass
+    if "Fibonacci Retracement" in strset:
+        try:
+            _, _ifb = _fbn.fib_chart_data(tk, history=hist)
+            out["fib_levels"] = [L for L in ((_ifb or {}).get("levels", []) or []) if L.get("key")]
+        except Exception:
+            pass
+    if "Breakout & Retest" in strset:
+        try:
+            _, _ibr = _br.retest_chart_data(tk, history=hist)
+            out["retest_level"] = (_ibr or {}).get("level")
+        except Exception:
+            pass
+    if "Momentum (RSI/MACD)" in strset:
+        try:
+            _mcd, _mi = _mom.momentum_chart_data(tk, history=hist)
+            if _mcd is not None and not _mcd.empty:
+                out["mom"] = _mcd[["date", "rsi"]].dropna()
+        except Exception:
+            pass
+    if "Elliott Wave" in strset:
+        try:
+            _, _ewi = _ew.elliott_chart_data(tk, history=hist)
+            if _ewi and _ewi.get("pivots"):
+                out["elliott"] = _ewi["pivots"]
+        except Exception:
+            pass
+    if "Ichimoku Cloud" in strset:
+        try:
+            # window = the full backtest span, so the cloud covers every trade (the hub's
+            # default 170-session tail would leave older trades floating cloud-less)
+            _, _ici = _ich.ichimoku_chart_data(tk, history=hist,
+                                               window=(sessions + 30) if sessions else None)
+            if _ici and _ici.get("cloud"):
+                out["ichimoku"] = _ici
+        except Exception:
+            pass
+    if "On-Balance Volume" in strset:
+        try:
+            _od, _oi = _obv.obv_chart_data(tk, history=hist, volume=vol)
+            if _od is not None and not _od.empty:
+                out["obv"] = _od[["date", "obv"]].dropna()
+        except Exception:
+            pass
+    if "Money Flow Index" in strset:
+        try:
+            _md, _mi2 = _mfi.mfi_chart_data(tk, history=hist, volume=vol)
+            if _md is not None and not _md.empty:
+                out["mfi"] = _md[["date", "mfi"]].dropna()
+        except Exception:
+            pass
+    return out
+
+
 def render_ta_backtester(scope: str = "ficc") -> None:
     """TA Signal Backtester: pick a product, a score/conviction bar, and either one individual
     technical strategy or the whole confluence score, then walk history day by day taking the SAME
@@ -6607,12 +6772,21 @@ def render_ta_backtester(scope: str = "ficc") -> None:
         st.info("No trades cleared the bar over this window — try a lower conviction/score "
                "threshold, a wider date range, or a different strategy.")
         return
-    _strat_note = (picked[0] if len(picked) == 1
-                  else f"{len(picked)}-strategy score ({', '.join(picked)})" if picked else "—")
-    st.markdown(f"#### {_lab(ticker)} — {_strat_note} — {start:%d %b %Y} → {end:%d %b %Y}")
-    st.caption(f"Min conviction {min_conviction:g} · Min |score| {min_score:g} · "
-              f"{direction_lbl} · exit: {_EXIT[exit_lbl]}"
-              + (f" · stop {stop_pct:g}% / take {take_pct:g}%" if stop_pct or take_pct else ""))
+    # render from the RUN's own parameters (stored in the summary), not the widgets — the desk
+    # may have retuned the controls since the run and the header must describe what actually ran
+    _rs = s.get("strategies") or list(picked)
+    _rtk = s.get("ticker", ticker)
+    _rstart, _rend = s.get("start", start), s.get("end", end)
+    _strat_note = (_rs[0] if len(_rs) == 1
+                  else f"{len(_rs)}-strategy score ({', '.join(_rs)})" if _rs else "—")
+    _rdir = {"both": "Both", "long": "Long only", "short": "Short only"}.get(
+        s.get("direction", direction), "Both")
+    _rstop, _rtake = s.get("stop_pct", 0.0), s.get("take_pct", 0.0)
+    st.markdown(f"#### {_lab(_rtk)} — {_strat_note} — {_rstart:%d %b %Y} → {_rend:%d %b %Y}")
+    st.caption(f"Min conviction {s.get('min_conviction', min_conviction):g} · "
+              f"Min |score| {s.get('min_score', min_score):g} · {_rdir} · "
+              f"exit: {_EXIT.get(s.get('exit_rule', exit_lbl), s.get('exit_rule', exit_lbl))}"
+              + (f" · stop {_rstop:g}% / take {_rtake:g}%" if _rstop or _rtake else ""))
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Total P&L", _usd(s["total_pnl"]))
     m1.caption(f"max drawdown {_usd(s['max_drawdown'])}")
@@ -6626,15 +6800,302 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     m5.metric("Size", f"{size:g} {'shares' if eq else 'lots'}")
     m5.caption("USD P&L" if eq else "USD P&L (FX-converted where needed)")
 
-    cv = res.daily.reset_index()
-    ccol = "#46C58A" if s["total_pnl"] >= 0 else "#EC6A57"
-    cv_area = alt.Chart(cv).mark_area(opacity=0.2, color=ccol).encode(
-        x=alt.X("date:T", title=None), y=alt.Y("cum_pnl:Q", title="cumulative P&L ($)"))
-    cv_line = alt.Chart(cv).mark_line(color=ccol, strokeWidth=2.1, interpolate="step-after").encode(
+    _cc = brand.chart_colors()
+    dd = res.daily.reset_index()
+    # a result produced by an OLDER engine (before per-day score/signal recording) has no data
+    # for these panels — say so rather than drawing empty charts, and backfill so nothing breaks.
+    # Distinguish "old result, current engine" (a re-run fixes it) from "the ENGINE ITSELF is
+    # stale in memory" (Streamlit hot-reloads app.py but caches src/ modules until the process
+    # restarts — a re-run on a stale process just reproduces the same gap).
+    if any(_c not in dd.columns for _c in ("score", "conviction", "signal_level")):
+        import dataclasses as _dc
+        _engine_current = "series" in {f.name for f in _dc.fields(tabt.Result)}
+        if _engine_current:
+            st.info("⚠️ This result predates the latest engine — the charts below will be partly "
+                    "empty. Hit **▶ Run backtest** again to regenerate it in full.")
+        else:
+            st.warning("⚠️ BASIS is running an **older engine still cached in memory** — the app "
+                      "picks up page changes instantly, but engine (src/) changes only load on a "
+                      "full restart. **Close the Terminal and relaunch it**, then run the backtest "
+                      "again; until then these charts will stay partly empty no matter how many "
+                      "times you re-run.")
+        for _c in ("score", "conviction", "signal_level"):
+            if _c not in dd.columns:
+                dd[_c] = np.nan
+
+    # position segments + window bounds, shared by EVERY panel below: all charts pin their
+    # x-axis to the same [start, end] domain and carry the same long/short bands, so the
+    # shading lines up column-for-column from the P&L curve to the score bars. Every panel's
+    # y-axis also reserves the SAME fixed gutter (minExtent=maxExtent) — otherwise "−30,000"
+    # P&L labels vs "95.5" price labels give each plot area a different left edge and the
+    # bands drift out of column-alignment even on identical date domains.
+    _win_start = pd.Timestamp(dd["date"].iloc[0])
+    _win_end = pd.Timestamp(dd["date"].iloc[-1])
+    _win_index = pd.DatetimeIndex(dd["date"])
+    _xsc = alt.Scale(domain=[str(_win_start.date()), str(_win_end.date())])
+    _YEXT = {"minExtent": 84, "maxExtent": 84}
+    _segs, _cur, _t0 = [], 0, None
+    for _r in dd.itertuples():
+        _p = int(_r.position)
+        if _p != _cur:
+            if _cur != 0:
+                _segs.append({"start": _t0, "end": _r.date, "side": "Long" if _cur > 0 else "Short"})
+            _cur, _t0 = _p, _r.date
+    if _cur != 0 and len(dd):
+        _segs.append({"start": _t0, "end": dd["date"].iloc[-1], "side": "Long" if _cur > 0 else "Short"})
+
+    def _band_layer():
+        return alt.Chart(pd.DataFrame(_segs)).mark_rect(opacity=0.10).encode(
+            x="start:T", x2="end:T",
+            color=alt.Color("side:N", scale=alt.Scale(domain=["Long", "Short"],
+                            range=[_cc["long"], _cc["short"]]), legend=None))
+
+    # green while the running total is above water, red while it's under — not one colour for
+    # the whole run, so a drawdown through zero reads as losing money at that point in time
+    dd["gain"] = dd["cum_pnl"].clip(lower=0.0)
+    dd["loss"] = dd["cum_pnl"].clip(upper=0.0)
+    cv_layers = [_band_layer()] if _segs else []
+    cv_layers.append(alt.Chart(dd).mark_area(opacity=0.25, color=_cc["long"],
+                                             interpolate="step-after").encode(
+        x=alt.X("date:T", title=None, scale=_xsc),
+        y=alt.Y("gain:Q", title="cumulative P&L ($)", axis=alt.Axis(**_YEXT))))
+    cv_layers.append(alt.Chart(dd).mark_area(opacity=0.25, color=_cc["short"],
+                                             interpolate="step-after").encode(
+        x="date:T", y="loss:Q"))
+    cv_layers.append(alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+        color=_cc["muted"], opacity=0.6).encode(y="y:Q"))
+    cv_layers.append(alt.Chart(dd).mark_line(color=_cc["ink"], strokeWidth=1.8,
+                                             interpolate="step-after").encode(
         x="date:T", y="cum_pnl:Q",
         tooltip=[alt.Tooltip("date:T"), alt.Tooltip("cum_pnl:Q", format="+,.0f"),
-                alt.Tooltip("position:Q", title="position")])
-    brand.show_chart((cv_area + cv_line).properties(height=280, title="Cumulative P&L"))
+                alt.Tooltip("position:Q", title="position")]))
+    brand.show_chart(alt.layer(*cv_layers).properties(
+        height=280, title="Cumulative P&L — fill green above water / red below; "
+                          "bands = position on (green long / red short)"))
+
+    # ---- why it traded: the series the signals scored on, the picked strategies' own
+    #      indicators drawn over it (cloud / MAs / bands / levels — same as the TA hub gallery),
+    #      and every entry/exit marked -------------------------------------------------------
+    _has_lvl = "signal_level" in dd.columns and dd["signal_level"].notna().any()
+    _ycol = "signal_level" if _has_lvl else "price"
+    _fi_chart = bool(s.get("fi")) and _has_lvl
+    _ytitle = "Yield (%)" if _fi_chart else "Price"
+    st.markdown("##### Why it traded — the picked strategies' own indicators, with every entry/exit")
+
+    # full-depth signal series (incl. warm-up buffer) so overlays have their lookback
+    _pf = res.series if getattr(res, "series", None) is not None and len(res.series) \
+        else res.daily[_ycol].dropna()
+    _vol_df = (pd.DataFrame({_rtk: res.volume})
+               if getattr(res, "volume", None) is not None else None)
+    _ov = _tabt_overlays(_rtk, tuple(sorted(_rs)), pd.DataFrame({_rtk: _pf}), _vol_df,
+                         sessions=len(dd))
+
+    layers = []
+    if _segs:
+        layers.append(_band_layer())
+
+    # Ichimoku Kumo (cloud) + Tenkan/Kijun — behind the price like the hub/report; green where
+    # span-A ≥ span-B, red below. Clipped to the backtest window on BOTH sides: the cloud's
+    # 26-session forward projection would otherwise stretch this chart's x-axis past the other
+    # panels' and knock every band out of column-alignment with them.
+    _ich = _ov.get("ichimoku")
+    if _ich and _ich.get("cloud"):
+        _cl = pd.DataFrame([c for c in _ich["cloud"]
+                            if _win_start <= c["date"] <= _win_end]).dropna(subset=["a", "b"])
+        if not _cl.empty:
+            _cl["bull"] = _cl["a"] >= _cl["b"]
+            for _fl, _col in ((True, _cc["long"]), (False, _cc["short"])):
+                _seg = _cl.copy()
+                _seg.loc[_cl["bull"] != _fl, ["a", "b"]] = None
+                layers.append(alt.Chart(_seg).mark_area(opacity=0.32).encode(
+                    x="date:T", y=alt.Y("a:Q", scale=alt.Scale(zero=False)), y2="b:Q",
+                    color=alt.value(_col)))
+            for _k2, _c2 in (("tenkan", "#26A69A"), ("kijun", "#EC407A")):
+                _ln = pd.DataFrame([r2 for r2 in (_ich.get(_k2) or []) if r2["date"] >= _win_start]
+                                   ).dropna(subset=["val"])
+                if not _ln.empty:
+                    layers.append(alt.Chart(_ln).mark_line(
+                        color=_c2, strokeWidth=1.2, opacity=0.85).encode(
+                        x="date:T", y=alt.Y("val:Q", scale=alt.Scale(zero=False))))
+
+    # flag channel (fill + edges + dashed breakout + pole), in its direction colour
+    if _ov.get("flag"):
+        _fch, _fi2 = _ov["flag"]
+        _fcol = _cc["long"] if _fi2["sign"] > 0 else _cc["short"]
+        _fbase = alt.Chart(_fch).encode(x="date:T")
+        layers += [
+            _fbase.mark_area(opacity=0.22, color=_fcol).encode(y="lower:Q", y2="upper:Q"),
+            _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="upper:Q"),
+            _fbase.mark_line(color=_fcol, strokeWidth=1.6).encode(y="lower:Q"),
+            _fbase.mark_line(color=_fcol, strokeDash=[6, 3], strokeWidth=2.4).encode(y="breakout:Q"),
+        ]
+
+    # MA / Bollinger line overlays — computed on the FULL buffered history (correct lookback),
+    # shown over the backtest window; same widths as the hub gallery
+    _mls = {}
+    if "Bollinger Squeeze" in _rs:
+        _mid, _sd = _pf.rolling(20).mean(), _pf.rolling(20).std()
+        _mls["BB upper"], _mls["BB mid"], _mls["BB lower"] = _mid + 2 * _sd, _mid, _mid - 2 * _sd
+    for _strat, _ws in (("MA Crossover", (50, 200)), ("MA Swing", (20, 50)), ("Trend", (20, 100))):
+        if _strat in _rs:
+            for _w in _ws:
+                _mls.setdefault(f"MA{_w}", _pf.rolling(_w).mean())
+    if _mls:
+        _ldf = pd.DataFrame({"date": _win_index})
+        for _lab, _ser in _mls.items():
+            _ldf[_lab] = _ser.reindex(_win_index).to_numpy(dtype=float)
+        _long = _ldf.melt("date", var_name="Indicator", value_name="val").dropna(subset=["val"])
+        layers.append(alt.Chart(_long).mark_line(strokeWidth=1.8).encode(
+            x="date:T", y=alt.Y("val:Q", scale=alt.Scale(zero=False)),
+            color=alt.Color("Indicator:N", legend=alt.Legend(orient="top", title=None,
+                                                             labelFontSize=11)),
+            tooltip=[alt.Tooltip("Indicator:N"), alt.Tooltip("val:Q", format=",.2f")]))
+
+    # horizontal levels: support/resistance, Fibonacci, broken-level retest
+    for _lv in _ov.get("sr_levels", []):
+        _lc = _cc["long"] if _lv["kind"] == "support" else _cc["short"]
+        if np.isfinite(_lv["price"]):
+            layers.append(alt.Chart(pd.DataFrame({"y": [_lv["price"]]})).mark_rule(
+                color=_lc, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+    for _L in _ov.get("fib_levels", []):
+        if np.isfinite(_L["price"]):
+            layers.append(alt.Chart(pd.DataFrame({"y": [_L["price"]]})).mark_rule(
+                color=_cc["accent"], strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+    if _ov.get("retest_level") is not None and np.isfinite(_ov["retest_level"]):
+        layers.append(alt.Chart(pd.DataFrame({"y": [_ov["retest_level"]]})).mark_rule(
+            color=_cc["accent"], strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+
+    layers.append(alt.Chart(dd).mark_line(color=_cc["ink"], strokeWidth=2.2).encode(
+        x=alt.X("date:T", title=None, scale=_xsc),
+        y=alt.Y(f"{_ycol}:Q", title=_ytitle, scale=alt.Scale(zero=False),
+                axis=alt.Axis(**_YEXT)),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip(f"{_ycol}:Q", title=_ytitle, format=",.3f"),
+                alt.Tooltip("score:Q", title="Score", format="+.1f"),
+                alt.Tooltip("conviction:Q", title="Conviction", format=".0f")]))
+
+    # Elliott wave count (purple 0-5 pivots), on top of the price like the hub
+    if _ov.get("elliott"):
+        _piv = pd.DataFrame([p for p in _ov["elliott"] if p["date"] >= _win_start])
+        if len(_piv) >= 2:
+            layers.append(alt.Chart(_piv).mark_line(
+                color="#9575CD", strokeWidth=1.8, opacity=0.9,
+                point=alt.OverlayMarkDef(color="#9575CD", size=42)).encode(
+                x="date:T", y=alt.Y("price:Q", scale=alt.Scale(zero=False)),
+                tooltip=[alt.Tooltip("label:N", title="Wave"),
+                        alt.Tooltip("price:Q", title=_ytitle, format=",.2f")]))
+            layers.append(alt.Chart(_piv).mark_text(
+                dy=-12, fontSize=12, fontWeight="bold", color="#B39DDB").encode(
+                x="date:T", y="price:Q", text="label:N"))
+
+    _tr = res.trades.copy()
+    _lvl = res.daily[_ycol]
+    _tr["entry_lvl"] = [float(_lvl.get(pd.Timestamp(x), np.nan)) for x in _tr["entry_date"]]
+    _tr["exit_lvl"] = [float(_lvl.get(pd.Timestamp(x), np.nan)) for x in _tr["exit_date"]]
+    layers.append(alt.Chart(_tr).mark_point(size=140, filled=True,
+                                            stroke="white", strokeWidth=0.6).encode(
+        x="entry_date:T", y="entry_lvl:Q",
+        shape=alt.Shape("direction:N", scale=alt.Scale(domain=["Long", "Short"],
+                        range=["triangle-up", "triangle-down"]), legend=None),
+        color=alt.Color("direction:N", scale=alt.Scale(domain=["Long", "Short"],
+                        range=[_cc["long"], _cc["short"]]),
+                        legend=alt.Legend(title="Entry", orient="top")),
+        tooltip=[alt.Tooltip("entry_date:T", title="Entry"), alt.Tooltip("direction:N", title="Dir"),
+                alt.Tooltip("entry_price:Q", title="Entry px", format=",.3f"),
+                alt.Tooltip("entry_conviction:Q", title="Conviction", format=".0f"),
+                alt.Tooltip("entry_score:Q", title="Score", format="+.0f")]))
+    layers.append(alt.Chart(_tr).mark_point(size=120, shape="cross", filled=True,
+                                            color=_cc["accent"]).encode(
+        x="exit_date:T", y="exit_lvl:Q",
+        tooltip=[alt.Tooltip("exit_date:T", title="Exit"), alt.Tooltip("exit_reason:N", title="Reason"),
+                alt.Tooltip("exit_price:Q", title="Exit px", format=",.3f"),
+                alt.Tooltip("pnl:Q", title="P&L", format="+,.0f")]))
+    brand.show_chart(alt.layer(*layers).resolve_scale(y="shared").properties(
+        height=340, title=f"{_ytitle}, the picked strategies' indicators & every trade"))
+    # caption describes ONLY the overlays this run's picked strategies actually draw
+    _OV_FULL = {"Ichimoku Cloud": "the **Ichimoku cloud + Tenkan/Kijun**",
+                "MA Crossover": "the **50/200 moving averages**",
+                "MA Swing": "the **20/50 moving averages**",
+                "Trend": "the **20/100 moving averages**",
+                "Bollinger Squeeze": "the **Bollinger bands**"}
+    _OV_EOW = {"Flag Breakout": "the **flag channel**",
+               "Elliott Wave": "the **Elliott count**",
+               "Support & Resistance": "the **support/resistance levels**",
+               "Fibonacci Retracement": "the **Fibonacci levels**",
+               "Breakout & Retest": "the **retest level**"}
+    _full_ovs = [_OV_FULL[s2] for s2 in _rs if s2 in _OV_FULL]
+    _eow_ovs = [_OV_EOW[s2] for s2 in _rs if s2 in _OV_EOW]
+    _cap = ("Every decision was made from your picked strategies **recomputed as of that "
+            "historical day** — nothing is read off this drawing.")
+    if _full_ovs:
+        _cap += f" Drawn over the full window: {', '.join(_full_ovs)}."
+    if _eow_ovs:
+        _cap += (f" {', '.join(_eow_ovs).capitalize()} — pattern reads with a natural lookback, "
+                 "drawn as of the window's end.")
+    _cap += (" Shaded bands = days a position was on (green long / red short). ▲ / ▼ = entries, "
+             "✕ = exits — hover any marker for conviction, score, reason and P&L.")
+    if _fi_chart:
+        _cap += (" Fixed income charts the **yield** the signals score on, so a **Long** (buy "
+                 "the future) entry sits on a **falling-yield** signal — the usual FI mirror.")
+    st.caption(_cap)
+
+    # oscillator / volume sub-panels, when those strategies are in the score (hub convention)
+    _osc, _guides = [], []
+    if _ov.get("mom") is not None:
+        _osc.append(("rsi", _ov["mom"][_ov["mom"]["date"] >= _win_start], "#7E57C2", "RSI"))
+        _guides += [(70, _cc["short"]), (30, _cc["long"])]
+    if _ov.get("mfi") is not None:
+        _osc.append(("mfi", _ov["mfi"][_ov["mfi"]["date"] >= _win_start], "#00897B", "MFI"))
+        _guides += [(80, _cc["short"]), (20, _cc["long"])]
+    if _osc:
+        _olays = [alt.Chart(_df).mark_line(color=_c, strokeWidth=2).encode(
+            x=alt.X("date:T", title=None, scale=_xsc, axis=alt.Axis(labelFontSize=11)),
+            y=alt.Y(f"{_col_name}:Q", title="RSI / MFI", scale=alt.Scale(domain=[0, 100]),
+                    axis=alt.Axis(values=[0, 20, 30, 50, 70, 80, 100], labelFontSize=11,
+                                  **_YEXT)))
+            for _col_name, _df, _c, _ in _osc if not _df.empty]
+        _olays += [alt.Chart(pd.DataFrame({"y": [_y]})).mark_rule(
+            color=_c, strokeDash=[4, 3]).encode(y="y:Q") for _y, _c in _guides]
+        if _olays:
+            brand.show_chart(alt.layer(*_olays).resolve_scale(y="shared").properties(
+                height=130, title=" / ".join(t for _, _, _, t in _osc) + " (14)"))
+    if _ov.get("obv") is not None:
+        _od = _ov["obv"][_ov["obv"]["date"] >= _win_start]
+        if not _od.empty:
+            brand.show_chart(alt.Chart(_od).mark_line(
+                color="#26A69A", strokeWidth=1.8).encode(
+                x=alt.X("date:T", title=None, scale=_xsc, axis=alt.Axis(labelFontSize=11)),
+                y=alt.Y("obv:Q", title="OBV", scale=alt.Scale(zero=False),
+                        axis=alt.Axis(labelFontSize=10, **_YEXT))).properties(
+                height=110, title="On-Balance Volume"))
+
+    # the daily score behind the trades — tucked away: the price chart above already tells the
+    # story visually, this is the numeric trigger for anyone who wants to audit it
+    with st.expander("🔬 Under the hood — the daily score that pulled the trigger", expanded=False):
+        st.caption("Each bar is **one day's combined read** from your picked strategies, on the "
+                  "same signed scale as the TA hub: bar **up** = the set read long that day, bar "
+                  "**down** = short; taller = stronger and broader agreement. The dashed lines "
+                  "are your **Min |score|** entry bar — a trade opens the day a bar first pokes "
+                  "past them (with the conviction floor met) on your chosen side, and a reversal "
+                  "exit fires the day the bars flip side. **No bar = nothing flagged that day** — "
+                  "event-driven methods (Ichimoku, flag, retest …) only speak on their event days, "
+                  "which is why a position can sit unchanged for weeks between bars.")
+        _mbar = float(s.get("min_score", min_score) or 0.0)
+        _sc_layers = [_band_layer()] if _segs else []
+        _sc_layers.append(alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+            color=_cc["muted"], opacity=0.6).encode(y="y:Q"))
+        if _mbar:
+            for _b in (_mbar, -_mbar):
+                _sc_layers.append(alt.Chart(pd.DataFrame({"y": [_b]})).mark_rule(
+                    color=_cc["accent"], strokeDash=[5, 3]).encode(y="y:Q"))
+        _sc_layers.append(alt.Chart(dd.dropna(subset=["score"])).mark_bar(size=3).encode(
+            x=alt.X("date:T", title=None, scale=_xsc),
+            y=alt.Y("score:Q", title="daily score (signed)", axis=alt.Axis(**_YEXT)),
+            color=alt.condition("datum.score >= 0", alt.value(_cc["long"]),
+                                alt.value(_cc["short"])),
+            tooltip=[alt.Tooltip("date:T"), alt.Tooltip("score:Q", format="+.1f"),
+                    alt.Tooltip("conviction:Q", title="Conviction", format=".0f")]))
+        brand.show_chart(alt.layer(*_sc_layers).properties(
+            height=190, title="Daily signed score (dashed = your |score| entry bar)"))
 
     st.markdown("##### Trade blotter")
     tv = res.trades.assign(

@@ -331,7 +331,7 @@ def compute(max_age_hours: float = 20.0, force: bool = False):
         px = read_price_store()
     if px is None or px.empty:                   # no DB yet → one-off pull (mock = demo-thin)
         try:
-            px = get_history(list(COT_MAP),
+            px = get_history(list(COT_MAP), raw=True,   # price CHART overlay — real settles
                              start=pd.Timestamp.now().normalize() - pd.DateOffset(years=10))
         except Exception:
             px = pd.DataFrame()
