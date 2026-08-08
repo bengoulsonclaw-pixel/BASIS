@@ -607,6 +607,8 @@ TABT_DEFAULTS = {
     "stop_pct": 0.0,
     "take_pct": 0.0,
     "size": 0.0,               # 0.0 = "not set" — the page falls back to 1 lot / 100 shares
+    "commission": 0.0,         # $ per contract/share PER SIDE (all-in commission)
+    "slippage_pts": 0.0,       # price points given up per side ($ via the point-value table)
 }
 
 

@@ -207,8 +207,12 @@ def _score_set(raw: pd.DataFrame, strategies: list, ticker: str, sign: int):
 
 def _step(pos, sig, price: float, day, is_last: bool, *, exit_rule: str, hold_days,
           stop_pct, take_pct, min_conviction: float, min_score: float, direction_filter: str,
-          size_mult: float, size: float):
-    """Advance one flat/long/short state machine by one day. Returns (new_pos, trade_row|None)."""
+          size_mult: float, size: float, side_cost: float = 0.0):
+    """Advance one flat/long/short state machine by one day. Returns (new_pos, trade_row|None).
+    `side_cost` = all-in $ transaction cost PER SIDE for the whole position (commission +
+    slippage, already × size) — a closed trade's `pnl` is NET of its round trip (2 sides);
+    the CALLER additionally deducts the entry side from running cash on each open, so the
+    equity curve pays costs as they're incurred rather than only at close."""
     if pos is None:
         if not is_last and _passes(sig, min_conviction, min_score, direction_filter):
             pos = {"direction": sig["direction"], "entry_date": day.date(), "entry_price": price,
@@ -245,7 +249,8 @@ def _step(pos, sig, price: float, day, is_last: bool, *, exit_rule: str, hold_da
         "entry_price": pos["entry_price"], "exit_price": price, "exit_reason": exit_reason,
         "entry_conviction": pos["entry_conviction"], "entry_score": pos["entry_score"],
         "holding_days": int((day.date() - pos["entry_date"]).days),
-        "pnl": pnl_pts * size_mult * size,
+        "cost": 2.0 * side_cost,
+        "pnl": pnl_pts * size_mult * size - 2.0 * side_cost,
         "pnl_pct": (pnl_pts / pos["entry_price"] * 100.0) if pos["entry_price"] else 0.0,
     }
     new_pos = None
@@ -259,7 +264,7 @@ def _summarize(trades_df: pd.DataFrame, daily: pd.DataFrame, ccy: str) -> dict:
     if trades_df is None or trades_df.empty:
         return {"total_pnl": 0.0, "n_trades": 0, "win_rate": np.nan, "avg_win": np.nan,
                 "avg_loss": np.nan, "profit_factor": np.nan, "max_drawdown": 0.0,
-                "avg_holding_days": np.nan, "ccy": ccy}
+                "avg_holding_days": np.nan, "costs": 0.0, "ccy": ccy}
     wins, losses = trades_df[trades_df["pnl"] > 0], trades_df[trades_df["pnl"] < 0]
     gross_win, gross_loss = float(wins["pnl"].sum()), float(-losses["pnl"].sum())
     cum = daily["cum_pnl"] if daily is not None and not daily.empty else pd.Series([0.0])
@@ -273,6 +278,7 @@ def _summarize(trades_df: pd.DataFrame, daily: pd.DataFrame, ccy: str) -> dict:
                           else (np.inf if gross_win > 0 else np.nan)),
         "max_drawdown": float((cum.cummax() - cum).max()),
         "avg_holding_days": float(trades_df["holding_days"].mean()),
+        "costs": float(trades_df["cost"].sum()) if "cost" in trades_df.columns else 0.0,
         "ccy": ccy,
     }
 
@@ -380,7 +386,8 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
                  min_conviction: float = 0.0, min_score: float = 0.0, direction: str = "both",
                  start: date, end: date, exit_rule: str = "reversal", hold_days: int | None = None,
                  stop_pct: float | None = None, take_pct: float | None = None,
-                 size: float = 1.0) -> Result:
+                 size: float = 1.0, commission: float = 0.0,
+                 slippage_pts: float = 0.0) -> Result:
     """Backtest one product on a picked SET of strategies, scored exactly like the TA hub /
     report: hub-trigger flagging, within-axis harmonic de-duplication (two methods in one axis
     don't both count in full), signed cross-axis sum. `strategies=None` falls back to the book's
@@ -389,7 +396,14 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
     `direction`: "both" | "long" | "short" — restricts which side of a signal is ever taken.
     `exit_rule`: "reversal" (signal flips) | "score_drop" (no longer clears the entry bar) |
     "hold_days" (fixed N trading-day hold). `stop_pct`/`take_pct` are an OPTIONAL overlay that can
-    close a trade before the primary rule does, checked first every day."""
+    close a trade before the primary rule does, checked first every day.
+
+    TRANSACTION COSTS (volbt convention — flat per-lot amounts, 0 = frictionless):
+    `commission` = all-in $ per contract (per share for equities) PER SIDE;
+    `slippage_pts` = price POINTS given up per side, converted to $ through the same
+    point-value × FX multiplier as the P&L itself, so a tick of slippage costs what a tick
+    is worth on that contract. Charged as incurred: entry side on the entry day, exit side
+    at exit — trade `pnl` is NET of its round trip."""
     chosen = set(strategies or tascore.confluence_set(scope))
     if "Mean Reversion" in chosen and pair_for(ticker) is None:
         chosen.discard("Mean Reversion")     # pair-based — can't feed a non-pair product's score
@@ -415,18 +429,23 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
     # read against the series the strategies actually scored on, not just the futures price
     sig_series = signal_hist[ticker] if ticker in signal_hist.columns else pd.Series(dtype=float)
 
+    side_cost = max(0.0, float(commission)) * size + max(0.0, float(slippage_pts)) * size_mult * size
+
     pos, rows, trades, realized = None, [], [], 0.0
     for i, d in enumerate(days):
         price = float(pnl_hist.loc[d, ticker])
         is_last = i == len(days) - 1
         sig = _sig_on(d)
+        prev_pos = pos
         pos, trade = _step(pos, sig, price, d, is_last, exit_rule=exit_rule, hold_days=hold_days,
                            stop_pct=stop_pct, take_pct=take_pct, min_conviction=min_conviction,
                            min_score=min_score, direction_filter=direction,
-                           size_mult=size_mult, size=size)
+                           size_mult=size_mult, size=size, side_cost=side_cost)
+        if pos is not None and (prev_pos is None or trade is not None):
+            realized -= side_cost                       # entry side paid the day it's incurred
         if trade:
             trades.append(trade)
-            realized += trade["pnl"]
+            realized += trade["pnl"] + side_cost        # pnl is net of BOTH sides; entry already paid
         unreal = (price - pos["entry_price"]) * pos["direction"] * size_mult * size if pos else 0.0
         rows.append({"date": d, "price": price,
                     "signal_level": float(sig_series.get(d, np.nan)),
@@ -447,6 +466,7 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
         "hold_days": (int(hold_days) if hold_days else None),
         "stop_pct": (float(stop_pct) if stop_pct else 0.0),
         "take_pct": (float(take_pct) if take_pct else 0.0),
+        "commission": max(0.0, float(commission)), "slippage_pts": max(0.0, float(slippage_pts)),
         "start": days[0].date(), "end": days[-1].date(),
         "fi": bool(scope != "equities" and universe.is_fixed_income(ticker)),
         "cached_days": int(sum(1 for d in days if d in cached)),  # signal-cache fast-path hits
@@ -461,7 +481,8 @@ def compare_strategies(scope: str, ticker: str, *, min_conviction: float = 0.0,
                        min_score: float = 0.0, direction: str = "both", start: date, end: date,
                        exit_rule: str = "reversal", hold_days: int | None = None,
                        stop_pct: float | None = None, take_pct: float | None = None,
-                       size: float = 1.0) -> pd.DataFrame:
+                       size: float = 1.0, commission: float = 0.0,
+                       slippage_pts: float = 0.0) -> pd.DataFrame:
     """One row per individual strategy PLUS the confluence composite, each independently backtested
     on `ticker` with the same rules — computes every strategy's raw signal ONCE per day (shared
     across all the variants' state machines) rather than paying for N separate day-loops. Every
@@ -482,6 +503,7 @@ def compare_strategies(scope: str, ticker: str, *, min_conviction: float = 0.0,
     trades = {v: [] for v in variants}
     realized = {v: 0.0 for v in variants}
     daily_rows = {v: [] for v in variants}
+    side_cost = max(0.0, float(commission)) * size + max(0.0, float(slippage_pts)) * size_mult * size
 
     cached = _cached_day_rows(scope, days, all_needed)
 
@@ -496,14 +518,18 @@ def compare_strategies(scope: str, ticker: str, *, min_conviction: float = 0.0,
             raw = _raw_frames(ticker, all_needed, hist_slice, vol_slice)
         for v in variants:
             sig = _score_set(raw, conf_set if v == "Confluence" else [v], ticker, sign)
+            prev_pos = states[v]
             pos, trade = _step(states[v], sig, price, d, is_last, exit_rule=exit_rule,
                                hold_days=hold_days, stop_pct=stop_pct, take_pct=take_pct,
                                min_conviction=min_conviction, min_score=min_score,
-                               direction_filter=direction, size_mult=size_mult, size=size)
+                               direction_filter=direction, size_mult=size_mult, size=size,
+                               side_cost=side_cost)
             states[v] = pos
+            if pos is not None and (prev_pos is None or trade is not None):
+                realized[v] -= side_cost                # entry side paid the day it's incurred
             if trade:
                 trades[v].append(trade)
-                realized[v] += trade["pnl"]
+                realized[v] += trade["pnl"] + side_cost  # pnl nets both sides; entry already paid
             unreal = (price - pos["entry_price"]) * pos["direction"] * size_mult * size if pos else 0.0
             daily_rows[v].append({"date": d, "cum_pnl": realized[v] + unreal})
 

@@ -6677,9 +6677,9 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                                  key=f"tabt_hold{k}")
                 if exit_lbl == "hold_days" else None)
 
-    with st.expander("Stop-loss / take-profit overlay (optional) + position size"):
-        st.caption("Layered ON TOP of the exit rule above — whichever triggers first closes the "
-                   "trade. Leave either at 0 to disable that side.")
+    with st.expander("Stop/take overlay, position size & transaction costs"):
+        st.caption("Stop/take are layered ON TOP of the exit rule above — whichever triggers "
+                   "first closes the trade. Leave either at 0 to disable that side.")
         o1, o2, o3 = st.columns(3)
         stop_pct = o1.number_input("Stop-loss (%, 0 = off)", 0.0, 100.0, float(_dflt["stop_pct"]), 0.5,
                                    key=f"tabt_stop{k}")
@@ -6688,6 +6688,23 @@ def render_ta_backtester(scope: str = "ficc") -> None:
         _dflt_size = _dflt["size"] or (100.0 if eq else 1.0)
         size = o3.number_input("Shares" if eq else "Lots", 1.0, 1_000_000.0, _dflt_size, 1.0,
                                key=f"tabt_size{k}")
+        st.caption("**Transaction costs** — charged per SIDE as incurred (entry day and exit "
+                   "day), volbt convention: 0 = frictionless. Every P&L figure on this page is "
+                   "then **net of costs**.")
+        c1_, c2_ = st.columns(2)
+        commission = c1_.number_input(
+            f"Commission ($ per {'share' if eq else 'contract'} per side)", 0.0, 1000.0,
+            float(_dflt.get("commission", 0.0)), 0.25, key=f"tabt_comm{k}",
+            help="All-in broker/exchange/clearing charge per side, in USD.")
+        slippage_pts = c2_.number_input(
+            "Slippage (price points per side)", 0.0, 100.0,
+            float(_dflt.get("slippage_pts", 0.0)), 0.005, format="%.3f", key=f"tabt_slip{k}",
+            help=("Execution give-up per side in PRICE POINTS of the quote — converted to $ "
+                  "through the same contract point-value (and FX) as the P&L itself, so e.g. "
+                  "one tick of ES slippage (0.25 pt) costs 0.25 × $50 = $12.50 a side."
+                  if not eq else
+                  "Execution give-up per side in $ per share (half the bid/ask spread is the "
+                  "usual working assumption)."))
 
     dc1, dc2 = st.columns([1, 3])
     if IS_ADMIN and dc1.button("📌 Set as default", key=f"tabt_set_def{k}", use_container_width=True,
@@ -6697,7 +6714,8 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                            min_conviction=float(min_conviction), min_score=float(min_score),
                            direction=direction, exit_rule=exit_lbl,
                            hold_days=float(hold_days or _dflt["hold_days"]),
-                           stop_pct=float(stop_pct), take_pct=float(take_pct), size=float(size))
+                           stop_pct=float(stop_pct), take_pct=float(take_pct), size=float(size),
+                           commission=float(commission), slippage_pts=float(slippage_pts))
         st.toast("TA Backtester defaults saved for this book.", icon="📌")
     _dflt = tabt_defaults(scope)   # re-read — reflects a just-saved value on this same rerun
     _dflt_strats = _dflt.get("strategies") or list(tascore.confluence_set(scope))
@@ -6707,7 +6725,10 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                f"**{_dflt['direction']}**, exit **{_dflt['exit_rule'].replace('_', ' ')}**"
                + (f" ({_dflt['hold_days']:g}d)" if _dflt["exit_rule"] == "hold_days" else "")
                + (f", stop/take {_dflt['stop_pct']:g}%/{_dflt['take_pct']:g}%"
-                  if _dflt["stop_pct"] or _dflt["take_pct"] else ""))
+                  if _dflt["stop_pct"] or _dflt["take_pct"] else "")
+               + (f", costs \\${_dflt.get('commission', 0):g} + "
+                  f"{_dflt.get('slippage_pts', 0):g}pt/side"
+                  if _dflt.get("commission") or _dflt.get("slippage_pts") else ""))
 
     st.caption("A wide date range (or **Compare all strategies**, which backtests every strategy "
               "at once) can take a while — each day re-checks the live signal logic, not a shortcut "
@@ -6717,7 +6738,8 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                  direction=direction, start=start, end=end, exit_rule=exit_lbl,
                  hold_days=int(hold_days) if hold_days else None,
                  stop_pct=float(stop_pct) or None, take_pct=float(take_pct) or None,
-                 size=float(size))
+                 size=float(size), commission=float(commission),
+                 slippage_pts=float(slippage_pts))
 
     b1, b2 = st.columns(2)
     if b1.button("▶  Run backtest", type="primary", key=f"tabt_run{k}", disabled=not picked):
@@ -6742,10 +6764,12 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     if cmp_df is not None:
         for w in cmp_df.attrs.get("warnings", []):
             st.warning(w)
+        _cmp_costs = float(cmp_df["costs"].sum()) if "costs" in cmp_df.columns else 0.0
         st.markdown(f"#### Every strategy vs Confluence — {_lab(ticker)}, "
-                    f"{start:%d %b %Y} → {end:%d %b %Y}")
+                    f"{start:%d %b %Y} → {end:%d %b %Y}"
+                    + (" (net of costs)" if _cmp_costs else ""))
         bars = alt.Chart(cmp_df).mark_bar().encode(
-            x=alt.X("total_pnl:Q", title="Total P&L ($)"),
+            x=alt.X("total_pnl:Q", title="Total P&L ($)" + (" net" if _cmp_costs else "")),
             y=alt.Y("strategy:N", sort="-x", title=None),
             color=alt.condition("datum.total_pnl >= 0", alt.value("#46C58A"), alt.value("#EC6A57")),
             tooltip=[alt.Tooltip("strategy:N"), alt.Tooltip("total_pnl:Q", format="+,.0f"),
@@ -6761,10 +6785,13 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                "Profit factor": cmp_df["profit_factor"].map(
                    lambda v: "∞" if v == np.inf else ("—" if pd.isna(v) else f"{v:.2f}")),
                "Max drawdown": cmp_df["max_drawdown"].map(_usd),
+               "Costs": (cmp_df["costs"] if "costs" in cmp_df.columns
+                         else pd.Series(0.0, index=cmp_df.index)).map(_usd),
                "Avg hold (days)": cmp_df["avg_holding_days"].map(
                    lambda v: "—" if pd.isna(v) else f"{v:.0f}")}
         )[["strategy", "Total P&L", "Trades", "Win rate", "Avg win", "Avg loss",
-           "Profit factor", "Max drawdown", "Avg hold (days)"]].rename(columns={"strategy": "Strategy"})
+           "Profit factor", "Max drawdown"] + (["Costs"] if _cmp_costs else [])
+          + ["Avg hold (days)"]].rename(columns={"strategy": "Strategy"})
         st.dataframe(view, hide_index=True, use_container_width=True)
         return
 
@@ -6788,14 +6815,19 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     _rdir = {"both": "Both", "long": "Long only", "short": "Short only"}.get(
         s.get("direction", direction), "Both")
     _rstop, _rtake = s.get("stop_pct", 0.0), s.get("take_pct", 0.0)
+    _rcomm, _rslip = s.get("commission", 0.0), s.get("slippage_pts", 0.0)
+    _has_costs = bool(_rcomm or _rslip)
     st.markdown(f"#### {_lab(_rtk)} — {_strat_note} — {_rstart:%d %b %Y} → {_rend:%d %b %Y}")
     st.caption(f"Min conviction {s.get('min_conviction', min_conviction):g} · "
               f"Min |score| {s.get('min_score', min_score):g} · {_rdir} · "
               f"exit: {_EXIT.get(s.get('exit_rule', exit_lbl), s.get('exit_rule', exit_lbl))}"
-              + (f" · stop {_rstop:g}% / take {_rtake:g}%" if _rstop or _rtake else ""))
+              + (f" · stop {_rstop:g}% / take {_rtake:g}%" if _rstop or _rtake else "")
+              + (f" · costs \\${_rcomm:g} + {_rslip:g}pt per side" if _has_costs
+                 else " · frictionless (no costs applied)"))
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Total P&L", _usd(s["total_pnl"]))
-    m1.caption(f"max drawdown {_usd(s['max_drawdown'])}")
+    m1.metric("Total P&L" + (" (net)" if _has_costs else ""), _usd(s["total_pnl"]))
+    m1.caption(f"max drawdown {_usd_md(s['max_drawdown'])}"
+              + (f" · net of {_usd_md(s.get('costs', 0.0))} costs" if _has_costs else ""))
     m2.metric("Trades", f"{s['n_trades']}")
     m2.caption(f"avg hold {s['avg_holding_days']:.0f}d")
     m3.metric("Win rate", f"{s['win_rate']:.0f}%")
@@ -7103,7 +7135,8 @@ def render_ta_backtester(scope: str = "ficc") -> None:
         brand.show_chart(alt.layer(*_sc_layers).properties(
             height=190, title="Daily signed score (dashed = your |score| entry bar)"))
 
-    st.markdown("##### Trade blotter")
+    st.markdown("##### Trade blotter" + (" — P&L net of costs" if _has_costs else ""))
+    _tcost = res.trades["cost"] if "cost" in res.trades.columns else pd.Series(0.0, index=res.trades.index)
     tv = res.trades.assign(
         **{"Entry": res.trades["entry_date"].astype(str), "Exit": res.trades["exit_date"].astype(str),
            "Dir": res.trades["direction"],
@@ -7112,10 +7145,11 @@ def render_ta_backtester(scope: str = "ficc") -> None:
            "Reason": res.trades["exit_reason"],
            "Conviction": res.trades["entry_conviction"].map(lambda v: f"{v:.0f}"),
            "Hold (d)": res.trades["holding_days"],
+           "Cost": _tcost.map(_usd),
            "P&L": res.trades["pnl"].map(_usd),
            "P&L %": res.trades["pnl_pct"].map(lambda v: f"{v:+.1f}%")}
-    )[["Entry", "Exit", "Dir", "Entry px", "Exit px", "Reason", "Conviction",
-       "Hold (d)", "P&L", "P&L %"]]
+    )[["Entry", "Exit", "Dir", "Entry px", "Exit px", "Reason", "Conviction", "Hold (d)"]
+      + (["Cost"] if _has_costs else []) + ["P&L", "P&L %"]]
     st.dataframe(tv, hide_index=True, use_container_width=True, height=min(400, 40 + 35 * len(tv)))
 
 
