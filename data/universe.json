@@ -61,6 +61,16 @@
       "price_field": ""
     },
     {
+      "ticker": "CFA Index",
+      "name": "CAC 40",
+      "price": 8700.0,
+      "asset": "Indices",
+      "region": "EMEA",
+      "vol_source": "",
+      "vol_field": "",
+      "price_field": ""
+    },
+    {
       "ticker": "Z A Index",
       "name": "FTSE 100",
       "price": 8400.0,

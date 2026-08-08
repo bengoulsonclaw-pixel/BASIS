@@ -31,6 +31,7 @@ _SEED_INSTRUMENTS = {
     # EMEA
     "VGA Index":   ("Euro Stoxx 50",        5100.0,  "Indices", "EMEA"),
     "CAA Index":   ("Euro Stoxx Banks",      320.0,  "Indices", "EMEA"),   # Banks-sector future (Eurex) — NOT the CAC 40 (Ben confirmed 2026-08-08)
+    "CFA Index":   ("CAC 40",               8700.0,  "Indices", "EMEA"),   # Euronext CAC40 10-euro future (verified live: €10/pt)
     "Z A Index":   ("FTSE 100",             8400.0,  "Indices", "EMEA"),
     "GXA Index":   ("DAX",                 18500.0,  "Indices", "EMEA"),
     "SMA Index":   ("SMI (Swiss)",         12000.0,  "Indices", "EMEA"),

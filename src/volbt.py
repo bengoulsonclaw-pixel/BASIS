@@ -59,7 +59,8 @@ SQRT252 = math.sqrt(252.0)
 # table carried contract SIZES for the cent-quoted names — 100× off).
 POINT_VALUE = {
     "ESA Index": 50.0, "NQA Index": 20.0, "RTYA Index": 50.0, "DMA Index": 5.0,
-    "VGA Index": 10.0, "GXA Index": 25.0, "CAA Index": 50.0, "Z A Index": 10.0,
+    "VGA Index": 10.0, "GXA Index": 25.0, "CAA Index": 50.0, "CFA Index": 10.0,
+    "Z A Index": 10.0,
     "SMA Index": 10.0, "NKA Index": 1000.0, "XPA Index": 25.0, "KMA Index": 250000.0,
     "SX5E Index": 10.0, "DAX Index": 25.0, "UKX Index": 10.0, "SX7E Index": 50.0,
     "USA Comdty": 1000.0, "WNA Comdty": 1000.0, "UXYA Comdty": 1000.0,
@@ -89,7 +90,7 @@ POINT_VALUE = {
 # / FX-swept convention — using the FX futures already in the universe.
 CCY = {
     "VGA Index": "EUR", "SX5E Index": "EUR", "SX7E Index": "EUR", "DAX Index": "EUR",
-    "GXA Index": "EUR", "CAA Index": "EUR", "CAC Index": "EUR",
+    "GXA Index": "EUR", "CAA Index": "EUR", "CFA Index": "EUR", "CAC Index": "EUR",
     "SMA Index": "CHF", "SMI Index": "CHF",
     "Z A Index": "GBP", "UKX Index": "GBP",
     "NKA Index": "JPY", "NKY Index": "JPY",

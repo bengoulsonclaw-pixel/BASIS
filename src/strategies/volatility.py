@@ -47,8 +47,8 @@ EXCLUDE_ASSETS = {"STIRs"}
 # added 2026-07-21) DO have surface vol, so they flow into the vol reports instead.
 # XPA (ASX SPI) re-included 2026-07-21 — its FUTURES surface verified live (≈11.8 vol
 # vs 8.0 realized on the Terminal), unlike the rest of this list.
-EXCLUDE_INDEX = {"VGA Index", "CAA Index", "Z A Index", "GXA Index", "SMA Index",
-                 "NKA Index", "KMA Index"}
+EXCLUDE_INDEX = {"VGA Index", "CAA Index", "CFA Index", "Z A Index", "GXA Index",
+                 "SMA Index", "NKA Index", "KMA Index"}
 
 # Skew uses fixed 90/110% moneyness wings for listed products (FX uses the OTC
 # 25-delta risk reversal — it has no moneyness surface). When ATM price vol is low

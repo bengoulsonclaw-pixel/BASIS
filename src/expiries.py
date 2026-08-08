@@ -278,6 +278,7 @@ SPECS: dict[str, dict] = {
 FAMILY_OF: dict[str, str] = {
     "ESA Index": "cme_eq", "NQA Index": "cme_eq", "RTYA Index": "cme_eq", "DMA Index": "cme_eq",
     "VGA Index": "estoxx", "GXA Index": "dax", "SMA Index": "smi", "CAA Index": "estoxx",
+    "CFA Index": "cac",
     "Z A Index": "ftse", "NKA Index": "nikkei", "KMA Index": "kospi", "XPA Index": "asx",
     # cash indices — no future of their own; show the monthly index-option expiry only
     "SX5E Index": "estoxx", "SX7E Index": "estoxx", "DAX Index": "dax", "UKX Index": "ftse",
