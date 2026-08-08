@@ -30,7 +30,7 @@ _SEED_INSTRUMENTS = {
     "DMA Index":   ("Dow E-mini",          43000.0,  "Indices", "NA"),
     # EMEA
     "VGA Index":   ("Euro Stoxx 50",        5100.0,  "Indices", "EMEA"),
-    "CAA Index":   ("CAC 40",               7800.0,  "Indices", "EMEA"),
+    "CAA Index":   ("Euro Stoxx Banks",      320.0,  "Indices", "EMEA"),   # Banks-sector future (Eurex) — NOT the CAC 40 (Ben confirmed 2026-08-08)
     "Z A Index":   ("FTSE 100",             8400.0,  "Indices", "EMEA"),
     "GXA Index":   ("DAX",                 18500.0,  "Indices", "EMEA"),
     "SMA Index":   ("SMI (Swiss)",         12000.0,  "Indices", "EMEA"),

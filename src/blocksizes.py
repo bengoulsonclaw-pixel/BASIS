@@ -59,9 +59,11 @@ _SEED = {
     "VGA Index":  ("2,000", "1,000",
                    "Each leg (TES strategy min = outright min)",
                    "Eurex TES; options incl. weeklies under OESX; vola-strategy futures legs delta-sized."),
-    "CAA Index":  ("600", "200",
-                   "Each leg (liquid 2-leg packages); one leg suffices for illiquid/multi-leg",
-                   "Euronext LIS (pre-trade) thresholds from 03-Jun-2026; post-trade deferral tiers 3,400 fut / 720 opt."),
+    "CAA Index":  ("TBC (Eurex TES)", "TBC",
+                   "Each leg (TES strategy min = outright min)",
+                   "Euro Stoxx Banks future (Eurex) — this row previously held CAC 40 / Euronext "
+                   "LIS data under the same ticker; TES minimums to be confirmed from the Eurex "
+                   "block-trade table."),
     "Z A Index":  ("500", "500",
                    "Sum of legs ≥ strategy min (1,000)",
                    "IFEU strategy minimum 1,000 for futures AND standard options; TIC blocks 50; "

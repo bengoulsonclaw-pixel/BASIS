@@ -95,7 +95,7 @@ PROFILE_OF = {
     # Indices — index futures vs cash index
     "ESA Index": "cme_eq", "NQA Index": "cme_eq", "RTYA Index": "cme_eq", "DMA Index": "cme_eq",
     "VGA Index": "eurex_eq", "GXA Index": "eurex_eq", "SMA Index": "eurex_eq",
-    "CAA Index": "euronext_eq", "Z A Index": "ice_ftse",
+    "CAA Index": "eurex_eq", "Z A Index": "ice_ftse",
     "SX5E Index": "cash_eu_de", "SX7E Index": "cash_eu_de", "DAX Index": "cash_eu_de", "UKX Index": "cash_uk",
     "NKA Index": "jpx_nikkei", "KMA Index": "krx_kospi", "XPA Index": "asx_spi",
     # STIRs

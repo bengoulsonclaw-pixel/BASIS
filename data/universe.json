@@ -52,8 +52,8 @@
     },
     {
       "ticker": "CAA Index",
-      "name": "CAC 40",
-      "price": 7800.0,
+      "name": "Euro Stoxx Banks",
+      "price": 320.0,
       "asset": "Indices",
       "region": "EMEA",
       "vol_source": "",
