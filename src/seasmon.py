@@ -310,6 +310,15 @@ def best_windows(weekly: pd.DataFrame, ticker: str, top: int = 4) -> pd.DataFram
 
 
 # ── calendar-spread (1st − 2nd) seasonality ─────────────────────────────────
+def spread_label(tkr: str) -> str:
+    """'XB1 − XB2'-style label naming the spread's two FUTURES legs (the '1' and '2'
+    chained generics behind the app's 'A' ticker) — so the page can say exactly what
+    is being differenced: front futures minus second futures, never a cash leg."""
+    r1 = deepstore._src(tkr, "1").rsplit(" ", 1)[0]
+    r2 = deepstore._src(tkr, "2").rsplit(" ", 1)[0]
+    return f"{r1} − {r2}"
+
+
 def spread_products() -> list:
     """Universe tickers with a stored '2' generic — the calendar-spread book —
     in universe (asset-class) order."""

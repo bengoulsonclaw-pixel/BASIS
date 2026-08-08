@@ -874,6 +874,8 @@ _GROUP_TABS = {
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
                            ("🛢️ OPEC Report", "OPEC Report"),
                            ("🥇 Precious Metals", "Precious Metals")],
+    "Seasonality":        [("📅 Product Seasonality", "Seasonality"),
+                           ("🔀 Spread Seasonality", "Seasonality Spreads")],
 }
 _TAB_MEMBERS_OF = {dest: members for members in _GROUP_TABS.values() for _lbl, dest in members}
 
@@ -7930,7 +7932,7 @@ def _seas_fmt(unit: str) -> str:
 def render_seasonality() -> None:
     import altair as alt
 
-    st.subheader("📅  Seasonality — calendar patterns on ten years of history")
+    st.subheader("📅  Product Seasonality — calendar patterns on ten years of history")
     st.caption(
         "How each product's calendar year has actually traded across the deep store: "
         "per-month return heatmaps, a month screener over the whole book, the average-year "
@@ -8148,47 +8150,65 @@ def render_seasonality() -> None:
             "single year inside the window — the reminder that even a 9-of-10 pattern has an "
             "exception. Descriptive history, not a signal.")
 
-    # ---- calendar-spread seasonality ---------------------------------------
-    st.divider()
+
+def render_seasonality_spreads() -> None:
+    import altair as alt
+
+    st.subheader("🔀  Spread Seasonality — the front calendar spread through the year")
+    st.caption(
+        "For every product with a stored second generic: the **front calendar spread** — the "
+        "1st futures contract minus the 2nd (**XB1 − XB2**, **NG1 − NG2**, …), both **actual "
+        "traded settles**, never a cash/spot leg — walked through the calendar year. Positive "
+        "= backwardation (prompt over the next month), negative = contango; STIR calendars in "
+        "bp. The contract pair changes as the year rolls forward — that is the point: this is "
+        "the shape the front of the curve typically takes each season (injection vs "
+        "withdrawal, harvest vs old-crop).")
+
     sps = _seas_spread_products(MODE)
     if not sps:
+        st.info("No stored second-generic history yet — the deep price store hasn't been "
+                "built on this machine (it backfills on the next Bloomberg session).")
         return
-    brand.panel_header("Calendar-spread seasonality", right="1st − 2nd generic · actual levels")
-    sp_default = tkr if tkr in sps else ("NGA Comdty" if "NGA Comdty" in sps else sps[0])
+    brand.panel_header("Front calendar spread", right="1st − 2nd futures · actual settles")
+    _last = st.session_state.get("seas_tkr")
+    sp_default = _last if _last in sps else ("NGA Comdty" if "NGA Comdty" in sps else sps[0])
     sp_tkr = st.selectbox("Spread product", sps, index=sps.index(sp_default),
-                          format_func=lambda t: f"{universe.name(t)}  ·  {t}",
+                          format_func=lambda t: f"{universe.name(t)}  ·  "
+                                                f"{seasmon.spread_label(t)}",
                           key="seas_sp", label_visibility="collapsed")
+    legs = seasmon.spread_label(sp_tkr)
     spdf, spinfo = _seas_spread(sp_tkr, MODE)
     if spdf.empty:
-        st.caption("Not enough stored second-generic history for this product.")
+        st.info("Not enough stored second-generic history for this product.")
         return
     su = spinfo["unit"]
+    cc = brand.chart_colors()
     _sx = alt.Chart(spdf).encode(
         x=alt.X("wdate:T", title=None,
                 axis=alt.Axis(format="%b", tickCount="month", labelFontSize=12)))
     _band = _sx.mark_area(color=cc["muted"], opacity=0.35).encode(
-        y=alt.Y("p25:Q", title=f"1st − 2nd ({su})",
+        y=alt.Y("p25:Q", title=f"{legs} ({su})",
                 axis=alt.Axis(labelFontSize=12, titleFontSize=13)), y2="p75:Q")
     _med = _sx.mark_line(color=cc["series"], strokeWidth=2.6).encode(
         y="med:Q", tooltip=[alt.Tooltip("woy:Q", title="Week"),
-                            alt.Tooltip("med:Q", title=f"Median spread ({su})", format="+,.2f")])
+                            alt.Tooltip("med:Q", title=f"Median {legs} ({su})", format="+,.2f")])
     _halo = _sx.mark_line(color=cc["halo"], strokeWidth=4.6).encode(y="current:Q")
     _cur = _sx.mark_line(color=cc["accent"], strokeWidth=3).encode(
         y="current:Q", tooltip=[alt.Tooltip("woy:Q", title="Week"),
                                 alt.Tooltip("current:Q", format="+,.2f",
-                                            title=f"{spinfo['cur_year']} spread ({su})")])
+                                            title=f"{spinfo['cur_year']} {legs} ({su})")])
     _zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
         color=cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="y:Q")
     brand.show_chart(alt.layer(_zero, _band, _med, _halo, _cur).properties(
-        height=240,
-        title=f"{universe.name(sp_tkr)} — front calendar spread by week of year "
+        height=280,
+        title=f"{universe.name(sp_tkr)} — {legs} front calendar spread by week of year "
               f"(median {spinfo['years']}y · band = 25–75% · gold = {spinfo['cur_year']})"))
     st.caption(
-        "The front calendar spread (1st minus 2nd generic, **actual traded levels**) walked "
-        "through the calendar year — positive = backwardation, negative = contango; STIR "
-        "calendars are shown in bp. The contract pair changes as the year rolls forward: that "
-        "is the point — this is the shape the front of the curve typically takes each season "
-        "(injection vs withdrawal, harvest vs old-crop), with the current year in gold.")
+        f"**{legs}** = the front futures settle minus the second — with September front, the "
+        "Sep contract minus Oct; next month the pair itself rolls forward. **Blue** = the "
+        "median across the stored years, **grey band** = 25–75% of years, **gold** = the "
+        "current year so far. Around roll points the band naturally widens (exact roll dates "
+        "drift a few days year to year). Descriptive history, not a signal.")
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -8803,6 +8823,8 @@ if active == "Curve Monitor":
     render_curve_monitor(); st.stop()
 if active == "Seasonality":
     render_seasonality(); st.stop()
+if active == "Seasonality Spreads":
+    render_seasonality_spreads(); st.stop()
 if active == "Data health":
     render_data_health(); st.stop()
 if active == "OPEC Report":
