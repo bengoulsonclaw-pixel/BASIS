@@ -108,9 +108,13 @@ def rebuild(log=print) -> pd.DataFrame:
     flagged["date"] = pd.to_datetime(flagged["date"])
 
     lv = _signal_space()
-    # σ=0 happens on ffilled holiday runs / pinned series — a 0-σ normalizer turns a
-    # finite move into ±inf and poisons every mean downstream; treat as "no σ available".
-    sigma = lv.diff().rolling(SIGMA_WINDOW).std().replace(0.0, np.nan)
+    # Near-zero σ (ffilled holiday runs, pinned/collapsed series) turns a finite move
+    # into a ±hundreds-of-σ artifact that poisons every mean downstream. A σ is only a
+    # usable normalizer when it's in the product's NORMAL range — require at least 5% of
+    # the column's own median σ (exact zeros fall out with everything else).
+    sigma = lv.diff().rolling(SIGMA_WINDOW).std()
+    floor = sigma.median() * 0.05
+    sigma = sigma.where(sigma.ge(floor, axis=1))
     parts = {"entry_level": lv, "sigma": sigma}
     for h in HORIZONS:
         parts[f"chg{h}"] = lv.shift(-h) - lv
