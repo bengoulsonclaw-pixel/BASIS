@@ -7306,18 +7306,36 @@ def render_signal_ledger() -> None:
     by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
     lg = sigledger.league(view, "strategy" if by == "Strategy" else "market")
     lg = lg[lg["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
+    # Diverging cell shading — the same red→neutral→green code as the heatmap below, so
+    # "strength" reads identically everywhere on the page. rgba over the theme background
+    # keeps it legible in BOTH light and dark themes (no hard-coded cell text colours).
+    def _div_bg(v, centre: float, span: float) -> str:
+        if pd.isna(v):
+            return ""
+        x = max(-1.0, min(1.0, (float(v) - centre) / span))
+        r, g, b = (30, 132, 73) if x > 0 else (192, 57, 43)     # #1e8449 / #c0392b
+        return f"background-color: rgba({r},{g},{b},{0.12 + 0.43 * abs(x):.2f})"
+
     if lg.empty:
         st.info("No rows clear the min-signals bar — lower it to see thin samples.")
     else:
-        disp = pd.DataFrame({
-            by: lg.iloc[:, 0], "Signals": lg["n"].map("{:,}".format),
-            **{f"Hit {h}d": lg[f"hit{h}"].map(lambda v: f"{v:.1f}%" if pd.notna(v) else "—")
-               for h in sigledger.HORIZONS},
-            **{f"σ-move {h}d": lg[f"sig{h}"].map(lambda v: f"{v:+.2f}" if pd.notna(v) else "—")
-               for h in sigledger.HORIZONS},
+        hit_cols = [f"Hit {h}d" for h in sigledger.HORIZONS]
+        sig_cols = [f"σ-move {h}d" for h in sigledger.HORIZONS]
+        num = pd.DataFrame({
+            by: lg.iloc[:, 0].to_numpy(), "Signals": lg["n"].to_numpy(),
+            **{f"Hit {h}d": lg[f"hit{h}"].to_numpy() for h in sigledger.HORIZONS},
+            **{f"σ-move {h}d": lg[f"sig{h}"].to_numpy() for h in sigledger.HORIZONS},
         })
-        st.dataframe(disp, hide_index=True, use_container_width=True,
-                     height=min(560, 40 + 35 * len(disp)))
+        sty = (num.style
+               .format({"Signals": "{:,.0f}",
+                        **{c: "{:.1f}%" for c in hit_cols},
+                        **{c: "{:+.2f}" for c in sig_cols}}, na_rep="—")
+               # hits: 50% = coin flip = neutral; ±5pp = full colour
+               .map(lambda v: _div_bg(v, 50.0, 5.0), subset=hit_cols)
+               # σ-moves: 0 = no drift = neutral; ±0.10σ = full colour
+               .map(lambda v: _div_bg(v, 0.0, 0.10), subset=sig_cols))
+        st.dataframe(sty, hide_index=True, use_container_width=True,
+                     height=min(560, 40 + 35 * len(num)))
         st.caption("Hit = the signal-space move went the signal's way by the horizon. σ-move = "
                    "the mean signed move in trailing-21-session σ units — the honest size of the "
                    "edge, not just its frequency. 50% hit with +σ drift and 55% with none read "
@@ -7355,7 +7373,16 @@ def render_signal_ledger() -> None:
                             else ("✓" if r[f"hit{h}"] else "✗") + f" {r[f'sig{h}']:+.1f}σ"),
             axis=1) for h in sigledger.HORIZONS},
     })
-    st.dataframe(bl, hide_index=True, use_container_width=True,
+    _out_cols = [f"{h}d" for h in sigledger.HORIZONS]
+
+    def _outcome_bg(v: str) -> str:
+        if isinstance(v, str) and v.startswith("✓"):
+            return "background-color: rgba(30,132,73,0.30)"
+        if isinstance(v, str) and v.startswith("✗"):
+            return "background-color: rgba(192,57,43,0.30)"
+        return "opacity: 0.55"                                   # pending — visibly muted
+    st.dataframe(bl.style.map(_outcome_bg, subset=_out_cols),
+                 hide_index=True, use_container_width=True,
                  height=min(560, 40 + 35 * len(bl)))
     st.caption(f"Ledger spans {out['date'].min().date()} → {out['date'].max().date()} · "
                f"{len(out):,} flagged signals · rebuilt with each morning snapshot.")
