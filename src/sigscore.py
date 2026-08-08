@@ -1,24 +1,38 @@
-"""Weekly Signal Scorecard — a branded one-pager of the Signal Ledger's week.
+"""Weekly Signal Scorecard — a branded weekly PDF of the Signal Ledger's track record.
 
-The accountability wrap for the desk: what the TA book flagged this week, which of the
-prior weeks' calls just got their verdicts (5 / 10 / 21 sessions on), how the book's
-accuracy is trending, and which strategies are carrying this era — all straight off the
-precomputed ledger (src/sigledger.py, data/signal_cache/ledger_outcomes.parquet), so the
-numbers are exactly the Signal Ledger page's numbers.
+The client-facing accountability wrap, read in ninety seconds: how the desk's technical
+signals are actually performing, where the edge lives, and what changed this week. The
+honesty is the point — most strategies sit near 50%, a few carry a real edge, and the
+report says so with sample sizes attached.
 
-Judged in SIGNAL SPACE like the ledger itself (yields for FI, pair spreads for Mean
-Reversion, prices elsewhere); hit = the call's direction was right, σ-move = the size of
-the move in the product's own trailing-vol units. Historical accuracy, not P&L and not
-advice — the fine print says so.
+Page 1 — the scorecard: KPI strip, the ledger's auto-written regime read, the era league
+(full / 5y / 3y / 1y hit rates side by side, delta-annotated against the previous
+edition), and the calls that just became old enough to judge at 21 sessions — hits AND
+misses, because showing the misses is what makes the hits believable.
+Page 2 — where the edge lives: the strategy × product hit-rate heatmap with programmatic
+callouts, and a Watch list of products where the confluence composite is currently
+flagging AND the flagging strategies have a real track record on that product.
+
+Everything reads data/signal_cache/ledger_outcomes.parquet only (src/sigledger.py,
+rebuilt each morning snapshot) — no recompute, builds in seconds, works offline. Every
+cell, callout and watch item is min-sample gated so a 4-signal 100% can never print.
+The intro paragraph is AI-polished into the desk voice by default (ai_polish.py chain,
+deterministic template fallback — the report never depends on the model being reachable).
 
 Run standalone (the app and the weekly emailer call it as a subprocess):
-    python src/sigscore.py data/Weekly_Signal_Scorecard.pdf --asof "2026-08-07"
+    python src/sigscore.py data/Weekly_Signal_Scorecard.pdf --asof "2026-08-07" --baseline
+(--baseline rolls the previous-edition store data/scorecard_last.json — the scheduled
+weekly run passes it; ad-hoc previews don't, so kicking the tyres never eats the deltas.)
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 os.environ.setdefault("DATAFEED_MODE", "snapshot")
@@ -29,6 +43,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from reportkit import pretty_date, data_uri, png, render_pdf, BLACK, CHEAP, RICH
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
@@ -37,13 +52,16 @@ from src import sigledger, tascore
 
 TEMPLATES = ROOT / "templates"
 ASSETS = TEMPLATES / "assets"
+LAST_FILE = ROOT / "data" / "scorecard_last.json"
 
 WEEK_SESSIONS = 5        # "this week" = the ledger's last 5 sessions
 TREND_WEEKS = 12         # weekly hit-rate bars on the trend chart
-LEAGUE_MIN_N = 25        # same thin-sample bar as the page default
-BAR_MIN_N_1Y = 60        # 1y strategy bar: enough signals in the window to mean something
-TOP_CALLS = 6            # resolved best/worst confluence calls listed
-FRESH_CALLS = 12         # this week's strongest fresh composite calls listed
+LEAGUE_MIN_N = 25        # same thin-sample bar as the Signal Ledger page default
+CELL_MIN_N = 25          # heatmap / watch: min signals in a strategy × product cell
+CALLOUT_MIN_N = 40       # callouts quote a single cell — hold them to a higher bar
+TOP_CALLS = 6            # resolved best/worst confluence calls listed per side
+WATCH_MAX = 8            # watch-list rows
+WATCH_MIN_STRATS = 2     # a watch item needs ≥ this many above-median flagging strategies
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +89,35 @@ def resolved_cohort(out: pd.DataFrame, horizon: int) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# previous-edition store — what makes week 40 worth opening
+# ---------------------------------------------------------------------------
+def load_last() -> dict:
+    try:
+        return json.loads(LAST_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_last(asof, league_1y: dict, regime_text: str, heat_cells: dict) -> None:
+    LAST_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LAST_FILE.write_text(json.dumps(
+        {"asof": str(asof), "league_1y": league_1y, "regime": regime_text,
+         "heat": heat_cells}, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# gated strategy × product cells — shared by heatmap, callouts and watch list
+# ---------------------------------------------------------------------------
+def gated_cells(out: pd.DataFrame, horizon: int = 21) -> pd.DataFrame:
+    """sigledger.heat() with the min-sample gate applied — the ONLY cell table the report
+    uses, so no surface can quote a thin cell. Core strategies only."""
+    hm = sigledger.heat(out[out["strategy"] != sigledger.CONFLUENCE], horizon)
+    if hm.empty:
+        return hm
+    return hm[hm["n"] >= CELL_MIN_N].reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
 # charts
 # ---------------------------------------------------------------------------
 def trend_png(out: pd.DataFrame) -> str:
@@ -80,16 +127,16 @@ def trend_png(out: pd.DataFrame) -> str:
     core["week"] = core["date"].dt.to_period("W").dt.start_time
     g = core.groupby("week")["hit5"].agg(["mean", "count"])
     g = g[g["count"] >= 20].tail(TREND_WEEKS)
-    fig, ax = plt.subplots(figsize=(6.4, 1.9))
+    fig, ax = plt.subplots(figsize=(6.4, 1.8))
     vals = g["mean"].to_numpy() * 100.0
     ax.bar(range(len(g)), vals, color=[CHEAP if v >= 50 else RICH for v in vals],
            edgecolor="white", linewidth=0.5, zorder=3, width=0.72)
     ax.axhline(50, color=BLACK, lw=0.9, ls="--", zorder=4)
     ax.set_xticks(range(len(g)))
-    ax.set_xticklabels([d.strftime("%d %b") for d in g.index], fontsize=6, rotation=0)
+    ax.set_xticklabels([d.strftime("%d %b") for d in g.index], fontsize=6)
     ax.set_ylabel("hit % (5d)", fontsize=7)
     ax.set_ylim(max(0, vals.min() - 8), min(100, vals.max() + 8))
-    for i, (v, n) in enumerate(zip(vals, g["count"])):
+    for i, v in enumerate(vals):
         ax.text(i, v + 0.6, f"{v:.0f}", ha="center", va="bottom", fontsize=5.8, color="#333")
     ax.set_title("Book hit rate by week — all core strategies, 5-session verdicts")
     ax.grid(True, axis="y", color="#ECECEC", linewidth=0.6, zorder=0); ax.set_axisbelow(True)
@@ -98,31 +145,89 @@ def trend_png(out: pd.DataFrame) -> str:
     return png(fig)
 
 
-def strat_bar_png(out: pd.DataFrame, horizon: int = 21) -> str:
-    """Per-strategy hit rate over the trailing year at `horizon`, min-n gated —
-    'what is carrying the book right now', ranked."""
-    hi = out["date"].max()
-    sub = out[(out["date"] >= hi - pd.DateOffset(years=1)) & out[f"hit{horizon}"].notna()]
-    g = sub.groupby("strategy")[f"hit{horizon}"].agg(["mean", "count"])
-    g = g[g["count"] >= BAR_MIN_N_1Y].sort_values("mean")
-    vals = g["mean"].to_numpy() * 100.0
-    fig, ax = plt.subplots(figsize=(6.4, max(1.8, 0.26 * len(g))))
-    ax.barh(range(len(g)), vals - 50.0, left=50.0,
-            color=[CHEAP if v >= 50 else RICH for v in vals],
-            edgecolor="white", linewidth=0.4, zorder=3)
-    ax.axvline(50, color=BLACK, lw=0.9, zorder=4)
-    ax.set_yticks(range(len(g)))
-    ax.set_yticklabels([f"{s}  (n={int(n):,})" for s, n in zip(g.index, g["count"])],
-                       fontsize=6.4)
-    for i, v in enumerate(vals):
-        ax.text(v + (0.3 if v >= 50 else -0.3), i, f"{v:.0f}%", va="center",
-                ha="left" if v >= 50 else "right", fontsize=6, color="#333")
-    ax.set_xlabel(f"hit % at {horizon} sessions — trailing 1y", fontsize=7)
-    ax.set_title("Strategy hit rates over the last year")
-    ax.grid(True, axis="x", color="#ECECEC", linewidth=0.6, zorder=0); ax.set_axisbelow(True)
-    for sp in ("top", "right", "left"):
-        ax.spines[sp].set_visible(False)
-    return png(fig)
+def heat_png(cells: pd.DataFrame) -> str:
+    """Strategy × product hit-rate grid at 21 sessions, full history, report styling —
+    green = the family has historically been right on that product, red = wrong more often
+    than right. Gated cells only; ungated cells paint grey ('too few signals to read')."""
+    pv = cells.pivot(index="strategy", columns="market", values="hit")
+    pv = pv.reindex(index=sorted(pv.index), columns=sorted(pv.columns))
+    cmap = LinearSegmentedColormap.from_list("hit", [RICH, "#FFFFFF", CHEAP])
+    cmap.set_bad("#EFEFEF")
+    fig, ax = plt.subplots(figsize=(6.6, 0.21 * len(pv.index) + 1.15))
+    ax.imshow(np.ma.masked_invalid(pv.to_numpy()), cmap=cmap, vmin=35, vmax=65,
+              aspect="auto", interpolation="nearest")
+    ax.set_xticks(range(len(pv.columns)))
+    ax.set_xticklabels(pv.columns, rotation=90, fontsize=4.6)
+    ax.set_yticks(range(len(pv.index)))
+    ax.set_yticklabels(pv.index, fontsize=5.8)
+    ax.set_title("Hit rate by strategy × product — 21 sessions, full history "
+                 f"(cells with < {CELL_MIN_N} signals in grey)")
+    ax.tick_params(length=0)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    return png(fig, dpi=200)
+
+
+# ---------------------------------------------------------------------------
+# programmatic callouts + watch list
+# ---------------------------------------------------------------------------
+def callouts(cells: pd.DataFrame, prev_heat: dict) -> list:
+    """2-3 deterministic reads off the gated cell table: the strongest and weakest cells
+    with a real sample, and the biggest mover since the previous edition."""
+    outp = []
+    big = cells[cells["n"] >= CALLOUT_MIN_N]
+    if len(big):
+        b = big.loc[big["hit"].idxmax()]
+        outp.append(f"The book's most reliable pairing has been <b>{b['strategy']} on "
+                    f"{b['market']}</b> — right {b['hit']:.0f}% of the time over "
+                    f"{int(b['n']):,} signals.")
+        w = big.loc[big["hit"].idxmin()]
+        outp.append(f"At the other end, <b>{w['strategy']} on {w['market']}</b> has been "
+                    f"wrong more often than right ({w['hit']:.0f}% over {int(w['n']):,} "
+                    f"signals) — historically a read to treat with caution.")
+    if prev_heat:
+        cur = {f"{r.strategy}|{r.market}": r.hit for r in cells.itertuples(index=False)}
+        moves = [(k, cur[k] - prev_heat[k]) for k in cur.keys() & prev_heat.keys()]
+        if moves:
+            k, d = max(moves, key=lambda kv: abs(kv[1]))
+            if abs(d) >= 0.5:
+                s, m = k.split("|", 1)
+                outp.append(f"Biggest mover since the last edition: <b>{s} on {m}</b>, "
+                            f"{d:+.1f}pp.")
+    return outp
+
+
+def watch_rows(out: pd.DataFrame, cells: pd.DataFrame) -> list:
+    """Products where the confluence composite is CURRENTLY flagging AND the flagging
+    strategies have above-median era hit rates on that product — 'signal now' ∩ 'track
+    record here'. The median is taken across the gated cell table, so the bar itself is
+    sample-safe. Client phrasing only — observations, never a recommendation."""
+    if cells.empty:
+        return []
+    last = out["date"].max()
+    conf = out[(out["strategy"] == sigledger.CONFLUENCE) & (out["date"] == last)]
+    core = out[(out["strategy"] != sigledger.CONFLUENCE) & (out["date"] == last)]
+    median_hit = cells["hit"].median()
+    cell_hit = {(r.strategy, r.market): (r.hit, int(r.n)) for r in cells.itertuples(index=False)}
+    rows = []
+    for c in conf.itertuples(index=False):
+        flg = core[(core["instruments"] == c.instruments) & (core["direction"] == c.direction)]
+        quals = []
+        for s in flg["strategy"].unique():
+            hit_n = cell_hit.get((s, c.market))
+            if hit_n and hit_n[0] > median_hit:
+                quals.append((s, hit_n[0], hit_n[1]))
+        if len(quals) >= WATCH_MIN_STRATS:
+            quals.sort(key=lambda q: -q[1])
+            rows.append({"market": c.market, "signal": c.signal,
+                         "n_flag": int(flg["strategy"].nunique()),
+                         "avg_hit": float(np.mean([q[1] for q in quals])),
+                         "who": ", ".join(f"{s} ({h:.0f}%, n={n:,})"
+                                          for s, h, n in quals[:3])})
+    rows.sort(key=lambda r: -r["avg_hit"])
+    for r in rows:
+        r["avg_hit"] = f"{r['avg_hit']:.0f}%"
+    return rows[:WATCH_MAX]
 
 
 # ---------------------------------------------------------------------------
@@ -157,8 +262,9 @@ def verdict_rows(out: pd.DataFrame) -> list:
     return rows
 
 
-def call_rows(out: pd.DataFrame, horizon: int = 5) -> tuple[list, list]:
-    """This week's resolved composite calls, best and worst by σ-move at `horizon`."""
+def call_rows(out: pd.DataFrame, horizon: int = 21) -> tuple[list, list]:
+    """The composite calls that just became old enough to judge at `horizon` sessions —
+    the sharpest hits AND the clearest misses, ranked by the σ-size of the outcome."""
     c = resolved_cohort(out, horizon)
     c = c[(c["strategy"] == sigledger.CONFLUENCE) & c[f"sig{horizon}"].notna()]
     scol, hcol = f"sig{horizon}", f"hit{horizon}"
@@ -175,20 +281,9 @@ def call_rows(out: pd.DataFrame, horizon: int = 5) -> tuple[list, list]:
             _fmt(c.sort_values(scol).head(TOP_CALLS)))
 
 
-def fresh_rows(out: pd.DataFrame) -> list:
-    """This week's strongest fresh composite calls (all still pending their verdicts)."""
-    wk = week_slice(out)
-    conf = wk[wk["strategy"] == sigledger.CONFLUENCE].copy()
-    conf["absm"] = conf["metric"].abs()
-    conf = conf.sort_values("absm", ascending=False).head(FRESH_CALLS)
-    return [{"date": pd.Timestamp(r.date).strftime("%d %b"), "market": r.market,
-             "signal": r.signal, "score": f"{r.metric:+.1f}",
-             "level": f"{r.entry_level:,.3f}" if pd.notna(r.entry_level) else "—"}
-            for r in conf.itertuples(index=False)]
-
-
-def league_rows(out: pd.DataFrame) -> tuple[list, list]:
-    """The era league (windows_league) as template rows + its column labels."""
+def league_rows(out: pd.DataFrame, prev_league: dict) -> tuple[list, list]:
+    """The era league (windows_league) as template rows + its column labels, each row
+    delta-annotated against the previous edition's 1y hit rate."""
     wl = sigledger.windows_league(out, horizon=21, min_n=LEAGUE_MIN_N)
     if wl.empty:
         return [], []
@@ -198,18 +293,104 @@ def league_rows(out: pd.DataFrame) -> tuple[list, list]:
     for _, r in wl.iterrows():
         cells = [{"txt": f"{r[lab]:.1f}%" if pd.notna(r[lab]) else "—",
                   "bg": _cell_bg(r[lab], 50.0, 5.0)} for _, lab in sigledger.WINDOWS]
+        prev = prev_league.get(r["strategy"])
+        wk = (r["1y"] - prev) if (prev is not None and pd.notna(r["1y"])) else None
         rows.append({"strategy": r["strategy"],
                      "category": tascore.axis_tag(r["strategy"]),
                      "n": f"{int(r['n Full']):,}", "cells": cells,
                      "delta": f"{r['delta']:+.1f}pp",
-                     "delta_bg": _cell_bg(r["delta"], 0.0, 5.0)})
+                     "delta_bg": _cell_bg(r["delta"], 0.0, 5.0),
+                     "wk": (f"{wk:+.1f}pp" if wk is not None and abs(wk) >= 0.05 else "·"),
+                     "wk_bg": _cell_bg(wk, 0.0, 2.0) if wk is not None else ""})
     return rows, labels
+
+
+# ---------------------------------------------------------------------------
+# intro — deterministic template, AI-polished into the desk voice by default
+# ---------------------------------------------------------------------------
+INTRO_SYSTEM = (
+    "You are a senior futures strategist writing the opening paragraph of the desk's "
+    "weekly Signal Scorecard for professional clients. Rewrite the terse note you are "
+    "given so it reads like a real person opening a weekly letter — flowing, plain-"
+    "English, warm but professional, three to four sentences.\n"
+    "HARD RULES: keep EVERY number and percentage EXACTLY as given, wrapped in the same "
+    "**bold** markers; keep every strategy and product name; stay neutral and "
+    "observational — this is a track record being reported, never advice: no buy/sell/"
+    "recommend language and nothing that implies the reader should act.\n"
+    "Return ONLY a JSON array with the single rewritten string.")
+
+
+def _mc_python() -> str:
+    """The Morning Coffee interpreter (has anthropic + the API key); '' if not found."""
+    base = Path(r"C:\Users\Ben\AppData\Local\Python")
+    for exe in sorted(base.glob("pythoncore-*-64/python.exe"), reverse=True):
+        if exe.exists():
+            return str(exe)
+    import shutil
+    return shutil.which("python") or ""
+
+
+def _ai_polish(texts: list, system: str) -> list:
+    """ai_polish.py under the Morning Coffee interpreter; originals unchanged on ANY
+    failure (offline, no key, timeout, bad output) — same contract as convreport."""
+    if not texts:
+        return texts
+    try:
+        mc_py = _mc_python()
+        if not mc_py:
+            return texts
+        with tempfile.TemporaryDirectory() as td:
+            inp, outp = Path(td) / "in.json", Path(td) / "out.json"
+            sysf = Path(td) / "system.txt"
+            inp.write_text(json.dumps(texts, ensure_ascii=False), encoding="utf-8")
+            sysf.write_text(system, encoding="utf-8")
+            r = subprocess.run([mc_py, str(ROOT / "ai_polish.py"), str(inp), str(outp),
+                                str(sysf)], capture_output=True, text=True, timeout=240)
+            if r.returncode == 0 and outp.exists():
+                got = json.loads(outp.read_text(encoding="utf-8"))
+                if isinstance(got, list) and len(got) == len(texts):
+                    return [g if (isinstance(g, str) and g.strip()) else t
+                            for g, t in zip(got, texts)]
+    except Exception:
+        pass
+    return texts
+
+
+def _md2html(s: str) -> str:
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s or "")
+
+
+def intro_text(out: pd.DataFrame, n_week: int, n_resolved: int, hit21_wk,
+               lg_rows: list, prev: dict, regime_changed: bool) -> str:
+    """The deterministic intro the AI pass rewrites (and the fallback if it can't)."""
+    wk = week_slice(out)
+    n_prod = wk["market"].nunique()
+    parts = [f"This week the book flagged **{n_week:,}** signals across **{n_prod}** "
+             f"products, and **{n_resolved:,}** earlier calls received their verdicts"
+             + (f" — the cohort judged at 21 sessions came in at **{hit21_wk}**."
+                if hit21_wk else ".")]
+    lead = [r for r in lg_rows if r["cells"][-1]["txt"] != "—"][:2]
+    if lead:
+        parts.append("Over the trailing year the book's strongest reads have been "
+                     + " and ".join(f"**{r['strategy']}** (**{r['cells'][-1]['txt']}** "
+                                    f"at 21 sessions)" for r in lead) + ".")
+    if regime_changed:
+        parts.append("The regime read itself rotated this week — the era comparison "
+                     "below is this edition's story.")
+    elif prev:
+        movers = [(r["strategy"], r["wk"]) for r in lg_rows if r["wk"] != "·"]
+        if movers:
+            s, d = max(movers, key=lambda kv: abs(float(kv[1].replace("pp", ""))))
+            parts.append(f"Sharpest move since the last edition: **{s}**, **{d}** "
+                         f"on its trailing-year hit rate.")
+    return " ".join(parts)
 
 
 # ---------------------------------------------------------------------------
 # build
 # ---------------------------------------------------------------------------
-def render_html(out: pd.DataFrame, asof: str) -> str:
+def render_html(out: pd.DataFrame, asof: str, ai_polish: bool = True,
+                update_baseline: bool = False) -> str:
     wk = week_slice(out)
     core_wk = wk[wk["strategy"] != sigledger.CONFLUENCE]
     conf_wk = wk[wk["strategy"] == sigledger.CONFLUENCE]
@@ -217,48 +398,70 @@ def render_html(out: pd.DataFrame, asof: str) -> str:
     week_lo, week_hi = pd.Timestamp(s[-WEEK_SESSIONS]), pd.Timestamp(s[-1])
 
     n_resolved = sum(len(resolved_cohort(out, h)) for h in sigledger.HORIZONS)
-    r5 = resolved_cohort(out, 5)
-    r5 = r5[r5["strategy"] != sigledger.CONFLUENCE]
-    hit5_week = r5["hit5"].mean() * 100.0 if len(r5) else None
+    r21 = resolved_cohort(out, 21)
+    r21 = r21[r21["strategy"] != sigledger.CONFLUENCE]
+    hit21_wk = f"{r21['hit21'].mean() * 100.0:.1f}%" if len(r21) else None
 
     hi = out["date"].max()
     y1 = out[(out["date"] >= hi - pd.DateOffset(years=1))
              & (out["strategy"] != sigledger.CONFLUENCE)]
     hit21_1y = y1["hit21"].mean() * 100.0 if y1["hit21"].notna().any() else None
 
-    longs = int((core_wk["direction"] > 0).sum())
-    shorts = int((core_wk["direction"] < 0).sum())
-    best_calls, worst_calls = call_rows(out)
-    lg_rows, lg_labels = league_rows(out)
+    prev = load_last()
     rr = sigledger.regime_read(out)
+    regime_text = (rr or {}).get("text", "")
+    regime_changed = bool(prev.get("regime")) and prev.get("regime") != regime_text
+
+    cells = gated_cells(out)
+    lg_rows, lg_labels = league_rows(out, prev.get("league_1y", {}))
+    best_calls, worst_calls = call_rows(out)
+    watch = watch_rows(out, cells)
+
+    intro = intro_text(out, len(core_wk), n_resolved, hit21_wk, lg_rows, prev,
+                       regime_changed)
+    if ai_polish:
+        intro = _ai_polish([intro], INTRO_SYSTEM)[0]
+
+    if update_baseline or not LAST_FILE.exists():
+        save_last(week_hi.date(),
+                  {r["strategy"]: float(r["cells"][-1]["txt"].rstrip("%"))
+                   for r in lg_rows if r["cells"][-1]["txt"] != "—"},
+                  regime_text,
+                  {f"{r.strategy}|{r.market}": float(r.hit)
+                   for r in cells.itertuples(index=False)})
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     return env.get_template("sigscore_report.html").render(
         asof=pretty_date(asof or str(week_hi.date())),
         week_span=f"{week_lo.strftime('%d %b')} – {week_hi.strftime('%d %b %Y')}",
+        intro=_md2html(intro),
         n_week=f"{len(core_wk):,}", n_conf=f"{len(conf_wk):,}",
-        longs=f"{longs:,}", shorts=f"{shorts:,}",
+        longs=f"{int((core_wk['direction'] > 0).sum()):,}",
+        shorts=f"{int((core_wk['direction'] < 0).sum()):,}",
         n_resolved=f"{n_resolved:,}",
-        hit5_week=f"{hit5_week:.1f}%" if hit5_week is not None else "—",
-        hit5_week_bg=_cell_bg(hit5_week, 50.0, 8.0) if hit5_week is not None else "",
+        hit21_wk=hit21_wk or "—",
+        hit21_wk_bg=_cell_bg(r21["hit21"].mean() * 100.0, 50.0, 8.0) if len(r21) else "",
         hit21_1y=f"{hit21_1y:.1f}%" if hit21_1y is not None else "—",
         verdicts=verdict_rows(out),
         best_calls=best_calls, worst_calls=worst_calls,
-        fresh=fresh_rows(out),
-        league=lg_rows, league_labels=lg_labels,
-        regime=(rr or {}).get("text", "").replace("**", ""),
-        trend=trend_png(out), strat_bar=strat_bar_png(out),
+        league=lg_rows, league_labels=lg_labels, has_prev=bool(prev),
+        regime=regime_text.replace("**", ""), regime_changed=regime_changed,
+        heatmap=heat_png(cells) if not cells.empty else "",
+        callouts=callouts(cells, prev.get("heat", {})),
+        watch=watch, median_note=f"{cells['hit'].median():.0f}%" if len(cells) else "—",
+        trend=trend_png(out),
         ledger_span=f"{out['date'].min().date()} → {out['date'].max().date()}",
-        n_ledger=f"{len(out):,}",
+        n_ledger=f"{len(out):,}", cell_min_n=CELL_MIN_N, league_min_n=LEAGUE_MIN_N,
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )
 
 
-def build_pdf(out_path, asof: str = "", ledger: pd.DataFrame | None = None) -> str:
+def build_pdf(out_path, asof: str = "", ledger: pd.DataFrame | None = None,
+              ai_polish: bool = True, update_baseline: bool = False) -> str:
     out = ledger if ledger is not None else sigledger.load()
     if out is None or out.empty:
         raise SystemExit("No signal ledger on disk — run backfill_signals.py first.")
-    return render_pdf(render_html(out, asof), out_path)
+    return render_pdf(render_html(out, asof, ai_polish, update_baseline), out_path)
 
 
 def main():
@@ -266,12 +469,18 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--asof", default="")
     ap.add_argument("--ledger", default=None, help="override the outcomes parquet path")
+    ap.add_argument("--baseline", action="store_true",
+                    help="roll the previous-edition store (the scheduled weekly run "
+                         "passes this; ad-hoc previews don't)")
+    ap.add_argument("--no-ai-polish", action="store_true",
+                    help="keep the deterministic intro (polish is ON by default)")
     args = ap.parse_args()
     ledger = None
     if args.ledger:
         ledger = pd.read_parquet(args.ledger)
         ledger["date"] = pd.to_datetime(ledger["date"])
-    build_pdf(args.out, args.asof, ledger)
+    build_pdf(args.out, args.asof, ledger, ai_polish=not args.no_ai_polish,
+              update_baseline=args.baseline)
     print(f"Wrote {args.out}")
 
 

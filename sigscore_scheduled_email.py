@@ -63,7 +63,10 @@ def main():
     asof = datetime.now(NY_TZ).strftime("%d %b %Y")
     out_pdf = ROOT / "data" / "Weekly_Signal_Scorecard_email.pdf"
     print(f"Building the Weekly Signal Scorecard ({asof})…")
-    r = subprocess.run([sys.executable, str(SIGSCORE_CLI), str(out_pdf), "--asof", asof],
+    # --baseline: only the scheduled weekly send rolls the previous-edition store, so
+    # ad-hoc previews in the app never eat the week's deltas (the convreport convention).
+    r = subprocess.run([sys.executable, str(SIGSCORE_CLI), str(out_pdf), "--asof", asof,
+                        "--baseline"],
                        capture_output=True, text=True)
     if r.returncode != 0 or not out_pdf.exists():
         print("Report generation FAILED:\n" + (r.stderr or r.stdout or "no output"))

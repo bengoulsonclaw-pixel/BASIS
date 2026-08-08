@@ -16,8 +16,12 @@
   .regime { border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
             background: #FafafA; padding: 2mm 3mm; font-size: 8pt; line-height: 1.45;
             margin: 2mm 0; }
+  .rotated { border-left-color: #C8901A; }
+  .callouts { font-size: 8pt; line-height: 1.5; margin: 1mm 0 2mm; padding-left: 5mm; }
+  .callouts li { margin-bottom: 0.8mm; }
   .ok { color: #1e8449; font-weight: 700; }
   .bad { color: #c0392b; font-weight: 700; }
+  .chartdesc { font-size: 7pt; color: #777; margin: 0.5mm 0 2mm; }
 </style>
 </head>
 <body>
@@ -39,24 +43,49 @@
       <div class="sub">Week of {{ week_span }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
     </div>
 
-    <p class="summary">
-      The desk&rsquo;s technical-signal accountability wrap: every signal the TA book flagged this
-      week, the verdicts that landed on earlier calls (each judged 5, 10 and 21 sessions after it
-      fired, in the product&rsquo;s own terms &mdash; yields for fixed income, spreads for pairs,
-      prices elsewhere), and which signal families are carrying the book in this regime. A
-      historical read of the signals&rsquo; accuracy &mdash; not P&amp;L, and not a recommendation.
-    </p>
+    <p class="summary">{{ intro|safe }}</p>
 
     <div class="kpis">
       <div class="kpi"><div class="lab">Signals this week</div>
         <div class="val">{{ n_week }}</div><div class="note">{{ longs }} long &middot; {{ shorts }} short &middot; {{ n_conf }} composite reads</div></div>
       <div class="kpi"><div class="lab">Verdicts landed</div>
         <div class="val">{{ n_resolved }}</div><div class="note">calls resolved at 5 / 10 / 21 sessions</div></div>
-      <div class="kpi" {% if hit5_week_bg %}style="{{ hit5_week_bg }}"{% endif %}><div class="lab">Last week&rsquo;s calls</div>
-        <div class="val">{{ hit5_week }}</div><div class="note">hit rate at 5 sessions</div></div>
+      <div class="kpi" {% if hit21_wk_bg %}style="{{ hit21_wk_bg }}"{% endif %}><div class="lab">Judged at 21 sessions</div>
+        <div class="val">{{ hit21_wk }}</div><div class="note">this week&rsquo;s resolved cohort</div></div>
       <div class="kpi"><div class="lab">Book, trailing 1y</div>
         <div class="val">{{ hit21_1y }}</div><div class="note">hit rate at 21 sessions</div></div>
     </div>
+
+    {% if regime %}
+    <div class="regime{% if regime_changed %} rotated{% endif %}">
+      <b>&#129517; Regime read{% if regime_changed %} &mdash; &#9888; rotated this week{% endif %}.</b>
+      {{ regime }}
+    </div>
+    {% endif %}
+
+    {% if league %}
+    <div class="banner">Era league &mdash; hit rate by lookback window (21 sessions)</div>
+    <table>
+      <thead><tr><th>Strategy</th><th>Category</th><th class="center">Signals</th>
+        {% for lab in league_labels %}<th class="center">{{ lab }}</th>{% endfor %}
+        <th class="center">&Delta; 1y vs full</th>
+        {% if has_prev %}<th class="center">&Delta; vs last edition</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for r in league %}
+        <tr><td class="market">{{ r.strategy }}</td><td>{{ r.category }}</td>
+          <td class="center">{{ r.n }}</td>
+          {% for c in r.cells %}<td class="center" style="{{ c.bg }}">{{ c.txt }}</td>{% endfor %}
+          <td class="center" style="{{ r.delta_bg }}">{{ r.delta }}</td>
+          {% if has_prev %}<td class="center" style="{{ r.wk_bg }}">{{ r.wk }}</td>{% endif %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="chartdesc">Each column is the hit rate over that trailing window, all ending this
+      week &mdash; one row tells a strategy&rsquo;s whole regime story. Rows with fewer than
+      {{ league_min_n }} evaluable signals in a window leave that cell blank; &ldquo;&Delta; vs
+      last edition&rdquo; tracks the trailing-year column against the previous scorecard
+      (&middot; = under 0.1pp of movement).</p>
+    {% endif %}
 
     {% if verdicts %}
     <div class="banner">Verdicts in this week &mdash; how earlier calls resolved</div>
@@ -78,9 +107,9 @@
     {% if best_calls or worst_calls %}
     <div class="twocol">
       <div>
-        <div class="banner">Sharpest resolved calls <span class="sig long">&#9650;</span></div>
+        <div class="banner">Resolved at 21 sessions &mdash; sharpest hits <span class="sig long">&#9650;</span></div>
         <table>
-          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">5d move</th></tr></thead>
+          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
           <tbody>
             {% for r in best_calls %}
             <tr><td>{{ r.date }}</td><td class="market">{{ r.market }}</td><td>{{ r.signal }}</td>
@@ -90,9 +119,9 @@
         </table>
       </div>
       <div>
-        <div class="banner">Calls that missed <span class="sig short">&#9660;</span></div>
+        <div class="banner">&mdash; and the clearest misses <span class="sig short">&#9660;</span></div>
         <table>
-          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">5d move</th></tr></thead>
+          <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
           <tbody>
             {% for r in worst_calls %}
             <tr><td>{{ r.date }}</td><td class="market">{{ r.market }}</td><td>{{ r.signal }}</td>
@@ -102,60 +131,46 @@
         </table>
       </div>
     </div>
-    <p class="chartdesc" style="font-size:7pt;color:#777;">Composite (confluence) calls only, ranked
-      by the size of the subsequent 5-session move in trailing-&sigma; units &mdash; the clearest
-      rights and wrongs of the calls judged this week.</p>
+    <p class="chartdesc">Composite (confluence) calls whose 21-session window closed this week,
+      ranked by the size of the subsequent move in trailing-&sigma; units. The misses are shown
+      on purpose &mdash; a track record that only shows its winners isn&rsquo;t one.</p>
     {% endif %}
 
     <div class="banner">The book&rsquo;s accuracy, week by week</div>
     <div class="section"><div class="chart"><img src="{{ trend }}" alt="Weekly hit rate"></div></div>
 
-    {% if regime %}
-    <div class="regime"><b>&#129517; Regime read.</b> {{ regime }}</div>
+    {% if heatmap %}
+    <div class="banner">Where the edge lives &mdash; hit rate by strategy &times; product</div>
+    <div class="section"><div class="chart"><img src="{{ heatmap }}" alt="Strategy × product hit rates"></div></div>
+    {% if callouts %}
+    <ul class="callouts">
+      {% for c in callouts %}<li>{{ c|safe }}</li>{% endfor %}
+    </ul>
     {% endif %}
-
-    <div class="banner">Strategy hit rates &mdash; trailing year</div>
-    <div class="section"><div class="chart"><img src="{{ strat_bar }}" alt="Strategy hit rates, 1y"></div></div>
-
-    {% if league %}
-    <div class="banner">Era league &mdash; hit rate by lookback window (21 sessions)</div>
-    <table>
-      <thead><tr><th>Strategy</th><th>Category</th><th class="center">Signals</th>
-        {% for lab in league_labels %}<th class="center">{{ lab }}</th>{% endfor %}
-        <th class="center">&Delta; 1y vs full</th></tr></thead>
-      <tbody>
-        {% for r in league %}
-        <tr><td class="market">{{ r.strategy }}</td><td>{{ r.category }}</td>
-          <td class="center">{{ r.n }}</td>
-          {% for c in r.cells %}<td class="center" style="{{ c.bg }}">{{ c.txt }}</td>{% endfor %}
-          <td class="center" style="{{ r.delta_bg }}">{{ r.delta }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p class="chartdesc" style="font-size:7pt;color:#777;">Each column is the hit rate over that
-      trailing window, all ending this week &mdash; one row tells a strategy&rsquo;s whole regime
-      story. Blank cells have too few signals in that window to read.</p>
     {% endif %}
 
     <div class="report-footer">
-    {% if fresh %}
-    <div class="banner">This week&rsquo;s strongest fresh composite reads &mdash; verdicts pending</div>
+    {% if watch %}
+    <div class="banner">Watch &mdash; live composite reads with a track record behind them</div>
     <table>
-      <thead><tr><th>Fired</th><th>Product</th><th>Read</th>
-        <th class="center">Composite score</th><th class="center">Level at signal</th></tr></thead>
+      <thead><tr><th>Product</th><th>Composite read</th><th class="center">Strategies flagging</th>
+        <th class="center">Their era hit rate here</th><th>Led by</th></tr></thead>
       <tbody>
-        {% for r in fresh %}
+        {% for r in watch %}
         <tr class="{% if r.signal == 'Long' %}long{% else %}short{% endif %}">
-          <td>{{ r.date }}</td><td class="market">{{ r.market }}</td>
-          <td class="sig">{{ r.signal }}</td>
-          <td class="center">{{ r.score }}</td><td class="center">{{ r.level }}</td></tr>
+          <td class="market">{{ r.market }}</td><td class="sig">{{ r.signal }}</td>
+          <td class="center">{{ r.n_flag }}</td><td class="center">{{ r.avg_hit }}</td>
+          <td>{{ r.who }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
-    <p class="chartdesc" style="font-size:7pt;color:#777;">The week&rsquo;s highest-conviction
-      confluence composites (several independent strategy families agreeing on one product).
-      These are observations of where the signal book leans, not recommendations; their 5, 10 and
-      21-session verdicts will appear in the coming weeks&rsquo; scorecards.</p>
+    <p class="chartdesc">Products where the confluence composite is flagging as of the latest
+      session AND at least two of the flagging strategies carry an above-median historical hit
+      rate on that specific product (median of all gated strategy &times; product cells:
+      {{ median_note }}; every quoted cell has &ge; {{ cell_min_n }} signals). Where signal
+      meets track record &mdash; these may be worth a closer look. Observations of the signal
+      book, not recommendations; their verdicts will appear in the coming weeks&rsquo;
+      scorecards.</p>
     {% endif %}
 
     <div class="foot-disclaimer">
@@ -165,14 +180,17 @@
       Method: the ledger re-runs the TA hub&rsquo;s own triggers over every cached session
       ({{ ledger_span }}, {{ n_ledger }} flagged signals) and judges each signal in signal space
       &mdash; benchmark yields for fixed income (a &ldquo;Long&rdquo; there means rising yields),
-      pair spreads for Mean Reversion, prices elsewhere &mdash; at 5, 10 and 21 sessions.
-      &ldquo;Hit&rdquo; = the move went the signal&rsquo;s way; &sigma;-moves normalise by the
-      product&rsquo;s trailing 21-session daily volatility so moves compare fairly across markets.
-      Hit rates are directional accuracy only: no exits, sizing, costs or P&amp;L. Settlement
-      data. Past performance of a signal process is not indicative of future results. Generated
-      by the internal Strategy Monitor for information only &mdash; not investment advice or a
-      solicitation. Source data subject to your market-data licence; verify redistribution
-      rights before external use.
+      pair spreads for Mean Reversion, prices elsewhere &mdash; at horizons of 5, 10 and 21
+      sessions. &ldquo;Hit&rdquo; = the signal-space move went the signal&rsquo;s way;
+      &sigma;-moves divide the move by the product&rsquo;s trailing 21-session daily volatility
+      &times; &radic;h, with volatilities below 5% of the product&rsquo;s own median excluded as
+      unusable normalisers. Every table cell, callout and watch item is minimum-sample gated
+      (league windows &ge; {{ league_min_n }} signals, strategy &times; product cells &ge;
+      {{ cell_min_n }}) so thin samples never print. Hit rates are directional accuracy only:
+      no exits, sizing, costs or P&amp;L. Settlement data. Past performance of a signal process
+      is not indicative of future results. Generated by the internal Strategy Monitor for
+      information only &mdash; not investment advice or a solicitation. Source data subject to
+      your market-data licence; verify redistribution rights before external use.
     </div>
     </div>
     </div>
