@@ -7124,6 +7124,50 @@ def render_ta_backtester(scope: str = "ficc") -> None:
         tooltip=[alt.Tooltip("exit_date:T", title="Exit"), alt.Tooltip("exit_reason:N", title="Reason"),
                 alt.Tooltip("exit_price:Q", title="Exit px", format=",.3f"),
                 alt.Tooltip("pnl:Q", title="P&L", format="+,.0f")]))
+
+    # PATTERN LEVELS AS OF EACH ENTRY — the read that actually pulled the trigger. The
+    # full-width dashed rules above are TODAY's levels (last-180-session swing etc.), which
+    # say nothing about a trade taken a year ago; here each trade gets the levels recomputed
+    # from history up to ITS entry day, drawn as solid segments spanning just that trade.
+    _PAT = {"Fibonacci Retracement", "Support & Resistance", "Breakout & Retest"} & set(_rs)
+    if _PAT and len(_tr) and _pf is not None and len(_pf):
+        from src.strategies import (fibonacci as _fbn2, support_resistance as _sr2,
+                                    breakout_retest as _br2)
+        _seg_rows = []
+        for _t2 in _tr.itertuples():
+            _h2 = pd.DataFrame({_rtk: _pf.loc[:pd.Timestamp(_t2.entry_date)]})
+            if len(_h2) < 60:
+                continue
+            _x0, _x1 = _t2.entry_date, _t2.exit_date
+            try:
+                if "Fibonacci Retracement" in _PAT:
+                    _, _fi4 = _fbn2.fib_chart_data(_rtk, history=_h2)
+                    for _L4 in ((_fi4 or {}).get("levels") or []):
+                        if _L4.get("key") and np.isfinite(_L4["price"]):
+                            _seg_rows.append({"start": _x0, "end": _x1, "y": _L4["price"],
+                                              "what": f"Fib {_L4['ratio']:.3f} at entry"})
+                if "Support & Resistance" in _PAT:
+                    _, _si4 = _sr2.sr_chart_data(_rtk, history=_h2)
+                    for _L4 in ((_si4 or {}).get("levels") or []):
+                        if np.isfinite(_L4["price"]):
+                            _seg_rows.append({"start": _x0, "end": _x1, "y": _L4["price"],
+                                              "what": f"{_L4['kind']} at entry"})
+                if "Breakout & Retest" in _PAT:
+                    _, _bi4 = _br2.retest_chart_data(_rtk, history=_h2)
+                    _lv4 = (_bi4 or {}).get("level")
+                    if _lv4 is not None and np.isfinite(_lv4):
+                        _seg_rows.append({"start": _x0, "end": _x1, "y": _lv4,
+                                          "what": "retest level at entry"})
+            except Exception:
+                pass
+        if _seg_rows:
+            layers.append(alt.Chart(pd.DataFrame(_seg_rows)).mark_rule(
+                color=_cc["accent"], strokeWidth=2.4, opacity=0.95).encode(
+                x="start:T", x2="end:T", y="y:Q",
+                tooltip=[alt.Tooltip("what:N", title=""),
+                        alt.Tooltip("y:Q", title="Level", format=",.2f"),
+                        alt.Tooltip("start:T", title="Entry")]))
+
     brand.show_chart(alt.layer(*layers).resolve_scale(y="shared").properties(
         height=340, title=f"{_ytitle}, the picked strategies' indicators & every trade"))
     # caption describes ONLY the overlays this run's picked strategies actually draw
@@ -7144,8 +7188,11 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     if _full_ovs:
         _cap += f" Drawn over the full window: {', '.join(_full_ovs)}."
     if _eow_ovs:
-        _cap += (f" {', '.join(_eow_ovs).capitalize()} — pattern reads with a natural lookback, "
-                 "drawn as of the window's end.")
+        _cap += (f" {', '.join(_eow_ovs).capitalize()} are drawn twice: **dashed full-width** = "
+                 "today's read (context for now), **solid gold segments** = the levels as they "
+                 "stood **at each trade's entry**, drawn across that trade — the read that "
+                 "actually pulled the trigger. (Flag channel and Elliott count stay end-of-window "
+                 "snapshots.)")
     _cap += (" Shaded bands = days a position was on (green long / red short). ▲ / ▼ = entries, "
              "✕ = exits — hover any marker for conviction, score, reason and P&L.")
     if _fi_chart:
