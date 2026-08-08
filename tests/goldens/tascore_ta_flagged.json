@@ -1,0 +1,36 @@
+{
+  "columns": [
+    "strategy",
+    "market",
+    "instruments",
+    "signal",
+    "direction",
+    "metric"
+  ],
+  "records": [
+    [
+      "Trend",
+      "WTI Crude",
+      "CLA Comdty",
+      "Long",
+      1,
+      12.0
+    ],
+    [
+      "Trend",
+      "US 10yr",
+      "TYA Comdty",
+      "Long \u00b7 sell the bond",
+      1,
+      12.0
+    ],
+    [
+      "Trend",
+      "Gold",
+      "GCA Comdty",
+      "Short",
+      -1,
+      -15.0
+    ]
+  ]
+}

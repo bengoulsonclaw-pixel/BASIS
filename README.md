@@ -55,6 +55,27 @@ Every strategy then runs on real settlement data. (Back to demo: `Remove-Item En
 | `src/convreport.py` + `templates/convreport.html` | **Technical Analysis** report PDF (conviction leaderboard + summary table, then per-pick multi-indicator charts & neutral write-ups) |
 | `src/tareport.py` + `templates/tareport.html` | _Retired_ standalone TA-overview PDF — merged into the Technical Analysis report above; kept for reference |
 | `data/signals/` | Cached daily opportunities (written by `run_daily.py`) |
+| `src/health.py` | **Data-health engine** — snapshot per-frame ages, deep-store coverage/truncation, stale vol surfaces, cache freshness; renders as the admin **🩺 Data health** page |
+| `tests/` + `run_tests.py` | **Regression suite** — golden-file locks on the engines (tascore scoring, tabt state machine + FI sign flip, volbt Black-76 + point values, deepstore panama adjustment). See below |
+
+## Regression suite (run before a push)
+A handful of golden-file tests lock the engine maths that moves real numbers — the
+cross-strategy scoring pipeline, the TA backtester's state machine and fixed-income
+sign convention, the Black-76 straddle maths and the contract point-value table, and
+the deep store's roll adjustment. Deterministic, offline (mock data mode), ~15s.
+
+```
+run_tests.bat            # run the suite; result shows on the 🩺 Data health page
+run_tests.bat --regen    # re-baseline tests/goldens/ after a DELIBERATE behaviour
+                         # change — review the golden diff, commit it
+```
+
+A `pre-push` git hook runs the suite automatically whenever a push contains code and
+**blocks the push if it is red**; data-only pushes (the nightly backup, the post-pull
+auto-push) skip it entirely. The hook lives in `hooks/pre-push` (versioned) — after a
+fresh clone, reinstall it with `python run_tests.py --install-hook`. Emergency bypass:
+`git push --no-verify`. Requires `pytest` in the venv (`pip install pytest`); a box
+without it records a skip and never blocks.
 
 ## Schedule the daily run (Windows Task Scheduler)
 Create a Basic Task that runs daily after settlements:

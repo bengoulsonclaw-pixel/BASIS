@@ -1,0 +1,45 @@
+#!/bin/sh
+# BASIS pre-push hook — run the regression suite before any push that contains CODE.
+#
+# Data-only pushes (the 22:00 nightly backup, the post-pull auto-push) change nothing
+# under the code paths below, so they skip the suite entirely — a red test must never
+# block a data backup, and gitbackup.py's 300s subprocess timeout stays safe.
+#
+# Installed by:  python run_tests.py --install-hook   (copies hooks/pre-push -> .git/hooks/)
+# Deliberate bypass:  git push --no-verify
+#
+# stdin: one "<local ref> <local sha> <remote ref> <remote sha>" line per pushed ref.
+
+z40=0000000000000000000000000000000000000000
+code_re='^(src/|tests/|hooks/|app\.py|snapshot\.py|run_daily\.py|run_tests\.py|surface_topup\.py|build_deploy\.py|ai_polish\.py|backfill_|pnl_|[a-z_]*_scheduled_email\.py|digest_email\.py)'
+
+files=""
+while read local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$z40" ] && continue                    # deleting a remote ref
+    if [ "$remote_sha" = "$z40" ]; then
+        range="$local_sha --not --remotes"                   # brand-new branch
+    else
+        range="$remote_sha..$local_sha"
+    fi
+    files="$files
+$(git log --name-only --pretty=format: $range 2>/dev/null)"
+done
+
+echo "$files" | grep -qE "$code_re" || exit 0                # data-only push — wave it through
+
+echo "BASIS pre-push: code in this push — running the regression suite..."
+repo="$(git rev-parse --show-toplevel)"
+py="$repo/.venv/Scripts/python.exe"
+[ -x "$py" ] || py="$repo/.venv/bin/python"
+[ -x "$py" ] || py=python
+
+if "$py" "$repo/run_tests.py"; then
+    echo "BASIS pre-push: suite green — pushing."
+    exit 0
+fi
+echo ""
+echo "BASIS pre-push: REGRESSION SUITE FAILED — push blocked."
+echo "  Fix the failure (or, for a deliberate behaviour change, re-baseline with"
+echo "  'run_tests.bat --regen', review the golden diff, commit it and push again)."
+echo "  Emergency bypass: git push --no-verify"
+exit 1

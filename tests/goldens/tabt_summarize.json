@@ -1,0 +1,12 @@
+{
+  "avg_holding_days": 3.3333333333333335,
+  "avg_loss": -200.0,
+  "avg_win": 400.0,
+  "ccy": "USD",
+  "costs": 150.0,
+  "max_drawdown": 600.0,
+  "n_trades": 3,
+  "profit_factor": 4.0,
+  "total_pnl": 600.0,
+  "win_rate": 66.66666666666666
+}

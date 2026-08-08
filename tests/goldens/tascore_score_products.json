@@ -1,0 +1,62 @@
+{
+  "columns": [
+    "instruments",
+    "market",
+    "n",
+    "longs",
+    "shorts",
+    "conflict",
+    "net_dir",
+    "conviction",
+    "score",
+    "tags"
+  ],
+  "records": [
+    [
+      "GCA Comdty",
+      "Gold",
+      1,
+      0,
+      1,
+      false,
+      -1,
+      80.0,
+      -80.0,
+      [
+        [
+          "Trend",
+          -1,
+          80.0
+        ]
+      ]
+    ],
+    [
+      "CLA Comdty",
+      "WTI Crude",
+      3,
+      2,
+      1,
+      true,
+      1,
+      56.7,
+      10.0,
+      [
+        [
+          "Trend",
+          1,
+          60.0
+        ],
+        [
+          "MA Crossover",
+          1,
+          40.0
+        ],
+        [
+          "On-Balance Volume",
+          -1,
+          70.0
+        ]
+      ]
+    ]
+  ]
+}

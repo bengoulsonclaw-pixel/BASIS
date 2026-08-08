@@ -22,6 +22,12 @@ google-auth==2.55.1             # Gmail OAuth token load/refresh — cot_schedul
 google-api-python-client==2.198.0  # Gmail API client (send/modify) — same, was installed locally
                                      # but never pinned here, so the VPS never had it either
 
+# --- dev-only (NOT needed to run the app; not in the offline wheels\ bundle) -----------
+# pytest   # regression suite (tests\, run_tests.bat, pre-push hook) — install manually:
+#          #   .venv\Scripts\python -m pip install pytest
+#          # left commented out so the offline work-PC install and the VPS sync don't
+#          # require a wheel they don't have; run_tests.py records a SKIP without it.
+
 # --- Bloomberg live data ---------------------------------------------------------------
 # Included in the offline wheels\ bundle, so the install line above picks them up too.
 # blpapi is NOT on PyPI — it lives on Bloomberg's own package index. The directive below

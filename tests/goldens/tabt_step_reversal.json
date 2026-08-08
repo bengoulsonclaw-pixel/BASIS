@@ -1,0 +1,30 @@
+[
+  {
+    "cost": 50.0,
+    "direction": "Long",
+    "entry_conviction": 80.0,
+    "entry_date": "2026-01-05",
+    "entry_price": 100.0,
+    "entry_score": 50.0,
+    "exit_date": "2026-01-07",
+    "exit_price": 104.0,
+    "exit_reason": "reversal",
+    "holding_days": 2,
+    "pnl": 7950.0,
+    "pnl_pct": 4.0
+  },
+  {
+    "cost": 50.0,
+    "direction": "Short",
+    "entry_conviction": 80.0,
+    "entry_date": "2026-01-07",
+    "entry_price": 104.0,
+    "entry_score": -50.0,
+    "exit_date": "2026-01-09",
+    "exit_price": 101.0,
+    "exit_reason": "period_end",
+    "holding_days": 2,
+    "pnl": 5950.0,
+    "pnl_pct": 2.8846153846153846
+  }
+]

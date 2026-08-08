@@ -1,0 +1,28 @@
+{
+  "columns": [
+    "strategy",
+    "market",
+    "instruments",
+    "signal",
+    "direction",
+    "metric"
+  ],
+  "records": [
+    [
+      "Trend",
+      "Brent",
+      "COA Comdty",
+      "Long",
+      1,
+      12.0
+    ],
+    [
+      "Mean Reversion",
+      "WTI \u2013 Brent",
+      "COA Comdty",
+      "Long spread",
+      -1,
+      -2.0
+    ]
+  ]
+}

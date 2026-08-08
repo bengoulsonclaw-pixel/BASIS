@@ -15,6 +15,21 @@
         "false"
       ],
       "port": 8520
+    },
+    {
+      "name": "basis-health",
+      "runtimeExecutable": "C:/Users/Ben/OneDrive/Desktop/AI/strategy-dashboard/.venv/Scripts/streamlit.exe",
+      "runtimeArgs": [
+        "run",
+        "app.py",
+        "--server.port",
+        "8531",
+        "--server.headless",
+        "true",
+        "--browser.gatherUsageStats",
+        "false"
+      ],
+      "port": 8531
     }
   ]
 }
