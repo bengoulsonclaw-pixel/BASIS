@@ -380,6 +380,18 @@ def _compute_phase(include_equities: bool = False) -> dict:
     except Exception as e:
         print(f"  (own-curve book update skipped: {e})")
 
+    # FICC signal cache — today's raw per-strategy TA rows for the whole book, off the
+    # freshly-extended deep store (src/sigcache.py; the TA Backtester's fast path + the
+    # Signal Ledger's raw material). Self-heals gaps after skipped days; pure math.
+    try:
+        from src import sigcache, sigledger
+        n = sigcache.daily_update(log=print)
+        print(f"  Signal cache extended (+{n} day x strategy pairs)")
+        sigledger.rebuild(log=print)
+        print("  Signal ledger outcomes re-evaluated")
+    except Exception as e:
+        print(f"  (signal cache/ledger update skipped: {e})")
+
     # Equities are a SEPARATE pull (run_equities / --equities, wired to the Equities home
     # page); it rides Yahoo + ETF files (no Terminal), so it belongs to the compute phase.
     eq = {}

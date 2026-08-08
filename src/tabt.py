@@ -31,18 +31,21 @@ import numpy as np
 import pandas as pd
 
 from . import deepstore, tascore, universe, volbt, yfin
-from .datafeed import get_history, get_history_ta, get_volume_history
+from .datafeed import LOOKBACK_DAYS, get_history, get_history_ta, get_volume_history
 from .strategies import (trend, ma_crossover, ma_crossover_swing, support_resistance,
                          fibonacci, flag_breakout, breakout_retest, momentum, bollinger,
-                         elliott_wave, ichimoku, obv, mfi, mean_reversion)
+                         elliott_wave, ichimoku, obv, mfi, mean_reversion, donchian, aroon)
 
-# Calendar days of pre-history pulled before the backtest's start date — deep enough for every
-# strategy's own warm-up window (Bollinger's is the deepest: PCTL_WINDOW(252) + BB_WINDOW(20) = 272
-# rows; MA Crossover's POSITION variant needs ~205). A little slack above the deepest requirement.
-LOOKBACK_BUFFER_DAYS = 550
+# Calendar days of pre-history pulled before the backtest's start date — enough to fill the
+# LOOKBACK_DAYS (400-session) signal window from the run's very first day (400 bdays ≈ 580
+# calendar days; slack for holidays). Every day's signal is computed on the trailing
+# LOOKBACK_DAYS sessions — the SAME fixed window the live hub and the signal cache use — so a
+# day-d signal never depends on the run's own start date (it used to: the slice grew from the
+# run's buffer edge, which moved full-history-scanning strategies like S&R/Fibonacci).
+LOOKBACK_BUFFER_DAYS = 620
 
 _CLOSE_STRATS = (trend, ma_crossover, ma_crossover_swing, support_resistance, fibonacci,
-                 momentum, bollinger, elliott_wave, ichimoku)
+                 momentum, bollinger, elliott_wave, ichimoku, donchian, aroon)
 _VOL_STRATS = (flag_breakout, breakout_retest, obv, mfi)
 STRATEGY_MODULES = {m.STRATEGY: m for m in (_CLOSE_STRATS + _VOL_STRATS)}
 VOLUME_STRATEGIES = {m.STRATEGY for m in _VOL_STRATS}
@@ -102,20 +105,22 @@ def _passes(sig, min_conviction: float, min_score: float, direction_filter: str)
     return True
 
 
-def _raw_frames(ticker: str, strategies: list, hist_slice: pd.DataFrame,
-                vol_slice: pd.DataFrame | None) -> pd.DataFrame:
-    """One raw (un-reflagged) signal row per strategy for `ticker` as of the slice's last bar.
-    Mean Reversion is pair-based, so its spread signal is translated onto the ticker's LEG (metric
-    and direction × leg sign: "Long spread" = buy A / sell B) and keyed by the ticker itself — that
-    lets it feed a single-product score exactly like any other method, sharing the Momentum axis."""
+def _select_rows(raw_all: pd.DataFrame, ticker: str, strategies: list) -> pd.DataFrame:
+    """`ticker`'s rows out of a day's ALL-product raw rows. Mean Reversion is pair-based, so its
+    spread signal is translated onto the ticker's LEG (metric and direction × leg sign: "Long
+    spread" = buy A / sell B) and keyed by the ticker itself — that lets it feed a single-product
+    score exactly like any other method, sharing the Momentum axis. This selection is SHARED by
+    the live path and the signal-cache fast path, so the two can never drift."""
+    if raw_all is None or raw_all.empty:
+        return pd.DataFrame()
     frames = []
     for s in strategies:
+        sub = raw_all[raw_all["strategy"] == s]
         if s == "Mean Reversion":
             pr = pair_for(ticker)
             if pr is None:
                 continue
-            raw = mean_reversion.find_opportunities(history=hist_slice)
-            row = raw[raw["instruments"] == f"{pr['a']} / {pr['b']}"].copy()
+            row = sub[sub["instruments"] == f"{pr['a']} / {pr['b']}"].copy()
             if row.empty:
                 continue
             leg_sign = 1 if ticker == pr["a"] else -1
@@ -123,16 +128,58 @@ def _raw_frames(ticker: str, strategies: list, hist_slice: pd.DataFrame,
             row["metric"] = pd.to_numeric(row["metric"], errors="coerce") * leg_sign
             row["direction"] = row["direction"] * leg_sign
             frames.append(row)
-            continue
-        mod = STRATEGY_MODULES.get(s)
+        else:
+            frames.append(sub[sub["instruments"] == ticker])
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def _live_day_rows(strategies: list, hist_slice: pd.DataFrame,
+                   vol_slice: pd.DataFrame | None) -> pd.DataFrame:
+    """One find_opportunities() pass per strategy on the given slice — ALL products' rows."""
+    frames = []
+    for s in strategies:
+        mod = mean_reversion if s == "Mean Reversion" else STRATEGY_MODULES.get(s)
         if mod is None:
             continue
         kwargs = {"history": hist_slice}
         if s in VOLUME_STRATEGIES:
             kwargs["volume"] = vol_slice
-        raw = mod.find_opportunities(**kwargs)
-        frames.append(raw[raw["instruments"] == ticker])
+        frames.append(mod.find_opportunities(**kwargs))
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def _raw_frames(ticker: str, strategies: list, hist_slice: pd.DataFrame,
+                vol_slice: pd.DataFrame | None) -> pd.DataFrame:
+    """One raw (un-reflagged) signal row per strategy for `ticker` as of the slice's last bar
+    (the LIVE compute path — the signal-cache fast path serves the same rows from parquet)."""
+    return _select_rows(_live_day_rows(strategies, hist_slice, vol_slice), ticker, strategies)
+
+
+def _cached_day_rows(scope: str, days, strategies: list) -> dict:
+    """{day -> that day's ALL-product raw rows} for every day the signal cache FULLY covers
+    (every requested strategy computed — a covered day with zero rows is a real "all silent"
+    outcome, not a miss). Empty dict for equities (FICC-only cache), no cache on disk, or any
+    error — callers fall back to live compute per uncovered day, so this can only speed things
+    up, never change results availability."""
+    if scope == "equities" or len(days) == 0:
+        return {}
+    try:
+        from . import sigcache
+        cov = sigcache.coverage()
+        if cov.empty:
+            return {}
+        covset = set(zip(cov["date"], cov["strategy"]))
+        need = list(strategies)
+        full_days = {d for d in days if all((d, s) in covset for s in need)}
+        if not full_days:
+            return {}
+        rows = sigcache.rows_for(days[0], days[-1], need)
+        empty = rows.iloc[0:0].drop(columns=["date"])
+        by_day = {d: g.drop(columns=["date"]).reset_index(drop=True)
+                  for d, g in rows.groupby("date") if d in full_days}
+        return {d: by_day.get(d, empty) for d in full_days}
+    except Exception:
+        return {}
 
 
 def _score_set(raw: pd.DataFrame, strategies: list, ticker: str, sign: int):
@@ -353,10 +400,15 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
     signal_hist, pnl_hist, vol_hist, days, size_mult, ccy, sign, warnings = _setup(
         scope, ticker, strategies, start, end, exit_rule, hold_days)
 
+    cached = _cached_day_rows(scope, days, strategies)
+
     def _sig_on(d):
-        hist_slice = signal_hist.loc[:d]
-        vol_slice = vol_hist.loc[:d] if vol_hist is not None else None
-        raw = _raw_frames(ticker, strategies, hist_slice, vol_slice)
+        if d in cached:
+            raw = _select_rows(cached[d], ticker, strategies)
+        else:
+            hist_slice = signal_hist.loc[:d].iloc[-LOOKBACK_DAYS:]     # the hub's fixed window
+            vol_slice = vol_hist.loc[:d].iloc[-LOOKBACK_DAYS:] if vol_hist is not None else None
+            raw = _raw_frames(ticker, strategies, hist_slice, vol_slice)
         return _score_set(raw, strategies, ticker, sign)
 
     # signal-space series (yields for FICC fixed income) — what the chart shows so trades can be
@@ -397,6 +449,7 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
         "take_pct": (float(take_pct) if take_pct else 0.0),
         "start": days[0].date(), "end": days[-1].date(),
         "fi": bool(scope != "equities" and universe.is_fixed_income(ticker)),
+        "cached_days": int(sum(1 for d in days if d in cached)),  # signal-cache fast-path hits
     })
     vol_series = (vol_hist[ticker].dropna()
                   if vol_hist is not None and ticker in vol_hist.columns else None)
@@ -430,13 +483,17 @@ def compare_strategies(scope: str, ticker: str, *, min_conviction: float = 0.0,
     realized = {v: 0.0 for v in variants}
     daily_rows = {v: [] for v in variants}
 
+    cached = _cached_day_rows(scope, days, all_needed)
+
     for i, d in enumerate(days):
         price = float(pnl_hist.loc[d, ticker])
         is_last = i == len(days) - 1
-        hist_slice = signal_hist.loc[:d]
-        vol_slice = vol_hist.loc[:d] if vol_hist is not None else None
-
-        raw = _raw_frames(ticker, all_needed, hist_slice, vol_slice)
+        if d in cached:
+            raw = _select_rows(cached[d], ticker, all_needed)
+        else:
+            hist_slice = signal_hist.loc[:d].iloc[-LOOKBACK_DAYS:]     # the hub's fixed window
+            vol_slice = vol_hist.loc[:d].iloc[-LOOKBACK_DAYS:] if vol_hist is not None else None
+            raw = _raw_frames(ticker, all_needed, hist_slice, vol_slice)
         for v in variants:
             sig = _score_set(raw, conf_set if v == "Confluence" else [v], ticker, sign)
             pos, trade = _step(states[v], sig, price, d, is_last, exit_rule=exit_rule,

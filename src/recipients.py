@@ -26,6 +26,7 @@ REPORTS = {
     "usda_reaction": "USDA Reaction (Acreage & Grain Stocks)",
     "wasde": "USDA WASDE report",
     "sectorcorr": "Product Correlations alert",
+    "curve": "Curve / RV Monitor report",
     "precious_metals": "Precious Metals Fundamentals monitor",
     "pm_releases": "Precious Metals release synopses (WGC / WPIC)",
 }

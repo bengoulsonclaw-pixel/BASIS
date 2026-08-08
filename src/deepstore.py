@@ -324,6 +324,22 @@ def get_volume(tickers, start=None, end=None) -> pd.DataFrame:
     return _slice(vol[cols], start, end) if cols else pd.DataFrame()
 
 
+def get_front2(tickers, start=None, end=None) -> pd.DataFrame:
+    """Raw '2' second-generic prices (ACTUAL levels, like get_raw). Front1 − front2 is
+    the live 1st/2nd calendar spread — the curve-monitor's time-spread series."""
+    p2 = _read("front2")
+    cols = [t for t in tickers if t in p2.columns]
+    return _slice(p2[cols].dropna(how="all"), start, end) if cols else pd.DataFrame()
+
+
+def get_yields(tickers, start=None, end=None) -> pd.DataFrame:
+    """Deep benchmark yields (%) for BOND futures, keyed by the future's own ticker
+    (universe.BOND_YIELD_SOURCE series) — the yield-space legs for curve spreads."""
+    ylds = _read("yields")
+    cols = [t for t in tickers if t in ylds.columns]
+    return _slice(ylds[cols].dropna(how="all"), start, end) if cols else pd.DataFrame()
+
+
 def coverage() -> pd.DataFrame:
     """Per-ticker diagnostics: first/last date, days held, rolls detected."""
     px, p2, ct = _read("prices"), _read("front2"), _read("contract")
@@ -376,13 +392,26 @@ def overlay(tickers, start, end, pnl_hist, signal_hist, vol_hist):
     idx = pnl_hist.index.union(adj.index).sort_values()
     pnl_hist = pnl_hist.reindex(idx)
     signal_hist = signal_hist.reindex(idx)
+
+    def _asof(series: pd.Series, feed_col: pd.Series) -> pd.Series:
+        """Deep column onto the union index AS-OF ffilled (a raw reindex would re-punch
+        exchange-holiday holes — same lesson as datafeed._deep_upgrade: a hole changes
+        window-scanning strategies' row counts). The tail beyond the deep store's last
+        settle keeps the FEED's values so "today" never goes missing on a live run."""
+        d = series.dropna()
+        merged = d.reindex(idx, method="ffill")
+        tail = idx[idx > d.index.max()]
+        if len(tail) and feed_col is not None:
+            merged.loc[tail] = feed_col.reindex(tail)
+        return merged
+
     for t in deep_used:
-        pnl_hist[t] = adj[t].reindex(idx)
+        pnl_hist[t] = _asof(adj[t], pnl_hist[t])
         if t in ta.columns:
-            signal_hist[t] = ta[t].reindex(idx)
+            signal_hist[t] = _asof(ta[t], signal_hist[t])
     if vol_hist is not None and not vol.empty:
         vol_hist = vol_hist.reindex(idx)
         for t in deep_used:
             if t in vol.columns:
-                vol_hist[t] = vol[t].reindex(idx)
+                vol_hist[t] = vol[t].reindex(idx)      # volume is a FLOW — never ffilled
     return deep_used, pnl_hist, signal_hist, vol_hist

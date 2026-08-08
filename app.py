@@ -53,6 +53,7 @@ from src import equities
 from src import eqfunda
 from src import eqcorr
 from src import eqdisp
+from src import curvemon
 from src import auth
 from src.universe import INSTRUMENTS
 
@@ -80,6 +81,7 @@ WASDEREPORT_CLI = ROOT / "src" / "wasdereport.py"
 FLAGREPORT_CLI = ROOT / "src" / "flagreport.py"
 FLAG_DETAIL_FILE = ROOT / "data" / "signals" / "flag_breakout.parquet"
 CONVREPORT_CLI = ROOT / "src" / "convreport.py"   # the merged "Technical Analysis" report (was the Conviction Screen)
+CURVEREPORT_CLI = ROOT / "src" / "curvereport.py"
 SNAPSHOT_CLI = ROOT / "snapshot.py"
 SNAPSHOT_DIR = ROOT / "data" / "snapshot"
 SNAPSHOT_MANIFEST = SNAPSHOT_DIR / "manifest.json"
@@ -864,7 +866,8 @@ _GROUP_TABS = {
                            ("🌐 Universe", "Universe")],
     "Trade Testing":      [("🏛️ Fed Path", "Fed Path"),
                            ("🧪 Vol Backtester", "Vol Backtester"),
-                           ("🎯 TA Backtester", "TA Backtester")],
+                           ("🎯 TA Backtester", "TA Backtester"),
+                           ("📒 Signal Ledger", "Signal Ledger")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
@@ -7113,6 +7116,126 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     st.dataframe(tv, hide_index=True, use_container_width=True, height=min(400, 40 + 35 * len(tv)))
 
 
+def render_signal_ledger() -> None:
+    """Signal Ledger: every TA signal the hub would have flagged across ~10y of the FICC book,
+    tracked forward — hit rates by strategy / product + the confluence composite. Reads the
+    precomputed outcomes parquet (src/sigledger.py, rebuilt by the snapshot compute phase);
+    aggregation here is instant pandas, no signal recompute."""
+    import altair as alt
+    from src import sigledger
+
+    st.subheader("📒  Signal Ledger")
+    st.caption(
+        "Every technical signal the TA hub would have flagged, tracked forward: did the market "
+        "go the signal's way 5, 10 and 21 sessions later? Judged in **signal space** — yields "
+        "for fixed income (a Long there means rising yields = short the future, the FI pages' "
+        "convention), pair spreads for Mean Reversion, prices elsewhere — with each move also "
+        "expressed in the product's own trailing-volatility units (σ) so a 2bp SOFR move and a "
+        "$40 gold move compare fairly. FICC book, settlement data. A historical read of the "
+        "signals' accuracy, not investment advice — dollar P&L with exits and sizing lives in "
+        "the TA Backtester."
+    )
+
+    out = sigledger.load()
+    if out.empty:
+        st.info("No ledger on disk yet — it builds from the signal cache. Run "
+                "`python backfill_signals.py` once (then the morning snapshot keeps it fresh).")
+        return
+
+    # ---- controls ------------------------------------------------------------------
+    c1, c2, c3, c4 = st.columns([1.0, 1.2, 1.6, 0.9])
+    horizon = c1.selectbox("Horizon (sessions)", list(sigledger.HORIZONS),
+                           index=len(sigledger.HORIZONS) - 1, key="sl_h")
+    _wins = {"All history": None, "Last year": 1, "Last 3 years": 3, "Last 5 years": 5}
+    win = c2.selectbox("Window", list(_wins), key="sl_w")
+    mkts = c3.multiselect("Products", sorted(out["market"].dropna().unique()),
+                          default=[], key="sl_m", help="Blank = the whole book.")
+    min_n = c4.number_input("Min signals", 1, 500, 25, step=5, key="sl_n",
+                            help="League rows with fewer signals than this are hidden — "
+                                 "a 3-signal 100% hit rate isn't a track record.")
+    view = out
+    if _wins[win]:
+        view = view[view["date"] >= view["date"].max() - pd.DateOffset(years=_wins[win])]
+    if mkts:
+        view = view[view["market"].isin(set(mkts))]
+    if view.empty:
+        st.info("Nothing matches these filters.")
+        return
+
+    hcol, scol = f"hit{horizon}", f"sig{horizon}"
+    evaluable = view[view[hcol].notna()]
+
+    # ---- headline ------------------------------------------------------------------
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Signals flagged", f"{len(view):,}")
+    k2.metric("Evaluable at horizon", f"{len(evaluable):,}")
+    k3.metric(f"Overall hit rate ({horizon}d)",
+              f"{evaluable[hcol].mean() * 100:.1f}%" if len(evaluable) else "—")
+    lg_all = sigledger.league(view, "strategy")
+    lg_ok = lg_all[lg_all["n"] >= min_n]
+    k4.metric("Best strategy at horizon",
+              lg_ok.sort_values(f"hit{horizon}", ascending=False)["strategy"].iloc[0]
+              if len(lg_ok) else "—")
+
+    # ---- league table --------------------------------------------------------------
+    by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
+    lg = sigledger.league(view, "strategy" if by == "Strategy" else "market")
+    lg = lg[lg["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
+    if lg.empty:
+        st.info("No rows clear the min-signals bar — lower it to see thin samples.")
+    else:
+        disp = pd.DataFrame({
+            by: lg.iloc[:, 0], "Signals": lg["n"].map("{:,}".format),
+            **{f"Hit {h}d": lg[f"hit{h}"].map(lambda v: f"{v:.1f}%" if pd.notna(v) else "—")
+               for h in sigledger.HORIZONS},
+            **{f"σ-move {h}d": lg[f"sig{h}"].map(lambda v: f"{v:+.2f}" if pd.notna(v) else "—")
+               for h in sigledger.HORIZONS},
+        })
+        st.dataframe(disp, hide_index=True, use_container_width=True,
+                     height=min(560, 40 + 35 * len(disp)))
+        st.caption("Hit = the signal-space move went the signal's way by the horizon. σ-move = "
+                   "the mean signed move in trailing-21-session σ units — the honest size of the "
+                   "edge, not just its frequency. 50% hit with +σ drift and 55% with none read "
+                   "very differently.")
+
+    # ---- strategy × product heat --------------------------------------------------
+    hm = sigledger.heat(view, horizon)
+    hm = hm[hm["n"] >= max(5, min_n // 5)]
+    if not hm.empty:
+        st.markdown(f"##### Hit rate by strategy × product ({horizon}d)")
+        st.altair_chart(alt.Chart(hm).mark_rect().encode(
+            x=alt.X("market:N", title=None, sort=alt.SortField("market")),
+            y=alt.Y("strategy:N", title=None),
+            color=alt.Color("hit:Q", title="Hit %",
+                            scale=alt.Scale(domain=[30, 50, 70],
+                                            range=["#c0392b", "#3a4454", "#1e8449"])),
+            tooltip=[alt.Tooltip("strategy:N"), alt.Tooltip("market:N"),
+                     alt.Tooltip("hit:Q", format=".1f", title=f"hit % ({horizon}d)"),
+                     alt.Tooltip("n:Q", title="signals")],
+        ).properties(height=26 * hm["strategy"].nunique() + 40), use_container_width=True)
+        st.caption("Green = the signal family has historically been RIGHT on that product at this "
+                   "horizon; red = fade-worthy. Thin cells (few signals) are dropped.")
+
+    # ---- recent signals blotter ----------------------------------------------------
+    st.markdown("##### Latest signals — and how they resolved")
+    recent = view.sort_values("date", ascending=False).head(30)
+    bl = pd.DataFrame({
+        "Date": recent["date"].dt.date.astype(str),
+        "Strategy": recent["strategy"], "Product": recent["market"],
+        "Signal": recent["signal"],
+        "Entry level": recent["entry_level"].map(
+            lambda v: f"{v:,.3f}" if pd.notna(v) else "—"),
+        **{f"{h}d": recent.apply(
+            lambda r, h=h: ("pending" if pd.isna(r[f"hit{h}"])
+                            else ("✓" if r[f"hit{h}"] else "✗") + f" {r[f'sig{h}']:+.1f}σ"),
+            axis=1) for h in sigledger.HORIZONS},
+    })
+    st.dataframe(bl, hide_index=True, use_container_width=True,
+                 height=min(560, 40 + 35 * len(bl)))
+    st.caption(f"Ledger spans {out['date'].min().date()} → {out['date'].max().date()} · "
+               f"{len(out):,} flagged signals · rebuilt with each morning snapshot.")
+
+
 def render_strategy_builder() -> None:
     """Multi-leg option strategy builder (the optioncreator.com workflow): build a
     position from Buy/Sell x Call/Put/Future legs, read net debit/credit, max
@@ -7533,6 +7656,191 @@ def render_strategy_builder() -> None:
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
+def _cm_monitor(window: int, threshold: float, mode: str):
+    """The curve/RV spread book, cached so widget reruns don't re-read the deep store."""
+    return curvemon.monitor(window, threshold)
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
+def _cm_chart(key: str, window: int, threshold: float, years, mode: str):
+    return curvemon.spread_chart_data(key, window, threshold, years=years)
+
+
+def render_curve_monitor() -> None:
+    import altair as alt
+
+    st.subheader("📐  Curve / RV Monitor — the spread book on ten years of history")
+    st.caption(
+        "A fixed book of curve and relative-value spreads — rate curves and cross-market "
+        "spreads on **benchmark yields** (bp), STIR calendars, energy time-spreads and metal "
+        "ratios — each scored two ways: a **rolling z-score** (stretch vs the recent regime) "
+        "and a **percentile of the full ~10-year deep store** (stretch vs everything the last "
+        "decade has shown). Levels are real market observables — actual front prices and "
+        "benchmark yields, never back-adjusted continuations.")
+
+    c0, c1, c2 = st.columns([1.3, 1, 1.9])
+    win_lbl = c0.selectbox("Z-score window",
+                           ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"],
+                           index=2, key="cm_window",
+                           help="Sessions behind the rolling mean/σ the z-score measures against. "
+                                "The 10-year percentile always uses the full store.")
+    window = int(win_lbl.split("(")[1].rstrip("d)"))
+    threshold = float(c1.number_input("Flag threshold (σ)", 0.5, 4.0, curvemon.Z_THRESHOLD,
+                                      0.25, key="cm_thr"))
+    groups = c2.multiselect("Groups", curvemon.GROUPS, default=curvemon.GROUPS, key="cm_groups")
+
+    mon = _cm_monitor(window, threshold, MODE)
+    if mon is None or mon.empty:
+        st.info("No spread history yet — the deep price store hasn't been built on this "
+                "machine (it backfills on the next Bloomberg session).")
+        return
+    if groups:
+        mon = mon[mon["group"].isin(groups)]
+
+    flagged = mon[mon["signal"] != "—"]
+    if not flagged.empty:
+        st.markdown("**Stretched now:** " + " · ".join(
+            f"{r['name']} **{r['signal']}** ({r['z']:+.1f}σ, {r['pctl']:.0f}th %ile of 10y)"
+            for _, r in flagged.iterrows()))
+
+    _cols = [
+        {"key": "name", "label": "Spread"},
+        {"key": "level_txt", "label": "Level", "align": "right"},
+        {"key": "chg1d", "label": "1d Δ", "color": True, "fmt": "{:+,.2f}"},
+        {"key": "z", "label": "Z", "align": "right", "fmt": "{:+.2f}"},
+        {"key": "zpic", "label": "±2σ", "zbar": True},
+        {"key": "pctl", "label": "10y %ile", "align": "right", "fmt": "{:.0f}"},
+        {"key": "hl", "label": "½-life", "align": "right"},
+        {"key": "signal", "label": "Signal"},
+    ]
+    for g in [g for g in curvemon.GROUPS if g in set(mon["group"])]:
+        sub = mon[mon["group"] == g]
+        brand.panel_header(g, right=f"{len(sub)} spreads")
+        rows = []
+        for _, r in sub.iterrows():
+            rows.append({
+                "name": r["name"],
+                "level_txt": f"{r['level']:,.{int(r['dp'])}f} {r['unit']}",
+                "chg1d": None if pd.isna(r["chg1d"]) else float(r["chg1d"]),
+                "z": float(r["z"]), "zpic": float(r["z"]),
+                "pctl": float(r["pctl"]),
+                "hl": "—" if pd.isna(r["half_life"]) else f"{r['half_life']:.0f}d",
+                "signal": r["signal"] if r["signal"] == "—" else f"{r['signal']} {r['z']:+.1f}σ",
+            })
+        brand.terminal_table(rows, _cols)
+
+    # ---- spread detail --------------------------------------------------------
+    st.divider()
+    brand.panel_header("Spread detail",
+                       right=f"window {window}d · flag ±{threshold:g}σ")
+    d0, d1 = st.columns([2.2, 1.4])
+    sel_name = d0.selectbox("Spread", mon["name"].tolist(), key="cm_sel",
+                            label_visibility="collapsed")
+    rng = d1.radio("Range", ["Full", "5y", "2y", "1y"], horizontal=True, key="cm_rng",
+                   label_visibility="collapsed")
+    row = mon[mon["name"] == sel_name].iloc[0]
+    years = {"Full": None, "5y": 5.0, "2y": 2.0, "1y": 1.0}[rng]
+    cd, info = _cm_chart(row["key"], window, threshold, years, MODE)
+    if cd.empty:
+        st.info("No history for this spread.")
+        return
+    st.caption(row["desc"])
+
+    dp = int(row["dp"])
+    m0, m1, m2, m3 = st.columns(4)
+    m0.metric(f"Level ({row['unit']})", f"{row['level']:,.{dp}f}",
+              None if pd.isna(row["chg1d"]) else f"{row['chg1d']:+,.{dp}f} on the day",
+              delta_color="off")
+    m1.metric(f"Z ({window}d)", f"{row['z']:+.2f}σ")
+    m2.metric("10-year percentile", f"{row['pctl']:.0f}th",
+              help="Share of the last decade's sessions with the spread at or below today.")
+    m3.metric("Half-life", "—" if pd.isna(row["half_life"]) else f"≈{row['half_life']:.0f}d",
+              help="Ornstein-Uhlenbeck estimate of how long a stretch takes to close halfway.")
+
+    cc = brand.chart_colors()
+    x_enc = alt.X("date:T", title=None)
+    base = alt.Chart(cd)
+    band = base.mark_area(opacity=0.13, color=cc["accent"]).encode(
+        x=x_enc, y=alt.Y("lower:Q", title=f"spread ({row['unit']})",
+                         scale=alt.Scale(zero=False)), y2="upper:Q")
+    mean_ln = base.mark_line(strokeDash=[5, 3], color=cc["muted"], strokeWidth=1.5).encode(
+        x=x_enc, y="mean:Q")
+    spread_ln = base.mark_line(color=cc["series"], strokeWidth=2.1).encode(
+        x=x_enc, y=alt.Y("spread:Q", scale=alt.Scale(zero=False)),
+        tooltip=[alt.Tooltip("date:T"),
+                 alt.Tooltip("spread:Q", title=f"spread ({row['unit']})", format=f",.{dp}f"),
+                 alt.Tooltip("z:Q", format="+.2f")])
+    brand.show_chart((band + mean_ln + spread_ln).properties(height=320))
+    z_rules = alt.Chart(pd.DataFrame({"y": [threshold, 0.0, -threshold]})).mark_rule(
+        color=cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="y:Q")
+    z_ln = base.mark_line(color=cc["accent"], strokeWidth=1.6).encode(
+        x=x_enc, y=alt.Y("z:Q", title="z"),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("z:Q", format="+.2f")])
+    brand.show_chart((z_rules + z_ln).properties(height=120))
+
+    dsig = ("" if pd.isna(row["dollar_sigma"]) or row["dollar_sigma"] is None
+            else f" (≈${row['dollar_sigma']:,.0f} per 1-lot spread)")
+    st.caption(
+        f"Mean ({window}d) **{row['mean']:,.{dp}f} {row['unit']}** — the level a reversion "
+        f"points back to · invalidation reference **{row['invalidation']:,.{dp}f}** "
+        f"({'+' if row['z'] >= 0 else '−'}{curvemon.INVAL_SIGMA:g}σ on the stretched side) · "
+        f"1σ = **{row['sigma']:,.{dp}f} {row['unit']}**{dsig} · history since "
+        f"**{row['first']}** ({row['days']:,} sessions). Levels are observations against the "
+        "spread's own history, not a recommendation.")
+
+    # ---- client PDF ------------------------------------------------------------
+    st.divider()
+    if st.button("📐 Generate Curve / RV Report (visual PDF)", type="primary", key="cm_pdf_btn"):
+        with st.spinner("Rendering the Curve / RV report…"):
+            try:
+                # chart the four most-stretched spreads — flagged ones rank first by |z|
+                focus = mon.reindex(mon["z"].abs().sort_values(ascending=False).index).head(4)
+                charts = []
+                for _, r in focus.iterrows():
+                    cdf, cinfo = _cm_chart(r["key"], window, threshold, None, MODE)
+                    if cdf.empty:
+                        continue
+                    charts.append({
+                        "key": r["key"], "name": r["name"], "unit": r["unit"],
+                        "dp": int(r["dp"]), "desc": r["desc"],
+                        "dates": [d.strftime("%Y-%m-%d") for d in cdf["date"]],
+                        "spread": [None if pd.isna(v) else float(v) for v in cdf["spread"]],
+                        "mean": [None if pd.isna(v) else float(v) for v in cdf["mean"]],
+                        "upper": [None if pd.isna(v) else float(v) for v in cdf["upper"]],
+                        "lower": [None if pd.isna(v) else float(v) for v in cdf["lower"]],
+                        "info": {k: (None if isinstance(v, float) and pd.isna(v) else v)
+                                 for k, v in cinfo.items()},
+                    })
+                payload = {
+                    "asof": str(mon["asof"].max()), "window": window, "threshold": threshold,
+                    "groups": curvemon.GROUPS,
+                    "rows": [{k: (None if isinstance(v, float) and pd.isna(v) else v)
+                              for k, v in r.items()} for r in mon.to_dict("records")],
+                    "charts": charts,
+                }
+                with tempfile.TemporaryDirectory() as _t:
+                    _in = Path(_t) / "curve.json"
+                    _out = Path(_t) / "Curve_RV_Monitor.pdf"
+                    _in.write_text(json.dumps(payload), encoding="utf-8")
+                    r = subprocess.run(
+                        [sys.executable, str(CURVEREPORT_CLI), str(_in), str(_out)],
+                        capture_output=True, text=True, timeout=180)
+                    if r.returncode == 0 and _out.exists():
+                        st.session_state["cm_pdf"] = _out.read_bytes()
+                    else:
+                        st.error("Report failed:\n\n" + (r.stderr or r.stdout or "unknown error")[-2000:])
+            except Exception as e:
+                st.error(f"Report failed: {e}")
+    if st.session_state.get("cm_pdf"):
+        st.download_button("⬇️  Download Curve / RV Report", data=st.session_state["cm_pdf"],
+                           file_name="Curve_RV_Monitor.pdf", mime="application/pdf",
+                           key="cm_pdf_dl")
+        email_report_ui("cm_email", "curve", st.session_state["cm_pdf"],
+                        subject="BASIS — Curve / RV Monitor",
+                        attachment_name="Curve_RV_Monitor.pdf")
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
 def _sc_instruments(metric: str, asof_iso: str, sectors: tuple, mode: str):
     """Product-level matrices, cached so widget reruns don't re-pull history
     (`mode` keys the cache to the data source)."""
@@ -7877,6 +8185,8 @@ with st.sidebar:
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Correlations", "Product Correlations")
         _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Curve / RV", "Curve Monitor")
+        _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Trade Testing", "Fed Path")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
@@ -8130,10 +8440,14 @@ if active == "Vol Backtester":
     render_vol_backtester(); st.stop()
 if active == "TA Backtester":
     render_ta_backtester("ficc"); st.stop()
+if active == "Signal Ledger":
+    render_signal_ledger(); st.stop()
 if active == "Strategy Builder":
     render_strategy_builder(); st.stop()
 if active == "Product Correlations":
     render_sector_correlations(); st.stop()
+if active == "Curve Monitor":
+    render_curve_monitor(); st.stop()
 if active == "Data health":
     render_data_health(); st.stop()
 if active == "OPEC Report":
