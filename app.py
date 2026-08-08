@@ -3115,6 +3115,33 @@ def _ta_quicknav(current: str | None = None, eq: bool = False) -> None:
             on_click=_go, args=(dest,))
 
 
+def _trigger_docs_expander(scope: str = "ficc", picked=None, only: str | None = None) -> None:
+    """The audited plain-English buy/sell trigger reference (src/strategy_docs.py TRIGGER_DOCS),
+    shared by the TA Backtester, both TA hubs and the per-strategy pages. `only` renders a single
+    strategy's entry (the per-strategy pages); otherwise the full roster. `picked` tags the
+    strategies currently in the backtester's selection."""
+    from src.strategy_docs import TRIGGER_DOCS
+    eq = scope == "equities"
+    _title = (f"📖 When {only} buys / sells" if only
+              else "📖 How each strategy decides to buy / sell")
+    if only and only not in TRIGGER_DOCS:
+        return
+    with st.expander(_title, expanded=False):
+        st.caption("What the method's actual code does — distilled during the signal audit and "
+                   "locked by fixture tests (a clean textbook long must flag ▲, the mirror ▼), so "
+                   "this reference can't quietly drift from the engine."
+                   + ("" if eq else " Fixed income signals compute on **yields** — a buy read "
+                      "means rising yields, which trades as **selling** the bond/STIR future."))
+        for _sname in ([only] if only else tascore.TA_STRATEGIES):
+            _doc = TRIGGER_DOCS.get(_sname)
+            if _doc is None or (eq and _sname == "Mean Reversion"):
+                continue
+            _in_set = " · *in your current picks*" if (picked and _sname in picked) else ""
+            if not only:
+                st.markdown(f"**{_sname}** — {tascore.axis_of(_sname)} axis{_in_set}")
+            st.markdown(f"- ▲ **Buys:** {_doc['buys']}\n- ▼ **Sells:** {_doc['sells']}")
+
+
 def _ta_conviction_expander() -> None:
     """The shared "How Conviction & Score are calculated" explainer — identical on the FICC and
     Equities TA hubs (the maths is universe-agnostic)."""
@@ -3611,6 +3638,8 @@ def render_ta_overview() -> None:
             "Score = |＋90＋80＋70－60| = **180** (the short partly cancels); Net = **▲ long**. If instead all "
             "four agreed Long, Score = |90+80+70+60| = **300** — same conviction, far higher stacked score."
         )
+
+    _trigger_docs_expander("ficc")
 
     # Quick-nav row (top of page): open any strategy's own page — trigger control, full table, charts.
     st.caption("Open a strategy for its trigger control, full table and charts:")
@@ -4132,6 +4161,7 @@ def render_eq_ta_overview() -> None:
     st.caption(f"Signals as of **{meta.get('as_of', '—')}** over **{meta.get('names', '?')}** names.")
 
     _ta_conviction_expander()
+    _trigger_docs_expander("equities")
 
     # Quick-nav row (top of page): open any strategy's own EQUITIES page — trigger control, table, charts.
     st.caption("Open a strategy for its trigger control, full table and charts:")
@@ -4271,6 +4301,7 @@ def render_eq_strategy(strat: str) -> None:
     _ta_quicknav(strat, eq=True)
     st.caption("💡 Equities run on **price** (free yfinance data) — no fixed-income yield inversion here; "
                "a **Long / up** read simply screens the share price higher.")
+    _trigger_docs_expander("equities", only=strat)
 
     df, meta = eqta.load_signals()
     if df is None or df.empty:
@@ -6763,21 +6794,7 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                    "backtest's score.")
 
     # --- plain-English trigger reference: how every strategy decides to buy / sell ---
-    with st.expander("📖 How each strategy decides to buy / sell", expanded=False):
-        from src.strategy_docs import TRIGGER_DOCS
-        st.caption("What each method's actual code does — distilled during the signal audit and "
-                   "locked by fixture tests (a clean textbook long must flag ▲, the mirror ▼), so "
-                   "this reference can't quietly drift from the engine. The conviction / |score| "
-                   "bar above applies ON TOP of every trigger below."
-                   + ("" if eq else " Fixed income signals compute on **yields** — a buy read "
-                      "means rising yields, which trades as **selling** the bond/STIR future."))
-        for _sname in tascore.TA_STRATEGIES:
-            _doc = TRIGGER_DOCS.get(_sname)
-            if _doc is None or (eq and _sname == "Mean Reversion"):
-                continue
-            _in_set = " · *in your current picks*" if _sname in picked else ""
-            st.markdown(f"**{_sname}** — {tascore.axis_of(_sname)} axis{_in_set}")
-            st.markdown(f"- ▲ **Buys:** {_doc['buys']}\n- ▼ **Sells:** {_doc['sells']}")
+    _trigger_docs_expander(scope, picked=picked)
 
     t1, t2, t3 = st.columns(3)
     min_conviction = t1.number_input("Min conviction", 0, 100, int(_dflt["min_conviction"]), 5,
@@ -9233,6 +9250,7 @@ if active in tascore.TA_STRATEGIES:
     _ta_quicknav(active)
     st.caption("💡 Fixed income runs on **yields**, not futures prices (shown as *(yield)* / *(rate)*). "
                "A **Long / up** signal there means **rising yields = short the bond** — and the mirror.")
+    _trigger_docs_expander("ficc", only=active)
 
 # Shrink + wrap the metric-card VALUE font so long values ("Long (buy the dip)", "50.0% @
 # 616.5", "Squeeze — upside watch") fit the narrow cards instead of truncating. Applies to
