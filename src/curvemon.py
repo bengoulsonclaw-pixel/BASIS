@@ -39,7 +39,7 @@ import pandas as pd
 from . import deepstore, universe
 from .volbt import point_value
 
-REV = 2               # bump when the book/row schema changes — busts the page's st.cache_data
+REV = 3               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
@@ -68,11 +68,16 @@ BENCHMARKS = {"us_2s10s", "us_5s30s", "de_2s10s", "de_10s30s"}
 
 
 def _curve_specs() -> list:
+    """Tenor-pair outer loop, market inner — so the table reads like for like
+    (US 2s10s directly next to Germany 2s10s), short end down to the long end."""
     out = []
-    for mkey, mname, ladder in _CURVE_LADDERS:
-        for i in range(len(ladder)):
-            for j in range(i + 1, len(ladder)):
-                (ta, fa), (tb, fb) = ladder[i], ladder[j]
+    tenors = ["2", "5", "10", "30"]
+    for i in range(len(tenors)):
+        for j in range(i + 1, len(tenors)):
+            ta, tb = tenors[i], tenors[j]
+            for mkey, mname, ladder in _CURVE_LADDERS:
+                lad = dict(ladder)
+                fa, fb = lad[ta], lad[tb]
                 key = f"{mkey}_{ta}s{tb}s"
                 bench = key in BENCHMARKS
                 out.append({
@@ -294,10 +299,13 @@ def monitor(window: int = WINDOW, threshold: float = Z_THRESHOLD,
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows)
+    # Fixed book order (not |z|): the curve ladder reads like-for-like — each tenor
+    # pair's two markets adjacent, short end to long end — and every other group keeps
+    # its curated order. The "stretched now" banner surfaces the extremes instead.
+    pos = {s["key"]: i for i, s in enumerate(SPREADS)}
     df["_g"] = df["group"].map({g: i for i, g in enumerate(GROUPS)})
-    return (df.sort_values(["_g", "z"], key=lambda c: c.abs() if c.name == "z" else c,
-                           ascending=[True, False])
-              .drop(columns="_g").reset_index(drop=True))
+    df["_p"] = df["key"].map(pos)
+    return df.sort_values(["_g", "_p"]).drop(columns=["_g", "_p"]).reset_index(drop=True)
 
 
 def spread_chart_data(key: str, window: int = WINDOW, threshold: float = Z_THRESHOLD,
