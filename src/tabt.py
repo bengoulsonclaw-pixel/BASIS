@@ -395,7 +395,7 @@ def run_backtest(scope: str, ticker: str, strategies: list | None = None, *,
 
     `direction`: "both" | "long" | "short" — restricts which side of a signal is ever taken.
     `exit_rule`: "reversal" (signal flips) | "score_drop" (no longer clears the entry bar) |
-    "hold_days" (fixed N trading-day hold). `stop_pct`/`take_pct` are an OPTIONAL overlay that can
+    "hold_days" (exit once N CALENDAR days have passed since entry). `stop_pct`/`take_pct` are an OPTIONAL overlay that can
     close a trade before the primary rule does, checked first every day.
 
     TRANSACTION COSTS (volbt convention — flat per-lot amounts, 0 = frictionless):

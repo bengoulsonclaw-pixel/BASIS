@@ -92,7 +92,14 @@ def _cross_age(line: pd.Series, signal: pd.Series) -> tuple[int, int | None]:
     diff = (line - signal).dropna()
     if len(diff) < 2:
         return (1 if (len(diff) and diff.iloc[-1] >= 0) else -1), None
-    s = np.sign(diff.to_numpy())
+    d = diff.to_numpy()
+    # Tolerance guard: on a near-constant-slope tape line−signal converges to ~0 and pure
+    # float cancellation (±1e-14) can flip the sign, manufacturing a "fresh cross" out of
+    # numerical residue (a monotone UP tape then flagged Bearish). Anything smaller than a
+    # scale-aware epsilon is treated as "no separation", not a sign.
+    tol = 1e-9 * max(1.0, float(np.nanmax(np.abs(d))))
+    d = np.where(np.abs(d) < tol, 0.0, d)
+    s = np.sign(d)
     s[s == 0] = 1
     cross_dir = int(s[-1])
     flips = np.where(s[1:] != s[:-1])[0]            # i where the sign flips between bar i and i+1

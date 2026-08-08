@@ -51,7 +51,11 @@ def _rsi(p: pd.Series, n: int = RSI_N) -> pd.Series:
     up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
     dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
     rs = up / dn.replace(0, np.nan)
-    return 100 - 100 / (1 + rs)
+    rsi = 100 - 100 / (1 + rs)
+    # All-gains window → 0/0 left RSI NaN and _analyse bailed, so the MOST overbought tape
+    # possible produced no flag (the all-losses mirror worked: RSI 0 is finite). Same patch
+    # momentum.py line ~74 already carries.
+    return rsi.where(dn != 0, 100.0)
 
 
 def _mfi(p: pd.Series, v: pd.Series, n: int = MFI_N) -> pd.Series:

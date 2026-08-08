@@ -6762,6 +6762,23 @@ def render_ta_backtester(scope: str = "ficc") -> None:
                    "(see the Universe page's rich-cheap monitor) — it will sit out of this "
                    "backtest's score.")
 
+    # --- plain-English trigger reference: how every strategy decides to buy / sell ---
+    with st.expander("📖 How each strategy decides to buy / sell", expanded=False):
+        from src.strategy_docs import TRIGGER_DOCS
+        st.caption("What each method's actual code does — distilled during the signal audit and "
+                   "locked by fixture tests (a clean textbook long must flag ▲, the mirror ▼), so "
+                   "this reference can't quietly drift from the engine. The conviction / |score| "
+                   "bar above applies ON TOP of every trigger below."
+                   + ("" if eq else " Fixed income signals compute on **yields** — a buy read "
+                      "means rising yields, which trades as **selling** the bond/STIR future."))
+        for _sname in tascore.TA_STRATEGIES:
+            _doc = TRIGGER_DOCS.get(_sname)
+            if _doc is None or (eq and _sname == "Mean Reversion"):
+                continue
+            _in_set = " · *in your current picks*" if _sname in picked else ""
+            st.markdown(f"**{_sname}** — {tascore.axis_of(_sname)} axis{_in_set}")
+            st.markdown(f"- ▲ **Buys:** {_doc['buys']}\n- ▼ **Sells:** {_doc['sells']}")
+
     t1, t2, t3 = st.columns(3)
     min_conviction = t1.number_input("Min conviction", 0, 100, int(_dflt["min_conviction"]), 5,
                                      key=f"tabt_mc{k}",
@@ -6787,7 +6804,7 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     e1, e2 = st.columns([2, 1])
     _EXIT = {"reversal": "Signal reversal — exit when the signal flips direction",
              "score_drop": "Score drop — exit once it no longer clears the bar above",
-             "hold_days": "Fixed holding period — exit N trading days after entry"}
+             "hold_days": "Fixed holding period — exit N calendar days after entry"}
     _exit_keys = list(_EXIT)
     exit_lbl = e1.radio("Exit rule", _exit_keys, format_func=_EXIT.get, key=f"tabt_exit{k}",
                         horizontal=False,
