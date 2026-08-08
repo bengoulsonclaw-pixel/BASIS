@@ -329,25 +329,49 @@ def spread_products() -> list:
                   key=lambda t: (order.get(universe.asset(t), 99), universe.name(t)))
 
 
-def spread_seasonal(ticker: str, smooth: int = 3):
-    """Weekly 1st−2nd spread LEVEL profile across the stored years: median /
-    25–75% band by week-of-year + the current year. Levels are continuous across
-    the year end, so the smoothing wraps (Dec→Jan). Returns (long df, info)."""
-    info = {"years": 0, "cur_year": None,
-            "unit": "bp" if universe.is_stir(ticker) else _SPREAD_UNITS.get(ticker, "pts")}
-    r1 = deepstore.get_raw([ticker])
-    f2 = deepstore.get_front2([ticker])
-    if r1.empty or f2.empty or ticker not in r1.columns or ticker not in f2.columns:
-        return pd.DataFrame(), info
+def spread_unit(ticker: str) -> str:
+    return "bp" if universe.is_stir(ticker) else _SPREAD_UNITS.get(ticker, "pts")
+
+
+def _spread_series(ticker: str, r1: pd.DataFrame, f2: pd.DataFrame) -> pd.Series | None:
+    """Daily 1st−2nd spread in display units (STIRs ×100 = bp), or None."""
+    if ticker not in getattr(r1, "columns", []) or ticker not in getattr(f2, "columns", []):
+        return None
     sp = (r1[ticker] - f2[ticker]).dropna()
-    if universe.is_stir(ticker):
-        sp = sp * 100.0
+    if sp.empty:
+        return None
+    return sp * 100.0 if universe.is_stir(ticker) else sp
+
+
+def _spread_pivot(sp: pd.Series) -> pd.DataFrame:
+    """Weekly-close spread levels as a woy 1..52 × iso-year matrix (wk 53 → 52)."""
     wk = sp.resample("W-FRI").last().dropna()
     iso = wk.index.isocalendar()
     d = pd.DataFrame({"y": iso["year"].astype(int).to_numpy(),
                       "w": np.minimum(iso["week"].astype(int).to_numpy(), 52),
                       "lvl": wk.to_numpy()})
-    piv = d.groupby(["w", "y"])["lvl"].last().unstack("y").reindex(range(1, 53))
+    return d.groupby(["w", "y"])["lvl"].last().unstack("y").reindex(range(1, 53))
+
+
+def _wrap_smooth(s: pd.Series, k: int) -> pd.Series:
+    """Centered rolling mean that wraps Dec→Jan (levels are continuous over year end)."""
+    wrapped = pd.concat([s, s, s]).rolling(k, center=True, min_periods=1).mean()
+    return pd.Series(wrapped.iloc[len(s):2 * len(s)].to_numpy(), index=s.index)
+
+
+def _wk_month(woy: int) -> str:
+    return (pd.Timestamp("2001-01-01") + pd.Timedelta(days=(int(woy) - 1) * 7)).strftime("%b")
+
+
+def spread_seasonal(ticker: str, smooth: int = 3):
+    """Weekly 1st−2nd spread LEVEL profile across the stored years: median /
+    25–75% band by week-of-year + the current year. Levels are continuous across
+    the year end, so the smoothing wraps (Dec→Jan). Returns (long df, info)."""
+    info = {"years": 0, "cur_year": None, "unit": spread_unit(ticker)}
+    sp = _spread_series(ticker, deepstore.get_raw([ticker]), deepstore.get_front2([ticker]))
+    if sp is None:
+        return pd.DataFrame(), info
+    piv = _spread_pivot(sp)
     cur_year = int(piv.columns.max())
     years = [c for c in piv.columns if piv[c].notna().sum() >= 40]
     info["years"] = len(years)
@@ -365,8 +389,77 @@ def spread_seasonal(ticker: str, smooth: int = 3):
     })
     if smooth and smooth > 1:               # levels ARE continuous over the year end — wrap
         for c in ("med", "p25", "p75"):
-            s = out[c]
-            wrapped = pd.concat([s, s, s]).rolling(smooth, center=True, min_periods=1).mean()
-            out[c] = wrapped.iloc[len(s):2 * len(s)].to_numpy()
+            out[c] = _wrap_smooth(out[c], smooth).to_numpy()
     out["wdate"] = pd.Timestamp("2001-01-01") + pd.to_timedelta((out["woy"] - 1) * 7, unit="D")
     return out, info
+
+
+# ── spread screener: stretch vs season + how seasonal each book is ──────────
+SEAS_Z_FLAG = 1.5      # |seasonal z| at/beyond this flags Rich/Cheap vs the calendar norm
+
+
+def spread_screener() -> pd.DataFrame:
+    """One row per chained product: today's front calendar spread scored against
+    THIS week of year's norm, plus how much of the spread's behaviour is calendar
+    in the first place.
+
+      seas_z    (now − median of weeks w−1..w+1 across complete years) / that
+                pool's σ — stretch vs the seasonal norm, not vs the recent regime
+                (that unconditional read is the Curve / RV monitor's job). The
+                ±1-week window damps roll-date drift; the current year is excluded
+                from its own norm.
+      strength  how much of the spread's behaviour is calendar: between-week
+                seasonal swing vs within-week year-to-year noise, B/(B+W) with both
+                sides IQR-based so one blowup year (NG '21, TTF '22) can't drown a
+                real seasonal shape — unitless %, so bp/¢/$ books rank fairly.
+      peak/trough  the months the smoothed profile tops (most backwardated) and
+                bottoms (deepest contango) — "when it bites".
+    """
+    tickers = spread_products()
+    if not tickers:
+        return pd.DataFrame()
+    r1 = deepstore.get_raw(tickers)
+    f2 = deepstore.get_front2(tickers)
+    rows = []
+    for t in tickers:
+        sp = _spread_series(t, r1, f2)
+        if sp is None:
+            continue
+        piv = _spread_pivot(sp)
+        asof = sp.index[-1]
+        cur_iso = int(asof.isocalendar().year)
+        years = [c for c in piv.columns if piv[c].notna().sum() >= 40 and c != cur_iso]
+        if len(years) < MIN_YEARS:
+            continue
+        now = float(sp.iloc[-1])
+        w = min(int(asof.isocalendar().week), 52)
+        win = [(w - 2) % 52 + 1, w, w % 52 + 1]
+        pool = piv.loc[piv.index.isin(win), years].to_numpy().ravel()
+        pool = pool[~np.isnan(pool)]
+        if len(pool) < MIN_YEARS:
+            continue
+        norm = float(np.median(pool))
+        sd = float(np.std(pool, ddof=1))
+        z = (now - norm) / sd if sd > 0 else float("nan")
+        med = _wrap_smooth(piv[years].median(axis=1), 3)
+        m = med.dropna()
+        between = float((np.percentile(m, 75) - np.percentile(m, 25)) ** 2)
+        wiqr = (piv[years].quantile(0.75, axis=1) - piv[years].quantile(0.25, axis=1)) ** 2
+        within = float(wiqr.median())
+        strength = (100.0 * between / (between + within)
+                    if between + within > 0 else float("nan"))
+        rows.append({
+            "ticker": t, "name": universe.name(t), "legs": spread_label(t),
+            "asset": universe.asset(t),
+            "unit": spread_unit(t), "now": now, "norm": norm, "dev": now - norm,
+            "z": z, "sd": sd, "strength": strength,
+            "peak": _wk_month(int(med.idxmax())), "trough": _wk_month(int(med.idxmin())),
+            "years": len(years), "asof": asof.date().isoformat(),
+            "signal": ("Rich vs season" if z >= SEAS_Z_FLAG else
+                       "Cheap vs season" if z <= -SEAS_Z_FLAG else "—") if z == z else "—",
+        })
+    if not rows:
+        return pd.DataFrame()
+    return (pd.DataFrame(rows)
+            .sort_values("z", key=lambda c: c.abs(), ascending=False)
+            .reset_index(drop=True))
