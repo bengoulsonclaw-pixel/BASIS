@@ -25,6 +25,9 @@ happened to show; nothing here is a forecast. No Streamlit — the page drives t
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -45,6 +48,29 @@ _SPREAD_UNITS = {"CLA Comdty": "$/bbl", "COA Comdty": "$/bbl", "NGA Comdty": "$/
 def unit_of(tkr: str) -> str:
     """'bp' for FI (yield/rate space), '%' otherwise."""
     return "bp" if universe.is_fixed_income(tkr) else "%"
+
+
+# ── page defaults (data/seasonality.json) ───────────────────────────────────
+DEFAULTS_FILE = Path(__file__).resolve().parents[1] / "data" / "seasonality.json"
+
+
+def default_sectors() -> list:
+    """The saved startup sector selection for the Seasonality page. [] = all sectors —
+    the file stores an explicit subset only, so a page that shows nothing at launch is
+    impossible (the sector-filter all-off lesson)."""
+    try:
+        saved = json.loads(DEFAULTS_FILE.read_text(encoding="utf-8")).get("sectors", [])
+        return [s for s in saved if s in universe.ASSET_CLASSES]
+    except Exception:
+        return []
+
+
+def save_default_sectors(sectors) -> None:
+    """Persist the startup sector selection; pass [] (or everything) to reset to all."""
+    DEFAULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DEFAULTS_FILE.write_text(json.dumps(
+        {"sectors": [s for s in sectors if s in universe.ASSET_CLASSES]}, indent=2),
+        encoding="utf-8")
 
 
 def load_frames(tickers) -> dict:
