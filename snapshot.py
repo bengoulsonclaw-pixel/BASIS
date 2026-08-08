@@ -346,6 +346,19 @@ def _fetch_phase() -> dict | None:
     except Exception as e:
         print(f"  (own-curve marks fetch skipped: {e})")
 
+    # Own-SKEW history backfill DRIP (Ben, 2026-08-08): ~8 products per morning keeps
+    # the extra Bloomberg footprint at ~8-12k requests (vs the ~70k one-shot that once
+    # tripped the daily cap). Must run HERE in the fetch phase — it pulls settlement
+    # histories for constructed wing tickers. Self-completing: returns 0 when the whole
+    # book has a year of skew history, after which this block is a no-op.
+    try:
+        from src import owncurve
+        n = owncurve.skew_backfill_drip(log=lambda *a: None)
+        if n:
+            print(f"  Own-skew backfill drip: {n} product(s) reconstructed this morning")
+    except Exception as e:
+        print(f"  (own-skew drip skipped: {e})")
+
     # The DATA SOURCE is a property of the FETCH, not of whatever env the compute phase
     # later runs in (a compute run without DATAFEED_MODE once relabelled a real bloomberg
     # snapshot as "mock", flipping the app into demo-mode warnings). Persist it here.

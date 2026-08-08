@@ -705,12 +705,22 @@ def _skew_charts(threshold):
     if d.empty:
         st.caption("No markets match the current Home-page sector filter.")
         return
+    try:
+        from src import owncurve as _oc
+        _done, _tot = _oc.skew_backfill_progress()
+        _rem = _oc.skew_backfill_remaining()
+        _prog = ("**The own history needs backfilling** before this page can switch source."
+                 if _tot == 0 else
+                 f"**Backfill in progress — {_done}/{_tot} wing-capable products carry a full "
+                 f"year, {_rem} still queued** (~8 each morning)." if _rem > 0 else
+                 f"**Backfill finished ({_done}/{_tot} with a full year)** — awaiting validation "
+                 f"+ switchover (a banner on Home will say so).")
+    except Exception:
+        _prog = "**The own history needs backfilling** before this page can switch source."
     st.caption("⚠️ This page still runs on the **vendor surface's** 90/110% moneyness wings. Since "
                "28 Jul 2026 we also record **our own settlement-built skew** daily (same Black-76 "
                "machinery as the Volatility/Term pages — OTM put at 0.90×F, OTM call at 1.10×F, "
-               "interpolated to constant 30d; `data/snapshot/own_skew_history.parquet`). **The own "
-               "history needs backfilling at some point** before this page can switch source — until "
-               "then it accrues one settle per day as a validation trail.")
+               "interpolated to constant 30d; `data/snapshot/own_skew_history.parquet`). " + _prog)
     thr = float(threshold) if threshold is not None else 1.5
     d["flag"] = np.where(d["z"] >= thr, "Rich — sell skew",
                 np.where(d["z"] <= -thr, "Cheap — buy skew", "Neutral"))
@@ -1612,8 +1622,40 @@ def _render_corr_break_banner() -> None:
                + " · ".join(tops) + more + ". See the correlation maps below.")
 
 
+def _render_skew_backfill_banner() -> None:
+    """One-time green Home banner the morning the own-skew backfill drip completes
+    (Ben asked for an in-app notification, 2026-08-08). Dismiss persists to disk so
+    it never nags; fails silent — a data hiccup must not block the Home page."""
+    ack = SNAPSHOT_DIR.parent / "skew_backfill_ack.json"
+    if ack.exists():
+        return
+    try:
+        from src import owncurve
+        done, total = owncurve.skew_backfill_progress()
+        remaining = owncurve.skew_backfill_remaining()
+    except Exception:
+        return
+    if total == 0 or remaining > 0:
+        return
+    c1, c2 = st.columns([5.2, 0.8])
+    c1.success(f"🎉 **Own-skew backfill finished** — {done} of {total} wing-capable products "
+               "carry a full year of our settlement-built skew history"
+               + ("" if done == total else
+                  f"; the other {total - done} (quarterly expiries / sparse wings) reconstructed "
+                  "all their listed marks allow")
+               + ". The Skew page still runs on the vendor surface: next step is validation + "
+               "the switchover, whenever you say the word.")
+    if c2.button("Dismiss", key="skew_backfill_ack", use_container_width=True):
+        try:
+            ack.write_text('{"acknowledged": true}')
+        except Exception:
+            pass
+        st.rerun()
+
+
 def render_home() -> None:
     render_report_banner()
+    _render_skew_backfill_banner()
     snap = _load_snap()
 
     # (world clocks moved to the fixed top bar — rendered on every page)

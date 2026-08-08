@@ -704,6 +704,244 @@ def backfill_product(generic: str, start: pd.Timestamp, end: pd.Timestamp, log=p
     return ser
 
 
+def backfill_skew_product(generic: str, start: pd.Timestamp, end: pd.Timestamp, log=print):
+    """Daily constant-30d wing vols (put90 / call110) for one product over [start, end],
+    reconstructed from settlement prices of CONSTRUCTED wing-strike tickers. Cheaper
+    than the ATM backfill per product: only the two moneyness BANDS are pulled (puts
+    0.87–0.93×range, calls 1.07–1.13×range), and the ATM denominator comes free from
+    own30_history. Returns (date, put, call, atm, skew) after the same warm-up trim
+    and collapse filter as the ATM reconstruction."""
+    conv = learn_conventions(generic)
+    prefix, suffix, step = conv["prefix"], conv["suffix"], conv["step"]
+    if prefix is None or step is None or not conv["cycle"]:
+        log("    conventions not learnable — skipped")
+        return pd.DataFrame()
+    cycle = sorted(_CODE_MONTH[c] for c in conv["cycle"])
+    serials = sorted(_CODE_MONTH[c] for c in conv["serial_months"])
+    dps = conv["strike_fmts"] or {1}
+
+    stems = []
+    m = pd.Timestamp(start).to_period("M")
+    while m <= pd.Timestamp(end).to_period("M") + 14:
+        mm, yy = m.month, m.year
+        if mm in cycle or mm in serials:
+            und_m = min((c for c in cycle if c >= mm), default=None)
+            und_y = yy
+            if und_m is None:
+                und_m, und_y = min(cycle), yy + 1
+            oy, fy = conv.get("opt_yd", 1), conv.get("fut_yd", 1)
+            stems.append((f"{prefix}{_MONTH_CODE[mm]}{yy % 100 if oy == 2 else yy % 10}",
+                          f"{prefix}{_MONTH_CODE[und_m]}"
+                          f"{und_y % 100 if fy == 2 else und_y % 10} {suffix}"))
+        m += 1
+    und_needed = sorted({u for _, u in stems})
+    upx = _bdh_safe(und_needed, "PX_SETTLE", f"{start:%Y-%m-%d}", f"{end:%Y-%m-%d}", chunk=15)
+
+    def _band(lo_f, hi_f):
+        lo = math.floor(lo_f / step) * step
+        hi = math.ceil(hi_f / step) * step
+        n = int(round((hi - lo) / step)) + 1
+        s_use = step * math.ceil(n / 40) if n > 40 else step   # cap ~40 strikes per band
+        n = int(round((hi - lo) / s_use)) + 1
+        return [round(lo + i * s_use, 6) for i in range(n)]
+
+    pillars_by_date: dict = {}
+    for stem, und in stems:
+        if und not in getattr(upx, "columns", []):
+            continue
+        f_s = upx[und].dropna()
+        if f_s.empty:
+            continue
+        k0 = round(round(float(f_s.median()) / step) * step, 6)
+        exp = None
+        for ks in _fmt_strike(k0, dps):
+            exp = _bdp(f"{stem}C {ks} {suffix}", "OPT_EXPIRE_DT")
+            if exp is not None:
+                break
+        if exp is None:
+            continue
+        exp = pd.Timestamp(exp)
+        win = f_s[(f_s.index < exp) & (f_s.index >= exp - pd.Timedelta(days=220))]
+        if win.empty:
+            continue
+        lo_w, hi_w = float(win.min()), float(win.max())
+        legs = {"P": _band(SKEW_WINGS[0] * lo_w * 0.97, SKEW_WINGS[0] * hi_w * 1.03),
+                "C": _band(SKEW_WINGS[1] * lo_w * 0.97, SKEW_WINGS[1] * hi_w * 1.03)}
+        tks = {}
+        for cp, grid in legs.items():
+            for k in grid:
+                for ks in _fmt_strike(k, dps):
+                    tks[(cp, k, ks)] = f"{stem}{cp} {ks} {suffix}"
+        w = _bdh_safe(list(tks.values()), "PX_LAST",
+                      f"{win.index[0]:%Y-%m-%d}", f"{min(win.index[-1], exp):%Y-%m-%d}", chunk=25)
+        cols = set(getattr(w, "columns", []))
+
+        def _leg(dt, F, dte, cp, target):
+            for k in sorted(legs[cp], key=lambda x: abs(x - target * F))[:3]:
+                if abs(k / F - target) > WING_TOL:
+                    break
+                for ks in _fmt_strike(k, dps):
+                    tk = tks.get((cp, k, ks))
+                    if tk in cols:
+                        v = w[tk].get(dt)
+                        if pd.notna(v):
+                            iv = implied_vol_price(float(v), F, k, dte, cp == "C")
+                            return iv if iv is not None and iv > 0.5 else None
+                        break
+            return None
+
+        for dt, F in win.items():
+            dte = (exp - dt).days
+            if dte < MIN_DTE:
+                continue
+            F = float(F)
+            pw = _leg(dt, F, dte, "P", SKEW_WINGS[0])
+            cw = _leg(dt, F, dte, "C", SKEW_WINGS[1])
+            if pw is not None and cw is not None:
+                pillars_by_date.setdefault(dt, []).append((dte, pw, cw))
+
+    rows = {}
+    for dt, pil in pillars_by_date.items():
+        pil = sorted(pil)[:N_EXPIRIES]
+        if len(pil) < 2:
+            continue
+        p30 = interp_variance([(d, pv, 1.0) for d, pv, _ in pil], 30.0)
+        c30 = interp_variance([(d, cv, 1.0) for d, _, cv in pil], 30.0)
+        if p30 is not None and c30 is not None:
+            rows[dt] = (round(p30, 2), round(c30, 2))
+    if not rows:
+        log("    no wing pillars reconstructed")
+        return pd.DataFrame()
+    out = pd.DataFrame(rows.values(), index=pd.DatetimeIndex(rows.keys()),
+                       columns=["put", "call"]).sort_index()
+
+    # denominator: the already-backfilled ATM 30d, joined per settle date
+    try:
+        atm = pd.read_parquet(HISTORY_FILE)
+        atm = atm[atm["ticker"] == generic].assign(date=lambda d: pd.to_datetime(d["date"]))
+        out = out.join(atm.set_index("date")["ours30"].rename("atm"), how="inner")
+    except Exception:
+        return pd.DataFrame()
+    out = out[out["atm"] > 0]
+    out["skew"] = ((out["put"] - out["call"]) / out["atm"]).round(4)
+
+    out = out.iloc[21:]                                   # strike-grid warm-up trim
+    med = out["put"].rolling(21, center=True, min_periods=5).median()
+    out = out[~(out["put"] < 0.35 * med)]                 # single-day fit collapses
+    log(f"    {len(out)} daily skew points"
+        + (f", last {out['skew'].iloc[-1]:+.3f}" if len(out) else ""))
+    return out
+
+
+SKEW_ATTEMPTS_FILE = ROOT / "data" / "snapshot" / "own_skew_backfill_attempts.json"
+MAX_SKEW_ATTEMPTS = 2      # a product gets two full tries; quarterly/thin-wing books
+                           # legitimately max out below a year — validation judges them
+
+
+def _skew_attempts() -> dict:
+    try:
+        import json
+        return json.loads(SKEW_ATTEMPTS_FILE.read_text())
+    except Exception:
+        return {}
+
+
+def _wing_capable() -> list:
+    try:
+        book = pd.read_parquet(OUT_FILE)
+        return (list(book[book["n_skew_pillars"] >= 2]["ticker"])
+                if "n_skew_pillars" in book.columns else list(book["ticker"]))
+    except Exception:
+        return []
+
+
+def skew_backfill_progress() -> tuple:
+    """(products with a full year of own skew history, wing-capable products in the
+    book) — shared by the app's progress note and the Home banner."""
+    tickers = _wing_capable()
+    if not tickers:
+        return 0, 0
+    try:
+        h = pd.read_parquet(SKEW_HISTORY_FILE)
+        counts = h.groupby("ticker")["date"].nunique()
+    except Exception:
+        counts = pd.Series(dtype=int)
+    return sum(1 for t in tickers if int(counts.get(t, 0)) >= 120), len(tickers)
+
+
+def skew_backfill_remaining() -> int:
+    """Products the drip still intends to work on: under a year of history AND not
+    yet retried out. 0 = the drip is finished (some products legitimately below a
+    full year — quarterly expiries / sparse wings reconstruct all they can)."""
+    tickers = _wing_capable()
+    if not tickers:
+        return 0
+    try:
+        h = pd.read_parquet(SKEW_HISTORY_FILE)
+        counts = h.groupby("ticker")["date"].nunique()
+    except Exception:
+        counts = pd.Series(dtype=int)
+    att = _skew_attempts()
+    return sum(1 for t in tickers
+               if int(counts.get(t, 0)) < 120 and int(att.get(t, 0)) < MAX_SKEW_ATTEMPTS)
+
+
+def skew_backfill_drip(max_products: int = 8, min_days_done: int = 120,
+                       start: str = "2025-06-16", log=print) -> int:
+    """Backfill a FEW products' skew history per morning (Ben, 2026-07-28: keep the
+    daily Bloomberg footprint small — ~8 products ≈ 8-12k requests, vs the ~70k
+    single-day pull that once tripped the cap). Runs after the snapshot's own-curve
+    append; picks the next unfinished products and stops. Returns products done this
+    run (0 = backfill complete). Products whose LIVE build finds no wings (bonds —
+    ±10%-moneyness strikes carry no real marks) are excluded rather than retried."""
+    try:
+        book = pd.read_parquet(OUT_FILE)
+    except Exception:
+        return 0
+    tickers = list(book["ticker"])
+    if "n_skew_pillars" in book.columns:                  # live-build evidence of wings
+        tickers = list(book[book["n_skew_pillars"] >= 2]["ticker"])
+    try:
+        h = pd.read_parquet(SKEW_HISTORY_FILE)
+        counts = h.groupby("ticker")["date"].nunique()
+    except Exception:
+        counts = pd.Series(dtype=int)
+    att = _skew_attempts()
+    todo = [t for t in tickers
+            if int(counts.get(t, 0)) < min_days_done
+            and int(att.get(t, 0)) < MAX_SKEW_ATTEMPTS][:max_products]
+    if not todo:
+        return 0
+    end, done = _settle_date(), 0
+    for t in todo:
+        att[t] = int(att.get(t, 0)) + 1                # count the try BEFORE running:
+        try:                                            # a crash must not retry forever
+            import json
+            SKEW_ATTEMPTS_FILE.write_text(json.dumps(att, indent=0))
+        except Exception:
+            pass
+        try:
+            df = backfill_skew_product(t, pd.Timestamp(start), end, log=log)
+        except Exception as e:
+            log(f"    skew drip {t}: FAILED {type(e).__name__}: {e}")
+            continue
+        if df is None or df.empty:
+            continue
+        rows = df.reset_index().rename(columns={"index": "date"})
+        rows["ticker"] = t
+        try:
+            old = pd.read_parquet(SKEW_HISTORY_FILE)
+            old["date"] = pd.to_datetime(old["date"])
+            rows = pd.concat([rows, old], ignore_index=True)   # live rows win on collision
+            rows = rows.drop_duplicates(subset=["ticker", "date"], keep="last")
+        except Exception:
+            pass
+        rows.sort_values(["ticker", "date"]).to_parquet(SKEW_HISTORY_FILE, index=False)
+        done += 1
+    log(f"    skew drip: {done}/{len(todo)} products backfilled this run")
+    return done
+
+
 def _settle_date() -> pd.Timestamp:
     """The settle date our curve's inputs belong to — the snapshot's last price date
     (the inversion runs on PX_SETTLE). Stamping rows with THIS date lets the values
