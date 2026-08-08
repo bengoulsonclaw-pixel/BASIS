@@ -7321,6 +7321,7 @@ def render_signal_ledger() -> None:
         wl_cols = [_wlbl[label] for _, label in sigledger.WINDOWS]
         wnum = pd.DataFrame({
             "Strategy": wl["strategy"].to_numpy(),
+            "Category": wl["strategy"].map(tascore.axis_tag).to_numpy(),
             "Signals": wl["n Full"].to_numpy(),
             **{_wlbl[label]: wl[label].to_numpy() for _, label in sigledger.WINDOWS},
             f"Δ 1y vs full": wl["delta"].to_numpy(),
@@ -7349,7 +7350,10 @@ def render_signal_ledger() -> None:
         hit_cols = [f"Hit {h}d" for h in sigledger.HORIZONS]
         sig_cols = [f"σ-move {h}d" for h in sigledger.HORIZONS]
         num = pd.DataFrame({
-            by: lg.iloc[:, 0].to_numpy(), "Signals": lg["n"].to_numpy(),
+            by: lg.iloc[:, 0].to_numpy(),
+            **({"Category": lg.iloc[:, 0].map(tascore.axis_tag).to_numpy()}
+               if by == "Strategy" else {}),
+            "Signals": lg["n"].to_numpy(),
             **{f"Hit {h}d": lg[f"hit{h}"].to_numpy() for h in sigledger.HORIZONS},
             **{f"σ-move {h}d": lg[f"sig{h}"].to_numpy() for h in sigledger.HORIZONS},
         })

@@ -52,6 +52,25 @@ assert {s for methods in TA_AXES.values() for s in methods} == set(TA_STRATEGIES
 
 _AXIS_OF = {s: ax for ax, methods in TA_AXES.items() for s in methods}
 
+# Compact per-axis marker + short label for table cells (the full axis names above stay
+# the pickers' / report's vocabulary — these are for tight columns like the ledger leagues).
+AXIS_TAGS = {
+    "Trend": "📈 Trend",
+    "Momentum / Oscillators": "🌀 Momentum",
+    "Volume": "📊 Volume",
+    "Support & Resistance": "📏 S&R",
+    "Patterns & Breakouts": "🚩 Patterns",
+}
+
+
+def axis_tag(strategy: str) -> str:
+    """Marker + short axis label for `strategy` ('📈 Trend', …); the confluence composite
+    (not a method, so not in any axis) gets its own 🧭 tag, anything else unknown its name."""
+    ax = _AXIS_OF.get(strategy)
+    if ax is not None:
+        return AXIS_TAGS[ax]
+    return "🧭 Composite" if strategy == "Confluence" else strategy
+
 
 def axis_of(strategy: str) -> str:
     """The axis a strategy sits in — or its own name if ungrouped, so an unknown method
