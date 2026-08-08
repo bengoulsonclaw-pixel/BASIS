@@ -1,0 +1,12 @@
+{
+  "groups": [
+    "Rates \u2014 Curve",
+    "Rates \u2014 Cross-market",
+    "STIR Calendars",
+    "Energy",
+    "Metals"
+  ],
+  "window": 252,
+  "threshold": 2.0,
+  "sort": "Term"
+}

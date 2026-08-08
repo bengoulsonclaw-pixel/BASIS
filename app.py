@@ -7669,6 +7669,17 @@ def _cm_chart(key: str, window: int, threshold: float, years, mode: str, rev: in
     return curvemon.spread_chart_data(key, window, threshold, years=years)
 
 
+_CM_PREFS = ROOT / "data" / "curvemon_prefs.json"
+
+
+def _cm_load_prefs() -> dict:
+    """Saved page defaults (groups / window / threshold / sort) from 📌 Set as default."""
+    try:
+        return json.loads(_CM_PREFS.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def render_curve_monitor() -> None:
     import altair as alt
 
@@ -7681,20 +7692,33 @@ def render_curve_monitor() -> None:
         "decade has shown). Levels are real market observables — actual front prices and "
         "benchmark yields, never back-adjusted continuations.")
 
-    c0, c1, c2, c3 = st.columns([1.15, 0.85, 1.6, 1.0])
-    win_lbl = c0.selectbox("Z-score window",
-                           ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"],
-                           index=2, key="cm_window",
+    prefs = _cm_load_prefs()
+    _win_opts = ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"]
+    _win_idx = next((i for i, o in enumerate(_win_opts)
+                     if f"({prefs.get('window')}d)" in o), 2)
+    _def_groups = [g for g in prefs.get("groups", curvemon.GROUPS) if g in curvemon.GROUPS] \
+        or curvemon.GROUPS
+
+    c0, c1, c2, c3 = st.columns([1.15, 0.85, 1.6, 1.0], vertical_alignment="bottom")
+    win_lbl = c0.selectbox("Z-score window", _win_opts, index=_win_idx, key="cm_window",
                            help="Sessions behind the rolling mean/σ the z-score measures against. "
                                 "The 10-year percentile always uses the full store.")
     window = int(win_lbl.split("(")[1].rstrip("d)"))
-    threshold = float(c1.number_input("Flag threshold (σ)", 0.5, 4.0, curvemon.Z_THRESHOLD,
+    threshold = float(c1.number_input("Flag threshold (σ)", 0.5, 4.0,
+                                      float(prefs.get("threshold", curvemon.Z_THRESHOLD)),
                                       0.25, key="cm_thr"))
-    groups = c2.multiselect("Groups", curvemon.GROUPS, default=curvemon.GROUPS, key="cm_groups")
-    sort_by = c3.radio("Sort", ["Term", "Country", "A–Z"], horizontal=True, key="cm_sort",
-                       help="Term = like-for-like, each tenor pair's two markets adjacent, "
-                            "short end to long end. Country = US block then Germany. "
-                            "A–Z = alphabetical. (The curve group is where they differ.)")
+    groups = c2.multiselect("Groups", curvemon.GROUPS, default=_def_groups, key="cm_groups")
+    if c3.button("📌 Set as default", key="cm_setdef", use_container_width=True,
+                 help="Save the current groups, window, threshold and sort as this page's "
+                      "startup defaults (e.g. to drop sectors you don't watch)."):
+        try:
+            _CM_PREFS.write_text(json.dumps({
+                "groups": groups, "window": window, "threshold": threshold,
+                "sort": st.session_state.get("cm_sort", "Term"),
+            }, indent=2), encoding="utf-8")
+            st.toast("Saved — the Curve Monitor will open like this from now on.", icon="📌")
+        except Exception as e:
+            st.warning(f"Couldn't save defaults: {e}")
 
     mon = _cm_monitor(window, threshold, MODE, curvemon.REV)
     if mon is None or mon.empty:
@@ -7703,13 +7727,6 @@ def render_curve_monitor() -> None:
         return
     if groups:
         mon = mon[mon["group"].isin(groups)]
-    if sort_by == "A–Z":
-        mon = mon.sort_values("name", kind="stable")
-    elif sort_by == "Country" and "mkt" in mon.columns:
-        _mkt_rank = {"US": 0, "Germany": 1}      # ladder markets first, cross-market/box after
-        mon = mon.sort_values("mkt", key=lambda c: c.map(lambda m: _mkt_rank.get(m, 99)),
-                              kind="stable")
-    # "Term" = the engine's book order: tenor pairs short-to-long, markets adjacent
 
     flagged = mon[mon["signal"] != "—"]
     if not flagged.empty:
@@ -7719,6 +7736,21 @@ def render_curve_monitor() -> None:
     st.caption("★ = the pair that market's desk actually quotes (US 2s10s & 5s30s; Germany "
                "2s10s & 10s30s — the euro long end trades off the Bund). Hover any spread's "
                "name for what it is.")
+
+    _sort_opts = ["Term", "Country", "A–Z"]
+    _sort_idx = _sort_opts.index(prefs["sort"]) if prefs.get("sort") in _sort_opts else 0
+    s0, _s1 = st.columns([1.3, 2.7])
+    sort_by = s0.radio("Sort", _sort_opts, index=_sort_idx, horizontal=True, key="cm_sort",
+                       help="Term = like-for-like, each tenor pair's two markets adjacent, "
+                            "short end to long end. Country = US block then Germany. "
+                            "A–Z = alphabetical. (The curve group is where they differ.)")
+    if sort_by == "A–Z":
+        mon = mon.sort_values("name", kind="stable")
+    elif sort_by == "Country" and "mkt" in mon.columns:
+        _mkt_rank = {"US": 0, "Germany": 1}      # ladder markets first, cross-market/box after
+        mon = mon.sort_values("mkt", key=lambda c: c.map(lambda m: _mkt_rank.get(m, 99)),
+                              kind="stable")
+    # "Term" = the engine's book order: tenor pairs short-to-long, markets adjacent
 
     _cols = [
         {"key": "name", "label": "Spread"},
