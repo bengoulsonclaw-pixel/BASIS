@@ -1761,22 +1761,35 @@ def render_home() -> None:
                       "the banner tells you when you can close it — then the maths (own-vol "
                       "curve, COT, signals) runs Terminal-free. Equities have their own pull "
                       "on the Equities home page."):
-        # Same-day guard: a re-pull re-spends thousands of Bloomberg hits (the daily-capacity
-        # budget) for near-identical data, so it asks first.
+        # Pull guard (src/pullguard.py): pre-flight review-risk check — new securities,
+        # weekend/off-hours timing, same-day re-pull. Any flag -> warn + confirm before a
+        # single hit is spent (Bloomberg's -4002 workflow reviews trigger on usage SHAPE).
         _today = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
-        if str((snap or {}).get("created", ""))[:10] == _today:
-            st.session_state["ficc_pull_confirm"] = True
+        try:
+            from src import pullguard
+            _pw = pullguard.assess(same_day=str((snap or {}).get("created", ""))[:10] == _today)
+        except Exception:
+            _pw = (["⚡ Snapshot already pulled today — a re-pull re-spends the day's "
+                    "Bloomberg allowance on near-identical data."]
+                   if str((snap or {}).get("created", ""))[:10] == _today else [])
+        if _pw:
+            st.session_state["ficc_pull_confirm"] = _pw
         else:
             st.session_state["ficc_pull_go"] = True
     if IS_ADMIN and c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
                  help="Recompute all strategies from the current data — instant in snapshot mode."):
         st.session_state["rerun_signals_go"] = True
     if IS_ADMIN and st.session_state.get("ficc_pull_confirm"):
-        st.warning(f"⚡ Snapshot **already pulled today** ({_to_et((snap or {}).get('created', ''))}). "
-                   "Pulling again re-spends the day's Bloomberg data allowance on near-identical "
-                   "data — worth it only if the first pull was bad or markets have moved a lot.")
+        _pw = st.session_state["ficc_pull_confirm"]
+        _pw = _pw if isinstance(_pw, list) else []       # legacy True from a hot-reload
+        st.warning("**This pull has Bloomberg review-risk flags** — their -4002 workflow "
+                   "reviews trigger on unusual usage patterns, and this pull would look "
+                   "unusual:\n\n" + "\n\n".join(f"- {w}" for w in _pw)
+                   if _pw else
+                   f"⚡ Snapshot **already pulled today** ({_to_et((snap or {}).get('created', ''))}).")
         _g1, _g2, _ = st.columns([1.4, 1, 3.6])
-        if _g1.button("Pull again anyway", key="ficc_pull_anyway"):
+        if _g1.button("Pull anyway", key="ficc_pull_anyway",
+                      help="Proceed knowingly — the flags above are warnings, not blocks."):
             st.session_state.pop("ficc_pull_confirm", None)
             st.session_state["ficc_pull_go"] = True
         if _g2.button("Cancel", key="ficc_pull_cancel"):
