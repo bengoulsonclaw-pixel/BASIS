@@ -1652,6 +1652,45 @@ def _render_skew_backfill_banner() -> None:
         st.rerun()
 
 
+def render_weekly_review() -> None:
+    """🗞️ Weekly Review — build/preview the cross-module Monday wrap (src/weekreview.py).
+    Ad-hoc builds here never roll the weekly-delta baseline (the scheduled Monday email
+    passes --baseline), so kicking the tyres never eats the week's 'new this week' tags."""
+    st.subheader("🗞️ Weekly Review")
+    st.caption("The exception-based Monday wrap: one line per flag past its home module's own "
+               "live threshold — vol, curve/RV, positioning, technicals, correlation breaks, "
+               "seasonal windows and metals flows — with the technical scorecard folded in and "
+               "the release calendar. The review adds no analysis of its own. Also available as "
+               "a scheduled Monday email (Recipients → Alert settings).")
+    b1, b2 = st.columns([1, 3])
+    _ai = b2.toggle("AI-polish the intro (desk voice; template fallback offline)",
+                    value=True, key="wr_ai")
+    if b1.button("🗞️ Build the Weekly Review (PDF)", type="primary", key="wr_build"):
+        with st.spinner("Collecting the week's flags from every module…"):
+            _out = ROOT / "data" / "Weekly_Review.pdf"
+            cmd = [sys.executable, str(ROOT / "src" / "weekreview.py"), str(_out),
+                   "--asof", datetime.now().strftime("%d %b %Y")]
+            if not _ai:
+                cmd.append("--no-ai")
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            if r.returncode == 0 and _out.exists():
+                st.session_state["wr_pdf"] = _out.read_bytes()
+            else:
+                st.session_state["wr_pdf"] = None
+                st.error("Weekly Review failed:\n\n" + (r.stderr or r.stdout or "no output")[-2000:])
+    if st.session_state.get("wr_pdf"):
+        st.download_button("⬇️ Download Weekly_Review.pdf", data=st.session_state["wr_pdf"],
+                           file_name="Weekly_Review.pdf", mime="application/pdf", key="wr_dl")
+        email_report_ui("wr_email", "weekreview", st.session_state["wr_pdf"],
+                        subject="BASIS Weekly Review",
+                        attachment_name="Weekly_Review.pdf")
+        try:
+            for img in _pdf_page_images(st.session_state["wr_pdf"]):
+                st.image(img, use_container_width=True)
+        except Exception as _e:
+            st.caption(f"(Inline preview needs pypdfium2 — {_e})")
+
+
 def render_home() -> None:
     render_report_banner()
     _render_skew_backfill_banner()
@@ -1660,10 +1699,14 @@ def render_home() -> None:
     # (world clocks moved to the fixed top bar — rendered on every page)
     render_sector_filter()
     st.subheader("Data")
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c4.button("☕  Morning Coffee", use_container_width=True, key="home_mc",
               on_click=_go, args=("Morning Coffee",),
               help="The morning report — overnight moves, levels and the day ahead.")
+    c5.button("🗞️  Weekly Review", use_container_width=True, key="home_wr",
+              on_click=_go, args=("Weekly Review",),
+              help="The Monday wrap — what every module's own thresholds flagged this week, "
+                   "with the technical scorecard folded in.")
     def _run_ficc_pull():
         # TWO PHASES so the Terminal only needs to be open for the short one:
         # fetch (Bloomberg, ~3-5 min) -> banner flips to "close the Terminal" ->
@@ -9245,6 +9288,8 @@ if active == "Technical Analysis":
     render_ta_overview(); st.stop()
 if active == "Morning Coffee":
     render_morning_coffee(); st.stop()
+if active == "Weekly Review":
+    render_weekly_review(); st.stop()
 if active == "Market Hours":
     render_market_hours(); st.stop()
 if active == "Block Sizes":
