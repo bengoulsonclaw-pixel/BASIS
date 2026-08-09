@@ -67,10 +67,14 @@ PM_STALE_DAYS = 45          # PM monitor is monthly; drop the section if it's go
 # ---------------------------------------------------------------------------
 # bullet plumbing
 # ---------------------------------------------------------------------------
-def _bullet(tag: str, key: str, text: str) -> dict:
+def _bullet(tag: str, key: str, text: str, metric: str = "", sub: str = "",
+            bar: float | None = None) -> dict:
     """`key` identifies the same story across editions (for the new/repeat badge);
-    `text` may carry **bold** markers."""
-    return {"tag": tag, "key": f"{tag}:{key}", "text": text}
+    `text` may carry **bold** markers. `metric`/`sub` is the flag's headline number,
+    pulled out of the prose and set in its own right-hand column; `bar` (0-1) draws
+    the small gauge under it."""
+    return {"tag": tag, "key": f"{tag}:{key}", "text": text, "metric": metric, "sub": sub,
+            "bar": (max(0.05, min(1.0, bar)) if bar is not None else None)}
 
 
 def _md2html(s: str) -> str:
@@ -101,8 +105,8 @@ def collect_vol() -> list:
     out = []
     for r in fl.itertuples(index=False):
         side = "rich" if r.direction < 0 else "cheap"
-        txt = (f"**{r.market}** implied vol screens **{side}** — IV−RV spread z "
-               f"**{r.z:+.1f}** ({ordinal(int(round(r.pctl)))} percentile of the year); "
+        txt = (f"**{r.market}** implied vol screens **{side}** — "
+               f"{ordinal(int(round(r.pctl)))} percentile of the year; "
                f"1σ daily move ≈ {_fmt(r.iv_sd, int(min(r.px_dec, 2)))} points.")
         if peers_cm is not None:
             try:
@@ -123,7 +127,9 @@ def collect_vol() -> list:
                             + (", screening the other way)." if opp else ")."))
             except Exception:
                 pass
-        out.append(_bullet("VOL", f"{r.ticker}:{side}", txt))
+        out.append(_bullet("VOL", f"{r.ticker}:{side}", txt,
+                           metric=f"z {r.z:+.1f}", sub="IV−RV spread, 1y",
+                           bar=abs(r.z) / 4.0))
     # STIR book, same bar, bp units
     try:
         stir = pd.read_parquet(SIG_DIR / "stirvol.parquet")
@@ -133,8 +139,10 @@ def collect_vol() -> list:
                 break
             side = "rich" if r.direction < 0 else "cheap"
             out.append(_bullet("VOL", f"{r.ticker}:{side}",
-                               f"**{r.market}** rate vol screens **{side}** — spread z "
-                               f"**{r.z:+.1f}**; 1σ daily move ≈ {_fmt(r.iv_bp)} bp."))
+                               f"**{r.market}** rate vol screens **{side}** — "
+                               f"1σ daily move ≈ {_fmt(r.iv_bp)} bp.",
+                               metric=f"z {r.z:+.1f}", sub="IV−RV spread, 1y",
+                               bar=abs(r.z) / 4.0))
     except Exception:
         pass
     return out
@@ -149,10 +157,13 @@ def collect_curve() -> list:
     fl = fl.reindex(fl["z"].abs().sort_values(ascending=False).index).head(CURVE_MAX)
     out = []
     for r in fl.itertuples(index=False):
-        pct = f", {ordinal(int(round(r.pctl)))} percentile of the stored history" if r.pctl == r.pctl else ""
+        pct = (f" — {ordinal(int(round(r.pctl)))} percentile of the stored history"
+               if r.pctl == r.pctl else "")
         out.append(_bullet("CURVE", f"{r.key}:{r.signal}",
                            f"**{r.name}** screens **{r.signal.lower()}** at {_fmt(r.level, r.dp)} "
-                           f"{r.unit} — z **{r.z:+.1f}**{pct}."))
+                           f"{r.unit}{pct}.",
+                           metric=f"z {r.z:+.1f}", sub="vs its 1y band",
+                           bar=abs(r.z) / 4.0))
     return out
 
 
@@ -167,15 +178,19 @@ def collect_cot() -> list:
         side = "long" if r.direction > 0 else "short"
         out.append(_bullet("COT", f"{r.ticker}:{side}",
                            f"**{r.market}** {r.category.lower()} positioning is **crowded "
-                           f"{side}** — COT index **{r.cot_index:.0f}**, net "
-                           f"{r.net_pct_oi:+.0f}% of open interest ({r.date:%d %b})."))
+                           f"{side}** — net {r.net_pct_oi:+.0f}% of open interest "
+                           f"({r.date:%d %b}).",
+                           metric=f"idx {r.cot_index:.0f}", sub="COT index, 0–100",
+                           bar=abs(r.cot_index - 50.0) / 50.0))
     try:
         from src import cotreport
         for s in cotreport._weekly_shifts(detail, hist)[:COT_SHIFT_MAX]:
             out.append(_bullet("COT", f"shift:{s['market']}",
                                f"**{s['market']}**: the week's net positioning move was "
                                f"**{s['chg']:+,.0f}** contracts ({s['pct']:+.1f}% of open "
-                               f"interest, {s['z']:+.1f}σ against three years of weekly moves)."))
+                               f"interest).",
+                               metric=f"{s['z']:+.1f}σ", sub="vs 3y of weekly moves",
+                               bar=abs(s["z"]) / 5.0))
     except Exception:
         pass
     return out
@@ -197,8 +212,10 @@ def collect_technical() -> list:
             side = "constructive" if p in sel["constructive"] else "cautious"
             out.append(_bullet("TECH", f"{p['market']}:{side}",
                                f"**{p['market']}** clears the desk's technical quality bar on the "
-                               f"**{side}** side — **{p['n']}** strategies align, conviction "
-                               f"**{p['conviction']:.0f}**, score {p['score']:+.0f}."))
+                               f"**{side}** side — **{p['n']}** strategies align, "
+                               f"score {p['score']:+.0f}.",
+                               metric=f"conv {p['conviction']:.0f}", sub="of 100",
+                               bar=p["conviction"] / 100.0))
     except Exception:
         traceback.print_exc()
     return out
@@ -239,7 +256,6 @@ def scorecard_section() -> dict | None:
         "hit21_1y": f"{hit21_1y:.1f}%" if hit21_1y is not None else "—",
         "verdicts": sigscore.verdict_rows(led),
         "best_calls": best[:SCORECARD_CALLS], "worst_calls": worst[:SCORECARD_CALLS],
-        "trend": sigscore.trend_png(led),
     }
 
 
@@ -280,7 +296,9 @@ def collect_corr_breaks() -> list:
         out.append(_bullet("CORR", f"{r['a']}|{r['b']}:{r.get('kind', '')}",
                            f"**{a} × {b}** are {kind} — 1-month correlation "
                            f"**{r['corr_1m']:+.2f}** against {r['corr_1y']:+.2f} over the year, "
-                           f"an extreme of the pair's own range."))
+                           f"an extreme of the pair's own range.",
+                           metric=f"Δρ {r['diff']:+.2f}", sub="1M vs 1Y",
+                           bar=abs(r["diff"]) / 1.2))
     return out
 
 
@@ -313,8 +331,9 @@ def collect_seasonality() -> list:
                                                  else f"opens within {ahead} weeks")
         out.append(_bullet("SEAS", f"{t}:{r.label}",
                            f"**{universe.name(t)}** enters a seasonal window ({r.label}) that "
-                           f"{opens} — **{r.dir.lower()}** in **{r.wins}/{r.n}** of the observed "
-                           f"years, median move {r.med:+.1f}%."))
+                           f"{opens} — **{r.dir.lower()}**, median move {r.med:+.1f}%.",
+                           metric=f"{r.wins}/{r.n} yrs", sub="observed sample",
+                           bar=float(r.hit)))
         if len(out) >= SEAS_MAX:
             break
     return out
@@ -342,7 +361,9 @@ def collect_pm() -> list:
             parts.append(f"exchange registered stocks {word} {m['comex_disp'].lstrip('+-')}")
         if parts:
             out.append(_bullet("METALS", f"{m['key']}:flows",
-                               f"**{m['name']}** flows moved — " + " and ".join(parts) + f"{stamp}."))
+                               f"**{m['name']}** flows moved — " + " and ".join(parts) + f"{stamp}.",
+                               metric=(m.get("etf_disp") or m.get("comex_disp") or ""),
+                               sub="on the month"))
         if len(out) >= PM_MAX:
             break
     return out
@@ -359,10 +380,10 @@ SECTIONS = [
 ]
 
 
-def collect_all() -> tuple[list, dict]:
+def collect_all() -> tuple[list, dict, list]:
     """Run every collector; a module that fails drops out rather than killing the
-    report. Returns (bullets, per-module counts for the intro)."""
-    bullets, counts = [], {}
+    report. Returns (flat bullets, per-module counts, template section groups)."""
+    bullets, counts, groups = [], {}, []
     for label, fn in SECTIONS:
         try:
             got = fn() or []
@@ -373,7 +394,8 @@ def collect_all() -> tuple[list, dict]:
         if got:
             counts[label] = len(got)
             bullets.extend(got)
-    return bullets, counts
+            groups.append({"title": label, "rows": got})
+    return bullets, counts, groups
 
 
 # ---------------------------------------------------------------------------
@@ -499,7 +521,7 @@ def intro_text(bullets: list, counts: dict, n_new: int, drop_rows: list,
 # build
 # ---------------------------------------------------------------------------
 def render_html(asof: str = "", ai_polish: bool = True, update_baseline: bool = False) -> str:
-    bullets, counts = collect_all()
+    bullets, counts, groups = collect_all()
     drop_rows, come_rows = releases_digest()
     try:
         scorecard = scorecard_section()
@@ -529,7 +551,7 @@ def render_html(asof: str = "", ai_polish: bool = True, update_baseline: bool = 
     return env.get_template("weekreview_report.html").render(
         asof=pretty_date(asof or str(date.today())),
         intro=_md2html(intro),
-        bullets=bullets, n_bullets=len(bullets), n_new=n_new,
+        bullets=bullets, groups=groups, n_bullets=len(bullets), n_new=n_new,
         n_modules=len(counts), has_prev=bool(prev),
         scorecard=scorecard,
         cal_rows=calendar_rows(drop_rows, come_rows),
