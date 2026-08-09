@@ -11,20 +11,27 @@
   .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
   .kpi .val { font-size: 13pt; font-weight: 700; color: #111; }
   .kpi .note { font-size: 6.5pt; color: #888; }
-  ul.worth { list-style: none; padding-left: 0; margin: 2mm 0; }
-  ul.worth li { font-size: 8pt; line-height: 1.5; margin-bottom: 1.6mm; display: flex;
+  ul.worth { list-style: none; padding-left: 0; margin: 1.5mm 0; }
+  ul.worth li { font-size: 7.5pt; line-height: 1.42; margin-bottom: 1.1mm; display: flex;
                 gap: 2mm; align-items: baseline; break-inside: avoid; }
-  .modtag { flex: 0 0 16mm; display: inline-block; text-align: center; font-size: 6pt;
+  .modtag { flex: 0 0 13mm; display: inline-block; text-align: center; font-size: 5.6pt;
             font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
-            border: 0.75pt solid #bbb; border-left: 2.5pt solid var(--yellow);
-            background: #F5f5f3; color: #333; padding: 0.6mm 1mm; }
-  .badge { font-size: 6.3pt; color: #8a6d1a; white-space: nowrap; }
-  .badge.new { color: #1e8449; font-weight: 700; }
-  .headline { font-size: 7.3pt; color: #555; }
+            border-left: 2pt solid var(--yellow); background: #F3f3f0; color: #444;
+            padding: 0.5mm 0.8mm; }
+  .badge { font-size: 6.2pt; color: #999; font-style: italic; white-space: nowrap; }
+  .badge.new { color: #1e8449; font-weight: 700; font-style: normal; }
+  .statband { border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+              background: #FafafA; padding: 1.8mm 3mm; font-size: 8pt; line-height: 1.5;
+              margin: 1.5mm 0 2mm; }
   .twocol { display: flex; gap: 4mm; }
   .twocol > div { flex: 1; }
   .ok { color: #1e8449; font-weight: 700; }
   .bad { color: #c0392b; font-weight: 700; }
+  .status-dropped { color: #888; }
+  .status-due { color: #111; font-weight: 700; }
+  .headline { font-size: 7.3pt; color: #555; }
+  .trendchart { width: 82%; margin: 0 auto; }
+  .trendchart img { width: 100%; }
   .chartdesc { font-size: 7pt; color: #777; margin: 0.5mm 0 2mm; }
 </style>
 </head>
@@ -66,7 +73,7 @@
       {% for b in bullets %}
       <li><span class="modtag">{{ b.tag }}</span>
         <span>{{ b.html|safe }}
-          {% if b.badge %}<span class="badge{% if b.badge == 'new this week' %} new{% endif %}">&mdash; {{ b.badge }}</span>{% endif %}
+          {% if b.badge %}<span class="badge{% if b.badge == 'new this week' %} new{% endif %}">{{ b.badge }}</span>{% endif %}
         </span></li>
       {% endfor %}
     </ul>
@@ -84,15 +91,12 @@
 
     {% if scorecard %}
     <div class="banner">Technical scorecard &mdash; how the signal book is performing</div>
-    <div class="kpis">
-      <div class="kpi"><div class="lab">Signals this week</div>
-        <div class="val">{{ scorecard.n_week }}</div><div class="note">{{ scorecard.longs }} long &middot; {{ scorecard.shorts }} short</div></div>
-      <div class="kpi"><div class="lab">Verdicts landed</div>
-        <div class="val">{{ scorecard.n_resolved }}</div><div class="note">calls resolved at 5 / 10 / 21 sessions</div></div>
-      <div class="kpi" {% if scorecard.hit21_wk_bg %}style="{{ scorecard.hit21_wk_bg }}"{% endif %}><div class="lab">Judged at 21 sessions</div>
-        <div class="val">{{ scorecard.hit21_wk }}</div><div class="note">this week&rsquo;s resolved cohort</div></div>
-      <div class="kpi"><div class="lab">Book, trailing 1y</div>
-        <div class="val">{{ scorecard.hit21_1y }}</div><div class="note">hit rate at 21 sessions</div></div>
+    <div class="statband">
+      <b>{{ scorecard.n_week }}</b> signals flagged this week ({{ scorecard.longs }} long &middot;
+      {{ scorecard.shorts }} short) &nbsp;&middot;&nbsp; <b>{{ scorecard.n_resolved }}</b> earlier
+      calls received their verdicts &nbsp;&middot;&nbsp; this week&rsquo;s cohort judged at 21
+      sessions hit <b>{{ scorecard.hit21_wk }}</b> &nbsp;&middot;&nbsp; trailing year
+      <b>{{ scorecard.hit21_1y }}</b>
     </div>
 
     {% if scorecard.verdicts %}
@@ -111,10 +115,29 @@
     </table>
     {% endif %}
 
+    {% if scorecard.league %}
+    <div class="banner">Era league &mdash; hit rate by lookback window (21 sessions)</div>
+    <table>
+      <thead><tr><th>Strategy</th><th>Category</th><th class="center">Signals</th>
+        {% for lab in scorecard.league_labels %}<th class="center">{{ lab }}</th>{% endfor %}
+        <th class="center">&Delta; 1y vs full</th>
+        {% if scorecard.league_has_prev %}<th class="center">&Delta; vs last edition</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for r in scorecard.league %}
+        <tr><td class="market">{{ r.strategy }}</td><td>{{ r.category }}</td>
+          <td class="center">{{ r.n }}</td>
+          {% for c in r.cells %}<td class="center" style="{{ c.bg }}">{{ c.txt }}</td>{% endfor %}
+          <td class="center" style="{{ r.delta_bg }}">{{ r.delta }}</td>
+          {% if scorecard.league_has_prev %}<td class="center" style="{{ r.wk_bg }}">{{ r.wk }}</td>{% endif %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
     {% if scorecard.best_calls or scorecard.worst_calls %}
     <div class="twocol">
       <div>
-        <div class="banner">Resolved at 21 sessions &mdash; sharpest hits <span class="sig long">&#9650;</span></div>
+        <div class="banner">Sharpest hits <span class="sig long">&#9650;</span></div>
         <table>
           <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
           <tbody>
@@ -126,7 +149,7 @@
         </table>
       </div>
       <div>
-        <div class="banner">&mdash; and the clearest misses <span class="sig short">&#9660;</span></div>
+        <div class="banner">Clearest misses <span class="sig short">&#9660;</span></div>
         <table>
           <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
           <tbody>
@@ -141,7 +164,7 @@
     {% endif %}
 
     {% if scorecard.trend %}
-    <div class="section"><div class="chart"><img src="{{ scorecard.trend }}" alt="Weekly hit rate"></div></div>
+    <div class="section"><div class="trendchart"><img src="{{ scorecard.trend }}" alt="Weekly hit rate"></div></div>
     {% endif %}
     <p class="chartdesc">The Weekly Signal Scorecard, folded in: the signal ledger re-runs the
       TA hub&rsquo;s own triggers over every cached session and judges each call in signal space
@@ -149,27 +172,17 @@
       the hits believable. Directional accuracy only: no exits, sizing, costs or P&amp;L.</p>
     {% endif %}
 
-    {% if drop_rows %}
-    <div class="banner">Dropped this week</div>
-    <table>
-      <thead><tr><th style="width:18mm">When</th><th style="width:34mm">Release</th><th>One line</th></tr></thead>
-      <tbody>
-        {% for r in drop_rows %}
-        <tr><td>{{ r.date }}</td><td class="market">{{ r.label }}</td>
-          <td class="headline">{{ r.head if r.head else "full synopsis available on request" }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
-
     <div class="report-footer">
-    {% if come_rows %}
-    <div class="banner">The week ahead</div>
+    {% if cal_rows %}
+    <div class="banner">Release calendar &mdash; last week and the week ahead</div>
     <table>
-      <thead><tr><th style="width:18mm">When</th><th>Release</th></tr></thead>
+      <thead><tr><th style="width:18mm">When</th><th style="width:30mm">Release</th>
+        <th style="width:12mm" class="center">Status</th><th>One line</th></tr></thead>
       <tbody>
-        {% for r in come_rows %}
-        <tr><td>{{ r.date }}</td><td class="market">{{ r.label }}</td></tr>
+        {% for r in cal_rows %}
+        <tr><td>{{ r.date }}</td><td class="market">{{ r.label }}</td>
+          <td class="center status-{{ r.status }}">{{ r.status }}</td>
+          <td class="headline">{{ r.note }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

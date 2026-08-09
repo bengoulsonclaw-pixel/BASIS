@@ -226,7 +226,10 @@ def scorecard_section() -> dict | None:
              & (led["strategy"] != sigledger.CONFLUENCE)]
     hit21_1y = y1["hit21"].mean() * 100.0 if y1["hit21"].notna().any() else None
     best, worst = sigscore.call_rows(led)
+    prev = sigscore.load_last()          # the standalone scorecard's own edition store —
+    lg_rows, lg_labels = sigscore.league_rows(led, prev.get("league_1y", {}))
     return {
+        "league": lg_rows, "league_labels": lg_labels, "league_has_prev": bool(prev),
         "n_week": f"{len(core_wk):,}",
         "longs": f"{int((core_wk['direction'] > 0).sum()):,}",
         "shorts": f"{int((core_wk['direction'] < 0).sum()):,}",
@@ -418,6 +421,16 @@ def releases_digest() -> tuple[list, list]:
     return drop_rows, come_rows
 
 
+def calendar_rows(drop_rows: list, come_rows: list) -> list:
+    """One merged release-calendar table: last week's drops (with their synopsis line)
+    then the week ahead, in date order."""
+    rows = [{"date": r["date"], "label": r["label"], "status": "dropped",
+             "note": r["head"] or "full synopsis available on request"} for r in drop_rows]
+    rows += [{"date": r["date"], "label": r["label"], "status": "due", "note": ""}
+             for r in come_rows]
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # previous-edition store — "new this week" vs "still stretched (3rd week)"
 # ---------------------------------------------------------------------------
@@ -441,8 +454,10 @@ def apply_streaks(bullets: list, prev: dict) -> dict:
     for b in bullets:
         n = int(old.get(b["key"], 0)) + 1
         streaks[b["key"]] = n
+        # Quiet by default: flag what's NEW, and only call out persistence once it's a
+        # story (3rd week on). A badge on every line is noise, not information.
         b["badge"] = ("new this week" if n == 1 and prev else
-                      f"{ordinal(n)} week running" if n > 1 else "")
+                      f"{ordinal(n)} week running" if n >= 3 else "")
     return streaks
 
 
@@ -517,6 +532,7 @@ def render_html(asof: str = "", ai_polish: bool = True, update_baseline: bool = 
         bullets=bullets, n_bullets=len(bullets), n_new=n_new,
         n_modules=len(counts), has_prev=bool(prev),
         scorecard=scorecard,
+        cal_rows=calendar_rows(drop_rows, come_rows),
         drop_rows=drop_rows, come_rows=come_rows,
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )
