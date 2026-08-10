@@ -13,6 +13,33 @@
 param([string]$Mode = "snapshot")
 
 Set-Location $PSScriptRoot
+
+# Win32 window-title probe: TRUE while any visible top-level window is a BASIS
+# window (installed app, --app window, or a fronted browser tab — all carry
+# "Strategy Monitor" in the title, even on an error page). Get-Process can't do
+# this: app windows live inside the main Chrome process, whose MainWindowTitle
+# only reports one window.
+Add-Type @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public class BasisWin {
+  delegate bool EnumProc(IntPtr h, IntPtr lp);
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc cb, IntPtr lp);
+  [DllImport("user32.dll")] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  public static bool Any() {
+    bool found = false;
+    EnumWindows((h, lp) => {
+      if (!IsWindowVisible(h)) return true;
+      var sb = new StringBuilder(256); GetWindowText(h, sb, 256);
+      if (sb.ToString().Contains("Strategy Monitor")) { found = true; return false; }
+      return true;
+    }, IntPtr.Zero);
+    return found;
+  }
+}
+'@
 $env:DATAFEED_MODE = $Mode
 $env:PYTHONUTF8 = "1"
 if (Test-Path "$PSScriptRoot\playwright-browsers") {
@@ -88,26 +115,28 @@ if ($browser -and $browser -like "*chrome.exe" -and (Test-Path $pwaDir)) {
     $win = $null
 }
 
-# --- lifetime: serve while ANY BASIS window is open, not just the one above -----
-# Waiting on $win alone was wrong twice over: (a) if the browser hands the launch
-# off to an already-running instance the spawned process exits at once, and (b) the
-# user mostly lives in the INSTALLED "BASIS" app window (part of the main Chrome
-# process), which this script never spawned. Both looked like "window closed" and
-# shut a healthy server down mid-use. So also watch real connections to port 8501,
-# and only stop once there has been no window AND no connection for ~30s.
+# --- lifetime: serve while ANY BASIS window is on screen ------------------------
+# Three signals, because each alone has a hole: the spawned $win exits at once
+# when Chrome hands the launch off to a running instance; TCP connections vanish
+# when an OPEN window is sitting on an error/frozen page (killing the server then
+# strands the user — hitting Reload must always work); and the title probe alone
+# would miss the moment between server-up and the window appearing. Shut down
+# only after ~30s with none of the three.
 $idle = 0
 while ($true) {
     Start-Sleep -Seconds 3
     if ($server.HasExited) { break }
     $winAlive = ($win -and -not $win.HasExited)
+    $winOpen  = [BasisWin]::Any()
     $conns = @(Get-NetTCPConnection -LocalPort 8501 -State Established `
                    -ErrorAction SilentlyContinue).Count
-    if ($winAlive -or $conns -gt 0) { $idle = 0; continue }
+    if ($winAlive -or $winOpen -or $conns -gt 0) { $idle = 0; continue }
     $idle += 3
     if ($idle -ge 30) { break }
 }
 
-# --- every BASIS window closed -> stop the server (process tree + port sweep) --
+# --- every BASIS window closed -> stop the server (own process tree only) ------
+# No blanket port-8501 sweep here: it raced a concurrent relaunch and killed the
+# NEW instance's healthy server. Orphans are handled by the next launch's
+# port-clear at the top instead.
 try { & taskkill /PID $server.Id /T /F 2>$null | Out-Null } catch { }
-Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue |
-    ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }

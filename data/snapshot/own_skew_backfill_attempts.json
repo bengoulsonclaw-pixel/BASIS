@@ -1,10 +1,14 @@
 {
-"ESA Index": 1,
-"NQA Index": 1,
+"ESA Index": 2,
+"NQA Index": 2,
 "RTYA Index": 1,
-"DMA Index": 1,
+"DMA Index": 2,
 "XPA Index": 1,
 "USA Comdty": 1,
 "WNA Comdty": 1,
-"UBA Comdty": 1
+"UBA Comdty": 2,
+"COA Comdty": 1,
+"CLA Comdty": 1,
+"NGA Comdty": 1,
+"FJSA Comdty": 1
 }
