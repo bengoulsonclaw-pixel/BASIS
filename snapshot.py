@@ -346,11 +346,11 @@ def _fetch_phase() -> dict | None:
     except Exception as e:
         print(f"  (own-curve marks fetch skipped: {e})")
 
-    # Own-SKEW history backfill DRIP (Ben, 2026-08-08): ~8 products per morning keeps
-    # the extra Bloomberg footprint at ~8-12k requests (vs the ~70k one-shot that once
-    # tripped the daily cap). Must run HERE in the fetch phase — it pulls settlement
-    # histories for constructed wing tickers. Self-completing: returns 0 when the whole
-    # book has a year of skew history, after which this block is a no-op.
+    # Own-SKEW history backfill DRIP — 2 products per morning (Ben, 2026-08-10: cut
+    # from 8 after daily workflow-review notices; ~2-3k extra requests stays under
+    # the anomaly radar, ~16 mornings to finish). Must run HERE in the fetch phase —
+    # it pulls settlement histories for constructed wing tickers. Self-completing:
+    # returns 0 once every wing-capable product is done, then this block is a no-op.
     try:
         from src import owncurve
         n = owncurve.skew_backfill_drip(log=lambda *a: None)

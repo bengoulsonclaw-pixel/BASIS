@@ -712,7 +712,7 @@ def _skew_charts(threshold):
         _prog = ("**The own history needs backfilling** before this page can switch source."
                  if _tot == 0 else
                  f"**Backfill in progress — {_done}/{_tot} wing-capable products carry a full "
-                 f"year, {_rem} still queued** (~8 each morning)." if _rem > 0 else
+                 f"year, {_rem} still queued** (~2 each morning)." if _rem > 0 else
                  f"**Backfill finished ({_done}/{_tot} with a full year)** — awaiting validation "
                  f"+ switchover (a banner on Home will say so).")
     except Exception:

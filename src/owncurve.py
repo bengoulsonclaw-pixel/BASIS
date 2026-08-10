@@ -886,14 +886,15 @@ def skew_backfill_remaining() -> int:
                if int(counts.get(t, 0)) < 120 and int(att.get(t, 0)) < MAX_SKEW_ATTEMPTS)
 
 
-def skew_backfill_drip(max_products: int = 8, min_days_done: int = 120,
+def skew_backfill_drip(max_products: int = 2, min_days_done: int = 120,
                        start: str = "2025-06-16", log=print) -> int:
-    """Backfill a FEW products' skew history per morning (Ben, 2026-07-28: keep the
-    daily Bloomberg footprint small — ~8 products ≈ 8-12k requests, vs the ~70k
-    single-day pull that once tripped the cap). Runs after the snapshot's own-curve
-    append; picks the next unfinished products and stops. Returns products done this
-    run (0 = backfill complete). Products whose LIVE build finds no wings (bonds —
-    ±10%-moneyness strikes carry no real marks) are excluded rather than retried."""
+    """Backfill a FEW products' skew history per morning. Rate history: launched at
+    8/day (2026-08-08); cut to 2/day (Ben, 2026-08-10) after daily WORKFLOW-review
+    notices — ~2-3k requests keeps the anomaly under the review radar at the cost of
+    ~16 mornings to finish. Runs in the snapshot FETCH phase; picks the next
+    unfinished products and stops. Returns products done this run (0 = complete).
+    Products whose LIVE build finds no wings (short-duration bonds — ±10%-moneyness
+    strikes carry no real marks) are excluded rather than retried."""
     try:
         book = pd.read_parquet(OUT_FILE)
     except Exception:
