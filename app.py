@@ -38,6 +38,7 @@ from src import alerts
 from src import econ
 from src import gitbackup
 from src import fedpath
+from src import stirpaths
 from src import volbt
 from src import tabt
 from src import sectorcorr
@@ -712,7 +713,7 @@ def _skew_charts(threshold):
         _prog = ("**The own history needs backfilling** before this page can switch source."
                  if _tot == 0 else
                  f"**Backfill in progress — {_done}/{_tot} wing-capable products carry a full "
-                 f"year, {_rem} still queued** (~8 each morning)." if _rem > 0 else
+                 f"year, {_rem} still queued** (~2 each morning)." if _rem > 0 else
                  f"**Backfill finished ({_done}/{_tot} with a full year)** — awaiting validation "
                  f"+ switchover (a banner on Home will say so).")
     except Exception:
@@ -875,8 +876,12 @@ _GROUP_TABS = {
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield")],
-    "Trade Testing":      [("🏛️ Fed Path", "Fed Path"),
-                           ("🧪 Vol Backtester", "Vol Backtester"),
+    "STIR Paths":         [("🗓️ Expiry Timeline", "STIR Timeline"),
+                           ("🏛️ Fed", "Fed Path"),
+                           ("💶 ECB", "ECB Path"),
+                           ("💷 BoE", "BoE Path"),
+                           ("⚖️ Cross-Bank", "STIR Cross")],
+    "Trade Testing":      [("🧪 Vol Backtester", "Vol Backtester"),
                            ("🎯 TA Backtester", "TA Backtester"),
                            ("📒 Signal Ledger", "Signal Ledger")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
@@ -1459,7 +1464,7 @@ _REPORT_POPUP_JS = """<!doctype html><html><head><meta charset="utf-8"></head><b
     var card = doc.createElement('div');
     card.style.cssText = 'max-width:440px;width:86%;background:#fff;border-top:7px solid #D32F2F;border-radius:12px;padding:26px 28px 24px;box-shadow:0 18px 60px rgba(0,0,0,.55);text-align:center';
     card.innerHTML = '<div style="font-size:44px;line-height:1">'+r.icon+'</div>'
-      + '<div style="color:#B71C1C;font-weight:800;font-size:12px;letter-spacing:1.5px;margin-top:8px">REPORT RELEASED</div>'
+      + '<div style="color:#B71C1C;font-weight:800;font-size:12px;letter-spacing:1.5px;margin-top:8px">'+(r.hdr||'REPORT RELEASED')+'</div>'
       + '<div style="color:#111;font-weight:800;font-size:22px;margin:5px 0 3px">'+r.name+'</div>'
       + '<div style="color:#666;font-size:13px;margin-bottom:20px">Scheduled '+r.t+' ET &middot; check the numbers now</div>';
     var btn = doc.createElement('button'); btn.textContent = 'Dismiss';
@@ -1565,6 +1570,12 @@ def _todays_releases(today=None) -> list:
         out.extend(_eia_weekly_today(today))
     except Exception:
         pass
+    try:
+        for d in stirpaths.decisions_today(today):
+            out.append({"name": d["name"], "icon": d["icon"], "color": "#0D47A1",
+                        "t": d["t"], "decision": True})
+    except Exception:
+        pass
     for o in out:
         hh, mm = map(int, o["t"].split(":"))
         o["fire_ms"] = int(datetime(today.year, today.month, today.day, hh, mm, tzinfo=et).timestamp() * 1000)
@@ -1573,18 +1584,30 @@ def _todays_releases(today=None) -> list:
 
 
 def render_report_banner() -> None:
-    """Red heads-up strip at the top of Home on days a fundamental report releases (only for reports
-    whose Home banner is switched on in Alert Settings)."""
+    """Heads-up strips at the top of Home: red on days a fundamental report releases, navy on
+    central-bank decision days (each gated by its own toggle in Alert Settings)."""
     rels = [r for r in _todays_releases() if alerts.alert_enabled(r.get("key"), "banner")]
-    if not rels:
-        return
-    items = " &nbsp;&middot;&nbsp; ".join(f"{r['icon']} <b>{r['name']}</b> {r['t']} ET" for r in rels)
-    st.markdown(
-        "<div style='background:linear-gradient(90deg,#B71C1C,#E53935);color:#fff;padding:11px 16px;"
-        "border-radius:9px;margin:0 0 14px;font-size:15px;border:1px solid #7f0000;"
-        "box-shadow:0 2px 8px rgba(0,0,0,.28)'>&#128308; <b>REPORT DAY</b> &mdash; releasing today: "
-        + items + ". <span style='opacity:.9'>A full-screen alert pops at release time.</span></div>",
-        unsafe_allow_html=True)
+    reports = [r for r in rels if not r.get("decision")]
+    decisions = [r for r in rels if r.get("decision")]
+    if reports:
+        items = " &nbsp;&middot;&nbsp; ".join(f"{r['icon']} <b>{r['name']}</b> {r['t']} ET"
+                                              for r in reports)
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#B71C1C,#E53935);color:#fff;padding:11px 16px;"
+            "border-radius:9px;margin:0 0 14px;font-size:15px;border:1px solid #7f0000;"
+            "box-shadow:0 2px 8px rgba(0,0,0,.28)'>&#128308; <b>REPORT DAY</b> &mdash; releasing today: "
+            + items + ". <span style='opacity:.9'>A full-screen alert pops at release time.</span></div>",
+            unsafe_allow_html=True)
+    if decisions:
+        items = " &nbsp;&middot;&nbsp; ".join(f"{r['icon']} <b>{r['name']}</b> {r['t']} ET"
+                                              for r in decisions)
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#0D2B5E,#1565C0);color:#fff;padding:11px 16px;"
+            "border-radius:9px;margin:0 0 14px;font-size:15px;border:1px solid #082044;"
+            "box-shadow:0 2px 8px rgba(0,0,0,.28)'>&#127963;&#65039; <b>DECISION DAY</b> &mdash; "
+            "announcing today: " + items
+            + ". <span style='opacity:.9'>A full-screen alert pops at decision time.</span></div>",
+            unsafe_allow_html=True)
 
 
 def render_report_popup() -> None:
@@ -1597,7 +1620,9 @@ def render_report_popup() -> None:
     import json as _json
     import streamlit.components.v1 as components
     payload = _json.dumps([{"id": str(r["fire_ms"]) + "|" + r["name"], "name": r["name"],
-                            "icon": r["icon"], "t": r["t"], "fire": r["fire_ms"]} for r in rels])
+                            "icon": r["icon"], "t": r["t"], "fire": r["fire_ms"],
+                            "hdr": "RATE DECISION" if r.get("decision") else "REPORT RELEASED"}
+                           for r in rels])
     components.html(_REPORT_POPUP_JS.replace("__PAYLOAD__", payload), height=0)
 
 
@@ -1652,6 +1677,47 @@ def _render_skew_backfill_banner() -> None:
         st.rerun()
 
 
+def _render_cb_calendar_banner() -> None:
+    """Amber Home strip when a central-bank meeting calendar is running thin — same
+    9-month rule as the Data-health board's 'CB calendars' line. The STIR Paths
+    *_DECISIONS lists are hand-extended when the banks publish new years, so this is
+    the front-page nudge; Snooze parks it for 30 days and it re-arms until the lists
+    are actually extended (the snooze self-clears once they are). Fails silent — a
+    hiccup here must never block the Home page."""
+    ack_p = SNAPSHOT_DIR.parent / "cb_calendar_ack.json"
+    try:
+        cal = health.meeting_calendar_runway()
+        thin = cal[cal["months_left"] < health.CB_CAL_MIN_MONTHS]
+    except Exception:
+        return
+    if thin.empty:
+        try:
+            ack_p.unlink(missing_ok=True)              # extended → reset the snooze
+        except Exception:
+            pass
+        return
+    try:
+        snoozed = json.loads(ack_p.read_text(encoding="utf-8")).get("when")
+        if snoozed and (pd.Timestamp.now() - pd.Timestamp(snoozed)).days < 30:
+            return
+    except Exception:
+        pass
+    items = " · ".join(f"**{r.bank}** ends {r.last_meeting:%b %Y} (~{r.months_left:.0f}mo)"
+                       for r in thin.itertuples(index=False))
+    c1, c2 = st.columns([5.2, 0.8])
+    c1.warning("🗓️ **Central-bank meeting calendar running thin** — " + items
+               + ". The decision dates behind STIR Paths are a hand-kept list; ask for the "
+                 "newly published year to be appended (src/fedpath.py / src/stirpaths.py) "
+                 "or the path tools go blind past the last date.")
+    if c2.button("Snooze 30d", key="cb_cal_ack", use_container_width=True):
+        try:
+            ack_p.write_text(json.dumps({"when": pd.Timestamp.now().isoformat()}),
+                             encoding="utf-8")
+        except Exception:
+            pass
+        st.rerun()
+
+
 def render_weekly_review() -> None:
     """🗞️ Weekly Review — build/preview the cross-module Monday wrap (src/weekreview.py).
     Ad-hoc builds here never roll the weekly-delta baseline (the scheduled Monday email
@@ -1694,6 +1760,7 @@ def render_weekly_review() -> None:
 def render_home() -> None:
     render_report_banner()
     _render_skew_backfill_banner()
+    _render_cb_calendar_banner()
     snap = _load_snap()
 
     # (world clocks moved to the fixed top bar — rendered on every page)
@@ -5642,201 +5709,422 @@ def render_releases() -> None:
                    "the release week pushes it to the next business day. The weekly report auto-emails the desk ★.")
 
 
-def _fp_bands():
+# ─────────────────────────────────────────────────────────────────────────────
+# STIR Paths — expiry timeline + per-bank implied-path / meeting-scenario tools
+# (module pages: 🗓️ Expiry Timeline · 🏛️ Fed · 💶 ECB · 💷 BoE · ⚖️ Cross-Bank;
+#  engine src/stirpaths.py — the Fed page keeps the fedpath PDF report)
+# ─────────────────────────────────────────────────────────────────────────────
+_STIR_STORE = ROOT / "data" / "stirpaths.json"
+_STIR_HOUSE = {                                   # shipped defaults ("↺ Default" fallback)
+    "timeline": list(stirpaths.PRODUCTS),         # overview: the whole book
+    "FED": ["SFRA Comdty"],                       # bank pages: the strip the desk trades
+    "ECB": ["ERA Comdty", "TKYA Comdty"],
+    "BOE": ["SFIA Comdty"],
+}
+_STIR_ICON = {"FED": "🏛️", "ECB": "💶", "BOE": "💷"}
+_STIR_BANK_COLOR = {"FED": "#E53935", "ECB": "#1E88E5", "BOE": "#43A047"}
+
+
+def _stir_defaults() -> dict:
+    out = {k: list(v) for k, v in _STIR_HOUSE.items()}
+    if _STIR_STORE.exists():
+        try:
+            saved = json.loads(_STIR_STORE.read_text(encoding="utf-8"))
+            out.update({k: v for k, v in saved.items() if k in _STIR_HOUSE and v})
+        except Exception:
+            pass
+    return out
+
+
+def _stir_save_default(key: str, tickers: list) -> None:
+    cur = _stir_defaults()
+    cur[key] = tickers
+    _STIR_STORE.parent.mkdir(parents=True, exist_ok=True)
+    _STIR_STORE.write_text(json.dumps(cur, indent=2), encoding="utf-8")
+
+
+def _stir_set_sel(skey: str, values: list) -> None:
+    st.session_state[skey] = list(values)
+
+
+def _stir_picker(store_key: str, products: list, label: str = "Products shown") -> list:
+    """Product include/exclude multiselect with a persisted default: 💾 saves the
+    current selection as the page default (data/stirpaths.json), ↺ restores it."""
+    dflt = _stir_defaults()[store_key]
+    have = [p.ticker for p in products]
+    skey = f"stir_sel_{store_key}"
+    c1, c2, c3 = st.columns([5, 1.1, 1.1])
+    sel = c1.multiselect(
+        label, have, default=[t for t in dflt if t in have] or have[:1], key=skey,
+        format_func=lambda t: f"{stirpaths.PRODUCTS[t].short} · {stirpaths.PRODUCTS[t].name}")
+    c2.button("💾 Save default", key=f"stir_sv_{store_key}", use_container_width=True,
+              help="Persist the current selection as this page's default.",
+              on_click=lambda: (_stir_save_default(store_key, list(sel)),
+                                st.toast("Saved as default.")))
+    c3.button("↺ Default", key=f"stir_rst_{store_key}", use_container_width=True,
+              help="Back to the saved default selection.",
+              on_click=_stir_set_sel, args=(skey, [t for t in dflt if t in have]))
+    return sel
+
+
+def _stir_timeline(sel: list, banks: list, asof, months: int) -> None:
+    """The module's centrepiece: one row per product — futures ● and options ◇
+    expiries in the product's colour — with every rate decision as a dashed rule,
+    so the meetings-inside-each-window story is visible at a glance."""
+    import altair as alt
+    prods = [stirpaths.PRODUCTS[t] for t in sel]
+    if not prods:
+        st.info("Pick at least one product to draw the timeline.")
+        return
+    rows = []
+    for p in prods:
+        for r in stirpaths.expiry_rows(p, asof, months):
+            rows.append({"Product": p.short, "Kind": r.kind, "Date": pd.Timestamp(r.expiry),
+                         "What": f"{p.short} {r.month} {r.kind.lower()} · {r.expiry:%a %d %b %Y}"})
+    ey, em = stirpaths._add_months(asof.year, asof.month, months)
+    x_scale = alt.Scale(domain=[pd.Timestamp(asof).isoformat(),
+                                pd.Timestamp(date(ey, em, 1)).isoformat()])
+    order = [p.short for p in prods]
+    pdom, prng = order, [p.color for p in prods]
+    base = alt.Chart(pd.DataFrame(rows)).encode(
+        x=alt.X("Date:T", title=None, scale=x_scale),
+        y=alt.Y("Product:N", sort=order, title=None),
+        color=alt.Color("Product:N", scale=alt.Scale(domain=pdom, range=prng), legend=None),
+        tooltip=[alt.Tooltip("What:N", title="Expiry")])
+    futs = base.transform_filter(alt.datum.Kind == "Future").mark_point(
+        filled=True, size=120, shape="circle")
+    opts = base.transform_filter(alt.datum.Kind == "Option").mark_point(
+        filled=False, size=120, shape="diamond", strokeWidth=2.2)
+    layers = [futs, opts]
+    mrows = []
+    for bk in banks:
+        b = stirpaths.BANKS[bk]
+        for m in b.meetings:
+            if asof <= m < date(ey, em, 1):
+                mrows.append({"Bank": bk, "Date": pd.Timestamp(m),
+                              "What": f"{b.meeting_name} decision · {m:%a %d %b %Y}"})
+    if mrows:
+        bdom = [b for b in ("FED", "ECB", "BOE") if b in banks]
+        rules = alt.Chart(pd.DataFrame(mrows)).mark_rule(
+            strokeDash=[5, 4], strokeWidth=1.6, opacity=0.8).encode(
+            x=alt.X("Date:T", scale=x_scale),
+            color=alt.Color("Bank:N", scale=alt.Scale(
+                domain=bdom, range=[_STIR_BANK_COLOR[b] for b in bdom]),
+                legend=alt.Legend(title="Rate decisions", orient="top")),
+            tooltip=[alt.Tooltip("What:N", title="Meeting")])
+        layers.append(rules)
+    brand.show_chart(alt.layer(*layers).properties(height=max(150, 48 * len(prods) + 55)))
+    st.caption("● futures expiry &nbsp;·&nbsp; ◇ monthly options expiry (standard cycle, rule-based, "
+               "exchange-holiday aware) &nbsp;·&nbsp; dashed rules = rate-decision dates. Hover any mark.")
+
+
+def _stir_window_table(prods: list, bank_keys: list, asof, n_q: int) -> None:
+    """Meetings-per-contract: each front contract's reference window and exactly
+    which decisions land inside it — the thesis behind the module, as a table."""
+    rows = []
+    for p in prods:
+        bank = stirpaths.BANKS[p.bank]
+        for c in stirpaths.strip(p, asof, n_q if p.quarterly else min(3 * n_q, 12)):
+            mtgs = stirpaths.meetings_in_window(bank, c)
+            rows.append({
+                "Product": p.short, "Contract": c.code,
+                "Window": f"{c.start:%d %b %y} → {c.end:%d %b %y}",
+                "Meetings in window": len(mtgs),
+                "Which": ", ".join(f"{m:%d %b %y}" for m in mtgs) or "—",
+            })
+    df = pd.DataFrame(rows)
+    brand.themed_dataframe(df, fmt={}, height=min(420, 45 + 35 * len(df)))
+    st.caption("A decision counts when its *effective* day (the business day after the announcement) "
+               "falls inside the contract's reference window — i.e. it moves that contract's settlement.")
+
+
+def render_stir_overview() -> None:
+    st.subheader("🗓️  STIR Expiry Timeline — futures, options & rate decisions")
+    st.caption(
+        "Every monthly **futures ●** and **options ◇** expiry across the STIR book, drawn against "
+        "the **central-bank decision calendar** — so you can see at a glance how many meetings sit "
+        "inside each contract's life, and which option expiry captures which decisions. "
+        "Choose products below and save your own default; each bank page carries the same "
+        "timeline filtered to its own market.")
+    asof = datetime.now(ZoneInfo("America/New_York")).date()
+    sel = _stir_picker("timeline", list(stirpaths.PRODUCTS.values()))
+    months = st.slider("Horizon (months)", 6, 24, 15, key="stir_tl_months")
+    banks = sorted({stirpaths.PRODUCTS[t].bank for t in sel},
+                   key=["FED", "ECB", "BOE"].index) if sel else []
+    _stir_timeline(sel, banks, asof, months)
+
+    ey, em = stirpaths._add_months(asof.year, asof.month, months)
+    up = sorted((m, b) for b in banks for m in stirpaths.BANKS[b].meetings
+                if asof <= m < date(ey, em, 1))
+    if up:
+        with st.expander(f"📋 Upcoming rate decisions in the window ({len(up)})"):
+            brand.themed_dataframe(pd.DataFrame([{
+                "Date": f"{m:%a %d %b %Y}", "In": f"{(m - asof).days}d",
+                "Bank": stirpaths.BANKS[b].name,
+                "Meeting": stirpaths.BANKS[b].meeting_name} for m, b in up]),
+                fmt={}, height=min(420, 45 + 35 * len(up)))
+    with st.expander("🎯 Meetings inside each contract window"):
+        _stir_window_table([stirpaths.PRODUCTS[t] for t in sel], banks, asof, 4)
+
+
+def _stir_fed_bands():
     """Selectable Fed target bands (25bp wide) from 2.00–2.25 up to 5.50–5.75."""
     return [f"{lo/100:.2f} – {lo/100+0.25:.2f}" for lo in range(200, 551, 25)]
 
 
-def _fp_reseed(moves: dict, ver_bump: bool = True) -> None:
-    """Set the scenario moves and force the editor to re-read them (bump its key)."""
-    st.session_state["fp_moves"] = moves
+def _stir_reseed(bank_key: str, views: dict, ver_bump: bool = True) -> None:
+    """Set the scenario probabilities and force the editor to re-read them."""
+    st.session_state[f"sp{bank_key}_views"] = views
     if ver_bump:
-        st.session_state["fp_ver"] = st.session_state.get("fp_ver", 0) + 1
+        st.session_state[f"sp{bank_key}_ver"] = st.session_state.get(f"sp{bank_key}_ver", 0) + 1
 
 
-def render_fed_path() -> None:
+def _stir_seed_from_market(per_bp: dict, hike_bp: float, cut_bp: float) -> dict:
+    """Implied per-meeting move → (P(hike)%, P(cut)%), snapped to 5% steps. Above
+    100% means more than one full step priced (150% cut = 1.5 × the cut size), so
+    the seeded scenario reproduces the market path instead of capping it."""
+    out = {}
+    for lab, bp in per_bp.items():
+        ph = min(3.0, max(0.0, bp) / hike_bp) * 100.0
+        pc = min(3.0, max(0.0, -bp) / cut_bp) * 100.0
+        out[lab] = (round(ph / 5) * 5.0, round(pc / 5) * 5.0)
+    return out
+
+
+def _stir_odds_str(bp: float, step: float) -> str:
+    d, p = stirpaths.implied_odds(bp, step)
+    if d == "hold":
+        return "hold"
+    if abs(bp) > step:                      # more than one full step priced
+        full = int(abs(bp) // step)
+        rem = (abs(bp) - full * step) / step * 100.0
+        return f"{full}×{step:.0f} {d} + {rem:.0f}%"
+    return f"{p * 100:.0f}% {d}"
+
+
+def render_stir_bank(bank_key: str) -> None:
     import altair as alt
-    st.subheader("🏛️  Implied Fed-Path Calculator — SOFR strip (SR3)")
+    bank = stirpaths.BANKS[bank_key]
+    prods_all = stirpaths.bank_products(bank_key)
+    st.subheader(f"{_STIR_ICON[bank_key]}  {bank.name} — implied path & meeting scenarios")
     st.caption(
-        "Set where **you** think the Fed moves at each meeting and see where every SOFR "
-        "future should trade if you're right — **alongside** the path the live strip is "
-        "already pricing. The gap between your fair value and the market is the edge if "
-        "your call plays out. Built on 3-month SOFR (SR3); the overnight rate is modelled "
-        "as a step that only changes on FOMC dates.")
+        f"Assign a **% chance of a hike / cut** to each **{bank.meeting_name}** decision and see "
+        "where every future lands if you're right — next to the path the strip already prices, and "
+        "at **each option expiry**, so a view on the meetings converts straight into an option "
+        "structure. The timeline shows how many decisions sit inside each contract and option window.")
 
     asof = datetime.now(ZoneInfo("America/New_York")).date()
 
     # ---- assumptions ---------------------------------------------------------
-    c1, c2, c3 = st.columns([1.3, 1, 1])
-    band = c1.selectbox("Current target band (%)", _fp_bands(),
-                        index=_fp_bands().index("4.25 – 4.50"),
-                        help="Today's FOMC target range. Sets the starting level of the path.")
-    lo = float(band.split("–")[0])
-    mid = lo + 0.125
-    basis_bp = c2.number_input("SOFR − target basis (bp)", value=0.0, step=0.5, format="%.1f",
-                               help="SOFR trades a few bp around the target midpoint. Shifts every "
+    c1, c2, c3, c4 = st.columns([1.5, 1.1, 1, 1])
+    if bank_key == "FED":
+        band = c1.selectbox("Current target band (%)", _stir_fed_bands(),
+                            index=_stir_fed_bands().index("4.25 – 4.50"), key="spFED_band",
+                            help="Today's FOMC target range. Sets the starting level of the path.")
+        policy = float(band.split("–")[0]) + 0.125
+    else:
+        band = None
+        policy = c1.number_input(f"{bank.rate_name} (%)", value=bank.default_rate,
+                                 step=0.25, format="%.2f", key=f"sp{bank_key}_rate",
+                                 help="Today's policy rate. Sets the starting level of the path.")
+    proxy = {"FED": "SOFR", "ECB": "€STR", "BOE": "SONIA"}[bank_key]
+    basis_bp = c2.number_input(f"{proxy} − policy basis (bp)",
+                               value=stirpaths.BANK_BASIS_SEED[bank_key], step=0.5,
+                               format="%.1f", key=f"sp{bank_key}_basis",
+                               help=f"{proxy} trades a few bp around the policy rate. Shifts every "
                                     "fair value in parallel; cancels out of the implied move count.")
-    n_contracts = c3.slider("Contracts (SR3 quarterlies)", 4, 12, 8,
-                            help="How far out the strip to price — whites + reds.")
+    n_q = c3.slider("Quarterly contracts", 4, 12, 8, key=f"sp{bank_key}_nq",
+                    help="How far out the strip to price — whites + reds.")
+    months = c4.slider("Timeline horizon (mo)", 6, 24, 15, key=f"sp{bank_key}_mo")
     with st.expander("Advanced"):
-        compound = st.checkbox("Compound SR3 settlement (ACT/360)", value=True,
-                               help="On = true daily-compounded SR3 convention. Off = simple average "
-                                    "(the convexity is <~1bp over a quarter).")
-    basis = basis_bp / 100.0
-    r0 = mid + basis                                   # current overnight (SOFR) level, %
+        a1, a2, a3 = st.columns(3)
+        compound = a1.checkbox("Compound settlements (ACT/360)", value=True,
+                               key=f"sp{bank_key}_cmp",
+                               help="On = true daily-compounded convention for the 3M contracts. "
+                                    "Off = simple average (convexity <~1bp/quarter).")
+        hike_bp = a1.number_input("Hike step (bp)", value=bank.step_bp, step=5.0,
+                                  format="%.0f", key=f"sp{bank_key}_hk")
+        cut_bp = a2.number_input("Cut step (bp)", value=bank.step_bp, step=5.0,
+                                 format="%.0f", key=f"sp{bank_key}_ct")
+        er_spread = 0.0
+        if bank_key == "ECB":
+            er_spread = a3.number_input("Euribor − €STR spread (bp)", value=10.0, step=1.0,
+                                        format="%.1f", key="spECB_ersp",
+                                        help="Euribor is a forward-looking term fix; ER is priced as "
+                                             "compounded-expected €STR + this spread.")
+    r0 = policy + basis_bp / 100.0                  # overnight-proxy level today, %
 
-    strip = fedpath.sr3_strip(asof, n_contracts)
-    codes = [c.code for c in strip]
+    sel = _stir_picker(bank_key, prods_all, label="Products in the tools")
+    prods = [stirpaths.PRODUCTS[t] for t in sel] or [prods_all[0]]
 
-    # ---- market prices (from the feed; editable so the desk can punch in live) ----
-    feed_px = fedpath.strip_prices(strip, asof, r0)
-    px_sig = tuple(codes)
-    if st.session_state.get("fp_px_sig") != px_sig:
-        st.session_state["fp_px"] = {c: p for c, p in zip(codes, feed_px)}
-        st.session_state["fp_px_sig"] = px_sig
-    src_note = ("live Bloomberg" if fedpath.MODE == "bloomberg" else "synthetic demo")
-    with st.expander(f"Market prices — SR3 strip  ·  {src_note}", expanded=False):
+    # ---- timeline + meeting counts ------------------------------------------
+    _stir_timeline([p.ticker for p in prods], [bank_key], asof, months)
+    with st.expander("🎯 Meetings inside each contract window"):
+        _stir_window_table(prods, [bank_key], asof, n_q)
+
+    # ---- strips + market prices (editable) ----------------------------------
+    strips = {p.ticker: stirpaths.strip(p, asof, n_q if p.quarterly else min(3 * n_q, 12))
+              for p in prods}
+    contracts, owner, spreads = [], [], []
+    for p in prods:
+        for c in strips[p.ticker]:
+            contracts.append(c)
+            owner.append(p)
+            spreads.append(er_spread if p.ticker == "ERA Comdty" else 0.0)
+    codes = [c.code for c in contracts]
+
+    feed_px = []
+    for p in prods:
+        feed_px += stirpaths.strip_prices(p, bank, strips[p.ticker], asof, r0)
+    px_key, sig_key = f"sp{bank_key}_px", f"sp{bank_key}_px_sig"
+    if st.session_state.get(sig_key) != tuple(codes):
+        st.session_state[px_key] = dict(zip(codes, feed_px))
+        st.session_state[sig_key] = tuple(codes)
+    src_note = "live Bloomberg" if stirpaths.MODE == "bloomberg" else "synthetic demo"
+    with st.expander(f"Market prices — {' + '.join(p.short for p in prods)} strip · {src_note}"):
         st.caption("Seeded from the data feed. Overwrite any cell with a live quote and the whole "
                    "analysis re-prices off it.")
-        px_df = pd.DataFrame({"Contract": codes,
-                              "Window": [f"{c.label}" for c in strip],
-                              "Market px": [st.session_state["fp_px"].get(c, p)
+        px_df = pd.DataFrame({"Product": [p.short for p in owner], "Contract": codes,
+                              "Window": [c.label for c in contracts],
+                              "Market px": [st.session_state[px_key].get(c, p)
                                             for c, p in zip(codes, feed_px)]})
         edited_px = st.data_editor(
-            px_df, hide_index=True, use_container_width=True, key="fp_px_editor",
+            px_df, hide_index=True, use_container_width=True, key=f"sp{bank_key}_px_editor",
             column_config={
+                "Product": st.column_config.TextColumn(disabled=True),
                 "Contract": st.column_config.TextColumn(disabled=True),
                 "Window": st.column_config.TextColumn(disabled=True),
-                "Market px": st.column_config.NumberColumn(format="%.4f", min_value=90.0, max_value=100.0)})
-        st.session_state["fp_px"] = dict(zip(edited_px["Contract"], edited_px["Market px"]))
-    prices = [float(st.session_state["fp_px"].get(c, p)) for c, p in zip(codes, feed_px)]
+                "Market px": st.column_config.NumberColumn(format="%.4f",
+                                                           min_value=90.0, max_value=100.0)})
+        st.session_state[px_key] = dict(zip(edited_px["Contract"], edited_px["Market px"]))
+    prices = [float(st.session_state[px_key].get(c, p)) for c, p in zip(codes, feed_px)]
 
-    # ---- market-implied path -------------------------------------------------
-    ip = fedpath.implied_path(strip, prices, asof, r0)
+    # ---- market-implied path (joint fit across the selected strips) ----------
+    ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads)
     labels = [fedpath.meeting_label(m) for m in ip.meetings]
+    per_bp = dict(zip(labels, [float(v) for v in ip.per_meeting_bp]))
 
-    # ---- scenario moves (one per covered meeting) ----------------------------
-    sig = tuple(labels)
-    if st.session_state.get("fp_sig") != sig:
-        # Open with the market-implied path rounded to clean 25s — a natural starting point.
-        rounded_cum = np.round(ip.cum_bp / 25.0) * 25.0
-        seed = np.diff(np.concatenate([[0.0], rounded_cum]))
-        st.session_state["fp_sig"] = sig
-        _fp_reseed({lab: float(v) for lab, v in zip(labels, seed)})
+    # ---- scenario: % chance of hike / cut per meeting ------------------------
+    sig = (bank_key, tuple(labels))
+    if st.session_state.get(f"sp{bank_key}_sig") != sig:
+        st.session_state[f"sp{bank_key}_sig"] = sig
+        _stir_reseed(bank_key, _stir_seed_from_market(per_bp, hike_bp, cut_bp))
 
-    st.markdown("#### Your Fed path")
-    b1, b2, b3, _ = st.columns([1, 1.3, 1, 3])
-    if b1.button("Hold all", help="Zero every meeting — a flat 'no change' scenario."):
-        _fp_reseed({lab: 0.0 for lab in labels}); st.rerun()
-    if b2.button("Seed from market (25s)", help="Fill with the curve-implied path, rounded to 25bp steps."):
-        rounded_cum = np.round(ip.cum_bp / 25.0) * 25.0
-        seed = np.diff(np.concatenate([[0.0], rounded_cum]))
-        _fp_reseed({lab: float(v) for lab, v in zip(labels, seed)}); st.rerun()
+    st.markdown(f"#### Your {bank.meeting_name} scenario")
+    b1, b2, _ = st.columns([1, 1.4, 4])
+    if b1.button("Hold all", key=f"sp{bank_key}_hold",
+                 help="Zero every meeting — a flat 'no change' scenario."):
+        _stir_reseed(bank_key, {lab: (0.0, 0.0) for lab in labels}); st.rerun()
+    if b2.button("Seed from market odds", key=f"sp{bank_key}_seed",
+                 help="Fill the probabilities with what the strip currently prices (5% steps)."):
+        _stir_reseed(bank_key, _stir_seed_from_market(per_bp, hike_bp, cut_bp)); st.rerun()
 
-    moves = st.session_state["fp_moves"]
-    mv_df = pd.DataFrame({"Meeting": labels,
-                          "Move (bp)": [moves.get(lab, 0.0) for lab in labels]})
+    views_state = st.session_state[f"sp{bank_key}_views"]
+    ed_df = pd.DataFrame({
+        "Meeting": labels,
+        "Mkt-implied (bp)": [per_bp[lab] for lab in labels],
+        "Mkt odds": [_stir_odds_str(per_bp[lab], bank.step_bp) for lab in labels],
+        "P(hike) %": [views_state.get(lab, (0.0, 0.0))[0] for lab in labels],
+        "P(cut) %": [views_state.get(lab, (0.0, 0.0))[1] for lab in labels],
+    })
     edited = st.data_editor(
-        mv_df, hide_index=True, use_container_width=True,
-        key=f"fp_editor_{st.session_state.get('fp_ver', 0)}",
+        ed_df, hide_index=True, use_container_width=True,
+        key=f"sp{bank_key}_editor_{st.session_state.get(f'sp{bank_key}_ver', 0)}",
         column_config={
             "Meeting": st.column_config.TextColumn(disabled=True),
-            "Move (bp)": st.column_config.NumberColumn(
-                "Move (bp)", step=25.0, format="%+g",
-                help="Your expected change in the target at this meeting: −25, 0, +25, …")},
+            "Mkt-implied (bp)": st.column_config.NumberColumn(disabled=True, format="%+.1f",
+                                                              help="The move the strip prices at this meeting."),
+            "Mkt odds": st.column_config.TextColumn(disabled=True,
+                                                    help="Implied move ÷ step size, FedWatch-style."),
+            "P(hike) %": st.column_config.NumberColumn(min_value=0.0, max_value=300.0, step=5.0,
+                                                       format="%.0f",
+                                                       help=f"Your % chance of a +{hike_bp:.0f}bp hike. "
+                                                            "Above 100% = more than one step "
+                                                            "(150% = 1.5 × the step)."),
+            "P(cut) %": st.column_config.NumberColumn(min_value=0.0, max_value=300.0, step=5.0,
+                                                      format="%.0f",
+                                                      help=f"Your % chance of a −{cut_bp:.0f}bp cut. "
+                                                           "Above 100% = more than one step "
+                                                           "(150% = 1.5 × the step)."),
+        },
         height=min(430, 45 + 35 * len(labels)))
-    moves = {lab: float(v) for lab, v in zip(edited["Meeting"], edited["Move (bp)"])}
-    st.session_state["fp_moves"] = moves
-    move_list = [moves.get(lab, 0.0) for lab in labels]
+    views_state = {lab: (float(h), float(c)) for lab, h, c in
+                   zip(edited["Meeting"], edited["P(hike) %"], edited["P(cut) %"])}
+    st.session_state[f"sp{bank_key}_views"] = views_state
+    views = [stirpaths.MeetingView(m, views_state[lab][0] / 100.0, views_state[lab][1] / 100.0,
+                                   hike_bp, cut_bp)
+             for m, lab in zip(ip.meetings, labels)]
+    exp_moves = [v.expected_bp for v in views]
+    scen_fn = stirpaths.scenario_rate_fn(r0, views)
 
-    # ---- price the strip off both paths --------------------------------------
-    scen_fn = fedpath.overnight_rate_fn(r0, ip.meetings, move_list)
-    your_px = [fedpath.price(c, scen_fn, compound=compound) for c in strip]
-    diff_bp = [(y - m) * 100.0 for y, m in zip(your_px, prices)]     # your − market, in bp
-    diff_usd = [d * fedpath.SR3_BP_VALUE for d in diff_bp]
+    def _fair(p, c):
+        return fedpath.price(c, scen_fn, compound=(p.compound and compound)) \
+            - (er_spread if p.ticker == "ERA Comdty" else 0.0) / 100.0
 
-    # cumulative paths as TARGET MIDPOINT (%) for plotting
-    cum_moves = np.cumsum(move_list)                               # bp
-    your_seg_mid = np.concatenate([[mid], mid + cum_moves / 100.0])   # → target mid, %
-    mkt_seg_mid = ip.seg_rates - basis                              # seg_rates are SOFR-level
-    seg_dates = [asof] + [fedpath.effective_date(m) for m in ip.meetings]
+    your_px = [_fair(p, c) for p, c in zip(owner, contracts)]
 
     # ---- headline metrics ----------------------------------------------------
     st.markdown("#### At a glance")
     m1, m2, m3, m4 = st.columns(4)
-    next_bp = float(ip.per_meeting_bp[0]) if len(ip.per_meeting_bp) else 0.0
-    prob = max(0.0, min(1.0, abs(next_bp) / 25.0))
-    m1.metric(f"Next meeting — {labels[0]}", f"{next_bp:+.0f} bp",
-              help="Curve-implied move at the next FOMC. Probability ≈ implied ÷ 25bp (linear).")
-    m1.caption(f"≈ {prob*100:.0f}% odds of a {'cut' if next_bp < 0 else 'hike' if next_bp > 0 else 'move'}")
-    # cuts/hikes priced through the last meeting this calendar year
+    next_bp = per_bp[labels[0]] if labels else 0.0
+    m1.metric(f"Next meeting — {labels[0] if labels else '—'}", f"{next_bp:+.0f} bp",
+              help=f"Curve-implied move at the next {bank.meeting_name} decision.")
+    m1.caption(f"market: {_stir_odds_str(next_bp, bank.step_bp)}")
     eoy = [i for i, m in enumerate(ip.meetings) if m.year == asof.year]
     if eoy:
-        yend = ip.cum_bp[eoy[-1]]
+        yend = float(ip.cum_bp[eoy[-1]])
         m2.metric(f"Priced through Dec {asof.year}", f"{yend:+.0f} bp",
                   help="Cumulative move the strip prices from now to the last meeting this year.")
-        m2.caption(f"≈ {yend/25:+.1f} × 25bp")
-    m3.metric("Terminal (last covered mtg)", f"{(mid + ip.cum_bp[-1]/100):.2f}%",
-              help=f"Curve-implied target mid at {labels[-1]}.")
-    m3.caption(f"{ip.cum_bp[-1]:+.0f} bp vs today")
-    your_end = mid + cum_moves[-1] / 100.0
-    m4.metric("Your terminal", f"{your_end:.2f}%",
-              help="Where your scenario lands the target mid at the last covered meeting.")
-    m4.caption(f"{cum_moves[-1]:+.0f} bp vs today")
+        m2.caption(f"≈ {yend / bank.step_bp:+.1f} × {bank.step_bp:.0f}bp")
+    m3.metric("Terminal (last covered mtg)", f"{policy + float(ip.cum_bp[-1]) / 100:.2f}%",
+              help=f"Curve-implied {bank.rate_name.lower()} at {labels[-1] if labels else '—'}.")
+    m3.caption(f"{float(ip.cum_bp[-1]):+.0f} bp vs today")
+    scen_cum = float(np.sum(exp_moves))
+    m4.metric("Your terminal", f"{policy + scen_cum / 100:.2f}%",
+              help="Probability-weighted landing rate under your meeting scenario.")
+    m4.caption(f"{scen_cum:+.0f} bp expected vs today")
 
-    # ---- chart 1: policy path (market vs your scenario) ----------------------
+    # ---- chart: policy path (market vs your scenario) ------------------------
     cc = brand.chart_colors()
+    seg_dates = [asof] + [fedpath.effective_date(m) for m in ip.meetings]
+    mkt_seg = ip.seg_rates - basis_bp / 100.0
+    your_seg = np.concatenate([[policy], policy + np.cumsum(exp_moves) / 100.0])
     path_df = pd.concat([
-        pd.DataFrame({"date": seg_dates, "mid": mkt_seg_mid, "Path": "Market-implied"}),
-        pd.DataFrame({"date": seg_dates, "mid": your_seg_mid, "Path": "Your scenario"}),
+        pd.DataFrame({"date": seg_dates, "rate": mkt_seg, "Path": "Market-implied"}),
+        pd.DataFrame({"date": seg_dates, "rate": your_seg, "Path": "Your scenario (expected)"}),
     ])
     path_df["date"] = pd.to_datetime(path_df["date"])
-    dom = ["Market-implied", "Your scenario"]
+    dom = ["Market-implied", "Your scenario (expected)"]
     rng = [cc["series"], cc["accent"]]
     line = alt.Chart(path_df).mark_line(interpolate="step-after", strokeWidth=3).encode(
         x=alt.X("date:T", title=None),
-        y=alt.Y("mid:Q", title="Target midpoint (%)", scale=alt.Scale(zero=False)),
+        y=alt.Y("rate:Q", title=f"{bank.rate_name} (%)", scale=alt.Scale(zero=False)),
         color=alt.Color("Path:N", scale=alt.Scale(domain=dom, range=rng),
                         legend=alt.Legend(title=None, orient="top")),
         tooltip=[alt.Tooltip("date:T", title="From"), alt.Tooltip("Path:N"),
-                 alt.Tooltip("mid:Q", title="Target mid", format=".3f")])
+                 alt.Tooltip("rate:Q", title="Rate", format=".3f")])
     pts = alt.Chart(path_df).mark_point(filled=True, size=45).encode(
-        x="date:T", y="mid:Q",
+        x="date:T", y="rate:Q",
         color=alt.Color("Path:N", scale=alt.Scale(domain=dom, range=rng), legend=None))
-    st.markdown("**Implied policy path — where the target midpoint lands at each meeting**")
+    st.markdown(f"**Implied policy path — where the {bank.rate_name.lower()} lands at each meeting**")
     brand.show_chart((line + pts).properties(height=340))
 
-    # ---- chart 2: per-contract mispricing (your − market) --------------------
-    cmp_df = pd.DataFrame({"Contract": [c.label for c in strip], "diff": diff_bp})
-    cmp_df["dir"] = np.where(np.array(diff_bp) > 0.05, "Cheap vs your view (buy)",
-                     np.where(np.array(diff_bp) < -0.05, "Rich vs your view (sell)", "In line"))
-    bar = alt.Chart(cmp_df).mark_bar().encode(
-        x=alt.X("diff:Q", title="Your fair value − market  (bp of rate)"),
-        y=alt.Y("Contract:N", sort=[c.label for c in strip], title=None),
-        color=alt.Color("dir:N", scale=alt.Scale(
-            domain=["Cheap vs your view (buy)", "Rich vs your view (sell)", "In line"],
-            range=[cc["long"], cc["short"], cc["muted"]]),
-            legend=alt.Legend(title=None, orient="top")),
-        tooltip=[alt.Tooltip("Contract:N"), alt.Tooltip("diff:Q", title="Diff (bp)", format="+.1f")])
-    st.markdown("**Where your path disagrees with the strip** &nbsp;·&nbsp; green = future cheap vs "
-                "your view (you'd buy); red = rich (you'd sell).")
-    brand.show_chart((bar + alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(
-        color=cc["muted"]).encode(x="x:Q")).properties(height=max(220, 30 * len(strip))))
-
-    # ---- table ---------------------------------------------------------------
+    # ---- contract detail (per product) ---------------------------------------
     st.markdown("#### Contract detail")
+    diff_bp = [(y - m) * 100.0 for y, m in zip(your_px, prices)]
     tbl = pd.DataFrame({
+        "Product": [p.short for p in owner],
         "Contract": codes,
-        "Window": [f"{c.label}" for c in strip],
+        "Window": [c.label for c in contracts],
         "Market": prices,
         "Mkt-implied rate": [100 - p for p in prices],
         "Your fair": your_px,
         "Diff (bp)": diff_bp,
-        "Diff ($/lot)": diff_usd,
+        "Diff (/lot)": [d * p.bp_value for d, p in zip(diff_bp, owner)],
     })
     fmt = {"Market": "{:.4f}".format, "Mkt-implied rate": "{:.3f}".format,
            "Your fair": "{:.4f}".format, "Diff (bp)": "{:+.1f}".format,
-           "Diff ($/lot)": "${:,.0f}".format}
+           "Diff (/lot)": (bank.ccy + "{:,.0f}").format}
 
     def _color_diff(col):
         out = []
@@ -5848,47 +6136,189 @@ def render_fed_path() -> None:
             else:
                 out.append("color:#c5221f;font-weight:700")
         return out
-    brand.themed_dataframe(tbl, fmt, colorers=[(["Diff (bp)", "Diff ($/lot)"], _color_diff)], height=380)
-    st.caption("**Market** = live/synthetic SR3 price. **Your fair** = the price implied by *your* "
-               "meeting path. **Diff** = your fair − market, in bp of rate and $ per lot "
-               f"(SR3 = ${fedpath.SR3_BP_VALUE:.0f}/bp). Positive = the contract looks cheap vs your "
-               "view (buy it); negative = rich (sell). Per-meeting implied moves smear across each "
-               "quarter (SR3 spans ~2 meetings) — read the **cumulative** path as the robust signal.")
+    brand.themed_dataframe(tbl, fmt, colorers=[(["Diff (bp)", "Diff (/lot)"], _color_diff)],
+                           height=min(420, 45 + 35 * len(tbl)))
+    bp_note = " · ".join(f"{p.short} {bank.ccy}{p.bp_value:.2f}/bp" for p in prods)
+    st.caption("**Your fair** = the price implied by your probability-weighted meeting path. "
+               "Positive diff = the contract looks cheap vs your view (buy); negative = rich (sell). "
+               f"Point values: {bp_note}. Per-meeting implied moves smear across each window — read "
+               "the **cumulative** path as the robust signal."
+               + (" ER is priced as compounded-expected €STR + the spread input (forward-looking "
+                  "term fix)." if bank_key == "ECB" else ""))
 
-    # ---- PDF export ----------------------------------------------------------
-    st.divider()
-    if st.button("📈 Generate Fed Path Report (visual PDF)", type="primary"):
-        with st.spinner("Rendering the Fed-path report…"):
-            try:
-                payload = {
-                    "asof": asof.isoformat(), "band": band, "mid": mid, "basis_bp": basis_bp,
-                    "compound": compound, "n_contracts": n_contracts,
-                    "codes": codes, "labels_contract": [c.label for c in strip],
-                    "prices": prices, "your_px": your_px,
-                    "meetings": labels, "moves": move_list,
-                    "seg_dates": [d.isoformat() for d in seg_dates],
-                    "mkt_mid": list(map(float, mkt_seg_mid)), "your_mid": list(map(float, your_seg_mid)),
-                    "cum_bp": list(map(float, ip.cum_bp)), "per_meeting_bp": list(map(float, ip.per_meeting_bp)),
-                }
-                with tempfile.TemporaryDirectory() as _t:
-                    _in = Path(_t) / "fedpath.json"
-                    _out = Path(_t) / "Fed_Path_Report.pdf"
-                    _in.write_text(json.dumps(payload))
-                    r = subprocess.run(
-                        [sys.executable, str(ROOT / "src" / "fedpathreport.py"), str(_in), str(_out)],
-                        capture_output=True, text=True, timeout=180)
-                    if r.returncode == 0 and _out.exists():
-                        st.session_state["fp_pdf"] = _out.read_bytes()
-                    else:
-                        st.error("Report failed:\n\n" + (r.stderr or r.stdout or "unknown error")[-2000:])
-            except Exception as e:
-                st.error(f"Report failed:\n\n{e}")
-    if st.session_state.get("fp_pdf"):
-        st.download_button("⬇️  Download Fed Path Report", data=st.session_state["fp_pdf"],
-                           file_name="Fed_Path_Report.pdf", mime="application/pdf")
-        email_report_ui("fp_email", "fedpath", st.session_state["fp_pdf"],
-                        subject="BASIS — Implied Fed Path (SOFR strip)",
-                        attachment_name="Fed_Path_Report.pdf")
+    # ---- option-expiry landings ----------------------------------------------
+    opt_prods = [p for p in prods if p.has_options]
+    if opt_prods:
+        st.markdown("#### Where futures land at each option expiry")
+        st.caption("Each **monthly option**, the future it exercises into, and that future's fair "
+                   "price under **your scenario** on the option's expiry day — with the decisions "
+                   "the option lives through vs the ones still open in the future's window after "
+                   "it dies. This is the bridge from a meeting view to an option structure.")
+        px_now = dict(zip(codes, prices))
+        lrows, lkeys = [], []
+        for p in opt_prods:
+            for L in stirpaths.landings(p, bank, asof, views, r0, months,
+                                        spread_bp=er_spread if p.ticker == "ERA Comdty" else 0.0):
+                mkt = px_now.get(L.underlying.code)
+                lrows.append({
+                    "Option": f"{p.short} {L.opt_month}",
+                    "Expiry": f"{L.expiry:%a %d %b %y}",
+                    "Underlying": L.underlying.code,
+                    "Mtgs before expiry": len(L.meetings_decided),
+                    "Still open after": len(L.meetings_open),
+                    "Landing px": L.fair,
+                    "Mkt px now": mkt if mkt is not None else float("nan"),
+                    "Diff (bp)": (L.fair - mkt) * 100.0 if mkt is not None else float("nan"),
+                })
+                lkeys.append((p, L))
+        ldf = pd.DataFrame(lrows)
+        brand.themed_dataframe(
+            ldf, fmt={"Landing px": "{:.4f}".format, "Mkt px now": "{:.4f}".format,
+                      "Diff (bp)": "{:+.1f}".format},
+            colorers=[(["Diff (bp)"], _color_diff)],
+            height=min(430, 45 + 35 * len(ldf)))
+        st.caption("**Mtgs before expiry** = decisions between today and the option's last day (what "
+                   "the option actually captures). **Still open after** = decisions inside the "
+                   "underlying's window that land *after* the option dies — settlement risk the "
+                   "option never sees. Landing px assumes your deterministic expected path (no "
+                   "risk premium), so the future's fair value doesn't drift between now and expiry.")
+
+        # hand-off → Strategy Builder
+        h1, h2 = st.columns([3, 1.4])
+        pick = h1.selectbox(
+            "Build a client structure on…",
+            list(range(len(lkeys))),
+            format_func=lambda i: (f"{lkeys[i][0].short} {lkeys[i][1].opt_month} option · "
+                                   f"exp {lkeys[i][1].expiry:%d %b %y} → "
+                                   f"{lkeys[i][1].underlying.code} @ {lkeys[i][1].fair:.4f}"),
+            key=f"sp{bank_key}_ho_pick")
+        if h2.button("🧰 Model in Strategy Builder", key=f"sp{bank_key}_ho_go",
+                     use_container_width=True,
+                     help="Opens the Strategy Builder with this product marked at the scenario "
+                          "landing price, ready to build the legs."):
+            p, L = lkeys[pick]
+            st.session_state["osb_handoff"] = {
+                "prod": p.ticker, "spot": float(L.fair),
+                "days": max(1, (L.expiry - asof).days),
+                "note": (f"{p.short} {L.opt_month} option (exp {L.expiry:%d %b %Y}) on "
+                         f"{L.underlying.code} — scenario landing {L.fair:.4f}")}
+            _go("Strategy Builder")
+            st.rerun()
+
+    # ---- PDF export (Fed page — the branded fedpath report) ------------------
+    if bank_key == "FED":
+        sr3_idx = [i for i, p in enumerate(owner) if p.ticker == "SFRA Comdty"]
+        if sr3_idx:
+            st.divider()
+            if st.button("📈 Generate Fed Path Report (visual PDF)", type="primary"):
+                with st.spinner("Rendering the Fed-path report…"):
+                    try:
+                        payload = {
+                            "asof": asof.isoformat(), "band": band, "mid": policy,
+                            "basis_bp": basis_bp, "compound": compound,
+                            "n_contracts": len(sr3_idx),
+                            "codes": [codes[i] for i in sr3_idx],
+                            "labels_contract": [contracts[i].label for i in sr3_idx],
+                            "prices": [prices[i] for i in sr3_idx],
+                            "your_px": [your_px[i] for i in sr3_idx],
+                            "meetings": labels, "moves": exp_moves,
+                            "seg_dates": [d.isoformat() for d in seg_dates],
+                            "mkt_mid": list(map(float, mkt_seg)),
+                            "your_mid": list(map(float, your_seg)),
+                            "cum_bp": list(map(float, ip.cum_bp)),
+                            "per_meeting_bp": list(map(float, ip.per_meeting_bp)),
+                        }
+                        with tempfile.TemporaryDirectory() as _t:
+                            _in = Path(_t) / "fedpath.json"
+                            _out = Path(_t) / "Fed_Path_Report.pdf"
+                            _in.write_text(json.dumps(payload))
+                            r = subprocess.run(
+                                [sys.executable, str(ROOT / "src" / "fedpathreport.py"),
+                                 str(_in), str(_out)],
+                                capture_output=True, text=True, timeout=180)
+                            if r.returncode == 0 and _out.exists():
+                                st.session_state["fp_pdf"] = _out.read_bytes()
+                            else:
+                                st.error("Report failed:\n\n"
+                                         + (r.stderr or r.stdout or "unknown error")[-2000:])
+                    except Exception as e:
+                        st.error(f"Report failed:\n\n{e}")
+            if st.session_state.get("fp_pdf"):
+                st.download_button("⬇️  Download Fed Path Report", data=st.session_state["fp_pdf"],
+                                   file_name="Fed_Path_Report.pdf", mime="application/pdf")
+                email_report_ui("fp_email", "fedpath", st.session_state["fp_pdf"],
+                                subject="BASIS — Implied Fed Path (SOFR strip)",
+                                attachment_name="Fed_Path_Report.pdf")
+
+
+def render_stir_cross() -> None:
+    import altair as alt
+    st.subheader("⚖️  Cross-Bank Implied Paths — Fed · ECB · BoE")
+    st.caption(
+        "Each bank's strip inverted into the meeting-step path it prices, on one chart — where the "
+        "cycles diverge is where the cross-market trades live. Uses each bank page's default "
+        "products; set the current policy rates below.")
+    asof = datetime.now(ZoneInfo("America/New_York")).date()
+    dflts = _stir_defaults()
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+    rates = {
+        "FED": c1.number_input("Fed target mid (%)", value=4.375, step=0.125, format="%.3f",
+                               key="spx_FED"),
+        "ECB": c2.number_input("ECB depo (%)", value=stirpaths.BANKS["ECB"].default_rate,
+                               step=0.25, format="%.2f", key="spx_ECB"),
+        "BOE": c3.number_input("BoE Bank Rate (%)", value=stirpaths.BANKS["BOE"].default_rate,
+                               step=0.25, format="%.2f", key="spx_BOE"),
+    }
+    view = c4.radio("Show", ["Cumulative bp", "Rate level"], key="spx_view", horizontal=True)
+
+    frames, rows = [], []
+    for bk, bank in stirpaths.BANKS.items():
+        prods = [stirpaths.PRODUCTS[t] for t in dflts[bk]
+                 if stirpaths.PRODUCTS[t].in_strip and stirpaths.PRODUCTS[t].quarterly]
+        if not prods:
+            continue
+        r0 = rates[bk] + stirpaths.BANK_BASIS_SEED[bk] / 100.0
+        contracts, spreads, prices = [], [], []
+        for p in prods:
+            s = stirpaths.strip(p, asof, 8)
+            contracts += s
+            spreads += [p.spread_bp] * len(s)
+            prices += stirpaths.strip_prices(p, bank, s, asof, r0)
+        ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads)
+        seg_dates = [asof] + [fedpath.effective_date(m) for m in ip.meetings]
+        lvl = ip.seg_rates - stirpaths.BANK_BASIS_SEED[bk] / 100.0     # policy-rate space
+        cum = np.concatenate([[0.0], (lvl[1:] - lvl[0]) * 100.0])
+        frames.append(pd.DataFrame({
+            "date": pd.to_datetime(seg_dates),
+            "value": cum if view == "Cumulative bp" else lvl,
+            "Bank": bank.name}))
+        nxt = float(ip.per_meeting_bp[0]) if len(ip.per_meeting_bp) else 0.0
+        eoy = [i for i, m in enumerate(ip.meetings) if m.year == asof.year]
+        rows.append({
+            "Bank": bank.name,
+            "Products": " + ".join(p.short for p in prods),
+            "Next decision": f"{ip.meetings[0]:%d %b %y}" if ip.meetings else "—",
+            "Implied next": f"{nxt:+.0f} bp ({_stir_odds_str(nxt, bank.step_bp)})",
+            f"Through Dec {asof.year}": f"{float(ip.cum_bp[eoy[-1]]):+.0f} bp" if eoy else "—",
+            "Terminal": f"{float(lvl[-1]):.2f}%",
+        })
+    dom = [stirpaths.BANKS[b].name for b in ("FED", "ECB", "BOE")]
+    rng = [_STIR_BANK_COLOR[b] for b in ("FED", "ECB", "BOE")]
+    ch_df = pd.concat(frames)
+    line = alt.Chart(ch_df).mark_line(interpolate="step-after", strokeWidth=3).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("value:Q",
+                title="Cumulative bp vs today" if view == "Cumulative bp" else "Policy rate (%)",
+                scale=alt.Scale(zero=(view == "Cumulative bp"))),
+        color=alt.Color("Bank:N", scale=alt.Scale(domain=dom, range=rng),
+                        legend=alt.Legend(title=None, orient="top")),
+        tooltip=[alt.Tooltip("date:T", title="From"), alt.Tooltip("Bank:N"),
+                 alt.Tooltip("value:Q", format=".2f")])
+    brand.show_chart(line.properties(height=360))
+    brand.themed_dataframe(pd.DataFrame(rows), fmt={}, height=180)
+    st.caption("Implied paths from each bank's default strip (mock prices offline, live on the "
+               "Terminal). Cumulative view puts the three cycles on one axis; rate-level view "
+               "shows where each policy rate is heading in absolute terms.")
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -7657,7 +8087,21 @@ def render_strategy_builder() -> None:
     a re-priced 'T + d days' scenario line. Engine: src/optbuilder.py (Black-76,
     same convention as the Vol Backtester)."""
     import altair as alt
+    # ---- hand-off from STIR Paths: mark the underlying at the scenario landing ----
+    _ho = st.session_state.pop("osb_handoff", None)
+    if _ho:
+        st.session_state["osb_prod"] = _ho["prod"]
+        st.session_state["osb_prod_prev"] = _ho["prod"]   # skip the live-quote reseed below
+        st.session_state["osb_spot"] = float(_ho["spot"])
+        st.session_state["osb_pv"] = float(volbt.point_value(_ho["prod"])) or 1.0
+        st.session_state.pop("osb_rows", None)
+        st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
+        st.session_state["osb_ho_note"] = _ho["note"]
     st.subheader("🧰  Option Strategy Builder — multi-leg payoff modeller")
+    if st.session_state.get("osb_ho_note"):
+        st.info(f"Seeded from STIR Paths: {st.session_state['osb_ho_note']}. The underlying is "
+                "marked at the scenario landing price — build the legs against it, or reset the "
+                "price to live from the product picker.")
     st.markdown("""
         <style>
           div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] > div {
@@ -7717,6 +8161,7 @@ def render_strategy_builder() -> None:
                 st.session_state["osb_dvol"] = round(optbuilder.vol_at(_cv, _dd), 1)
             if not _first:
                 st.session_state.pop("osb_rows", None)
+                st.session_state.pop("osb_ho_note", None)   # a STIR hand-off dies with its product
                 st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
                 st.rerun()
     F0 = c2.number_input("Underlying price", min_value=0.0001, value=100.0,
@@ -9029,7 +9474,7 @@ with st.sidebar:
     if _side == "FICC":
         st.markdown('<div class="bt-sect">FICC modules</div>', unsafe_allow_html=True)
         # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield)
-        # collapses to one entry; Trade Testing (Fed Path + Vol Backtester) does the same, numbered
+        # collapses to one entry; STIR Paths (timeline + bank pages) and Trade Testing do the same, numbered
         # in after the strategy groups. Both carry the tab-row switcher (_render_group_tabs).
         # Morning Coffee is reached from the Home page's Data row.
         _nav_button("01 · Market Information", "Release Calendar")
@@ -9059,7 +9504,9 @@ with st.sidebar:
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Seasonality", "Seasonality")
         _n_mod += 1
-        _nav_button(f"{_n_mod:02d} · Trade Testing", "Fed Path")
+        _nav_button(f"{_n_mod:02d} · STIR Paths", "STIR Timeline")
+        _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Trade Testing", "Vol Backtester")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
@@ -9309,8 +9756,16 @@ if active == "Block Sizes":
     render_block_sizes(); st.stop()
 if active == "Fut Yield":
     render_fut_yield(); st.stop()
+if active == "STIR Timeline":
+    render_stir_overview(); st.stop()
 if active == "Fed Path":
-    render_fed_path(); st.stop()
+    render_stir_bank("FED"); st.stop()
+if active == "ECB Path":
+    render_stir_bank("ECB"); st.stop()
+if active == "BoE Path":
+    render_stir_bank("BOE"); st.stop()
+if active == "STIR Cross":
+    render_stir_cross(); st.stop()
 if active == "Vol Backtester":
     render_vol_backtester(); st.stop()
 if active == "TA Backtester":
