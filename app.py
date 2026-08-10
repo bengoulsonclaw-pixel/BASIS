@@ -5747,6 +5747,29 @@ def _stir_set_sel(skey: str, values: list) -> None:
     st.session_state[skey] = list(values)
 
 
+_STIR_SCEN_STORE = ROOT / "data" / "stirpaths_scenarios.json"
+
+
+def _stir_scen_all() -> dict:
+    try:
+        return json.loads(_STIR_SCEN_STORE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _stir_scen_save(bank_key: str, name: str, vals: dict) -> None:
+    d = _stir_scen_all()
+    d.setdefault(bank_key, {})[name] = vals
+    _STIR_SCEN_STORE.parent.mkdir(parents=True, exist_ok=True)
+    _STIR_SCEN_STORE.write_text(json.dumps(d, indent=1), encoding="utf-8")
+
+
+def _stir_scen_delete(bank_key: str, name: str) -> None:
+    d = _stir_scen_all()
+    d.get(bank_key, {}).pop(name, None)
+    _STIR_SCEN_STORE.write_text(json.dumps(d, indent=1), encoding="utf-8")
+
+
 def _stir_picker(store_key: str, products: list, label: str = "Products shown") -> list:
     """Product include/exclude multiselect with a persisted default: 💾 saves the
     current selection as the page default (data/stirpaths.json), ↺ restores it."""
@@ -5767,55 +5790,271 @@ def _stir_picker(store_key: str, products: list, label: str = "Products shown") 
     return sel
 
 
-def _stir_timeline(sel: list, banks: list, asof, months: int) -> None:
-    """The module's centrepiece: one row per product — futures ● and options ◇
-    expiries in the product's colour — with every rate decision as a dashed rule,
-    so the meetings-inside-each-window story is visible at a glance."""
+def _stir_meeting_rules(banks: list, asof, hor_end, x_scale, mute=False):
+    """Dashed vertical rule per rate decision inside the horizon. On multi-bank
+    charts the rules carry the bank colour + legend (they ARE the bank marker);
+    on single-bank pages they mute to grey so the in-band ticks pop instead."""
     import altair as alt
-    prods = [stirpaths.PRODUCTS[t] for t in sel]
-    if not prods:
-        st.info("Pick at least one product to draw the timeline.")
-        return
-    rows = []
-    for p in prods:
-        for r in stirpaths.expiry_rows(p, asof, months):
-            rows.append({"Product": p.short, "Kind": r.kind, "Date": pd.Timestamp(r.expiry),
-                         "What": f"{p.short} {r.month} {r.kind.lower()} · {r.expiry:%a %d %b %Y}"})
-    ey, em = stirpaths._add_months(asof.year, asof.month, months)
-    x_scale = alt.Scale(domain=[pd.Timestamp(asof).isoformat(),
-                                pd.Timestamp(date(ey, em, 1)).isoformat()])
-    order = [p.short for p in prods]
-    pdom, prng = order, [p.color for p in prods]
-    base = alt.Chart(pd.DataFrame(rows)).encode(
-        x=alt.X("Date:T", title=None, scale=x_scale),
-        y=alt.Y("Product:N", sort=order, title=None),
-        color=alt.Color("Product:N", scale=alt.Scale(domain=pdom, range=prng), legend=None),
-        tooltip=[alt.Tooltip("What:N", title="Expiry")])
-    futs = base.transform_filter(alt.datum.Kind == "Future").mark_point(
-        filled=True, size=120, shape="circle")
-    opts = base.transform_filter(alt.datum.Kind == "Option").mark_point(
-        filled=False, size=120, shape="diamond", strokeWidth=2.2)
-    layers = [futs, opts]
     mrows = []
     for bk in banks:
         b = stirpaths.BANKS[bk]
         for m in b.meetings:
-            if asof <= m < date(ey, em, 1):
+            if asof <= m < hor_end:
                 mrows.append({"Bank": bk, "Date": pd.Timestamp(m),
                               "What": f"{b.meeting_name} decision · {m:%a %d %b %Y}"})
-    if mrows:
-        bdom = [b for b in ("FED", "ECB", "BOE") if b in banks]
-        rules = alt.Chart(pd.DataFrame(mrows)).mark_rule(
-            strokeDash=[5, 4], strokeWidth=1.6, opacity=0.8).encode(
-            x=alt.X("Date:T", scale=x_scale),
-            color=alt.Color("Bank:N", scale=alt.Scale(
-                domain=bdom, range=[_STIR_BANK_COLOR[b] for b in bdom]),
-                legend=alt.Legend(title="Rate decisions", orient="top")),
-            tooltip=[alt.Tooltip("What:N", title="Meeting")])
+    if not mrows:
+        return None
+    base = alt.Chart(pd.DataFrame(mrows)).mark_rule(
+        strokeDash=[5, 4], strokeWidth=1.4 if mute else 1.6,
+        opacity=0.35 if mute else 0.65).encode(
+        x=alt.X("Date:T", scale=x_scale),
+        tooltip=[alt.Tooltip("What:N", title="Meeting")])
+    if mute:
+        return base.encode(color=alt.value("#8A93A6"))
+    bdom = [b for b in ("FED", "ECB", "BOE") if b in banks]
+    return base.encode(color=alt.Color("Bank:N", scale=alt.Scale(
+        domain=bdom, range=[_STIR_BANK_COLOR[b] for b in bdom]),
+        legend=alt.Legend(title="Rate decisions", orient="top") if len(bdom) > 1 else None))
+
+
+def _stir_timeline(sel: list, banks: list, asof, months: int,
+                   key: str = "tl", default_view: str = "Contract windows",
+                   ann: dict | None = None) -> None:
+    """The module's centrepiece, in two flavours: 'Contract windows' = one row per
+    CONTRACT with its reference period as a shaded band (the how-many-decisions-
+    inside-each-period story, Ben's core ask); 'Compact rows' = one row per product
+    with expiry marks only."""
+    prods = [stirpaths.PRODUCTS[t] for t in sel]
+    if not prods:
+        st.info("Pick at least one product to draw the timeline.")
+        return
+    view = st.radio("Timeline view", ["Contract windows", "Compact rows"],
+                    index=["Contract windows", "Compact rows"].index(default_view),
+                    horizontal=True, key=f"stir_view_{key}",
+                    help="Contract windows draws each contract's reference period as a band, "
+                         "so the decisions inside each period are countable at a glance. "
+                         "Compact rows is the one-line-per-product expiry overview.")
+    if view == "Contract windows":
+        _stir_window_chart(prods, banks, asof, months, ann)
+    else:
+        _stir_compact_chart(prods, banks, asof, months)
+
+
+def _stir_compact_chart(prods: list, banks: list, asof, months: int) -> None:
+    """One row per product: futures ● (true last-trade day, labelled with the
+    contract that actually dies — the in-arrears quarterlies expire at their
+    window END) and options ◇, with decisions as dashed rules."""
+    import altair as alt
+    ey, em = stirpaths._add_months(asof.year, asof.month, months)
+    hor_end = date(ey, em, 1)
+    x_scale = alt.Scale(domain=[pd.Timestamp(asof).isoformat(),
+                                pd.Timestamp(hor_end).isoformat()])
+    rows = []
+    for p in prods:
+        n = (months // 3 + 4) if p.quarterly else months + 3
+        for c in stirpaths.strip(p, asof, n):
+            lt = stirpaths.fut_last_trade(p, c)
+            if asof <= lt < hor_end:
+                rows.append({"Product": p.short, "Kind": "Future", "Date": pd.Timestamp(lt),
+                             "What": f"{p.short} {c.label} future last trade · {lt:%a %d %b %Y} "
+                                     f"(window {c.start:%d %b} → {c.end:%d %b %y})"})
+        if p.has_options:
+            for r in stirpaths.expiry_rows(p, asof, months):
+                if r.kind == "Option":
+                    rows.append({"Product": p.short, "Kind": "Option", "Date": pd.Timestamp(r.expiry),
+                                 "What": f"{p.short} {r.month} option · {r.expiry:%a %d %b %Y}"})
+    order = [p.short for p in prods]
+    base = alt.Chart(pd.DataFrame(rows)).encode(
+        x=alt.X("Date:T", title=None, scale=x_scale),
+        y=alt.Y("Product:N", sort=order, title=None),
+        color=alt.Color("Product:N", scale=alt.Scale(domain=order, range=[p.color for p in prods]),
+                        legend=None),
+        tooltip=[alt.Tooltip("What:N", title="Expiry")])
+    layers = [base.transform_filter(alt.datum.Kind == "Future").mark_point(
+                  filled=True, size=120, shape="circle"),
+              base.transform_filter(alt.datum.Kind == "Option").mark_point(
+                  filled=False, size=120, shape="diamond", strokeWidth=2.2)]
+    rules = _stir_meeting_rules(banks, asof, hor_end, x_scale)
+    if rules is not None:
         layers.append(rules)
     brand.show_chart(alt.layer(*layers).properties(height=max(150, 48 * len(prods) + 55)))
-    st.caption("● futures expiry &nbsp;·&nbsp; ◇ monthly options expiry (standard cycle, rule-based, "
-               "exchange-holiday aware) &nbsp;·&nbsp; dashed rules = rate-decision dates. Hover any mark.")
+    st.caption("● futures last-trade day &nbsp;·&nbsp; ◇ monthly options expiry (standard cycle, "
+               "rule-based, exchange-holiday aware) &nbsp;·&nbsp; dashed rules = rate-decision dates. "
+               "Hover any mark.")
+
+
+def _stir_window_chart(prods: list, banks: list, asof, months: int,
+                       ann: dict | None = None) -> None:
+    """One row per CONTRACT: a shaded band spanning its reference window, the
+    decisions still ahead inside it as ticks, ● last-trade day, ◇ its options.
+    With `ann` (the bank pages pass it) the chart becomes the desk cockpit:
+    each future's market price above its ●, the front contract top-left, the
+    market-implied odds above each decision rule, YOUR odds below it, and a
+    market-vs-your-scenario price overlay on a right-hand axis."""
+    import altair as alt
+    cc = brand.chart_colors()
+    ey, em = stirpaths._add_months(asof.year, asof.month, months)
+    hor_end = date(ey, em, 1)
+    x_scale = alt.Scale(domain=[pd.Timestamp(asof).isoformat(),
+                                pd.Timestamp(hor_end).isoformat()])
+    px_of = (ann or {}).get("px", {})
+    fair_of = (ann or {}).get("fair", {})
+
+    bars, ticks, futs, opts, mcs, dels, row_order = [], [], [], [], [], [], []
+    overflow: dict[str, int] = {}                   # monthly rows beyond the density cap
+    row_of = {}                                     # (product short, contract label) -> row id
+    for p in prods:
+        bank = stirpaths.BANKS[p.bank]
+        n = (months // 3 + 4) if p.quarterly else months + 3
+        shown = 0
+        for c in stirpaths.strip(p, asof, n):
+            if c.end <= asof or c.start >= hor_end:
+                continue
+            if not p.quarterly and shown >= 12:     # density guard: a 24mo horizon of
+                overflow[p.short] = overflow.get(p.short, 0) + 1   # monthlies drowns the chart
+                continue
+            shown += 1
+            left = [m for m in stirpaths.meetings_in_window(bank, c) if m > asof]
+            row = f"{p.short} {c.label} · {len(left)} mtg" + ("" if len(left) == 1 else "s")
+            row_order.append(row)
+            row_of[(p.short, c.label)] = row
+            seg_s = pd.Timestamp(max(c.start, asof))
+            seg_e = pd.Timestamp(min(c.end, hor_end))
+            bars.append({"Row": row, "Product": p.short, "start": seg_s, "end": seg_e,
+                         "What": f"{p.short} {c.label} — reference window {c.start:%d %b %y} → "
+                                 f"{c.end:%d %b %y} · {len(left)} decision(s) still ahead inside it"})
+            for m in left:
+                if m < hor_end:
+                    ticks.append({"Row": row, "Date": pd.Timestamp(m), "Bank": p.bank,
+                                  "What": f"{bank.meeting_name} {m:%a %d %b %Y} — inside the "
+                                          f"{p.short} {c.label} window"})
+            lt = stirpaths.fut_last_trade(p, c)
+            if asof <= lt < hor_end:
+                futs.append({"Row": row, "Product": p.short, "Date": pd.Timestamp(lt),
+                             "px": f"{px_of[c.code]:.3f}" if c.code in px_of else "",
+                             "What": f"{p.short} {c.label} future last trade · {lt:%a %d %b %Y}"
+                                     + (f" · trading {px_of[c.code]:.4f}" if c.code in px_of else "")})
+            if c.code in px_of and c.code in fair_of:
+                d_bp = (fair_of[c.code] - px_of[c.code]) * 100.0
+                dels.append({"Row": row, "Date": pd.Timestamp(hor_end), "lab": f"{d_bp:+.1f}",
+                             "col": (cc["long"] if d_bp > 0.05 else
+                                     cc["short"] if d_bp < -0.05 else cc["muted"]),
+                             "What": f"{c.code}: your fair {fair_of[c.code]:.4f} vs market "
+                                     f"{px_of[c.code]:.4f} → {d_bp:+.1f}bp "
+                                     f"({'cheap vs your view (buy)' if d_bp > 0.05 else 'rich vs your view (sell)' if d_bp < -0.05 else 'in line'})"})
+        if p.has_options:
+            for r in stirpaths.expiry_rows(p, asof, months):
+                if r.kind != "Option":
+                    continue
+                u = stirpaths.option_underlying(p, r.year, r.mon)
+                row = row_of.get((p.short, u.label))
+                if row:
+                    opts.append({"Row": row, "Product": p.short, "Date": pd.Timestamp(r.expiry),
+                                 "What": f"{p.short} {r.month} option · expires {r.expiry:%a %d %b %Y} "
+                                         f"· exercises into {u.code}"})
+            for r in stirpaths.midcurve_expiries(p, asof, months):
+                u = stirpaths.option_underlying_mc(p, r.year, r.mon)
+                row = row_of.get((p.short, u.label))
+                if row:
+                    mcs.append({"Row": row, "Product": p.short, "Date": pd.Timestamp(r.expiry),
+                                "What": f"{p.short} {r.month} 1Y-MIDCURVE option · expires "
+                                        f"{r.expiry:%a %d %b %Y} · exercises into the deferred "
+                                        f"{u.code} — the instrument for far-out meeting views"})
+    if not bars:
+        st.info("No contract windows intersect the horizon.")
+        return
+
+    # The odds get their own labelled ROWS at the top of the band scale (not
+    # pixel-pinned text) — allocated space, so they can never collide with the
+    # first contract row's price tags.
+    if ann:
+        row_order = ["Market %", "Your call %"] + row_order
+    h = max(190, 34 * len(row_order) + 70)
+    y_enc = alt.Y("Row:N", sort=row_order, title=None, scale=alt.Scale(paddingOuter=0.5))
+
+    def _enc(chart, tooltip_title):
+        return chart.encode(
+            y=y_enc,
+            color=alt.Color("Product:N", legend=None, scale=alt.Scale(
+                domain=[p.short for p in prods], range=[p.color for p in prods])),
+            tooltip=[alt.Tooltip("What:N", title=tooltip_title)])
+
+    def _sign_col(v):
+        return cc["long"] if v > 0 else cc["short"] if v < 0 else cc["muted"]
+
+    layers = [_enc(alt.Chart(pd.DataFrame(bars)).mark_bar(fillOpacity=0.20, size=17),
+                   "Contract").encode(x=alt.X("start:T", title=None, scale=x_scale), x2="end:T")]
+    rules = _stir_meeting_rules(banks, asof, hor_end, x_scale, mute=bool(ann))
+    if rules is not None:
+        layers.append(rules)
+    bdom = [b for b in ("FED", "ECB", "BOE") if b in banks]
+    if ticks:
+        layers.append(alt.Chart(pd.DataFrame(ticks)).mark_tick(
+            thickness=3, size=17, opacity=0.95).encode(
+            x=alt.X("Date:T", scale=x_scale), y=y_enc,
+            color=alt.Color("Bank:N", legend=None, scale=alt.Scale(
+                domain=bdom, range=[_STIR_BANK_COLOR[b] for b in bdom])),
+            tooltip=[alt.Tooltip("What:N", title="Decision")]))
+    if futs:
+        fdf = pd.DataFrame(futs)
+        layers.append(_enc(alt.Chart(fdf).mark_point(
+            filled=True, size=100, shape="circle"), "Future").encode(
+            x=alt.X("Date:T", scale=x_scale)))
+        if ann:                                     # (1) market price above each futures expiry
+            layers.append(_enc(alt.Chart(fdf).mark_text(
+                dy=-14, fontSize=11, fontWeight="bold"), "Future").encode(
+                x=alt.X("Date:T", scale=x_scale), text="px:N"))
+    if opts:
+        layers.append(_enc(alt.Chart(pd.DataFrame(opts)).mark_point(
+            filled=False, size=100, shape="diamond", strokeWidth=2.2), "Option").encode(
+            x=alt.X("Date:T", scale=x_scale)))
+    if mcs:
+        layers.append(_enc(alt.Chart(pd.DataFrame(mcs)).mark_point(
+            filled=False, size=95, shape="triangle-up", strokeWidth=2.2), "1Y midcurve").encode(
+            x=alt.X("Date:T", scale=x_scale)))
+    if ann:                                         # (3)+(4) odds rows: market, then your call
+        mrows = [{"Row": "Market %", "Date": pd.Timestamp(m), "lab": f"{v:+.0f}",
+                  "col": _sign_col(v),
+                  "What": f"Market prices {v:+.0f}% ({'hike' if v > 0 else 'cut' if v < 0 else 'hold'}) "
+                          f"at the {m:%d %b %y} decision"}
+                 for m, v in (ann.get("mkt") or {}).items() if asof <= m < hor_end]
+        yrows = [{"Row": "Your call %", "Date": pd.Timestamp(m), "lab": f"{v:+.0f}",
+                  "col": _sign_col(v),
+                  "What": f"Your call: {v:+.0f}% ({'hike' if v > 0 else 'cut' if v < 0 else 'hold'}) "
+                          f"at the {m:%d %b %y} decision — edit below the chart"}
+                 for m, v in (ann.get("you") or {}).items() if asof <= m < hor_end]
+        if mrows or yrows:
+            layers.append(alt.Chart(pd.DataFrame(mrows + yrows)).mark_text(
+                fontSize=11, fontWeight="bold").encode(
+                x=alt.X("Date:T", scale=x_scale), y=y_enc, text="lab:N",
+                color=alt.Color("col:N", scale=None),
+                tooltip=[alt.Tooltip("What:N", title="Odds")]))
+    if dels:                                        # (5) your fair vs market, one Δbp per row
+        layers.append(alt.Chart(pd.DataFrame(dels)).mark_text(
+            align="right", dx=-2, fontSize=11, fontWeight="bold").encode(
+            x=alt.X("Date:T", scale=x_scale), y=y_enc, text="lab:N",
+            color=alt.Color("col:N", scale=None),
+            tooltip=[alt.Tooltip("What:N", title="Your fair − market")]))
+
+    props = {"height": h}
+    if ann and ann.get("front"):                    # (2) front-month quote, top-left
+        props["title"] = alt.TitleParams(ann["front"], anchor="start", fontSize=13)
+    brand.show_chart(alt.layer(*layers).properties(**props))
+    cap = ("Each row = one contract; the shaded band is its **reference window** and the row label "
+           "counts the decisions still ahead inside it. Coloured ticks = those decisions "
+           "&nbsp;·&nbsp; ● last-trade day &nbsp;·&nbsp; ◇ its options (serials sit on the "
+           "quarterly they exercise into) &nbsp;·&nbsp; △ 1Y midcurves (short-dated premium on the "
+           "deferred quarterly) &nbsp;·&nbsp; dashed rules = decision dates.")
+    if ann:
+        cap += (" &nbsp;·&nbsp; Numbers above each ● = the future's current price. **Market %** = "
+                "the odds the strip prices at each decision, **Your call %** = yours (green hike / "
+                "red cut, edit below). Right edge: **Δbp** = your fair − market per contract — "
+                "green cheap vs your view, red rich.")
+    if overflow:
+        cap += (" &nbsp;·&nbsp; Monthly rows capped at 12: "
+                + ", ".join(f"{k} +{v} more" for k, v in overflow.items())
+                + " (shorten the horizon or use Compact rows).")
+    st.caption(cap + " Hover anything for detail.")
 
 
 def _stir_window_table(prods: list, bank_keys: list, asof, n_q: int) -> None:
@@ -5851,7 +6090,7 @@ def render_stir_overview() -> None:
     months = st.slider("Horizon (months)", 6, 24, 15, key="stir_tl_months")
     banks = sorted({stirpaths.PRODUCTS[t].bank for t in sel},
                    key=["FED", "ECB", "BOE"].index) if sel else []
-    _stir_timeline(sel, banks, asof, months)
+    _stir_timeline(sel, banks, asof, months, key="ov", default_view="Compact rows")
 
     ey, em = stirpaths._add_months(asof.year, asof.month, months)
     up = sorted((m, b) for b in banks for m in stirpaths.BANKS[b].meetings
@@ -5880,15 +6119,21 @@ def _stir_reseed(bank_key: str, views: dict, ver_bump: bool = True) -> None:
 
 
 def _stir_seed_from_market(per_bp: dict, hike_bp: float, cut_bp: float) -> dict:
-    """Implied per-meeting move → (P(hike)%, P(cut)%), snapped to 5% steps. Above
-    100% means more than one full step priced (150% cut = 1.5 × the cut size), so
-    the seeded scenario reproduces the market path instead of capping it."""
+    """Implied per-meeting move → ONE signed 'your odds' number per meeting:
+    +% = chance of a hike, −% = chance of a cut (desk shorthand), snapped to 5%
+    steps. Beyond ±100% = more than one full step priced (−150 = 1.5 cuts);
+    capped at ±300."""
     out = {}
     for lab, bp in per_bp.items():
-        ph = min(3.0, max(0.0, bp) / hike_bp) * 100.0
-        pc = min(3.0, max(0.0, -bp) / cut_bp) * 100.0
-        out[lab] = (round(ph / 5) * 5.0, round(pc / 5) * 5.0)
+        v = (bp / hike_bp if bp > 0 else bp / cut_bp) * 100.0
+        out[lab] = float(min(300.0, max(-300.0, round(v / 5) * 5.0)))
     return out
+
+
+def _stir_signed_pct(bp: float, hike_bp: float, cut_bp: float) -> float:
+    """Un-snapped signed odds %, for the chart labels (−82 = 82% of a cut priced)."""
+    v = (bp / hike_bp if bp > 0 else bp / cut_bp) * 100.0
+    return float(min(300.0, max(-300.0, v)))
 
 
 def _stir_odds_str(bp: float, step: float) -> str:
@@ -5908,10 +6153,10 @@ def render_stir_bank(bank_key: str) -> None:
     prods_all = stirpaths.bank_products(bank_key)
     st.subheader(f"{_STIR_ICON[bank_key]}  {bank.name} — implied path & meeting scenarios")
     st.caption(
-        f"Assign a **% chance of a hike / cut** to each **{bank.meeting_name}** decision and see "
-        "where every future lands if you're right — next to the path the strip already prices, and "
-        "at **each option expiry**, so a view on the meetings converts straight into an option "
-        "structure. The timeline shows how many decisions sit inside each contract and option window.")
+        f"Punch a **signed % chance** into each **{bank.meeting_name}** decision (+hike / −cut) and "
+        "see where every future lands if you're right — on the timeline against the market's own "
+        "pricing, and at **each option expiry** (listed monthlies + 1Y midcurves), so a view on the "
+        "meetings converts straight into an option structure.")
 
     asof = datetime.now(ZoneInfo("America/New_York")).date()
 
@@ -5936,6 +6181,10 @@ def render_stir_bank(bank_key: str) -> None:
     n_q = c3.slider("Quarterly contracts", 4, 12, 8, key=f"sp{bank_key}_nq",
                     help="How far out the strip to price — whites + reds.")
     months = c4.slider("Timeline horizon (mo)", 6, 24, 15, key=f"sp{bank_key}_mo")
+
+    q0 = next(p for p in prods_all if p.quarterly)
+    front_start = stirpaths.strip(q0, asof, 1)[0].start
+    auto_stub = stirpaths.realized_stub_avg(bank, front_start, asof)
     with st.expander("Advanced"):
         a1, a2, a3 = st.columns(3)
         compound = a1.checkbox("Compound settlements (ACT/360)", value=True,
@@ -5946,48 +6195,71 @@ def render_stir_bank(bank_key: str) -> None:
                                   format="%.0f", key=f"sp{bank_key}_hk")
         cut_bp = a2.number_input("Cut step (bp)", value=bank.step_bp, step=5.0,
                                  format="%.0f", key=f"sp{bank_key}_ct")
+        haircut = a2.number_input("Term-premium haircut (bp/yr)", value=0.0, step=0.5,
+                                  format="%.1f", key=f"sp{bank_key}_hc",
+                                  help="Far-out futures-implied moves aren't pure expectations — "
+                                       "this shaves bp per year off the DISPLAYED odds/cumulative "
+                                       "path (prices and fair values stay untouched). 0 = off.")
         er_spread = 0.0
         if bank_key == "ECB":
             er_spread = a3.number_input("Euribor − €STR spread (bp)", value=10.0, step=1.0,
                                         format="%.1f", key="spECB_ersp",
-                                        help="Euribor is a forward-looking term fix; ER is priced as "
-                                             "compounded-expected €STR + this spread.")
+                                        help="Seeds the per-contract Spread column in the market-"
+                                             "prices grid (Euribor is a forward-looking term fix).")
+        stub = a3.number_input(
+            f"Realized o/n avg since {front_start:%d %b} (%)",
+            value=round(float(auto_stub), 3) if auto_stub is not None
+            else round(policy + basis_bp / 100.0, 3),
+            step=0.005, format="%.3f", key=f"sp{bank_key}_stub",
+            help="Average overnight fixing over the front window's already-elapsed days. If a move "
+                 "landed inside the front window, today's rate misprices the accrued stub and "
+                 "pollutes the front contract's implied odds — this input fixes it. Auto-seeded "
+                 "from the fixings cache when available.")
+        a3.caption(("auto from fixings cache" if auto_stub is not None
+                    else "no fixings cache — seeded from today's rate; adjust after a recent move"))
+        if stirpaths.MODE == "bloomberg":
+            if a3.button("↻ Pull o/n fixings", key=f"sp{bank_key}_fixpull",
+                         help="Refresh data/stir_fixings.json from the Terminal (3 index bdh pulls)."):
+                got = stirpaths.refresh_fixings(asof)
+                st.session_state.pop(f"sp{bank_key}_stub", None)
+                st.toast(f"Fixings refreshed: {got}" if got else "Pull failed (blocked/offline).")
+                st.rerun()
     r0 = policy + basis_bp / 100.0                  # overnight-proxy level today, %
 
     sel = _stir_picker(bank_key, prods_all, label="Products in the tools")
     prods = [stirpaths.PRODUCTS[t] for t in sel] or [prods_all[0]]
 
-    # ---- timeline + meeting counts ------------------------------------------
-    _stir_timeline([p.ticker for p in prods], [bank_key], asof, months)
-    with st.expander("🎯 Meetings inside each contract window"):
-        _stir_window_table(prods, [bank_key], asof, n_q)
-
-    # ---- strips + market prices (editable) ----------------------------------
+    # ---- strips + market prices + per-contract spreads (editable) ------------
     strips = {p.ticker: stirpaths.strip(p, asof, n_q if p.quarterly else min(3 * n_q, 12))
               for p in prods}
-    contracts, owner, spreads = [], [], []
+    contracts, owner = [], []
     for p in prods:
         for c in strips[p.ticker]:
             contracts.append(c)
             owner.append(p)
-            spreads.append(er_spread if p.ticker == "ERA Comdty" else 0.0)
     codes = [c.code for c in contracts]
+    seed_spd = [er_spread if p.ticker == "ERA Comdty" else 0.0 for p in owner]
 
     feed_px = []
     for p in prods:
         feed_px += stirpaths.strip_prices(p, bank, strips[p.ticker], asof, r0)
-    px_key, sig_key = f"sp{bank_key}_px", f"sp{bank_key}_px_sig"
+    px_key, spd_key, sig_key = (f"sp{bank_key}_px", f"sp{bank_key}_spd", f"sp{bank_key}_px_sig")
     if st.session_state.get(sig_key) != tuple(codes):
         st.session_state[px_key] = dict(zip(codes, feed_px))
+        st.session_state[spd_key] = dict(zip(codes, seed_spd))
         st.session_state[sig_key] = tuple(codes)
     src_note = "live Bloomberg" if stirpaths.MODE == "bloomberg" else "synthetic demo"
     with st.expander(f"Market prices — {' + '.join(p.short for p in prods)} strip · {src_note}"):
-        st.caption("Seeded from the data feed. Overwrite any cell with a live quote and the whole "
-                   "analysis re-prices off it.")
+        st.caption("Seeded from the data feed. Overwrite any price with a live quote and the whole "
+                   "analysis re-prices off it. **Spread (bp)** = settlement-index spread vs the "
+                   "overnight proxy per contract (the Euribor−€STR basis has a term structure — "
+                   "edit it here per contract).")
         px_df = pd.DataFrame({"Product": [p.short for p in owner], "Contract": codes,
                               "Window": [c.label for c in contracts],
                               "Market px": [st.session_state[px_key].get(c, p)
-                                            for c, p in zip(codes, feed_px)]})
+                                            for c, p in zip(codes, feed_px)],
+                              "Spread (bp)": [st.session_state[spd_key].get(c, s)
+                                              for c, s in zip(codes, seed_spd)]})
         edited_px = st.data_editor(
             px_df, hide_index=True, use_container_width=True, key=f"sp{bank_key}_px_editor",
             column_config={
@@ -5995,94 +6267,157 @@ def render_stir_bank(bank_key: str) -> None:
                 "Contract": st.column_config.TextColumn(disabled=True),
                 "Window": st.column_config.TextColumn(disabled=True),
                 "Market px": st.column_config.NumberColumn(format="%.4f",
-                                                           min_value=90.0, max_value=100.0)})
+                                                           min_value=90.0, max_value=100.0),
+                "Spread (bp)": st.column_config.NumberColumn(format="%.1f", step=0.5,
+                                                             min_value=-50.0, max_value=50.0)})
         st.session_state[px_key] = dict(zip(edited_px["Contract"], edited_px["Market px"]))
+        st.session_state[spd_key] = dict(zip(edited_px["Contract"], edited_px["Spread (bp)"]))
     prices = [float(st.session_state[px_key].get(c, p)) for c, p in zip(codes, feed_px)]
+    spreads = [float(st.session_state[spd_key].get(c, s)) for c, s in zip(codes, seed_spd)]
+    spread_of = dict(zip(codes, spreads))
 
-    # ---- market-implied path (joint fit across the selected strips) ----------
-    ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads)
+    # ---- market-implied path (joint, stub-aware fit across the strips) -------
+    ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads, stub_rate=stub)
     labels = [fedpath.meeting_label(m) for m in ip.meetings]
     per_bp = dict(zip(labels, [float(v) for v in ip.per_meeting_bp]))
+    # displayed odds/cumulative after the term-premium haircut (pricing stays raw)
+    yrs = np.array([(fedpath.effective_date(m) - asof).days / 365.25 for m in ip.meetings])
+    cum_disp = np.array(ip.cum_bp) - haircut * yrs
+    per_disp_arr = np.diff(np.concatenate([[0.0], cum_disp]))
+    per_disp = dict(zip(labels, [float(v) for v in per_disp_arr]))
 
-    # ---- scenario: % chance of hike / cut per meeting ------------------------
+    # ---- scenario state: ONE signed % per meeting (+hike / −cut) -------------
+    def mv_key(lab):
+        return f"sp{bank_key}_mv_{lab}"
+
     sig = (bank_key, tuple(labels))
     if st.session_state.get(f"sp{bank_key}_sig") != sig:
         st.session_state[f"sp{bank_key}_sig"] = sig
-        _stir_reseed(bank_key, _stir_seed_from_market(per_bp, hike_bp, cut_bp))
-
-    st.markdown(f"#### Your {bank.meeting_name} scenario")
-    b1, b2, _ = st.columns([1, 1.4, 4])
-    if b1.button("Hold all", key=f"sp{bank_key}_hold",
-                 help="Zero every meeting — a flat 'no change' scenario."):
-        _stir_reseed(bank_key, {lab: (0.0, 0.0) for lab in labels}); st.rerun()
-    if b2.button("Seed from market odds", key=f"sp{bank_key}_seed",
-                 help="Fill the probabilities with what the strip currently prices (5% steps)."):
-        _stir_reseed(bank_key, _stir_seed_from_market(per_bp, hike_bp, cut_bp)); st.rerun()
-
-    views_state = st.session_state[f"sp{bank_key}_views"]
-    ed_df = pd.DataFrame({
-        "Meeting": labels,
-        "Mkt-implied (bp)": [per_bp[lab] for lab in labels],
-        "Mkt odds": [_stir_odds_str(per_bp[lab], bank.step_bp) for lab in labels],
-        "P(hike) %": [views_state.get(lab, (0.0, 0.0))[0] for lab in labels],
-        "P(cut) %": [views_state.get(lab, (0.0, 0.0))[1] for lab in labels],
-    })
-    edited = st.data_editor(
-        ed_df, hide_index=True, use_container_width=True,
-        key=f"sp{bank_key}_editor_{st.session_state.get(f'sp{bank_key}_ver', 0)}",
-        column_config={
-            "Meeting": st.column_config.TextColumn(disabled=True),
-            "Mkt-implied (bp)": st.column_config.NumberColumn(disabled=True, format="%+.1f",
-                                                              help="The move the strip prices at this meeting."),
-            "Mkt odds": st.column_config.TextColumn(disabled=True,
-                                                    help="Implied move ÷ step size, FedWatch-style."),
-            "P(hike) %": st.column_config.NumberColumn(min_value=0.0, max_value=300.0, step=5.0,
-                                                       format="%.0f",
-                                                       help=f"Your % chance of a +{hike_bp:.0f}bp hike. "
-                                                            "Above 100% = more than one step "
-                                                            "(150% = 1.5 × the step)."),
-            "P(cut) %": st.column_config.NumberColumn(min_value=0.0, max_value=300.0, step=5.0,
-                                                      format="%.0f",
-                                                      help=f"Your % chance of a −{cut_bp:.0f}bp cut. "
-                                                           "Above 100% = more than one step "
-                                                           "(150% = 1.5 × the step)."),
-        },
-        height=min(430, 45 + 35 * len(labels)))
-    views_state = {lab: (float(h), float(c)) for lab, h, c in
-                   zip(edited["Meeting"], edited["P(hike) %"], edited["P(cut) %"])}
-    st.session_state[f"sp{bank_key}_views"] = views_state
-    views = [stirpaths.MeetingView(m, views_state[lab][0] / 100.0, views_state[lab][1] / 100.0,
+        for lab, v in _stir_seed_from_market(per_disp, hike_bp, cut_bp).items():
+            st.session_state[mv_key(lab)] = v
+    for lab in labels:
+        st.session_state.setdefault(mv_key(lab), 0.0)
+    vals = {lab: float(st.session_state[mv_key(lab)]) for lab in labels}
+    views = [stirpaths.MeetingView(m, max(vals[lab], 0.0) / 100.0, max(-vals[lab], 0.0) / 100.0,
                                    hike_bp, cut_bp)
              for m, lab in zip(ip.meetings, labels)]
     exp_moves = [v.expected_bp for v in views]
-    scen_fn = stirpaths.scenario_rate_fn(r0, views)
+    scen_fn = stirpaths.scenario_rate_fn(r0, views, asof=asof, stub_rate=stub)
 
     def _fair(p, c):
         return fedpath.price(c, scen_fn, compound=(p.compound and compound)) \
-            - (er_spread if p.ticker == "ERA Comdty" else 0.0) / 100.0
+            - spread_of.get(c.code, 0.0) / 100.0
 
     your_px = [_fair(p, c) for p, c in zip(owner, contracts)]
+
+    # ---- the cockpit timeline ------------------------------------------------
+    px_of = dict(zip(codes, prices))
+    fair_of = dict(zip(codes, your_px))
+    fronts = []
+    for p in prods:
+        live = [c for c in strips[p.ticker] if stirpaths.fut_last_trade(p, c) >= asof]
+        if live and live[0].code in px_of:
+            fronts.append(f"{p.short} front {live[0].code} @ {px_of[live[0].code]:.4f}")
+    ann = {"px": px_of, "fair": fair_of,
+           "front": "   ·   ".join(fronts),
+           "mkt": {m: _stir_signed_pct(per_disp[lab], hike_bp, cut_bp)
+                   for m, lab in zip(ip.meetings, labels)},
+           "you": {m: vals[lab] for m, lab in zip(ip.meetings, labels)}}
+    _stir_timeline([p.ticker for p in prods], [bank_key], asof, months,
+                   key=bank_key, default_view="Contract windows", ann=ann)
+
+    # ---- your odds, one input per meeting ------------------------------------
+    st.markdown(f"#### Your {bank.meeting_name} odds &nbsp;·&nbsp; "
+                f"**+% = hike, −% = cut** &nbsp;·&nbsp; ±100 = one full "
+                f"{bank.step_bp:.0f}bp step (−150 = 1.5 cuts)")
+    b1, b2, _ = st.columns([1, 1.6, 4])
+    if b1.button("Hold all", key=f"sp{bank_key}_hold",
+                 help="Zero every meeting — a flat 'no change' scenario."):
+        for lab in labels:
+            st.session_state[mv_key(lab)] = 0.0
+        st.rerun()
+    if b2.button("Seed from market odds", key=f"sp{bank_key}_seed",
+                 help="Fill your odds with what the strip currently prices (5% steps)."):
+        for lab, v in _stir_seed_from_market(per_disp, hike_bp, cut_bp).items():
+            st.session_state[mv_key(lab)] = v
+        st.rerun()
+    per_row = 6
+    pairs = list(zip(ip.meetings, labels))
+    for i in range(0, len(pairs), per_row):
+        cols = st.columns(per_row)
+        for col, (m, lab) in zip(cols, pairs[i:i + per_row]):
+            col.number_input(f"{m:%d %b %y}", min_value=-300.0, max_value=300.0, step=5.0,
+                             format="%.0f", key=mv_key(lab),
+                             help=f"{bank.meeting_name} {m:%a %d %b %Y} — market prices "
+                                  f"{per_disp[lab]:+.1f}bp "
+                                  f"({_stir_odds_str(per_disp[lab], bank.step_bp)}).")
+    with st.expander("💾 Named scenarios — save / load the desk's cases"):
+        sc_all = _stir_scen_all().get(bank_key, {})
+        s1, s2, s3, s4 = st.columns([1.7, 0.9, 1.7, 0.9])
+        new_name = s1.text_input("Save current odds as", key=f"sp{bank_key}_scn_name",
+                                 placeholder="base / hawkish / dovish …")
+        if s2.button("Save", key=f"sp{bank_key}_scn_save", use_container_width=True):
+            if new_name.strip():
+                _stir_scen_save(bank_key, new_name.strip(), vals)
+                st.toast(f"Saved scenario '{new_name.strip()}'."); st.rerun()
+        pickn = s3.selectbox("Saved scenarios", ["—"] + sorted(sc_all),
+                             key=f"sp{bank_key}_scn_pick")
+        if s4.button("Load", key=f"sp{bank_key}_scn_load", use_container_width=True):
+            if pickn != "—":
+                for lab, v in sc_all.get(pickn, {}).items():
+                    if lab in labels:
+                        st.session_state[mv_key(lab)] = float(v)
+                st.rerun()
+        if pickn != "—" and st.button(f"🗑 Delete '{pickn}'", key=f"sp{bank_key}_scn_del"):
+            _stir_scen_delete(bank_key, pickn); st.rerun()
+        st.caption("Scenarios persist to data/stirpaths_scenarios.json — reproducible in reports "
+                   "and after restarts. Meetings not present when a scenario was saved keep their "
+                   "current value on load.")
+    with st.expander("🎯 Meetings inside each contract window"):
+        _stir_window_table(prods, [bank_key], asof, n_q)
 
     # ---- headline metrics ----------------------------------------------------
     st.markdown("#### At a glance")
     m1, m2, m3, m4 = st.columns(4)
-    next_bp = per_bp[labels[0]] if labels else 0.0
+    next_bp = per_disp[labels[0]] if labels else 0.0
     m1.metric(f"Next meeting — {labels[0] if labels else '—'}", f"{next_bp:+.0f} bp",
               help=f"Curve-implied move at the next {bank.meeting_name} decision.")
     m1.caption(f"market: {_stir_odds_str(next_bp, bank.step_bp)}")
     eoy = [i for i, m in enumerate(ip.meetings) if m.year == asof.year]
     if eoy:
-        yend = float(ip.cum_bp[eoy[-1]])
+        yend = float(cum_disp[eoy[-1]])
         m2.metric(f"Priced through Dec {asof.year}", f"{yend:+.0f} bp",
                   help="Cumulative move the strip prices from now to the last meeting this year.")
         m2.caption(f"≈ {yend / bank.step_bp:+.1f} × {bank.step_bp:.0f}bp")
-    m3.metric("Terminal (last covered mtg)", f"{policy + float(ip.cum_bp[-1]) / 100:.2f}%",
-              help=f"Curve-implied {bank.rate_name.lower()} at {labels[-1] if labels else '—'}.")
-    m3.caption(f"{float(ip.cum_bp[-1]):+.0f} bp vs today")
+    m3.metric("Terminal (last covered mtg)", f"{policy + float(cum_disp[-1]) / 100:.2f}%",
+              help=f"Curve-implied {bank.rate_name.lower()} at {labels[-1] if labels else '—'}"
+                   + (f" after the {haircut:.1f}bp/yr haircut" if haircut else "") + ".")
+    m3.caption(f"{float(cum_disp[-1]):+.0f} bp vs today"
+               + (f" · {haircut:.1f}bp/yr haircut on" if haircut else ""))
     scen_cum = float(np.sum(exp_moves))
     m4.metric("Your terminal", f"{policy + scen_cum / 100:.2f}%",
-              help="Probability-weighted landing rate under your meeting scenario.")
+              help="Probability-weighted landing rate under your meeting odds.")
     m4.caption(f"{scen_cum:+.0f} bp expected vs today")
+
+    # ---- what's priced, meeting by meeting -----------------------------------
+    st.markdown("##### What's priced, meeting by meeting")
+    ot = pd.DataFrame([{
+        "Decision": f"{m:%a %d %b %y}",
+        "In": f"{(m - asof).days}d",
+        "Implied (bp)": per_disp[lab],
+        "Market odds": _stir_odds_str(per_disp[lab], bank.step_bp),
+        "Your call (%)": vals[lab],
+        "E[move] (bp)": v.expected_bp,
+        "Cum (bp)": float(cum_disp[i]),
+    } for i, (m, lab, v) in enumerate(zip(ip.meetings, labels, views))])
+    brand.themed_dataframe(
+        ot, fmt={"Implied (bp)": "{:+.1f}".format, "Your call (%)": "{:+.0f}".format,
+                 "E[move] (bp)": "{:+.1f}".format, "Cum (bp)": "{:+.1f}".format},
+        height=min(430, 45 + 35 * len(ot)))
+    st.caption("The FedWatch-style read per decision — implied move, odds of a step, your call and "
+               "your expected move, plus the market's cumulative path."
+               + (f" Displayed odds are after the {haircut:.1f}bp/yr term-premium haircut; prices "
+                  "and fair values are never haircut." if haircut else ""))
 
     # ---- chart: policy path (market vs your scenario) ------------------------
     cc = brand.chart_colors()
@@ -6121,10 +6456,11 @@ def render_stir_bank(bank_key: str) -> None:
         "Your fair": your_px,
         "Diff (bp)": diff_bp,
         "Diff (/lot)": [d * p.bp_value for d, p in zip(diff_bp, owner)],
+        "vs fit (bp)": [float(v) for v in ip.residual_bp],
     })
     fmt = {"Market": "{:.4f}".format, "Mkt-implied rate": "{:.3f}".format,
            "Your fair": "{:.4f}".format, "Diff (bp)": "{:+.1f}".format,
-           "Diff (/lot)": (bank.ccy + "{:,.0f}").format}
+           "Diff (/lot)": (bank.ccy + "{:,.0f}").format, "vs fit (bp)": "{:+.1f}".format}
 
     def _color_diff(col):
         out = []
@@ -6136,32 +6472,37 @@ def render_stir_bank(bank_key: str) -> None:
             else:
                 out.append("color:#c5221f;font-weight:700")
         return out
-    brand.themed_dataframe(tbl, fmt, colorers=[(["Diff (bp)", "Diff (/lot)"], _color_diff)],
+    brand.themed_dataframe(tbl, fmt,
+                           colorers=[(["Diff (bp)", "Diff (/lot)", "vs fit (bp)"], _color_diff)],
                            height=min(420, 45 + 35 * len(tbl)))
     bp_note = " · ".join(f"{p.short} {bank.ccy}{p.bp_value:.2f}/bp" for p in prods)
     st.caption("**Your fair** = the price implied by your probability-weighted meeting path. "
                "Positive diff = the contract looks cheap vs your view (buy); negative = rich (sell). "
+               "**vs fit** = market − the smoothed implied path's fair value: a view-FREE rich/cheap "
+               "residual within the strip (curve RV, not scenario edge). "
                f"Point values: {bp_note}. Per-meeting implied moves smear across each window — read "
                "the **cumulative** path as the robust signal."
-               + (" ER is priced as compounded-expected €STR + the spread input (forward-looking "
-                  "term fix)." if bank_key == "ECB" else ""))
+               + (" ER is priced as compounded-expected €STR + its per-contract spread (forward-"
+                  "looking term fix)." if bank_key == "ECB" else ""))
 
     # ---- option-expiry landings ----------------------------------------------
     opt_prods = [p for p in prods if p.has_options]
     if opt_prods:
         st.markdown("#### Where futures land at each option expiry")
-        st.caption("Each **monthly option**, the future it exercises into, and that future's fair "
-                   "price under **your scenario** on the option's expiry day — with the decisions "
-                   "the option lives through vs the ones still open in the future's window after "
-                   "it dies. This is the bridge from a meeting view to an option structure.")
+        st.caption("Each **listed monthly option and 1Y midcurve**, the future it exercises into, "
+                   "and that future's fair price under **your scenario** on the option's expiry day "
+                   "— with the decisions the option lives through vs the ones still open in the "
+                   "underlying's window after it dies. Midcurves are the short-premium instrument "
+                   "for far-out meeting views.")
         px_now = dict(zip(codes, prices))
         lrows, lkeys = [], []
         for p in opt_prods:
             for L in stirpaths.landings(p, bank, asof, views, r0, months,
-                                        spread_bp=er_spread if p.ticker == "ERA Comdty" else 0.0):
+                                        spread_bp=er_spread if p.ticker == "ERA Comdty" else 0.0,
+                                        stub_rate=stub, include_midcurves=True):
                 mkt = px_now.get(L.underlying.code)
                 lrows.append({
-                    "Option": f"{p.short} {L.opt_month}",
+                    "Option": f"{p.short} {'1Y-MC ' if L.series != 'Std' else ''}{L.opt_month}",
                     "Expiry": f"{L.expiry:%a %d %b %y}",
                     "Underlying": L.underlying.code,
                     "Mtgs before expiry": len(L.meetings_decided),
@@ -6180,75 +6521,179 @@ def render_stir_bank(bank_key: str) -> None:
         st.caption("**Mtgs before expiry** = decisions between today and the option's last day (what "
                    "the option actually captures). **Still open after** = decisions inside the "
                    "underlying's window that land *after* the option dies — settlement risk the "
-                   "option never sees. Landing px assumes your deterministic expected path (no "
-                   "risk premium), so the future's fair value doesn't drift between now and expiry.")
+                   "option never sees. A blank market price = the underlying sits beyond the priced "
+                   "strip (extend the Quarterly contracts slider).")
 
-        # hand-off → Strategy Builder
+        # hand-off → Strategy Builder, with the outcome distribution
         h1, h2 = st.columns([3, 1.4])
         pick = h1.selectbox(
             "Build a client structure on…",
             list(range(len(lkeys))),
-            format_func=lambda i: (f"{lkeys[i][0].short} {lkeys[i][1].opt_month} option · "
+            format_func=lambda i: (f"{lkeys[i][0].short} "
+                                   f"{'1Y-MC ' if lkeys[i][1].series != 'Std' else ''}"
+                                   f"{lkeys[i][1].opt_month} option · "
                                    f"exp {lkeys[i][1].expiry:%d %b %y} → "
                                    f"{lkeys[i][1].underlying.code} @ {lkeys[i][1].fair:.4f}"),
             key=f"sp{bank_key}_ho_pick")
+        p_pick, L_pick = lkeys[pick]
+        dist = stirpaths.landing_distribution(
+            p_pick, bank, L_pick.underlying, asof, views, r0, upto=L_pick.expiry,
+            spread_bp=er_spread if p_pick.ticker == "ERA Comdty" else 0.0, stub_rate=stub)
+        if len(dist) > 1:
+            ddf = pd.DataFrame({"px": [d[0] for d in dist], "p": [d[1] * 100.0 for d in dist]})
+            dbar = alt.Chart(ddf).mark_bar(size=7).encode(
+                x=alt.X("px:Q", title="Underlying price at option expiry",
+                        scale=alt.Scale(zero=False), axis=alt.Axis(format=".3f")),
+                y=alt.Y("p:Q", title="Probability (%)"),
+                color=alt.value(cc["series"]),
+                tooltip=[alt.Tooltip("px:Q", format=".4f", title="Price"),
+                         alt.Tooltip("p:Q", format=".1f", title="Prob %")])
+            mean_rule = alt.Chart(pd.DataFrame({"px": [L_pick.fair]})).mark_rule(
+                strokeWidth=2.5, strokeDash=[6, 4]).encode(
+                x="px:Q", color=alt.value(cc["accent"]),
+                tooltip=[alt.Tooltip("px:Q", format=".4f", title="Expected landing")])
+            st.markdown("**Outcome distribution at this expiry — your odds, meeting by meeting**")
+            brand.show_chart((dbar + mean_rule).properties(height=190))
+            top2 = sorted(dist, key=lambda t: -t[1])[:2]
+            st.caption("Meetings decided by the option's expiry realise as discrete outcomes; "
+                       "later in-window meetings enter at expected value. Dashed gold = the "
+                       "probability-weighted landing "
+                       + " · ".join(f"mode {px:.3f} ({pr * 100:.0f}%)" for px, pr in top2)
+                       + ". A landing that sits in a valley between modes is the fly/condor tell — "
+                         "the expected price itself is then an unlikely outcome.")
+        else:
+            st.caption("Your scenario is deterministic through this expiry — a single landing "
+                       "point, no distribution.")
         if h2.button("🧰 Model in Strategy Builder", key=f"sp{bank_key}_ho_go",
                      use_container_width=True,
                      help="Opens the Strategy Builder with this product marked at the scenario "
-                          "landing price, ready to build the legs."):
-            p, L = lkeys[pick]
+                          "landing price, the leg month preselected, and your outcome "
+                          "distribution attached for scenario-expected P&L."):
             st.session_state["osb_handoff"] = {
-                "prod": p.ticker, "spot": float(L.fair),
-                "days": max(1, (L.expiry - asof).days),
-                "note": (f"{p.short} {L.opt_month} option (exp {L.expiry:%d %b %Y}) on "
-                         f"{L.underlying.code} — scenario landing {L.fair:.4f}")}
+                "prod": p_pick.ticker, "spot": float(L_pick.fair),
+                "days": max(1, (L_pick.expiry - asof).days),
+                "expiry": L_pick.expiry.isoformat(),
+                "nodes": [[float(px), float(pr)] for px, pr in dist],
+                "note": (f"{p_pick.short} {'1Y-MC ' if L_pick.series != 'Std' else ''}"
+                         f"{L_pick.opt_month} option (exp {L_pick.expiry:%d %b %Y}) on "
+                         f"{L_pick.underlying.code} — scenario landing {L_pick.fair:.4f}")}
             _go("Strategy Builder")
             st.rerun()
 
-    # ---- PDF export (Fed page — the branded fedpath report) ------------------
-    if bank_key == "FED":
-        sr3_idx = [i for i, p in enumerate(owner) if p.ticker == "SFRA Comdty"]
-        if sr3_idx:
-            st.divider()
-            if st.button("📈 Generate Fed Path Report (visual PDF)", type="primary"):
-                with st.spinner("Rendering the Fed-path report…"):
-                    try:
-                        payload = {
-                            "asof": asof.isoformat(), "band": band, "mid": policy,
-                            "basis_bp": basis_bp, "compound": compound,
-                            "n_contracts": len(sr3_idx),
-                            "codes": [codes[i] for i in sr3_idx],
-                            "labels_contract": [contracts[i].label for i in sr3_idx],
-                            "prices": [prices[i] for i in sr3_idx],
-                            "your_px": [your_px[i] for i in sr3_idx],
-                            "meetings": labels, "moves": exp_moves,
-                            "seg_dates": [d.isoformat() for d in seg_dates],
-                            "mkt_mid": list(map(float, mkt_seg)),
-                            "your_mid": list(map(float, your_seg)),
-                            "cum_bp": list(map(float, ip.cum_bp)),
-                            "per_meeting_bp": list(map(float, ip.per_meeting_bp)),
-                        }
-                        with tempfile.TemporaryDirectory() as _t:
-                            _in = Path(_t) / "fedpath.json"
-                            _out = Path(_t) / "Fed_Path_Report.pdf"
-                            _in.write_text(json.dumps(payload))
-                            r = subprocess.run(
-                                [sys.executable, str(ROOT / "src" / "fedpathreport.py"),
-                                 str(_in), str(_out)],
-                                capture_output=True, text=True, timeout=180)
-                            if r.returncode == 0 and _out.exists():
-                                st.session_state["fp_pdf"] = _out.read_bytes()
-                            else:
-                                st.error("Report failed:\n\n"
-                                         + (r.stderr or r.stdout or "unknown error")[-2000:])
-                    except Exception as e:
-                        st.error(f"Report failed:\n\n{e}")
-            if st.session_state.get("fp_pdf"):
-                st.download_button("⬇️  Download Fed Path Report", data=st.session_state["fp_pdf"],
-                                   file_name="Fed_Path_Report.pdf", mime="application/pdf")
-                email_report_ui("fp_email", "fedpath", st.session_state["fp_pdf"],
-                                subject="BASIS — Implied Fed Path (SOFR strip)",
-                                attachment_name="Fed_Path_Report.pdf")
+    # ---- PDF export — the Meeting-Risk Map (all three banks) -----------------
+    st.divider()
+    bank_short = {"FED": "Fed", "ECB": "ECB", "BOE": "BoE"}[bank_key]
+    if st.button(f"📈 Generate {bank_short} Meeting-Risk Map (PDF)", type="primary",
+                 key=f"sp{bank_key}_pdfgen"):
+        with st.spinner("Rendering the Meeting-Risk Map…"):
+            try:
+                ey_, em_ = stirpaths._add_months(asof.year, asof.month, months)
+                hor_end_ = date(ey_, em_, 1)
+                grows, growmap = [], {}
+                for p in prods:
+                    shown = 0
+                    for c in strips[p.ticker]:
+                        if c.end <= asof or c.start >= hor_end_:
+                            continue
+                        if not p.quarterly and shown >= 8:
+                            continue
+                        shown += 1
+                        gleft = [m for m in stirpaths.meetings_in_window(bank, c) if m > asof]
+                        glt = stirpaths.fut_last_trade(p, c)
+                        row = {"label": f"{p.short} {c.label} · {len(gleft)}m",
+                               "color": p.color,
+                               "start": max(c.start, asof).isoformat(),
+                               "end": min(c.end, hor_end_).isoformat(),
+                               "mtgs": [m.isoformat() for m in gleft if m < hor_end_],
+                               "fut": glt.isoformat() if asof <= glt < hor_end_ else None,
+                               "px": px_of.get(c.code), "opts": [], "mcs": []}
+                        grows.append(row)
+                        growmap[(p.short, c.label)] = row
+                    if p.has_options:
+                        for rr in stirpaths.expiry_rows(p, asof, months):
+                            if rr.kind != "Option":
+                                continue
+                            u = stirpaths.option_underlying(p, rr.year, rr.mon)
+                            if (p.short, u.label) in growmap:
+                                growmap[(p.short, u.label)]["opts"].append(rr.expiry.isoformat())
+                        for rr in stirpaths.midcurve_expiries(p, asof, months):
+                            u = stirpaths.option_underlying_mc(p, rr.year, rr.mon)
+                            if (p.short, u.label) in growmap:
+                                growmap[(p.short, u.label)]["mcs"].append(rr.expiry.isoformat())
+
+                def _nan_dash(v, fmtstr="{:.4f}"):
+                    return "—" if v is None or v != v else fmtstr.format(v)
+
+                payload = {
+                    "bank": bank_key, "bank_name": bank.name,
+                    "meeting_name": bank.meeting_name, "rate_name": bank.rate_name,
+                    "ccy": bank.ccy, "asof": asof.isoformat(),
+                    "policy": float(policy), "band": band, "mode": stirpaths.MODE,
+                    "haircut": float(haircut),
+                    "products": [p.short for p in prods],
+                    "scen_cum": float(np.sum(exp_moves)),
+                    "gantt": {"hor_start": asof.isoformat(), "hor_end": hor_end_.isoformat(),
+                              "meetings": [m.isoformat() for m in bank.meetings
+                                           if asof <= m < hor_end_],
+                              "rows": grows},
+                    "odds": [{"decision": f"{m:%a %d %b %y}", "in_days": f"{(m - asof).days}d",
+                              "implied": float(per_disp[lab]),
+                              "odds": _stir_odds_str(per_disp[lab], bank.step_bp),
+                              "you": float(vals[lab]), "emove": float(v.expected_bp),
+                              "cum": float(cum_disp[i])}
+                             for i, (m, lab, v) in enumerate(zip(ip.meetings, labels, views))],
+                    "seg_dates": [x.isoformat() for x in seg_dates],
+                    "mkt_seg": list(map(float, mkt_seg)),
+                    "your_seg": list(map(float, your_seg)),
+                    "contracts": [{"code": codes[i],
+                                   "window": f"{owner[i].short} {contracts[i].label}",
+                                   "market": f"{prices[i]:.4f}",
+                                   "rate": f"{100 - prices[i]:.3f}",
+                                   "your": f"{your_px[i]:.4f}",
+                                   "diff_bp": f"{diff_bp[i]:+.1f}",
+                                   "diff_ccy": f"{bank.ccy}{diff_bp[i] * owner[i].bp_value:,.0f}",
+                                   "resid": f"{float(ip.residual_bp[i]):+.1f}",
+                                   "dir": 1 if diff_bp[i] > 0.05 else
+                                          (-1 if diff_bp[i] < -0.05 else 0)}
+                                  for i in range(len(codes))],
+                    "landings": [{"option": lr["Option"],
+                                  "expiry": lr["Expiry"].split(" ", 1)[-1],
+                                  "under": lr["Underlying"],
+                                  "before": lr["Mtgs before expiry"],
+                                  "open": lr["Still open after"],
+                                  "landing": f"{lr['Landing px']:.4f}",
+                                  "mkt": _nan_dash(lr["Mkt px now"]),
+                                  "diff": _nan_dash(lr["Diff (bp)"], "{:+.1f}"),
+                                  "dir": (0 if lr["Diff (bp)"] != lr["Diff (bp)"] else
+                                          1 if lr["Diff (bp)"] > 0.05 else
+                                          -1 if lr["Diff (bp)"] < -0.05 else 0)}
+                                 for lr in (lrows if opt_prods else [])][:14],
+                }
+                with tempfile.TemporaryDirectory() as _t:
+                    _in = Path(_t) / "stirpath.json"
+                    _out = Path(_t) / "Meeting_Risk_Map.pdf"
+                    _in.write_text(json.dumps(payload), encoding="utf-8")
+                    r = subprocess.run(
+                        [sys.executable, str(ROOT / "src" / "stirpathreport.py"),
+                         str(_in), str(_out)],
+                        capture_output=True, text=True, timeout=180)
+                    if r.returncode == 0 and _out.exists():
+                        st.session_state[f"sp{bank_key}_pdfb"] = _out.read_bytes()
+                    else:
+                        st.error("Report failed:\n\n"
+                                 + (r.stderr or r.stdout or "unknown error")[-2000:])
+            except Exception as e:
+                st.error(f"Report failed:\n\n{e}")
+    if st.session_state.get(f"sp{bank_key}_pdfb"):
+        fname = f"{bank_short}_Meeting_Risk_Map.pdf"
+        st.download_button(f"⬇️  Download {bank_short} Meeting-Risk Map",
+                           data=st.session_state[f"sp{bank_key}_pdfb"],
+                           file_name=fname, mime="application/pdf",
+                           key=f"sp{bank_key}_pdfdl")
+        email_report_ui(f"sp{bank_key}_email", "stirpath",
+                        st.session_state[f"sp{bank_key}_pdfb"],
+                        subject=f"BASIS — {bank.name} Meeting-Risk Map (STIR)",
+                        attachment_name=fname)
 
 
 def render_stir_cross() -> None:
@@ -6271,7 +6716,7 @@ def render_stir_cross() -> None:
     }
     view = c4.radio("Show", ["Cumulative bp", "Rate level"], key="spx_view", horizontal=True)
 
-    frames, rows = [], []
+    frames, rows, mrows = [], [], []
     for bk, bank in stirpaths.BANKS.items():
         prods = [stirpaths.PRODUCTS[t] for t in dflts[bk]
                  if stirpaths.PRODUCTS[t].in_strip and stirpaths.PRODUCTS[t].quarterly]
@@ -6302,6 +6747,15 @@ def render_stir_cross() -> None:
             f"Through Dec {asof.year}": f"{float(ip.cum_bp[eoy[-1]]):+.0f} bp" if eoy else "—",
             "Terminal": f"{float(lvl[-1]):.2f}%",
         })
+        for m, bp, cum in zip(ip.meetings, ip.per_meeting_bp, ip.cum_bp):
+            mrows.append({"_d": m, "Decision": f"{m:%a %d %b %y}",
+                          "Bank": bank.name.replace("European Central Bank", "ECB")
+                                           .replace("Federal Reserve", "Fed")
+                                           .replace("Bank of England", "BoE"),
+                          "In": f"{(m - asof).days}d",
+                          "Implied (bp)": float(bp),
+                          "Odds": _stir_odds_str(float(bp), bank.step_bp),
+                          "Cum (bp)": float(cum)})
     dom = [stirpaths.BANKS[b].name for b in ("FED", "ECB", "BOE")]
     rng = [_STIR_BANK_COLOR[b] for b in ("FED", "ECB", "BOE")]
     ch_df = pd.concat(frames)
@@ -6319,6 +6773,16 @@ def render_stir_cross() -> None:
     st.caption("Implied paths from each bank's default strip (mock prices offline, live on the "
                "Terminal). Cumulative view puts the three cycles on one axis; rate-level view "
                "shows where each policy rate is heading in absolute terms.")
+    if mrows:
+        st.markdown("##### Every decision, every bank — what's priced")
+        mdf = (pd.DataFrame(sorted(mrows, key=lambda r: r["_d"]))
+               .drop(columns="_d").head(24))
+        brand.themed_dataframe(
+            mdf, fmt={"Implied (bp)": "{:+.1f}".format, "Cum (bp)": "{:+.1f}".format},
+            height=min(500, 45 + 35 * len(mdf)))
+        st.caption("Chronological across all three banks — the screenshot for a client chat. "
+                   "Odds = implied move ÷ the bank's step size, FedWatch-style; Cum = the "
+                   "cumulative move priced from today, per bank.")
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -8097,6 +8561,8 @@ def render_strategy_builder() -> None:
         st.session_state.pop("osb_rows", None)
         st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
         st.session_state["osb_ho_note"] = _ho["note"]
+        st.session_state["osb_ho_days"] = _ho.get("days")       # → preselect the leg month
+        st.session_state["osb_ho_nodes"] = _ho.get("nodes")     # → scenario-expected P&L
     st.subheader("🧰  Option Strategy Builder — multi-leg payoff modeller")
     if st.session_state.get("osb_ho_note"):
         st.info(f"Seeded from STIR Paths: {st.session_state['osb_ho_note']}. The underlying is "
@@ -8162,6 +8628,8 @@ def render_strategy_builder() -> None:
             if not _first:
                 st.session_state.pop("osb_rows", None)
                 st.session_state.pop("osb_ho_note", None)   # a STIR hand-off dies with its product
+                st.session_state.pop("osb_ho_nodes", None)
+                st.session_state.pop("osb_ho_days", None)
                 st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
                 st.rerun()
     F0 = c2.number_input("Underlying price", min_value=0.0001, value=100.0,
@@ -8204,6 +8672,9 @@ def render_strategy_builder() -> None:
                                step=0.5, format="%.1f", key="osb_dvol",
                                help="The vol presets and blank Vol % cells fall back to — "
                                     "overridden by the option surface when a product is picked.")
+    _hd = st.session_state.pop("osb_ho_days", None)
+    if _hd is not None:                          # STIR hand-off: leg month ≈ the option's expiry
+        st.session_state["osb_dmonth"] = _closest_month(float(_hd))
     dflt_month = p3.selectbox("Month", _MONTHS, key="osb_dmonth",
                               help="The expiry month presets and new legs are built with — "
                                    "legs expire on the month's 3rd Friday (the house listed-"
@@ -8373,6 +8844,20 @@ def render_strategy_builder() -> None:
               help="Model estimate: probability the front-expiry P&L ends positive under "
                    "a drift-free lognormal at the legs' average vol — not a market-implied "
                    "probability.")
+    _nodes = st.session_state.get("osb_ho_nodes")
+    if _nodes:
+        _epnl = sum(pr * optbuilder.strategy_pnl(legs, float(px), F0, None, r)
+                    for px, pr in _nodes)
+        _ppos = sum(pr for px, pr in _nodes
+                    if optbuilder.strategy_pnl(legs, float(px), F0, None, r) > 0)
+        e1, e2, _ = st.columns([1.2, 1.2, 3])
+        e1.metric("Scenario E[P&L]", ("+" if _epnl >= 0 else "−") + _fmt(abs(_epnl)),
+                  help="Probability-weighted P&L at the front expiry over your STIR scenario's "
+                       "outcome distribution (carried in from the STIR Paths hand-off) — the "
+                       "structure's expected value if your meeting odds are right.")
+        e2.metric("P(profit | scenario)", f"{_ppos * 100:.0f} %",
+                  help="Share of your scenario's probability mass landing where this structure "
+                       "makes money — YOUR odds, vs the lognormal P(profit) beside it.")
 
     # ---- payoff chart ----------------------------------------------------------
     cc = brand.chart_colors()
@@ -8417,9 +8902,20 @@ def render_strategy_builder() -> None:
             color=cc["series"], strokeDash=[2, 4]).encode(
             x="x:Q", tooltip=[alt.Tooltip("x:Q", format=",.2f", title="breakeven")])
     chart += lines
+    if _nodes:
+        _nd = pd.DataFrame({"x": [float(px) for px, _ in _nodes],
+                            "p": [float(pr) * 100.0 for _, pr in _nodes]})
+        chart += alt.Chart(_nd).mark_point(filled=True, shape="circle", opacity=0.9).encode(
+            x="x:Q", y=alt.value(408),
+            size=alt.Size("p:Q", scale=alt.Scale(range=[25, 320]), legend=None),
+            color=alt.value(cc["accent"]),
+            tooltip=[alt.Tooltip("x:Q", format=",.4f", title="scenario landing"),
+                     alt.Tooltip("p:Q", format=".1f", title="probability %")])
     brand.show_chart(chart.properties(height=420).interactive(bind_y=False))
     st.caption("Dotted vertical = current underlying; dashed blue verticals = breakevens. "
-               "Scroll / drag to zoom the price axis.")
+               + ("Gold dots along the bottom = your STIR scenario's landing outcomes "
+                  "(size = probability). " if _nodes else "")
+               + "Scroll / drag to zoom the price axis.")
 
     # ---- greeks ----------------------------------------------------------------
     g = optbuilder.totals_greeks(scn_legs, F0, float(d_now), r)

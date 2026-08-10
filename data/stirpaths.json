@@ -1,0 +1,17 @@
+{
+  "timeline": [
+    "SFRA Comdty",
+    "ERA Comdty",
+    "SFIA Comdty"
+  ],
+  "FED": [
+    "SFRA Comdty"
+  ],
+  "ECB": [
+    "ERA Comdty",
+    "TKYA Comdty"
+  ],
+  "BOE": [
+    "SFIA Comdty"
+  ]
+}

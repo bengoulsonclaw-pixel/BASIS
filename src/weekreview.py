@@ -369,9 +369,96 @@ def collect_pm() -> list:
     return out
 
 
+STIR_LEDGER = ROOT / "data" / "stir_meeting_ledger.json"
+STIR_WOW_MIN_BP = 5.0        # a meeting must reprice this much on the week to make the wrap
+_stir_now: dict = {}         # this run's implied map — saved by save_stir_ledger on baseline runs
+
+
+def _stir_implied() -> dict:
+    """bank key -> {decision iso: implied per-meeting bp} off each bank's default
+    quarterly strip (the same fit the STIR Paths cross page runs; mock offline)."""
+    from src import stirpaths
+    today = date.today()
+    out = {}
+    for bk, bank in stirpaths.BANKS.items():
+        prods = [p for p in stirpaths.bank_products(bk) if p.in_strip and p.quarterly]
+        r0 = bank.default_rate + stirpaths.BANK_BASIS_SEED[bk] / 100.0
+        contracts, spreads, prices = [], [], []
+        for p in prods:
+            s = stirpaths.strip(p, today, 8)
+            contracts += s
+            spreads += [p.spread_bp] * len(s)
+            prices += stirpaths.strip_prices(p, bank, s, today, r0)
+        ip = stirpaths.implied_path(bank, contracts, prices, today, r0, spreads)
+        out[bk] = {m.isoformat(): float(bp) for m, bp in zip(ip.meetings, ip.per_meeting_bp)}
+    return out
+
+
+def collect_stir() -> list:
+    """Meeting-week alerts: a central bank decides within 7 days (what the strip
+    prices, which STIR options die around it), plus the week's biggest per-meeting
+    repricings vs the ledger the Monday baseline run rolls."""
+    from src import stirpaths
+    global _stir_now
+    today = date.today()
+    cur = _stir_implied()
+    _stir_now = {"asof": today.isoformat(), "per": cur}
+    try:
+        prev = json.loads(STIR_LEDGER.read_text(encoding="utf-8")).get("per", {})
+    except Exception:
+        prev = {}
+    out = []
+    for bk, bank in stirpaths.BANKS.items():
+        for m in [x for x in bank.meetings if today <= x <= today + timedelta(days=7)]:
+            bp = cur.get(bk, {}).get(m.isoformat(), 0.0)
+            d, p = stirpaths.implied_odds(bp, bank.step_bp)
+            odds_str = "a hold" if d == "hold" else f"{p * 100:.0f}% of a {d}"
+            d0 = prev.get(bk, {}).get(m.isoformat())
+            dtx = f" ({bp - d0:+.0f}bp vs last week)" if d0 is not None else ""
+            optl = []
+            for pr in stirpaths.bank_products(bk):
+                if not pr.has_options:
+                    continue
+                for r in stirpaths.expiry_rows(pr, today, 2):
+                    if r.kind == "Option" and today <= r.expiry <= today + timedelta(days=7):
+                        optl.append(f"{pr.short} {r.month} options die {r.expiry:%a %d %b} — "
+                                    f"{'before' if r.expiry < m else 'on/after'} the decision")
+            opt_txt = (" " + "; ".join(optl[:2]) + ".") if optl else ""
+            out.append(_bullet("STIR", f"{bk}:{m.isoformat()}",
+                               f"**{bank.name}** decides **{m:%A %d %b}** — the strip prices "
+                               f"**{bp:+.0f}bp**, {odds_str}{dtx}.{opt_txt}",
+                               metric=f"{bp:+.0f} bp", sub=f"{bank.meeting_name} this week",
+                               bar=abs(bp) / bank.step_bp))
+    moves = []
+    for bk in cur:
+        for iso, bp in cur[bk].items():
+            d0 = prev.get(bk, {}).get(iso)
+            if d0 is not None and abs(bp - d0) >= STIR_WOW_MIN_BP:
+                moves.append((abs(bp - d0), bk, iso, bp - d0, bp))
+    for _, bk, iso, dd, bp in sorted(moves, reverse=True)[:3]:
+        bank = stirpaths.BANKS[bk]
+        m = date.fromisoformat(iso)
+        word = "added easing" if dd < 0 else "took easing out"
+        out.append(_bullet("STIR", f"{bk}:wow:{iso}",
+                           f"**{bank.name} repricing** — the market {word} at the {m:%b %Y} "
+                           f"{bank.meeting_name}: **{dd:+.0f}bp** on the week "
+                           f"(now {bp:+.0f}bp priced).",
+                           metric=f"{dd:+.0f} bp", sub="on the week", bar=abs(dd) / 25.0))
+    return out
+
+
+def save_stir_ledger() -> None:
+    """Roll the per-meeting implied ledger — called on baseline (scheduled) runs
+    only, so ad-hoc previews never eat the week-on-week comparison."""
+    if _stir_now:
+        STIR_LEDGER.parent.mkdir(parents=True, exist_ok=True)
+        STIR_LEDGER.write_text(json.dumps(_stir_now, indent=1), encoding="utf-8")
+
+
 SECTIONS = [
     ("Volatility", collect_vol),
     ("Curve / RV", collect_curve),
+    ("STIR meetings", collect_stir),
     ("Positioning", collect_cot),
     ("Technical", collect_technical),
     ("Correlations", collect_corr_breaks),
@@ -543,6 +630,8 @@ def render_html(asof: str = "", ai_polish: bool = True, update_baseline: bool = 
 
     if update_baseline or not LAST_FILE.exists():
         save_last(asof or str(date.today()), streaks)
+    if update_baseline or not STIR_LEDGER.exists():
+        save_stir_ledger()
 
     for b in bullets:
         b["html"] = _md2html(b["text"])

@@ -45,6 +45,8 @@ _LONG_STORES = {"oi_chain", "own30_curve", "own30_history", "own_term_history",
 SNAPSHOT_OLD_H = 24            # snapshot older than this -> warn (matches the page's old rule)
 OI_OLD_DAYS = 9                # the weekly Monday OI capture has been missed
 CACHE_LAG_DAYS = 5             # a daily-fed store this far behind the snapshot settle -> warn
+CB_CAL_MIN_MONTHS = 9          # STIR Paths meeting-calendar runway below this -> warn (the
+                               # *_DECISIONS lists are hardcoded and need a yearly extension)
 
 
 def _utc(ts: float) -> pd.Timestamp:
@@ -341,6 +343,24 @@ def cache_health() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Regression suite — surface the last run so the safety net is itself visible
 # ---------------------------------------------------------------------------
+def meeting_calendar_runway() -> pd.DataFrame:
+    """Per central bank: the last listed decision date and the runway (months) left
+    on the hardcoded STIR Paths meeting calendars (fedpath.FOMC_DECISIONS +
+    stirpaths.ECB/BOE_DECISIONS). The lists don't self-update — when a bank
+    publishes its next calendar year the dates are appended by hand; past the last
+    listed meeting the path model quietly sees NO meetings, so the runway needs to
+    stay comfortably ahead of the strip."""
+    from . import stirpaths                       # lazy: keep health importable standalone
+    today = pd.Timestamp.today().normalize()
+    rows = []
+    for bank in stirpaths.BANKS.values():
+        last = max(bank.meetings)
+        rows.append({"bank": bank.name, "key": bank.key, "last_meeting": last,
+                     "months_left": round((pd.Timestamp(last) - today).days / 30.44, 1),
+                     "future_meetings": sum(1 for m in bank.meetings if m > today.date())})
+    return pd.DataFrame(rows)
+
+
 def last_test_run() -> dict:
     """logs/last_test_run.json as written by run_tests.py (also invoked by the
     pre-push hook). {} when the suite has never run on this box."""
@@ -445,6 +465,22 @@ def checks(*, frames: pd.DataFrame | None = None, deep: dict | None = None,
     if not universe.enabled_tickers():
         add("bad", "Filter", "The Sectors & products filter has EVERYTHING switched off — "
             "the TA overview and reports will be blank until it's restored on Home.")
+
+    try:
+        cal = meeting_calendar_runway()
+        thin = cal[cal["months_left"] < CB_CAL_MIN_MONTHS]
+        if thin.empty:
+            nxt = cal.loc[cal["months_left"].idxmin()]
+            add("ok", "CB calendars", f"STIR meeting calendars run ≥{CB_CAL_MIN_MONTHS} months out "
+                f"(thinnest: {nxt['key']} to {nxt['last_meeting']:%b %Y}).")
+        else:
+            for r in thin.itertuples(index=False):
+                add("warn", "CB calendars", f"{r.bank} meeting calendar runs out {r.last_meeting:%b %Y} "
+                    f"(~{r.months_left:.0f} months) — append the new published dates to the "
+                    "*_DECISIONS list (fedpath/stirpaths) or the STIR Paths pages go blind past it.")
+    except Exception:
+        add("warn", "CB calendars", "Could not read the STIR meeting calendars (stirpaths import "
+            "failed) — the STIR Paths module may be broken.")
 
     tr = last_test_run()
     if not tr:
