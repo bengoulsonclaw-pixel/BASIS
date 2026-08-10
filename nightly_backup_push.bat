@@ -9,6 +9,10 @@ set "LOG=%LOCALAPPDATA%\basis_backup_push.log"
 echo ===== %date% %time% ===== >> "%LOG%"
 
 call :backup "C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard"
+rem If the tree sits on a session branch, replicate the data/ state to main so
+rem the deployed site never starves (data only — branch code may be session WIP).
+cd /d "C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard"
+.venv\Scripts\python.exe -c "from src.gitbackup import _replicate_data_to_main; _replicate_data_to_main()" >> "%LOG%" 2>&1
 call :backup "C:\Users\Ben\OneDrive\Desktop\AI"
 call :backup "C:\Users\Ben\OneDrive\Personal\AI\Futures_Movements"
 exit /b 0
