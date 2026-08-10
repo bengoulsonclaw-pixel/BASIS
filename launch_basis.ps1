@@ -46,29 +46,51 @@ if (Test-Path "$PSScriptRoot\playwright-browsers") {
     $env:PLAYWRIGHT_BROWSERS_PATH = "$PSScriptRoot\playwright-browsers"
 }
 
-# --- clear any previous instance still holding port 8501 (stale-code guard) ---
-Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue |
-    ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
-Start-Sleep -Seconds 1
+# --- keeper-aware fast path (2026-08-10) --------------------------------------
+# The at-logon task "BASIS Server" (run_basis_server.ps1) keeps a healthy snapshot-mode
+# server on :8501 permanently. If one is already ANSWERING, leave it alone: the old
+# stale-code port-clear below KILLED the keeper's healthy server on every launch (the
+# 16:52 incident — user hit ERR_CONNECTION_REFUSED minutes after the keeper was
+# installed). In snapshot mode just open the window and exit — the keeper owns the
+# server's lifetime, so no watch loop is needed either. A bloomberg-mode launch still
+# takes the old path (it needs its OWN server in the right mode); the keeper stands
+# down while the port is busy and takes back over afterwards.
+$server = $null
+$healthy = $false
+if ($Mode -eq "snapshot") {
+    try {
+        $r = Invoke-WebRequest -Uri "http://localhost:8501" -UseBasicParsing -TimeoutSec 3
+        if ($r.StatusCode -eq 200) { $healthy = $true }
+    } catch { }
+}
 
-# --- start the server hidden, logging to logs\ --------------------------------
-New-Item -ItemType Directory -Force -Path "$PSScriptRoot\logs" | Out-Null
-$server = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\python.exe" `
-    -ArgumentList "-m", "streamlit", "run", "app.py", "--server.port", "8501", `
-                  "--server.headless", "true", "--browser.gatherUsageStats", "false" `
-    -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
-    -RedirectStandardOutput "$PSScriptRoot\logs\basis_server.log" `
-    -RedirectStandardError "$PSScriptRoot\logs\basis_server_err.log"
+if (-not $healthy) {
+    # --- clear any previous instance still holding port 8501 (stale-code guard;
+    #     reached only when nothing on the port is serving properly) -------------
+    Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue |
+        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 1
+
+    # --- start the server hidden, logging to logs\ ------------------------------
+    New-Item -ItemType Directory -Force -Path "$PSScriptRoot\logs" | Out-Null
+    $server = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\python.exe" `
+        -ArgumentList "-m", "streamlit", "run", "app.py", "--server.port", "8501", `
+                      "--server.headless", "true", "--browser.gatherUsageStats", "false" `
+        -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput "$PSScriptRoot\logs\basis_server.log" `
+        -RedirectStandardError "$PSScriptRoot\logs\basis_server_err.log"
+}
 
 # --- wait until it answers (app.py imports a lot — allow a generous warm-up) --
-$up = $false
+$up = $healthy
 foreach ($i in 1..60) {
+    if ($up) { break }
     Start-Sleep -Seconds 2
     try {
         $r = Invoke-WebRequest -Uri "http://localhost:8501" -UseBasicParsing -TimeoutSec 3
         if ($r.StatusCode -eq 200) { $up = $true; break }
     } catch { }
-    if ($server.HasExited) { break }
+    if ($server -and $server.HasExited) { break }
 }
 if (-not $up) {
     Add-Type -AssemblyName System.Windows.Forms | Out-Null
@@ -76,7 +98,7 @@ if (-not $up) {
         "BASIS failed to start - see logs\basis_server_err.log", "BASIS",
         [System.Windows.Forms.MessageBoxButtons]::OK,
         [System.Windows.Forms.MessageBoxIcon]::Error) | Out-Null
-    try { & taskkill /PID $server.Id /T /F 2>$null | Out-Null } catch { }
+    if ($server) { try { & taskkill /PID $server.Id /T /F 2>$null | Out-Null } catch { } }
     exit 1
 }
 
@@ -114,6 +136,9 @@ if ($browser -and $browser -like "*chrome.exe" -and (Test-Path $pwaDir)) {
     Start-Process "http://localhost:8501"
     $win = $null
 }
+
+# --- keeper mode: the window is open, the keeper task owns the server — done. --
+if (-not $server) { exit 0 }
 
 # --- lifetime: serve while ANY BASIS window is on screen ------------------------
 # Three signals, because each alone has a hole: the spawned $win exits at once
