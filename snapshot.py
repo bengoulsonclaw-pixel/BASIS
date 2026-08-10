@@ -265,6 +265,14 @@ def _fetch_phase() -> dict | None:
     # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit): the FICC
     # pull touches ~20 fields per contract across prices/yields/vols/skew/term/put-call/live.
     print(f"  Estimated Bloomberg hits this pull: ~{len(tickers) * 20:,} (security x field, rough)")
+    # Pull guard: surface review-risk flags (new securities / off-hours / weekend) in the
+    # log too, so CLI + scheduled runs see the same warnings the app button shows.
+    try:
+        from src import pullguard
+        for w in pullguard.assess():
+            print(f"  PULL GUARD: {w}")
+    except Exception:
+        pass
     # raw=True: the snapshot must persist the PRISTINE feed — the deep-store upgrade
     # happens on READ (datafeed._deep_upgrade), so raw 'A' history stays recoverable
     # and outside readers of prices.parquet (Morning Coffee fallback) see real settles.
@@ -364,6 +372,14 @@ def _fetch_phase() -> dict | None:
     # snapshot as "mock", flipping the app into demo-mode warnings). Persist it here.
     (SNAP / ".fetch_meta.json").write_text(json.dumps(
         {"source": MODE, "fetched_at": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}))
+
+    # Our own usage ledger (data/pull_log.csv) + absorb any new tickers into the known
+    # set — the record we'd hand Bloomberg if a workflow review ever asks again.
+    try:
+        from src import pullguard
+        pullguard.record("morning snapshot", tickers, est_hits=len(tickers) * 20)
+    except Exception:
+        pass
 
     print(">>> BLOOMBERG PHASE COMPLETE — the Terminal can be closed now. <<<")
     return {"phase": "fetched", "fetched_at": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),

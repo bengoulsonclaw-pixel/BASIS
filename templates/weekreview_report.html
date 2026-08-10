@@ -5,24 +5,39 @@
 {% include "_report_style.html" %}
 <style>
   table { font-size: 7.6pt; }
-  .kpis { display: flex; gap: 3mm; margin: 3mm 0 1mm; }
-  .kpi { flex: 1; border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
-         padding: 2mm 3mm; background: #FafafA; }
-  .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
-  .kpi .val { font-size: 13pt; font-weight: 700; color: #111; }
-  .kpi .note { font-size: 6.5pt; color: #888; }
-  ul.worth { list-style: none; padding-left: 0; margin: 1.5mm 0; }
-  ul.worth li { font-size: 7.5pt; line-height: 1.42; margin-bottom: 1.1mm; display: flex;
-                gap: 2mm; align-items: baseline; break-inside: avoid; }
-  .modtag { flex: 0 0 13mm; display: inline-block; text-align: center; font-size: 5.6pt;
-            font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
-            border-left: 2pt solid var(--yellow); background: #F3f3f0; color: #444;
-            padding: 0.5mm 0.8mm; }
+
+  /* one typographic stat line instead of boxed KPI tiles */
+  .statline { display: flex; margin: 3.5mm 0 1mm; }
+  .stat { flex: 1; padding: 0 4mm; border-left: 0.75pt solid #ddd; }
+  .stat:first-child { padding-left: 0; border-left: none; }
+  .stat .n { font-size: 15pt; font-weight: 700; color: #111; line-height: 1.1; }
+  .stat .l { font-size: 6.3pt; color: #777; text-transform: uppercase; letter-spacing: .5px;
+             margin-top: 0.6mm; }
+
+  /* module sections: small-caps head over a gold rule, count set right */
+  .sech { display: flex; justify-content: space-between; align-items: baseline;
+          margin: 4mm 0 0.5mm; padding-bottom: 0.8mm;
+          border-bottom: 1.6pt solid var(--yellow); break-after: avoid; }
+  .sech .t { font-size: 8.5pt; font-weight: 700; letter-spacing: 1.8px;
+             text-transform: uppercase; color: #111; }
+  .sech .c { font-size: 6.3pt; color: #999; letter-spacing: .4px; text-transform: uppercase; }
+
+  /* flag rows: the story reads left, its headline number sits right over a gauge */
+  .itm { display: flex; gap: 5mm; align-items: flex-start; padding: 1.7mm 0;
+         border-bottom: 0.5pt solid #ececec; break-inside: avoid; }
+  .itm:last-child { border-bottom: none; }
+  .itm .story { flex: 1; font-size: 7.7pt; line-height: 1.48; color: #222; }
+  .itm .mx { flex: 0 0 26mm; text-align: right; }
+  .mx .v { font-size: 9.5pt; font-weight: 700; color: #111; white-space: nowrap; }
+  .mx .s { font-size: 5.8pt; color: #999; letter-spacing: .3px; text-transform: uppercase;
+           white-space: nowrap; }
+  .gauge { height: 1.1mm; background: #eee; margin-top: 1mm; }
+  .gauge i { display: block; height: 100%; background: var(--yellow); }
   .badge { font-size: 6.2pt; color: #999; font-style: italic; white-space: nowrap; }
   .badge.new { color: #1e8449; font-weight: 700; font-style: normal; }
-  .statband { border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
-              background: #FafafA; padding: 1.8mm 3mm; font-size: 8pt; line-height: 1.5;
-              margin: 1.5mm 0 2mm; }
+
+  .lede { font-size: 7pt; color: #888; margin: 1.5mm 0 0; }
+
   .twocol { display: flex; gap: 4mm; }
   .twocol > div { flex: 1; }
   .ok { color: #1e8449; font-weight: 700; }
@@ -30,9 +45,12 @@
   .status-dropped { color: #888; }
   .status-due { color: #111; font-weight: 700; }
   .headline { font-size: 7.3pt; color: #555; }
-  .trendchart { width: 82%; margin: 0 auto; }
+  .scoreline { font-size: 8pt; line-height: 1.55; color: #222; margin: 1.5mm 0 2mm; }
+  .trendchart { width: 84%; margin: 1mm auto 0; }
   .trendchart img { width: 100%; }
-  .chartdesc { font-size: 7pt; color: #777; margin: 0.5mm 0 2mm; }
+  .chartdesc { font-size: 7pt; color: #888; margin: 1mm 0 2mm; }
+  .subhead { font-size: 7pt; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+             color: #555; margin: 2.5mm 0 1mm; }
 </style>
 </head>
 <body>
@@ -56,48 +74,48 @@
 
     <p class="summary">{{ intro|safe }}</p>
 
-    <div class="kpis">
-      <div class="kpi"><div class="lab">Flags this week</div>
-        <div class="val">{{ n_bullets }}</div><div class="note">each past its own module&rsquo;s bar</div></div>
-      <div class="kpi"><div class="lab">Modules reporting</div>
-        <div class="val">{{ n_modules }}</div><div class="note">quiet modules don&rsquo;t appear</div></div>
-      <div class="kpi"><div class="lab">New this week</div>
-        <div class="val">{{ n_new if has_prev else "&mdash;"|safe }}</div><div class="note">vs the previous edition</div></div>
-      <div class="kpi"><div class="lab">Releases due</div>
-        <div class="val">{{ come_rows|length }}</div><div class="note">in the coming week</div></div>
+    <div class="statline">
+      <div class="stat"><div class="n">{{ n_bullets }}</div><div class="l">flags on the book</div></div>
+      <div class="stat"><div class="n">{{ n_modules }}</div><div class="l">modules reporting</div></div>
+      <div class="stat"><div class="n">{{ n_new if has_prev else "&mdash;"|safe }}</div><div class="l">new this week</div></div>
+      <div class="stat"><div class="n">{{ come_rows|length }}</div><div class="l">releases due</div></div>
     </div>
 
-    {% if bullets %}
-    <div class="banner">Worth a look this week</div>
-    <ul class="worth">
-      {% for b in bullets %}
-      <li><span class="modtag">{{ b.tag }}</span>
-        <span>{{ b.html|safe }}
-          {% if b.badge %}<span class="badge{% if b.badge == 'new this week' %} new{% endif %}">{{ b.badge }}</span>{% endif %}
-        </span></li>
-      {% endfor %}
-    </ul>
-    <p class="chartdesc">One line per exception, collected from each module&rsquo;s own live
-      thresholds &mdash; the vol book&rsquo;s z-flags on the desk&rsquo;s settlement-built curve,
-      the curve monitor&rsquo;s &plusmn;2&sigma; book, COT&rsquo;s crowded-positioning cutoffs,
-      the Technical Analysis report&rsquo;s saved quality bar, the daily correlation-break alert,
-      the seasonality screen&rsquo;s minimum-sample windows and the precious-metals flow monitor.
-      The review adds no analysis of its own.</p>
+    {% if groups %}
+    {% for g in groups %}
+    <div class="sech"><span class="t">{{ g.title }}</span>
+      <span class="c">{{ g.rows|length }} flag{{ "s" if g.rows|length != 1 }}</span></div>
+    {% for b in g.rows %}
+    <div class="itm">
+      <div class="story">{{ b.html|safe }}
+        {% if b.badge %}<span class="badge{% if b.badge == 'new this week' %} new{% endif %}">{{ b.badge }}</span>{% endif %}
+      </div>
+      <div class="mx">
+        {% if b.metric %}<div class="v">{{ b.metric }}</div>
+        <div class="s">{{ b.sub }}</div>
+        {% if b.bar is not none %}<div class="gauge"><i style="width: {{ (b.bar * 100)|round(0) }}%"></i></div>{% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+    <p class="lede">One line per exception, each past its home module&rsquo;s own live threshold
+      &mdash; the review adds no analysis of its own. Full detail on any line lives in that
+      module&rsquo;s own report.</p>
     {% else %}
-    <div class="banner">Worth a look this week</div>
-    <p class="chartdesc">A quiet week &mdash; nothing on the book is past its module&rsquo;s
+    <div class="sech"><span class="t">Worth a look this week</span></div>
+    <p class="lede">A quiet week &mdash; nothing on the book is past its module&rsquo;s
       flagging bar as of the latest session.</p>
     {% endif %}
 
     {% if scorecard %}
-    <div class="banner">Technical scorecard &mdash; how the signal book is performing</div>
-    <div class="statband">
-      <b>{{ scorecard.n_week }}</b> signals flagged this week ({{ scorecard.longs }} long &middot;
-      {{ scorecard.shorts }} short) &nbsp;&middot;&nbsp; <b>{{ scorecard.n_resolved }}</b> earlier
-      calls received their verdicts &nbsp;&middot;&nbsp; this week&rsquo;s cohort judged at 21
-      sessions hit <b>{{ scorecard.hit21_wk }}</b> &nbsp;&middot;&nbsp; trailing year
-      <b>{{ scorecard.hit21_1y }}</b>
-    </div>
+    <div class="sech"><span class="t">Technical scorecard</span>
+      <span class="c">the signal book&rsquo;s track record</span></div>
+    <p class="scoreline"><b>{{ scorecard.n_week }}</b> signals flagged this week
+      ({{ scorecard.longs }} long &middot; {{ scorecard.shorts }} short) &nbsp;&middot;&nbsp;
+      <b>{{ scorecard.n_resolved }}</b> earlier calls received their verdicts &nbsp;&middot;&nbsp;
+      this week&rsquo;s cohort judged at 21 sessions hit <b>{{ scorecard.hit21_wk }}</b>
+      &nbsp;&middot;&nbsp; trailing year <b>{{ scorecard.hit21_1y }}</b></p>
 
     {% if scorecard.verdicts %}
     <table>
@@ -116,7 +134,7 @@
     {% endif %}
 
     {% if scorecard.league %}
-    <div class="banner">Era league &mdash; hit rate by lookback window (21 sessions)</div>
+    <div class="subhead">Era league &mdash; hit rate by lookback window (21 sessions)</div>
     <table>
       <thead><tr><th>Strategy</th><th>Category</th><th class="center">Signals</th>
         {% for lab in scorecard.league_labels %}<th class="center">{{ lab }}</th>{% endfor %}
@@ -137,7 +155,7 @@
     {% if scorecard.best_calls or scorecard.worst_calls %}
     <div class="twocol">
       <div>
-        <div class="banner">Sharpest hits <span class="sig long">&#9650;</span></div>
+        <div class="subhead">Sharpest hits &#9650;</div>
         <table>
           <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
           <tbody>
@@ -149,7 +167,7 @@
         </table>
       </div>
       <div>
-        <div class="banner">Clearest misses <span class="sig short">&#9660;</span></div>
+        <div class="subhead">Clearest misses &#9660;</div>
         <table>
           <thead><tr><th>Fired</th><th>Product</th><th>Call</th><th class="center">21d move</th></tr></thead>
           <tbody>
@@ -163,9 +181,6 @@
     </div>
     {% endif %}
 
-    {% if scorecard.trend %}
-    <div class="section"><div class="trendchart"><img src="{{ scorecard.trend }}" alt="Weekly hit rate"></div></div>
-    {% endif %}
     <p class="chartdesc">The Weekly Signal Scorecard, folded in: the signal ledger re-runs the
       TA hub&rsquo;s own triggers over every cached session and judges each call in signal space
       at 5, 10 and 21 sessions &mdash; hits AND misses, because showing the misses is what makes
@@ -174,7 +189,8 @@
 
     <div class="report-footer">
     {% if cal_rows %}
-    <div class="banner">Release calendar &mdash; last week and the week ahead</div>
+    <div class="sech"><span class="t">Release calendar</span>
+      <span class="c">last week and the week ahead</span></div>
     <table>
       <thead><tr><th style="width:18mm">When</th><th style="width:30mm">Release</th>
         <th style="width:12mm" class="center">Status</th><th>One line</th></tr></thead>
