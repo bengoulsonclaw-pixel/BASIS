@@ -289,7 +289,10 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
     exact: the realized days enter the settlement linearly, so only their sum
     matters."""
     spreads = spreads_bp or [0.0] * len(contracts)
-    decisions = [m for m in bank.meetings if asof < m < max(c.end for c in contracts)]
+    # asof <= m: on DECISION DAY the meeting stays in the fit all day — the strip
+    # prices the move until the announcement, and dropping it at midnight shoved
+    # ~a full step of front-contract pricing into the wrong meeting's odds.
+    decisions = [m for m in bank.meetings if asof <= m < max(c.end for c in contracts)]
     bounds = [effective_date(m) for m in decisions]
     n_seg = len(bounds) + 1
 
@@ -627,32 +630,121 @@ def decisions_today(today: date) -> list[dict]:
     return out
 
 
-# ── data feed (mock → bloomberg, mirrors fedpath) ────────────────────────────────────
+# ── data feed ────────────────────────────────────────────────────────────────────────
+# POLICY (Ben, 2026-08-11): the STIR pages NEVER pull Bloomberg on their own — prices
+# come from the store the daily MORNING SNAPSHOT writes (refresh_strip_store, called
+# from snapshot.py's fetch phase). The only other Bloomberg touch is the explicit
+# per-page "⚡ Live pull" button (live_strip_prices), which requests EXACTLY the
+# page's strip tickers and nothing else. Offline/demo falls back to the mock.
 MODE = fedpath.MODE
+STRIP_STORE = Path(__file__).resolve().parents[1] / "data" / "snapshot" / "stir_strips.json"
 
 # mock path flavour per bank: (bp per move, move every k-th meeting) — mild easing FED,
 # hold-with-late-cut ECB, steady easing BOE. Purely for offline demo realism.
 _MOCK_STYLE = {"FED": (-25.0, 2), "ECB": (-25.0, 3), "BOE": (-25.0, 2)}
 
 
-def strip_prices(prod: Product, bank: Bank, contracts: list[Contract], asof: date,
-                 asof_rate: float) -> list[float]:
-    """Live prices per contract (specific tickers off `prod.root`), mock fallback."""
-    if MODE == "bloomberg":
-        try:
-            from xbbg import blp
-            tickers = [f"{c.code} Comdty" for c in contracts]
-            px = blp.bdp(tickers, "PX_LAST")
-            return [float(px.loc[t, "px_last"]) for t in tickers]
-        except Exception:
-            pass
+def _load_strip_store() -> dict:
+    try:
+        return json.loads(STRIP_STORE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def strip_store_asof() -> str | None:
+    """The settle/pull date the store carries, or None when there is no store."""
+    return _load_strip_store().get("asof") or None
+
+
+def refresh_strip_store(asof: date) -> int:
+    """Pull ALL six products' specific strips (PX_LAST + PX_SETTLE, one batched bdp,
+    ~72 tickers) into the snapshot store, and refresh the o/n fixings cache while
+    the Terminal is connected. Called from snapshot.py's morning fetch phase ONLY —
+    a failed pull leaves the previous store untouched. Returns priced-ticker count."""
+    if MODE != "bloomberg":
+        return 0
+    try:
+        from xbbg import blp
+        contracts: list[Contract] = []
+        for p in PRODUCTS.values():
+            contracts += strip(p, asof, 12)
+        tickers = [f"{c.code} Comdty" for c in contracts]
+        df = blp.bdp(tickers, ["PX_LAST", "PX_SETTLE"])
+        if df is None or df.empty:
+            return 0
+        prices, settles = {}, {}
+        for c in contracts:
+            t = f"{c.code} Comdty"
+            if t in df.index:
+                row = df.loc[t]
+                if "px_last" in df.columns and row.get("px_last") == row.get("px_last"):
+                    prices[c.code] = float(row["px_last"])
+                if "px_settle" in df.columns and row.get("px_settle") == row.get("px_settle"):
+                    settles[c.code] = float(row["px_settle"])
+        if not prices and not settles:
+            return 0
+        STRIP_STORE.parent.mkdir(parents=True, exist_ok=True)
+        STRIP_STORE.write_text(json.dumps(
+            {"asof": asof.isoformat(), "prices": prices, "settles": settles},
+            indent=1), encoding="utf-8")
+        refresh_fixings(asof)                       # 3 small bdh pulls, same session
+        return len(set(prices) | set(settles))
+    except Exception:
+        return 0
+
+
+def live_strip_prices(contracts: list[Contract]) -> dict[str, float] | None:
+    """The '⚡ Live pull' button's worker: ONE bdp for exactly these contracts'
+    tickers — nothing else. Returns {code: px} for what came back, or None when
+    the pull failed entirely (the page must say so loudly, never fall to mock)."""
+    if MODE != "bloomberg":
+        return None
+    try:
+        from xbbg import blp
+        tickers = [f"{c.code} Comdty" for c in contracts]
+        df = blp.bdp(tickers, "PX_LAST")
+        if df is None or df.empty:
+            return None
+        out = {}
+        for c in contracts:
+            t = f"{c.code} Comdty"
+            if t in df.index and df.loc[t, "px_last"] == df.loc[t, "px_last"]:
+                out[c.code] = float(df.loc[t, "px_last"])
+        return out or None
+    except Exception:
+        return None
+
+
+def _mock_prices(prod: Product, bank: Bank, contracts: list[Contract], asof: date,
+                 asof_rate: float) -> dict[str, float]:
     step, every = _MOCK_STYLE.get(bank.key, (-25.0, 2))
     ups = [m for m in bank.meetings if m > asof]
     moves = [(step if i % every == 0 else 0.0) for i in range(len(ups))]
     fn = overnight_rate_fn(asof_rate, ups, moves)
-    out = []
+    out = {}
     for i, c in enumerate(contracts):
         p = fair_price(prod, c, fn)
-        p += (0.5 - ((i * 7) % 5) / 4.0) * 0.004
-        out.append(round(p, 4))
+        out[c.code] = round(p + (0.5 - ((i * 7) % 5) / 4.0) * 0.004, 4)
     return out
+
+
+def strip_prices(prod: Product, bank: Bank, contracts: list[Contract], asof: date,
+                 asof_rate: float) -> list[float]:
+    """Prices per contract, NO network: the morning-snapshot store first (PX_LAST,
+    else PX_SETTLE), synthetic mock for anything the store doesn't carry. Use
+    `strip_source()` for an honest label of what a strip is running on."""
+    store = _load_strip_store()
+    px, se = store.get("prices", {}), store.get("settles", {})
+    mock = _mock_prices(prod, bank, contracts, asof, asof_rate)
+    return [float(px.get(c.code, se.get(c.code, mock[c.code]))) for c in contracts]
+
+
+def strip_source(contracts: list[Contract]) -> tuple[str, str | None]:
+    """('snapshot', asof) when the store covers most of these contracts, else
+    ('mock', None) — the page's price-provenance label."""
+    store = _load_strip_store()
+    have = set(store.get("prices", {})) | set(store.get("settles", {}))
+    codes = [c.code for c in contracts]
+    if codes and sum(1 for c in codes if c in have) >= max(1, len(codes) // 2):
+        return "snapshot", store.get("asof")
+    return "mock", None

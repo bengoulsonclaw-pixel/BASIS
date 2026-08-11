@@ -5802,7 +5802,7 @@ def _stir_picker(store_key: str, products: list, label: str = "Products shown") 
     dflt = _stir_defaults()[store_key]
     have = [p.ticker for p in products]
     skey = f"stir_sel_{store_key}"
-    c1, c2, c3 = st.columns([5, 1.1, 1.1])
+    c1, c2, c3 = st.columns([5, 1.1, 1.1], vertical_alignment="bottom")
     sel = c1.multiselect(
         label, have, default=[t for t in dflt if t in have] or have[:1], key=skey,
         format_func=lambda t: f"{stirpaths.PRODUCTS[t].short} · {stirpaths.PRODUCTS[t].name}")
@@ -6180,20 +6180,38 @@ def _stir_term_chart(prods: list, bank, strips: dict, px_of: dict, fair_of: dict
     gold-edged, open points) — with every rate decision as a prominent vertical
     rule and the option / midcurve expiries pinned along the bottom rail."""
     import altair as alt
+    from datetime import timedelta as _td
     cc = brand.chart_colors()
-    rows, orail = [], []
-    max_x = asof
+    # the chart ends where KNOWLEDGE ends: the last published decision (+3 weeks) —
+    # contracts expiring beyond it are dropped rather than drawn into a zone that
+    # would falsely read as meeting-free
+    horizon = max(bank.meetings) + _td(days=21)
+    ups = [m for m in bank.meetings if m >= asof]
+
+    def _rel(lt):
+        near = min(bank.meetings, key=lambda m: abs((lt - m).days))
+        d = (lt - near).days
+        word = "AFTER" if d > 0 else "BEFORE" if d < 0 else "ON"
+        return (f"{d:+d}d", f"expires {abs(d)}d {word} the {near:%d %b %y} decision"
+                            if d else f"expires ON the {near:%d %b %y} decision day")
+
+    rows, orail, n_dropped = [], [], 0
     for p in prods:
         for c in strips[p.ticker]:
             lt = stirpaths.fut_last_trade(p, c)
             if lt < asof:
                 continue
-            max_x = max(max_x, lt)
+            if lt > horizon:
+                n_dropped += 1
+                continue
+            rel, rel_tip = _rel(lt)
+            n_left = sum(1 for m in ups if m < lt)
             if c.code in px_of:
                 rows.append({"Date": pd.Timestamp(lt), "px": px_of[c.code], "Path": "Market",
-                             "Product": p.short,
+                             "Product": p.short, "tag": c.code[-2:], "rel": rel,
                              "What": f"{c.code} ({p.short} {c.label}) — market {px_of[c.code]:.4f}, "
-                                     f"last trade {lt:%a %d %b %y}"})
+                                     f"last trade {lt:%a %d %b %y} · {rel_tip} · "
+                                     f"{n_left} decision(s) before it dies"})
             if c.code in fair_of:
                 rows.append({"Date": pd.Timestamp(lt), "px": fair_of[c.code], "Path": "Your view",
                              "Product": p.short,
@@ -6201,13 +6219,13 @@ def _stir_term_chart(prods: list, bank, strips: dict, px_of: dict, fair_of: dict
                                      f"({(fair_of[c.code] - px_of.get(c.code, fair_of[c.code])) * 100:+.1f}bp vs market)"})
         if p.has_options:
             for r in stirpaths.expiry_rows(p, asof, 25):
-                if r.kind == "Option" and asof <= r.expiry <= max_x:
+                if r.kind == "Option" and asof <= r.expiry <= horizon:
                     u = stirpaths.option_underlying(p, r.year, r.mon)
                     orail.append({"Date": pd.Timestamp(r.expiry), "Kind": "Option", "Product": p.short,
                                   "What": f"{p.short} {r.month} option expiry · {r.expiry:%a %d %b %y} "
                                           f"· exercises into {u.code}"})
             for r in stirpaths.midcurve_expiries(p, asof, 25):
-                if asof <= r.expiry <= max_x:
+                if asof <= r.expiry <= horizon:
                     u = stirpaths.option_underlying_mc(p, r.year, r.mon)
                     orail.append({"Date": pd.Timestamp(r.expiry), "Kind": "1Y midcurve", "Product": p.short,
                                   "What": f"{p.short} {r.month} 1Y-MIDCURVE expiry · {r.expiry:%a %d %b %y} "
@@ -6216,9 +6234,8 @@ def _stir_term_chart(prods: list, bank, strips: dict, px_of: dict, fair_of: dict
         st.info("No priced contracts to chart.")
         return
     h = 400
-    from datetime import timedelta as _td
     x_scale = alt.Scale(domain=[pd.Timestamp(asof - _td(days=4)).isoformat(),
-                                pd.Timestamp(max_x + _td(days=14)).isoformat()])
+                                pd.Timestamp(horizon).isoformat()])
     df = pd.DataFrame(rows)
     pdom = ["Market", "Your view"]
     prng = [cc["series"], cc["accent"]]
@@ -6236,22 +6253,27 @@ def _stir_term_chart(prods: list, bank, strips: dict, px_of: dict, fair_of: dict
         filled=True, size=130, shape="circle")
     you_pts = base.transform_filter(alt.datum.Path == "Your view").mark_point(
         filled=False, size=130, shape="circle", strokeWidth=2.4)
-    layers = [lines, mkt_pts, you_pts]
+    tags = base.transform_filter(alt.datum.Path == "Market").mark_text(
+        dy=-15, fontSize=10.5, fontWeight="bold").encode(text="tag:N")
+    rels = base.transform_filter(alt.datum.Path == "Market").mark_text(
+        dy=17, fontSize=9.5, fontWeight="normal").encode(
+        text="rel:N", color=alt.value("#9AA4B0"))
+    layers = [lines, mkt_pts, you_pts, tags, rels]
     # rate decisions — the most visible overlay on the chart
     mdf = pd.DataFrame([{"Date": pd.Timestamp(m),
                          "What": f"{bank.meeting_name} decision · {m:%a %d %b %Y}"}
-                        for m in bank.meetings if asof <= m <= max_x])
+                        for m in bank.meetings if asof <= m <= horizon])
     if len(mdf):
         layers.append(alt.Chart(mdf).mark_rule(
-            strokeDash=[6, 4], strokeWidth=2.2, opacity=0.85).encode(
+            strokeDash=[6, 4], strokeWidth=1.8, opacity=0.65).encode(
             x=alt.X("Date:T", scale=x_scale),
-            color=alt.value(_STIR_BANK_COLOR[bank.key]),
+            color=alt.value("#E8EAED"),
             tooltip=[alt.Tooltip("What:N", title="Decision")]))
         layers.append(alt.Chart(mdf).mark_text(
             fontSize=10, fontWeight="bold", angle=270, dx=-6, align="right",
-            baseline="line-bottom", color=_STIR_BANK_COLOR[bank.key]).encode(
+            baseline="line-bottom", color="#E8EAED").encode(
             x=alt.X("Date:T", scale=x_scale), y=alt.value(0),
-            text=alt.Text("Date:T", format="%d %b"),
+            text=alt.Text("Date:T", format="%d %b %y"),
             tooltip=[alt.Tooltip("What:N", title="Decision")]))
     # options / midcurves along the bottom rail
     if orail:
@@ -6272,11 +6294,16 @@ def _stir_term_chart(prods: list, bank, strips: dict, px_of: dict, fair_of: dict
     if front_note:
         props["title"] = alt.TitleParams(front_note, anchor="start", fontSize=13)
     brand.show_chart(alt.layer(*layers).properties(**props))
-    st.caption(f"Solid = the market's term structure (● at each contract's last-trade day) · dashed "
-               f"gold = where the curve sits **if your odds are right**. Vertical "
-               f"{'red' if bank.key == 'FED' else 'blue' if bank.key == 'ECB' else 'green'} rules = "
-               f"{bank.meeting_name} decisions (dated at the top). Bottom rail: ◇ option expiries · "
-               "△ 1Y midcurves. Hover anything for the contract and dates.")
+    st.caption(f"Solid = the market's term structure (contract codes above the points, ● at each "
+               f"contract's last-trade day) · dashed gold = where the curve sits **if your odds "
+               f"are right**. Dashed white verticals = {bank.meeting_name} decisions (dated at "
+               "the top). Under each point, **±Nd** = days the contract expires before (−) or "
+               "after (+) its nearest decision — hover for the full read including how many "
+               "decisions it lives through. The axis is real calendar time and **ends at the "
+               "last published decision**"
+               + (f"; {n_dropped} contract(s) expiring beyond it aren't drawn"
+                  if n_dropped else "")
+               + ". Bottom rail: ◇ option expiries · △ 1Y midcurves.")
 
 
 def render_stir_bank(bank_key: str) -> None:
@@ -6371,28 +6398,59 @@ def render_stir_bank(bank_key: str) -> None:
     codes = [c.code for c in contracts]
     seed_spd = [er_spread if p.ticker == "ERA Comdty" else 0.0 for p in owner]
 
-    feed_px = []
-    for p in prods:
-        feed_px += stirpaths.strip_prices(p, bank, strips[p.ticker], asof, r0)
     px_key, spd_key, sig_key = (f"sp{bank_key}_px", f"sp{bank_key}_spd", f"sp{bank_key}_px_sig")
+    src_key = f"sp{bank_key}_px_src"
     if st.session_state.get(sig_key) != tuple(codes):
+        # seed ONLY here — no per-rerun feed work, and never a Bloomberg call: prices
+        # come from the morning-snapshot store (mock offline). Live quotes arrive
+        # solely via the ⚡ button below.
+        feed_px = []
+        for p in prods:
+            feed_px += stirpaths.strip_prices(p, bank, strips[p.ticker], asof, r0)
+        src, src_asof = stirpaths.strip_source(contracts)
         st.session_state[px_key] = dict(zip(codes, feed_px))
         st.session_state[spd_key] = dict(zip(codes, seed_spd))
         st.session_state[sig_key] = tuple(codes)
-    src_note = "live Bloomberg" if stirpaths.MODE == "bloomberg" else "synthetic demo"
+        st.session_state[src_key] = ("morning snapshot · " + src_asof if src == "snapshot"
+                                     else "synthetic demo")
+    src_note = st.session_state.get(src_key, "synthetic demo")
+    if stirpaths.MODE == "bloomberg":
+        lp1, lp2 = st.columns([5.2, 1.2])
+        lp1.caption(f"Prices: **{src_note}** — the page never pulls Bloomberg on its own; "
+                    "the ⚡ button requests THIS strip's tickers only.")
+        if lp2.button("⚡ Live pull", key=f"sp{bank_key}_livepull", use_container_width=True,
+                      help="One request for exactly this page's strip tickers "
+                           f"({len(codes)} contracts) — nothing else touches Bloomberg."):
+            got = stirpaths.live_strip_prices(contracts)
+            if got:
+                cur = dict(st.session_state[px_key])
+                cur.update(got)
+                st.session_state[px_key] = cur
+                st.session_state[src_key] = (f"⚡ live pull "
+                                             f"{datetime.now(ZoneInfo('America/New_York')):%H:%M ET}"
+                                             + (f" · {len(got)}/{len(codes)}"
+                                                if len(got) < len(codes) else ""))
+                st.rerun()
+            else:
+                st.error("Live pull returned nothing (blocked/offline?) — keeping the "
+                         "existing prices. Nothing else was requested from Bloomberg.")
+    else:
+        st.caption(f"Prices: **{src_note}**.")
     with st.expander(f"✏️ Edit market prices / spreads — {' + '.join(p.short for p in prods)} "
                      f"strip · {src_note}"):
-        st.caption("Seeded from the data feed. Overwrite any price with a live quote and the whole "
-                   "analysis re-prices off it. **Spread (bp)** = settlement-index spread vs the "
-                   "overnight proxy per contract.")
+        st.caption("Overwrite any price with a live quote and the whole analysis re-prices off "
+                   "it. **Spread (bp)** = settlement-index spread vs the overnight proxy per "
+                   "contract.")
         px_df = pd.DataFrame({"Product": [p.short for p in owner], "Contract": codes,
                               "Window": [c.label for c in contracts],
-                              "Market px": [st.session_state[px_key].get(c, p)
-                                            for c, p in zip(codes, feed_px)],
+                              "Market px": [st.session_state[px_key].get(c) for c in codes],
                               "Spread (bp)": [st.session_state[spd_key].get(c, s)
                                               for c, s in zip(codes, seed_spd)]})
         edited_px = st.data_editor(
-            px_df, hide_index=True, use_container_width=True, key=f"sp{bank_key}_px_editor",
+            px_df, hide_index=True, use_container_width=True,
+            # key carries the contract-set signature: a roll/product change discards
+            # stale positional edits instead of re-applying them to different rows
+            key=f"sp{bank_key}_px_editor_{abs(hash(tuple(codes))) % 99991}",
             column_config={
                 "Product": st.column_config.TextColumn(disabled=True),
                 "Contract": st.column_config.TextColumn(disabled=True),
@@ -6403,7 +6461,7 @@ def render_stir_bank(bank_key: str) -> None:
                                                              min_value=-50.0, max_value=50.0)})
         st.session_state[px_key] = dict(zip(edited_px["Contract"], edited_px["Market px"]))
         st.session_state[spd_key] = dict(zip(edited_px["Contract"], edited_px["Spread (bp)"]))
-    prices = [float(st.session_state[px_key].get(c, p)) for c, p in zip(codes, feed_px)]
+    prices = [float(st.session_state[px_key].get(c, 96.0)) for c in codes]
     spreads = [float(st.session_state[spd_key].get(c, s)) for c, s in zip(codes, seed_spd)]
     spread_of = dict(zip(codes, spreads))
 
@@ -6426,13 +6484,11 @@ def render_stir_bank(bank_key: str) -> None:
     # the market's call in exact decimal odds — the seed AND the white/green/red anchor
     _mkt_dec = {lab: round(_stir_signed_pct(per_disp[lab], hike_bp, cut_bp) / 100.0, 3)
                 for lab in labels}
-    sig = (bank_key, tuple(labels))
-    if st.session_state.get(f"sp{bank_key}_sig2") != sig:
-        st.session_state[f"sp{bank_key}_sig2"] = sig
-        for lab in labels:                          # seed = EXACT market → opens all-white
-            st.session_state[mv_key(lab)] = _mkt_dec[lab]
+    # per-meeting seeding: only meetings never seen get the market seed, so changing
+    # the contract slider / product set / horizon no longer wipes odds already set
     for lab in labels:
-        st.session_state.setdefault(mv_key(lab), 0.0)
+        if mv_key(lab) not in st.session_state:
+            st.session_state[mv_key(lab)] = _mkt_dec[lab]
         if abs(float(st.session_state[mv_key(lab)])) > 3.0:    # migrate old %-unit state
             st.session_state[mv_key(lab)] = float(st.session_state[mv_key(lab)]) / 100.0
     # heal the one-off clamp artifact: a value sitting EXACTLY on the ±3.00 rail is
@@ -6442,6 +6498,24 @@ def render_stir_bank(bank_key: str) -> None:
             st.session_state[mv_key(lab)] = _mkt_dec.get(lab, 0.0)
 
     px_of_now = dict(zip(codes, prices))
+
+    # your scenario, read from session up front (the editable widgets render in
+    # section 2, but their values live in session state from the previous
+    # interaction, so section 1 can already price off them)
+    vals = {lab: float(st.session_state[mv_key(lab)]) * 100.0 for lab in labels}
+    views = [stirpaths.MeetingView(m, max(vals[lab], 0.0) / 100.0, max(-vals[lab], 0.0) / 100.0,
+                                   hike_bp, cut_bp)
+             for m, lab in zip(ip.meetings, labels)]
+    exp_moves = [v.expected_bp for v in views]
+    scen_fn = stirpaths.scenario_rate_fn(r0, views, asof=asof, stub_rate=stub)
+
+    def _fair(p, c):
+        return fedpath.price(c, scen_fn, compound=(p.compound and compound)) \
+            - spread_of.get(c.code, 0.0) / 100.0
+
+    your_px = [_fair(p, c) for p, c in zip(owner, contracts)]
+    fair_of = dict(zip(codes, your_px))
+    diff_bp = [(y - m) * 100.0 for y, m in zip(your_px, prices)]
 
     _MKT_C, _YOU_C = "#E8EAED", "#F5C518"           # market/futures white · your gold
     _MTG_C, _FUT_C = "#7FB3F5", _MKT_C              # meetings blue · contracts = market white
@@ -6457,34 +6531,128 @@ def render_stir_bank(bank_key: str) -> None:
     </style>""", unsafe_allow_html=True)
     _code_tip = {c.code: f"{p.short} {c.label}" for p, c in zip(owner, contracts)}
 
-    def _grid_hdr(cols_, title, items, color, tips=None):
-        cols_[0].markdown(f"<div class='sp-lab' style='color:{color};font-size:0.8rem;"
-                          f"padding-top:0.1rem'>{title}</div>", unsafe_allow_html=True)
+    def _rail(main, color, sub="", tip=""):
+        s = (f"<div style='font-weight:400;font-size:0.62rem;color:#9AA4B0;"
+             f"letter-spacing:0;text-transform:none;line-height:1.2'>{sub}</div>") if sub else ""
+        return (f"<div class='sp-lab' style='color:{color};padding-top:0.1rem' "
+                f"title='{tip}'>{main}{s}</div>")
+
+    def _grid_hdr(cols_, title, items, color, tips=None, sub="", tip=""):
+        cols_[0].markdown(_rail(title, color, sub, tip), unsafe_allow_html=True)
         for c_, it in zip(cols_[1:], items):
-            tip = f" title='{(tips or {}).get(it, '')}'" if tips else ""
-            c_.markdown(f"<div class='sp-hdr' style='color:{color}'{tip}>{it}</div>",
+            t = f" title='{(tips or {}).get(it, '')}'" if tips else ""
+            c_.markdown(f"<div class='sp-hdr' style='color:{color}'{t}>{it}</div>",
                         unsafe_allow_html=True)
 
-    def _grid_row(cols_, label, label_color, cells):
-        cols_[0].markdown(f"<div class='sp-lab' style='color:{label_color}'>{label}</div>",
-                          unsafe_allow_html=True)
+    def _grid_row(cols_, label, label_color, cells, sub="", tip=""):
+        cols_[0].markdown(_rail(label, label_color, sub, tip), unsafe_allow_html=True)
         for c_, html in zip(cols_[1:], cells):
             c_.markdown(f"<div class='sp-cell'>{html}</div>", unsafe_allow_html=True)
 
-    # ---- 1 · where the futures trade now -------------------------------------
-    st.markdown(f"**1 · <span style='color:{_MKT_C}'>MARKET</span> — where the futures trade "
-                "now**", unsafe_allow_html=True)
+    # ---- 1 · the futures: market price over your fair, gap beneath -----------
+    st.markdown(f"**1 · FUTURES — the market's prices over "
+                f"<span style='color:{_YOU_C}'>yours</span>** &nbsp;·&nbsp; Δ row = the gap "
+                "in bp (green = cheap vs your view / buy, red = rich / sell)",
+                unsafe_allow_html=True)
     gC = [1] + [1] * len(codes)
-    _grid_hdr(st.columns(gC, gap="small"), "FUTURES", codes, _FUT_C, _code_tip)
+    _grid_hdr(st.columns(gC, gap="small"), "FUTURES", codes, _FUT_C, _code_tip,
+              sub="contract codes", tip="Each column is one listed futures contract")
     _grid_row(st.columns(gC, gap="small"), "MARKET", _MKT_C,
-              [f"{px_of_now[c]:.4f}" for c in codes])
+              [f"{px_of_now[c]:.4f}" for c in codes],
+              sub="price trading now", tip="The live market price of each contract")
+    # editable BOTH ways: these price cells re-solve the §2 odds when typed into,
+    # and re-derive from the §2 odds whenever those change
+    def _fpx_edit():
+        tgt = [float(st.session_state.get(f"sp{bank_key}_fpx_{c}", px_of_now[c]))
+               for c in codes]
+        # invert (linear), then refine: the inversion is simple-average while the
+        # forward pricing compounds, so iterate the ~1-2bp convexity wedge away
+        adj, ip2 = list(tgt), None
+        for _ in range(3):
+            ip2 = stirpaths.implied_path(bank, contracts, adj, asof, r0, spreads,
+                                         stub_rate=stub)
+            vs = [stirpaths.MeetingView(m_, max(float(b_), 0.0) / hike_bp,
+                                        max(-float(b_), 0.0) / cut_bp, hike_bp, cut_bp)
+                  for m_, b_ in zip(ip2.meetings, ip2.per_meeting_bp)]
+            fn_ = stirpaths.scenario_rate_fn(r0, vs, asof=asof, stub_rate=stub)
+            fwd = [fedpath.price(c_, fn_, compound=(p_.compound and compound))
+                   - spread_of.get(c_.code, 0.0) / 100.0
+                   for p_, c_ in zip(owner, contracts)]
+            adj = [a_ + (t_ - f_) for a_, t_, f_ in zip(adj, tgt, fwd)]
+        for m_, bp_ in zip(ip2.meetings, ip2.per_meeting_bp):
+            lab_ = fedpath.meeting_label(m_)
+            if lab_ in labels:
+                st.session_state[mv_key(lab_)] = round(
+                    _stir_signed_pct(float(bp_), hike_bp, cut_bp) / 100.0, 3)
+
+    def _fpx_bump(k: str, d: float) -> None:
+        st.session_state[k] = round(min(100.0, max(90.0,
+                                    float(st.session_state.get(k, 96.0)) + d)), 4)
+        _fpx_edit()                                 # a stepped price re-solves the odds too
+
+    _fwrap = f"sp{bank_key}_fpxwrap"
+    st.markdown(f"""<style>
+      .st-key-{_fwrap} div[data-testid="stVerticalBlock"] {{ gap: 0.08rem; }}
+      .st-key-{_fwrap} div[data-testid="stHorizontalBlock"] {{ gap: 0.25rem; }}
+      .st-key-{_fwrap} div[data-testid="stElementContainer"] {{
+          margin: 0; padding: 0; min-height: 0; }}
+      .st-key-{_fwrap} button {{
+          min-height: 0.9rem; height: 0.9rem; padding: 0; border-radius: 3px;
+          width: 100%; display: flex; align-items: center; justify-content: center; }}
+      .st-key-{_fwrap} button p {{
+          font-size: 0.65rem; line-height: 1; margin: 0; padding: 0; }}
+      .st-key-{_fwrap} div[data-testid="stNumberInputContainer"] {{
+          height: 1.95rem; background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(245,197,24,0.55) !important; border-radius: 6px; }}
+      .st-key-{_fwrap} div[data-testid="stNumberInputContainer"] > div {{
+          background: transparent; }}
+      .st-key-{_fwrap} div[data-testid="stNumberInput"] input {{
+          padding: 0.2rem 0.45rem; font-size: 0.85rem; font-weight: 600; }}
+    </style>""", unsafe_allow_html=True)
+    with st.container(key=_fwrap):
+        ycols = st.columns(gC, gap="small")
+        ycols[0].markdown(_rail("YOUR CALL", _YOU_C, "editable — re-solves §2 odds ▼",
+                                "Two-way: this row re-prices from the odds you set in "
+                                "section 2 — and typing a target price HERE back-solves "
+                                "the section-2 odds to match it"),
+                          unsafe_allow_html=True)
+        for c_, code in zip(ycols[1:], codes):
+            k = f"sp{bank_key}_fpx_{code}"
+            st.session_state[k] = round(fair_of[code], 4)   # slaved to the odds each run
+            with c_:
+                fin, fbtn = st.columns([3.1, 0.9], gap="small")
+                fin.number_input(code, min_value=90.0, max_value=100.0, step=0.005,
+                                 format="%.4f", key=k, label_visibility="collapsed",
+                                 on_change=_fpx_edit,
+                                 help=f"Type a target price for {code} — the meeting odds "
+                                      "in section 2 re-solve to be consistent with it")
+                with fbtn:
+                    st.button("＋", key=f"sp{bank_key}_fup_{code}", use_container_width=True,
+                              on_click=_fpx_bump, args=(k, 0.005))
+                    st.button("－", key=f"sp{bank_key}_fdn_{code}", use_container_width=True,
+                              on_click=_fpx_bump, args=(k, -0.005))
+    _d_cols = st.columns(gC, gap="small")
+    _d_cols[0].markdown(_rail("Δ BP", "#E8EAED", "your fair − market price",
+                              "The gap between your fair value and the live market, in "
+                              "basis points — green = cheap vs your view, red = rich"),
+                        unsafe_allow_html=True)
+    for c_, d in zip(_d_cols[1:], diff_bp):
+        tone = ("#9AA4B0" if abs(d) < 0.05 else "#66BB6A" if d > 0 else "#EF5350")
+        c_.markdown(f"<div class='sp-cell' style='color:{tone};font-weight:700'>{d:+.1f}</div>",
+                    unsafe_allow_html=True)
+
+    def _sp_gap(h: float = 0.9) -> None:
+        st.markdown(f"<div style='height:{h}rem'></div>", unsafe_allow_html=True)
 
     # ---- 2+3 · one table: the market's call, your call directly beneath ------
+    _sp_gap()
     h1_, h2_, h3_ = st.columns([4.2, 0.9, 1.5])
-    h1_.markdown("**2 · The odds, decision by decision** &nbsp;·&nbsp; "
-                 "decimal odds: −0.66 = 66% cut odds · +0.50 = 50% hike odds · "
-                 "beyond ±1 = more than one step"
-                 + (f" · after the {haircut:.1f}bp/yr haircut" if haircut else ""))
+    h1_.markdown(f"**2 · The odds, decision by decision — two-way with the "
+                 f"<span style='color:{_YOU_C}'>YOUR CALL</span> prices in section 1** "
+                 "(edit either; the other re-solves) &nbsp;·&nbsp; decimal odds: "
+                 "−0.66 = 66% cut odds · +0.50 = 50% hike odds · beyond ±1 = more than one step"
+                 + (f" · after the {haircut:.1f}bp/yr haircut" if haircut else ""),
+                 unsafe_allow_html=True)
     if h2_.button("Hold all", key=f"sp{bank_key}_hold", use_container_width=True,
                   help="Zero every meeting — a flat 'no change' scenario."):
         for lab in labels:
@@ -6533,14 +6701,41 @@ def render_stir_bank(bank_key: str) -> None:
     grid = [1] + [1] * len(pairs)
     with st.container(key=_wrap):
         hdr = st.columns(grid, gap="small")         # dates, once, over both rows
-        hdr[0].markdown(f"<div class='sp-lab' style='color:{_MTG_C};padding-top:0.1rem'>"
-                        "RATE MEETINGS</div>", unsafe_allow_html=True)
+        hdr[0].markdown(_rail("RATE MEETINGS", _MTG_C, "decision dates",
+                              f"Each column is one scheduled {bank.meeting_name} "
+                              "rate decision"), unsafe_allow_html=True)
         for c, (m, lab) in zip(hdr[1:], pairs):
             c.markdown(f"<div class='sp-hdr' style='color:{_MTG_C}' "
                        f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
                        f"{m:%d %b %y}</div>", unsafe_allow_html=True)
+        # which quarterly future each decision SETTLES INTO (windows tile, so each
+        # meeting maps to exactly one) — shading groups meetings sharing a contract
+        qprod = next((p for p in prods if p.quarterly), prods[0])
+        qstrip = stirpaths.strip(qprod, asof, n_q + 4)
+        win_cells, _tints, _ti, _last = [], ["rgba(127,179,245,0.10)",
+                                             "rgba(127,179,245,0.24)"], 0, None
+        for m, lab in pairs:
+            eff = fedpath.effective_date(m)
+            wc = next((c for c in qstrip if c.start <= eff < c.end), None)
+            tag = wc.code[-2:] if wc else "—"
+            if tag != _last:
+                _ti, _last = 1 - _ti, tag
+            tip = (f"{bank.meeting_name} {m:%d %b %y} settles inside {wc.code} "
+                   f"(window {wc.start:%d %b %y} → {wc.end:%d %b %y})" if wc else "")
+            win_cells.append((tag, tip, _tints[_ti]))
+        wr = st.columns(grid, gap="small")
+        wr[0].markdown(_rail("SETTLES INTO", _FUT_C, "future hit by this decision",
+                             "The futures contract whose final settlement this decision "
+                             "feeds into — codes match the FUTURES row above"),
+                       unsafe_allow_html=True)
+        for c_, (tag, tip, tint) in zip(wr[1:], win_cells):
+            c_.markdown(f"<div class='sp-cell' style='height:1.35rem;line-height:1.3rem;"
+                        f"background:{tint};font-size:0.75rem;font-weight:700' "
+                        f"title='{tip}'>{tag}</div>", unsafe_allow_html=True)
         mr = st.columns(grid, gap="small")          # MARKET row — same cell style as yours
-        mr[0].markdown(f"<div class='sp-lab' style='color:{_MKT_C}'>MARKET</div>",
+        mr[0].markdown(_rail("MARKET ODDS", _MKT_C, "hike/cut priced in now",
+                             "The odds of a move the futures strip currently prices at "
+                             "each decision (−0.66 = 66% odds of a cut)"),
                        unsafe_allow_html=True)
         for c, (m, lab) in zip(mr[1:], pairs):
             c.markdown(f"<div class='sp-cell' title='{bank.meeting_name} {m:%a %d %b %Y}'>"
@@ -6557,7 +6752,10 @@ def render_stir_bank(bank_key: str) -> None:
                              f"{{ color: {tone} !important; }}")
         st.markdown("<style>" + "\n".join(_tone_css) + "</style>", unsafe_allow_html=True)
         yr = st.columns(grid, gap="small")          # YOUR row — editable version of the same cell
-        yr[0].markdown(f"<div class='sp-lab' style='color:{_YOU_C}'>YOUR CALL</div>",
+        yr[0].markdown(_rail("YOUR CALL", _YOU_C, "edit me — drives §1 ▲",
+                             "The only row you edit: your odds for each decision (type or "
+                             "use ＋/－). The YOUR CALL prices in section 1, the Δbp row and "
+                             "the gold curve below are all re-priced from these numbers"),
                        unsafe_allow_html=True)
         for i, (c, (m, lab)) in enumerate(zip(yr[1:], pairs)):
             with c:
@@ -6576,11 +6774,12 @@ def render_stir_bank(bank_key: str) -> None:
                                   on_click=_stir_bump, args=(mv_key(lab), -0.05))
     st.caption("Gold-edged boxes are **yours to edit** — click ＋/－ or type. Your number shows "
                "**green above** the market's call (more hawkish), **red below** (more dovish), "
-               "white when in line.")
-    vals = {lab: float(st.session_state[mv_key(lab)]) * 100.0 for lab in labels}
+               "white when in line. **SETTLES INTO** = the quarterly future whose settlement "
+               "window the decision lands in (codes match section 1); the shading groups "
+               "meetings that share a contract — hover a cell for the exact window.")
     with st.expander("💾 Named scenarios — save / load the desk's cases"):
         sc_all = _stir_scen_all().get(bank_key, {})
-        s1, s2, s3, s4 = st.columns([1.7, 0.9, 1.7, 0.9])
+        s1, s2, s3, s4 = st.columns([1.7, 0.9, 1.7, 0.9], vertical_alignment="bottom")
         new_name = s1.text_input("Save current odds as", key=f"sp{bank_key}_scn_name",
                                  placeholder="base / hawkish / dovish …")
         if s2.button("Save", key=f"sp{bank_key}_scn_save", use_container_width=True):
@@ -6589,48 +6788,24 @@ def render_stir_bank(bank_key: str) -> None:
                 st.toast(f"Saved scenario '{new_name.strip()}'."); st.rerun()
         pickn = s3.selectbox("Saved scenarios", ["—"] + sorted(sc_all),
                              key=f"sp{bank_key}_scn_pick")
-        if s4.button("Load", key=f"sp{bank_key}_scn_load", use_container_width=True):
-            if pickn != "—":
-                for lab, v in sc_all.get(pickn, {}).items():
-                    if lab in labels:
-                        dec = float(v)                      # scenarios store percent units
-                        st.session_state[mv_key(lab)] = dec if abs(dec) <= 3.0 else dec / 100.0
-                st.rerun()
+
+        def _scn_load(name):
+            # runs as a CALLBACK (before the next render), so writing the odds
+            # widgets' keys is legal — an inline write here would crash, because
+            # this button sits below the already-instantiated inputs
+            for lab_, v_ in _stir_scen_all().get(bank_key, {}).get(name, {}).items():
+                if lab_ in labels:
+                    dec = float(v_)                     # scenarios store percent units
+                    st.session_state[mv_key(lab_)] = dec if abs(dec) <= 3.0 else dec / 100.0
+
+        s4.button("Load", key=f"sp{bank_key}_scn_load", use_container_width=True,
+                  disabled=(pickn == "—"), on_click=_scn_load, args=(pickn,))
         if pickn != "—" and st.button(f"🗑 Delete '{pickn}'", key=f"sp{bank_key}_scn_del"):
             _stir_scen_delete(bank_key, pickn); st.rerun()
         st.caption("Scenarios persist to data/stirpaths_scenarios.json.")
 
-    views = [stirpaths.MeetingView(m, max(vals[lab], 0.0) / 100.0, max(-vals[lab], 0.0) / 100.0,
-                                   hike_bp, cut_bp)
-             for m, lab in zip(ip.meetings, labels)]
-    exp_moves = [v.expected_bp for v in views]
-    scen_fn = stirpaths.scenario_rate_fn(r0, views, asof=asof, stub_rate=stub)
-
-    def _fair(p, c):
-        return fedpath.price(c, scen_fn, compound=(p.compound and compound)) \
-            - spread_of.get(c.code, 0.0) / 100.0
-
-    your_px = [_fair(p, c) for p, c in zip(owner, contracts)]
-    fair_of = dict(zip(codes, your_px))
-    diff_bp = [(y - m) * 100.0 for y, m in zip(your_px, prices)]
-
-    # ---- 4 · where the futures land under YOUR odds --------------------------
-    st.markdown(f"**4 · <span style='color:{_YOU_C}'>YOUR FUTURES</span> — where the same "
-                "contracts land if your calls are right** &nbsp;·&nbsp; Δ row = gap vs "
-                "row 1 in bp (green = cheap vs your view / buy, red = rich / sell)",
-                unsafe_allow_html=True)
-    _grid_hdr(st.columns(gC, gap="small"), "FUTURES", codes, _FUT_C, _code_tip)
-    _grid_row(st.columns(gC, gap="small"), "YOUR CALL", _YOU_C,
-              [f"{fair_of[c]:.4f}" for c in codes])
-    _d_cols = st.columns(gC, gap="small")
-    _d_cols[0].markdown("<div class='sp-lab' style='color:#E8EAED'>Δ BP</div>",
-                        unsafe_allow_html=True)
-    for c_, d in zip(_d_cols[1:], diff_bp):
-        tone = ("#9AA4B0" if abs(d) < 0.05 else "#66BB6A" if d > 0 else "#EF5350")
-        c_.markdown(f"<div class='sp-cell' style='color:{tone};font-weight:700'>{d:+.1f}</div>",
-                    unsafe_allow_html=True)
-
     # ---- the term structure: market vs your view -----------------------------
+    _sp_gap()
     st.markdown("#### Term structure — market vs your view")
     fronts = []
     for p in prods:

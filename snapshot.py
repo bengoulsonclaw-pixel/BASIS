@@ -344,6 +344,18 @@ def _fetch_phase() -> dict | None:
     except Exception as e:
         print(f"  (STIR curve update skipped: {e})")
 
+    # STIR Paths strip store: the specific contract tickers (SFRU6…) + o/n fixings the
+    # meeting-risk cockpit runs on. The pages themselves NEVER pull Bloomberg — this
+    # morning leg (one batched bdp, ~72 tickers, + 3 index bdh) is their only feed
+    # apart from each page's explicit "⚡ Live pull" button.
+    try:
+        from src import stirpaths
+        n_stir = stirpaths.refresh_strip_store(pd.Timestamp.now().date())
+        print(f"  STIR strip store: {n_stir} contracts priced"
+              if n_stir else "  (STIR strip store: pull empty — kept previous)")
+    except Exception as e:
+        print(f"  (STIR strip store skipped: {e})")
+
     # Own-curve option MARKS (batched Bloomberg) — the raw ATM/wing settles, expiries and
     # OI for the whole book, cached to disk. The FITTING happens in the compute phase off
     # this cache, so the Terminal is NOT needed once this line completes.
