@@ -6155,17 +6155,19 @@ def render_stir_overview() -> None:
             term = lvl0 + float(ip.cum_bp[-1]) / 100.0
             col_c = _STIR_BANK_COLOR[bk]
             rate_big = "4.25–4.50" if bk == "FED" else f"{lvl0:.2f}"
-            rate_sub = {"FED": "target band %", "ECB": "deposit rate %",
-                        "BOE": "Bank Rate %"}[bk]
+            rate_tip = {"FED": "Current FOMC target band (%)",
+                        "ECB": "Current deposit facility rate (%)",
+                        "BOE": "Current Bank Rate (%)"}[bk]
             st.markdown(
                 f"<div style='border:1px solid rgba(128,128,128,0.28);border-left:4px solid "
                 f"{col_c};border-radius:8px;padding:0.7rem 0.9rem 0.55rem;min-height:10.6rem'>"
                 f"<div style='display:flex;justify-content:space-between;align-items:flex-start'>"
                 f"<div style='font-weight:700;font-size:0.95rem'>{_STIR_ICON[bk]} {bank.name}"
                 f"</div>"
-                f"<div style='text-align:right'><span style='font-size:1.25rem;font-weight:700'>"
-                f"{rate_big}</span><br><span style='color:#9AA4B0;font-size:0.66rem;"
-                f"letter-spacing:0.04em;text-transform:uppercase'>now · {rate_sub}</span></div>"
+                f"<div style='text-align:right;white-space:nowrap' title='{rate_tip}'>"
+                f"<span style='font-size:1.25rem;font-weight:700'>{rate_big}</span>"
+                f"<br><span style='color:#9AA4B0;font-size:0.66rem;"
+                f"letter-spacing:0.05em'>NOW</span></div>"
                 f"</div>"
                 f"<div style='color:#C3CAD3;font-size:0.78rem;margin-top:0.1rem'>"
                 f"Next: <b>{bank.meeting_name}</b></div>"
