@@ -1766,15 +1766,19 @@ def render_home() -> None:
 
     # (world clocks moved to the fixed top bar — rendered on every page)
     render_sector_filter()
-    st.subheader("Data")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c4.button("☕  Morning Coffee", use_container_width=True, key="home_mc",
-              on_click=_go, args=("Morning Coffee",),
-              help="The morning report — overnight moves, levels and the day ahead.")
-    c5.button("🗞️  Weekly Review", use_container_width=True, key="home_wr",
-              on_click=_go, args=("Weekly Review",),
-              help="The Monday wrap — what every module's own thresholds flagged this week, "
-                   "with the technical scorecard folded in.")
+    # The whole Data row is ADMIN-ONLY (Ben, 2026-08-11): pulls, recomputes, exports
+    # and the report builders all act on shared state or reach external services —
+    # colleague sessions are strictly view-only and see no Data section at all.
+    if IS_ADMIN:
+        st.subheader("Data")
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c4.button("☕  Morning Coffee", use_container_width=True, key="home_mc",
+                  on_click=_go, args=("Morning Coffee",),
+                  help="The morning report — overnight moves, levels and the day ahead.")
+        c5.button("🗞️  Weekly Review", use_container_width=True, key="home_wr",
+                  on_click=_go, args=("Weekly Review",),
+                  help="The Monday wrap — what every module's own thresholds flagged this week, "
+                       "with the technical scorecard folded in.")
     def _run_ficc_pull():
         # TWO PHASES so the Terminal only needs to be open for the short one:
         # fetch (Bloomberg, ~3-5 min) -> banner flips to "close the Terminal" ->
@@ -1868,8 +1872,9 @@ def render_home() -> None:
         with st.spinner("Recomputing all signals…"):
             run_daily.run()
         load_signals.clear(); st.rerun()
-    if c3.button("⬇️  Export snapshot to Excel", use_container_width=True, key="home_excel",
-                 disabled=not (SNAPSHOT_DIR / "prices.parquet").exists()):
+    if IS_ADMIN and c3.button("⬇️  Export snapshot to Excel", use_container_width=True,
+                              key="home_excel",
+                              disabled=not (SNAPSHOT_DIR / "prices.parquet").exists()):
         with st.spinner("Building workbook…"):
             with tempfile.TemporaryDirectory() as tmp:
                 xlsx = Path(tmp) / "snapshot.xlsx"
@@ -1879,7 +1884,7 @@ def render_home() -> None:
                 st.session_state["snap_xlsx"] = xlsx.read_bytes() if ok else None
         if not st.session_state.get("snap_xlsx"):
             st.error("Excel export failed:\n\n" + (res.stderr or res.stdout or "no output"))
-    if st.session_state.get("snap_xlsx"):
+    if IS_ADMIN and st.session_state.get("snap_xlsx"):
         st.download_button("Download snapshot.xlsx", data=st.session_state["snap_xlsx"],
                            file_name="bloomberg_snapshot.xlsx", use_container_width=True,
                            key="home_xlsx_dl",
@@ -2123,10 +2128,11 @@ def render_equities_home() -> None:
                          help="Scope the movers table and heatmap to these indices. "
                               "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
     sel = sel or _keys
-    st.subheader("Data")
-    _eq_pull_banner()
-    c0, c1, c2, c3 = st.columns([1.15, 1.55, 1.55, 2.75])
+    # Data row is ADMIN-ONLY (view-only colleagues see no pull/refresh controls)
     if IS_ADMIN:
+        st.subheader("Data")
+        _eq_pull_banner()
+        c0, c1, c2, c3 = st.columns([1.15, 1.55, 1.55, 2.75])
         _eq_autopull_control(c0)
     try:                                   # mirror snapshot.py's equities pull switches
         from snapshot import PULL_EQUITY_CONSTITUENTS as _EQ_ON, PULL_FUNDAMENTALS as _EQF_ON
@@ -2151,7 +2157,7 @@ def render_equities_home() -> None:
             st.session_state["eq_pull_confirm"] = True
         else:
             st.session_state["eq_pull_go"] = True
-    if not _eq_pull_on:
+    if IS_ADMIN and not _eq_pull_on:
         st.caption("ℹ️ Individual-stock & Company-Fundamentals pulling is **off** — equity "
                    "**index** numbers come from the FICC snapshot. Re-enable in snapshot.py "
                    "(`PULL_EQUITY_CONSTITUENTS` / `PULL_FUNDAMENTALS`) for per-stock data.")
@@ -2189,17 +2195,18 @@ def render_equities_home() -> None:
             gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
             st.success(f"Equities data refreshed ({(time.time() - _t0) / 60:.1f} min).")
             st.rerun()
-    if c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
+    if IS_ADMIN and c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
                  help="Re-pull the latest closes from Yahoo Finance (free) and rebuild the "
                       "movers table and heatmap. Falls back to the cached quotes offline."):
         _eq_movers.clear(); _eq_heatmap_sections.clear()
         st.session_state["eq_refresh_note"] = True
         st.rerun()
-    if st.session_state.pop("eq_refresh_note", False):
+    if IS_ADMIN and st.session_state.pop("eq_refresh_note", False):
         st.info("Quotes refreshed — live Yahoo Finance when reachable, otherwise the cached "
                 "pull (see the source caption).")
     _n = sum(len(v) for v in _eq_universe().values())
-    c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
+    if IS_ADMIN:
+        c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
                + equities.data_status() + ". Quotes, history and fundamentals ride Yahoo "
                "Finance free of charge; Bloomberg only refreshes index membership.")
     st.divider()
@@ -10767,9 +10774,9 @@ if active == "Confluence":
 if active == "Technical Analysis":
     render_ta_overview(); st.stop()
 if active == "Morning Coffee":
-    render_morning_coffee(); st.stop()
+    (render_morning_coffee if IS_ADMIN else render_home)(); st.stop()
 if active == "Weekly Review":
-    render_weekly_review(); st.stop()
+    (render_weekly_review if IS_ADMIN else render_home)(); st.stop()
 if active == "Market Hours":
     render_market_hours(); st.stop()
 if active == "Block Sizes":
