@@ -57,16 +57,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "MU US Equity",
-      "name": "Micron Technology",
-      "sector": "Information Technology",
+      "ticker": "LLY US Equity",
+      "name": "Eli Lilly",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "JPM US Equity",
-      "name": "Jpmorgan Chase & Co",
-      "sector": "Financials",
+      "ticker": "MU US Equity",
+      "name": "Micron Technology",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -78,9 +78,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LLY US Equity",
-      "name": "Eli Lilly",
-      "sector": "Health Care",
+      "ticker": "JPM US Equity",
+      "name": "Jpmorgan Chase & Co",
+      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -127,15 +127,15 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "INTC US Equity",
-      "name": "Intel Corporation",
+      "ticker": "CSCO US Equity",
+      "name": "Cisco Systems Inc",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "CSCO US Equity",
-      "name": "Cisco Systems Inc",
+      "ticker": "INTC US Equity",
+      "name": "Intel Corporation",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
@@ -155,13 +155,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AMAT US Equity",
-      "name": "Applied Material Inc",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "COST US Equity",
       "name": "Costco Wholesale Corp",
       "sector": "Consumer Staples",
@@ -176,15 +169,15 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "PLTR US Equity",
-      "name": "Palantir Technologies Class A",
+      "ticker": "AMAT US Equity",
+      "name": "Applied Material Inc",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "LRCX US Equity",
-      "name": "Lam Research",
+      "ticker": "PLTR US Equity",
+      "name": "Palantir Technologies Class A",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
@@ -193,6 +186,13 @@
       "ticker": "CAT US Equity",
       "name": "Caterpillar Inc",
       "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "LRCX US Equity",
+      "name": "Lam Research",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -211,16 +211,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "HD US Equity",
-      "name": "Home Depot",
-      "sector": "Consumer Discretionary",
+      "ticker": "CVX US Equity",
+      "name": "Chevron Corp",
+      "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "CVX US Equity",
-      "name": "Chevron Corp",
-      "sector": "Energy",
+      "ticker": "HD US Equity",
+      "name": "Home Depot",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -253,6 +253,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "PANW US Equity",
+      "name": "Palo Alto Networks",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "GS US Equity",
       "name": "Goldman Sachs Group Inc",
       "sector": "Financials",
@@ -274,13 +281,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "PANW US Equity",
-      "name": "Palo Alto Networks",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "WFC US Equity",
       "name": "Wells Fargo",
       "sector": "Financials",
@@ -295,13 +295,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "TXN US Equity",
-      "name": "Texas Instrument Inc",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "MS US Equity",
       "name": "Morgan Stanley",
       "sector": "Financials",
@@ -309,15 +302,22 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "KLAC US Equity",
-      "name": "Kla",
+      "ticker": "ORCL US Equity",
+      "name": "Oracle",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "ORCL US Equity",
-      "name": "Oracle",
+      "ticker": "TXN US Equity",
+      "name": "Texas Instrument Inc",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "KLAC US Equity",
+      "name": "Kla",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
@@ -330,16 +330,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LIN US Equity",
-      "name": "Linde Plc",
-      "sector": "Materials",
+      "ticker": "CRWD US Equity",
+      "name": "Crowdstrike Holdings Class A",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "IBM US Equity",
-      "name": "International Business Machines Co",
-      "sector": "Information Technology",
+      "ticker": "LIN US Equity",
+      "name": "Linde Plc",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -358,8 +358,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CRWD US Equity",
-      "name": "Crowdstrike Holdings Class A",
+      "ticker": "IBM US Equity",
+      "name": "International Business Machines Co",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
@@ -367,6 +367,13 @@
     {
       "ticker": "APH US Equity",
       "name": "Amphenol Corp Class A",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ANET US Equity",
+      "name": "Arista Networks Inc",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
@@ -386,8 +393,36 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ANET US Equity",
-      "name": "Arista Networks Inc",
+      "ticker": "ABT US Equity",
+      "name": "Abbott Laboratories",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PEP US Equity",
+      "name": "Pepsico Inc",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ADI US Equity",
+      "name": "Analog Devices",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BA US Equity",
+      "name": "Boeing",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SNDK US Equity",
+      "name": "Sandisk",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
@@ -400,30 +435,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ADI US Equity",
-      "name": "Analog Devices",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PEP US Equity",
-      "name": "Pepsico Inc",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "ABT US Equity",
-      "name": "Abbott Laboratories",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "BA US Equity",
-      "name": "Boeing",
-      "sector": "Industrials",
+      "ticker": "AXP US Equity",
+      "name": "American Express",
+      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -442,34 +456,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AXP US Equity",
-      "name": "American Express",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SNDK US Equity",
-      "name": "Sandisk",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "TJX US Equity",
-      "name": "Tjx",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "QCOM US Equity",
-      "name": "Qualcomm",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "NEE US Equity",
       "name": "Nextera Energy",
       "sector": "Utilities",
@@ -484,9 +470,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ETN US Equity",
-      "name": "Eaton Plc",
-      "sector": "Industrials",
+      "ticker": "TJX US Equity",
+      "name": "Tjx",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -498,16 +484,30 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "WELL US Equity",
-      "name": "Welltower",
-      "sector": "Real Estate",
+      "ticker": "ETN US Equity",
+      "name": "Eaton Plc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "BKNG US Equity",
-      "name": "Booking Holdings",
-      "sector": "Consumer Discretionary",
+      "ticker": "QCOM US Equity",
+      "name": "Qualcomm",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "T US Equity",
+      "name": "At&T Inc",
+      "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "WELL US Equity",
+      "name": "Welltower",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
@@ -519,9 +519,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "T US Equity",
-      "name": "At&T Inc",
-      "sector": "Communication",
+      "ticker": "BKNG US Equity",
+      "name": "Booking Holdings",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -540,13 +540,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DE US Equity",
-      "name": "Deere",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "UBER US Equity",
       "name": "Uber Technologies",
       "sector": "Industrials",
@@ -557,6 +550,13 @@
       "ticker": "PFE US Equity",
       "name": "Pfizer",
       "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DE US Equity",
+      "name": "Deere",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -575,6 +575,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "ISRG US Equity",
+      "name": "Intuitive Surgical Inc",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "COF US Equity",
       "name": "Capital One Financial Corp",
       "sector": "Financials",
@@ -589,22 +596,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ISRG US Equity",
-      "name": "Intuitive Surgical Inc",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PLD US Equity",
-      "name": "Prologis Reit",
-      "sector": "Real Estate",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "BMY US Equity",
-      "name": "Bristol Myers Squibb",
+      "ticker": "VRTX US Equity",
+      "name": "Vertex Pharmaceuticals",
       "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
@@ -617,9 +610,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "GLW US Equity",
-      "name": "Corning",
-      "sector": "Information Technology",
+      "ticker": "BMY US Equity",
+      "name": "Bristol Myers Squibb",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -627,6 +620,13 @@
       "ticker": "DHR US Equity",
       "name": "Danaher Corp",
       "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PLD US Equity",
+      "name": "Prologis Reit",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
@@ -645,9 +645,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "VRTX US Equity",
-      "name": "Vertex Pharmaceuticals",
-      "sector": "Health Care",
+      "ticker": "NEM US Equity",
+      "name": "Newmont",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -659,13 +659,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LOW US Equity",
-      "name": "Lowes Companies Inc",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "SPGI US Equity",
       "name": "S&P Global Inc",
       "sector": "Financials",
@@ -673,22 +666,15 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CVS US Equity",
-      "name": "Cvs Health",
-      "sector": "Health Care",
+      "ticker": "GLW US Equity",
+      "name": "Corning",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "NEM US Equity",
-      "name": "Newmont",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SBUX US Equity",
-      "name": "Starbucks Corp",
+      "ticker": "LOW US Equity",
+      "name": "Lowes Companies Inc",
       "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
@@ -701,6 +687,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "CVS US Equity",
+      "name": "Cvs Health",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "SYK US Equity",
       "name": "Stryker",
       "sector": "Health Care",
@@ -708,16 +701,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "MO US Equity",
-      "name": "Altria Group Inc",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "HWM US Equity",
-      "name": "Howmet Aerospace",
-      "sector": "Industrials",
+      "ticker": "SBUX US Equity",
+      "name": "Starbucks Corp",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -729,23 +715,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ADP US Equity",
-      "name": "Automatic Data Processing Inc",
+      "ticker": "HWM US Equity",
+      "name": "Howmet Aerospace",
       "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "BNY US Equity",
-      "name": "Bank Of New York Mellon Corp",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "ACN US Equity",
-      "name": "Accenture Plc Class A",
-      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -757,15 +729,29 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "TT US Equity",
-      "name": "Trane Technologies Plc",
-      "sector": "Industrials",
+      "ticker": "MO US Equity",
+      "name": "Altria Group Inc",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "VRT US Equity",
-      "name": "Vertiv Holdings Class A",
+      "ticker": "ACN US Equity",
+      "name": "Accenture Plc Class A",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BNY US Equity",
+      "name": "Bank Of New York Mellon Corp",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ADP US Equity",
+      "name": "Automatic Data Processing Inc",
       "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
@@ -774,6 +760,27 @@
       "ticker": "MCK US Equity",
       "name": "Mckesson Corp",
       "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TT US Equity",
+      "name": "Trane Technologies Plc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BX US Equity",
+      "name": "Blackstone",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "VRT US Equity",
+      "name": "Vertiv Holdings Class A",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -792,23 +799,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "BX US Equity",
-      "name": "Blackstone",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PNC US Equity",
-      "name": "Pnc Financial Services Group",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PWR US Equity",
-      "name": "Quanta Services Inc",
-      "sector": "Industrials",
+      "ticker": "FTNT US Equity",
+      "name": "Fortinet",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -820,16 +813,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "GD US Equity",
-      "name": "General Dynamics Corp",
-      "sector": "Industrials",
+      "ticker": "PNC US Equity",
+      "name": "Pnc Financial Services Group",
+      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "FTNT US Equity",
-      "name": "Fortinet",
-      "sector": "Information Technology",
+      "ticker": "GD US Equity",
+      "name": "General Dynamics Corp",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -841,9 +834,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DUK US Equity",
-      "name": "Duke Energy Corp",
-      "sector": "Utilities",
+      "ticker": "PWR US Equity",
+      "name": "Quanta Services Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -862,65 +855,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CDNS US Equity",
-      "name": "Cadence Design Systems",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CSX US Equity",
-      "name": "Csx",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "APP US Equity",
-      "name": "Applovin Class A",
-      "sector": "Communication",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "JCI US Equity",
-      "name": "Johnson Controls International Plc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "MRSH US Equity",
-      "name": "Marsh Inc",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CMCSA US Equity",
-      "name": "Comcast Class A",
-      "sector": "Communication",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "INTU US Equity",
-      "name": "Intuit",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CMI US Equity",
-      "name": "Cummins Inc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "EMR US Equity",
-      "name": "Emerson Electric",
-      "sector": "Industrials",
+      "ticker": "DUK US Equity",
+      "name": "Duke Energy Corp",
+      "sector": "Utilities",
       "region": "US",
       "index": "S&P 500"
     },
@@ -939,6 +876,76 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "CSX US Equity",
+      "name": "Csx",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "INTU US Equity",
+      "name": "Intuit",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "JCI US Equity",
+      "name": "Johnson Controls International Plc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MRSH US Equity",
+      "name": "Marsh Inc",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CDNS US Equity",
+      "name": "Cadence Design Systems",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "APP US Equity",
+      "name": "Applovin Class A",
+      "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CMCSA US Equity",
+      "name": "Comcast Class A",
+      "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "EMR US Equity",
+      "name": "Emerson Electric",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "WMB US Equity",
+      "name": "Williams",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CMI US Equity",
+      "name": "Cummins Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "CEG US Equity",
       "name": "Constellation Energy Corp",
       "sector": "Utilities",
@@ -946,8 +953,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "WMB US Equity",
-      "name": "Williams",
+      "ticker": "PSX US Equity",
+      "name": "Phillips 66",
       "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
@@ -960,6 +967,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "DDOG US Equity",
+      "name": "Datadog Inc Class A",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "ICE US Equity",
       "name": "Intercontinental Exchange Inc",
       "sector": "Financials",
@@ -967,16 +981,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "SHW US Equity",
-      "name": "Sherwin Williams",
-      "sector": "Materials",
+      "ticker": "WM US Equity",
+      "name": "Waste Management Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "WM US Equity",
-      "name": "Waste Management Inc",
-      "sector": "Industrials",
+      "ticker": "SHW US Equity",
+      "name": "Sherwin Williams",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -995,16 +1009,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DASH US Equity",
-      "name": "Doordash Class A",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PSX US Equity",
-      "name": "Phillips 66",
-      "sector": "Energy",
+      "ticker": "REGN US Equity",
+      "name": "Regeneron Pharmaceuticals",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1016,30 +1023,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AMT US Equity",
-      "name": "American Tower Reit",
-      "sector": "Real Estate",
+      "ticker": "SLB US Equity",
+      "name": "Slb Nv",
+      "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "MDLZ US Equity",
-      "name": "Mondelez International Inc Class A",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "RCL US Equity",
-      "name": "Royal Caribbean Group",
+      "ticker": "DASH US Equity",
+      "name": "Doordash Class A",
       "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SNPS US Equity",
-      "name": "Synopsys",
-      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1051,16 +1044,23 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "REGN US Equity",
-      "name": "Regeneron Pharmaceuticals",
-      "sector": "Health Care",
+      "ticker": "MDLZ US Equity",
+      "name": "Mondelez International Inc Class A",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "HON US Equity",
-      "name": "Honeywell International Inc",
-      "sector": "Industrials",
+      "ticker": "SNPS US Equity",
+      "name": "Synopsys",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AMT US Equity",
+      "name": "American Tower Reit",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1072,9 +1072,37 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "ABNB US Equity",
+      "name": "Airbnb Class A",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NOC US Equity",
+      "name": "Northrop Grumman Corp",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "HON US Equity",
+      "name": "Honeywell International Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "ITW US Equity",
       "name": "Illinois Tool Inc",
       "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "RCL US Equity",
+      "name": "Royal Caribbean Group",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1100,13 +1128,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DDOG US Equity",
-      "name": "Datadog Inc Class A",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "AON US Equity",
       "name": "Aon Plc Class A",
       "sector": "Financials",
@@ -1114,15 +1135,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "NOC US Equity",
-      "name": "Northrop Grumman Corp",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SLB US Equity",
-      "name": "Slb Nv",
+      "ticker": "EOG US Equity",
+      "name": "Eog Resources",
       "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
@@ -1135,30 +1149,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CI US Equity",
-      "name": "Cigna",
+      "ticker": "BSX US Equity",
+      "name": "Boston Scientific Corp",
       "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CL US Equity",
-      "name": "Colgate-Palmolive",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "ABNB US Equity",
-      "name": "Airbnb Class A",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "COHR US Equity",
-      "name": "Coherent",
-      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1170,30 +1163,23 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "BSX US Equity",
-      "name": "Boston Scientific Corp",
+      "ticker": "CL US Equity",
+      "name": "Colgate-Palmolive",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CI US Equity",
+      "name": "Cigna",
       "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "URI US Equity",
-      "name": "United Rentals",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "HLT US Equity",
-      "name": "Hilton Worldwide Holdings Inc",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SPG US Equity",
-      "name": "Simon Property Group Reit Inc",
-      "sector": "Real Estate",
+      "ticker": "HPE US Equity",
+      "name": "Hewlett Packard Enterprise",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1201,13 +1187,6 @@
       "ticker": "ECL US Equity",
       "name": "Ecolab",
       "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "EOG US Equity",
-      "name": "Eog Resources",
-      "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1226,16 +1205,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "HPE US Equity",
-      "name": "Hewlett Packard Enterprise",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PCAR US Equity",
-      "name": "Paccar Inc",
-      "sector": "Industrials",
+      "ticker": "SPG US Equity",
+      "name": "Simon Property Group Reit Inc",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1247,15 +1219,57 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LITE US Equity",
-      "name": "Lumentum Holdings",
-      "sector": "Information Technology",
+      "ticker": "URI US Equity",
+      "name": "United Rentals",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "HLT US Equity",
+      "name": "Hilton Worldwide Holdings Inc",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ALL US Equity",
+      "name": "Allstate Corp",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TGT US Equity",
+      "name": "Target Corp",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PCAR US Equity",
+      "name": "Paccar Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
       "ticker": "CTAS US Equity",
       "name": "Cintas",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "APD US Equity",
+      "name": "Air Products And Chemicals",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TDG US Equity",
+      "name": "Transdigm Group",
       "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
@@ -1268,16 +1282,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ALL US Equity",
-      "name": "Allstate Corp",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "TDG US Equity",
-      "name": "Transdigm Group",
-      "sector": "Industrials",
+      "ticker": "CRH US Equity",
+      "name": "Crh Public Limited Plc",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1289,16 +1296,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "TGT US Equity",
-      "name": "Target Corp",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "APD US Equity",
-      "name": "Air Products And Chemicals",
-      "sector": "Materials",
+      "ticker": "WBD US Equity",
+      "name": "Warner Bros. Discovery Series A",
+      "sector": "Communication",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1310,37 +1310,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CRH US Equity",
-      "name": "Crh Public Limited Plc",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "WBD US Equity",
-      "name": "Warner Bros. Discovery Series A",
-      "sector": "Communication",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "TFC US Equity",
-      "name": "Truist Financial",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "MNST US Equity",
       "name": "Monster Beverage Corp",
       "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "HCA US Equity",
-      "name": "Hca Healthcare",
-      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1352,8 +1324,36 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "TEL US Equity",
-      "name": "Te Connectivity Plc",
+      "ticker": "TFC US Equity",
+      "name": "Truist Financial",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "HCA US Equity",
+      "name": "Hca Healthcare",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "COHR US Equity",
+      "name": "Coherent",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BKR US Equity",
+      "name": "Baker Hughes Class A",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "LITE US Equity",
+      "name": "Lumentum Holdings",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
@@ -1366,23 +1366,16 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "TEL US Equity",
+      "name": "Te Connectivity Plc",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "NUE US Equity",
       "name": "Nucor Corp",
       "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "BKR US Equity",
-      "name": "Baker Hughes Class A",
-      "sector": "Energy",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "NXPI US Equity",
-      "name": "Nxp Semiconductors Nv",
-      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1394,9 +1387,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DAL US Equity",
-      "name": "Delta Air Lines",
-      "sector": "Industrials",
+      "ticker": "APO US Equity",
+      "name": "Apollo Global Management",
+      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1408,20 +1401,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "FIX US Equity",
-      "name": "Comfort Systems Usa",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "TER US Equity",
-      "name": "Teradyne",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "D US Equity",
       "name": "Dominion Energy Inc",
       "sector": "Utilities",
@@ -1429,23 +1408,30 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "APO US Equity",
-      "name": "Apollo Global Management",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "KEYS US Equity",
-      "name": "Keysight Technologies",
+      "ticker": "NXPI US Equity",
+      "name": "Nxp Semiconductors Nv",
       "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "CIEN US Equity",
-      "name": "Ciena",
-      "sector": "Information Technology",
+      "ticker": "FIX US Equity",
+      "name": "Comfort Systems Usa",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DAL US Equity",
+      "name": "Delta Air Lines",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AME US Equity",
+      "name": "Ametek Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1457,8 +1443,36 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AME US Equity",
-      "name": "Ametek Inc",
+      "ticker": "KEYS US Equity",
+      "name": "Keysight Technologies",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TER US Equity",
+      "name": "Teradyne",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "TRGP US Equity",
+      "name": "Targa Resources",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "OKE US Equity",
+      "name": "Oneok",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "GWW US Equity",
+      "name": "Ww Grainger Inc",
       "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
@@ -1471,30 +1485,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "GWW US Equity",
-      "name": "Ww Grainger Inc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "CAH US Equity",
       "name": "Cardinal Health",
       "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "TRGP US Equity",
-      "name": "Targa Resources",
-      "sector": "Energy",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PSA US Equity",
-      "name": "Public Storage Reit",
-      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1506,6 +1499,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "CIEN US Equity",
+      "name": "Ciena",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "F US Equity",
       "name": "Ford Motor Co",
       "sector": "Consumer Discretionary",
@@ -1513,16 +1513,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "OKE US Equity",
-      "name": "Oneok",
-      "sector": "Energy",
+      "ticker": "PSA US Equity",
+      "name": "Public Storage Reit",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "HONA US Equity",
-      "name": "Honeywell Aerospace Inc",
-      "sector": "Industrials",
+      "ticker": "ADSK US Equity",
+      "name": "Autodesk",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1534,6 +1534,20 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "CVNA US Equity",
+      "name": "Carvana Class A",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "EW US Equity",
+      "name": "Edwards Lifesciences",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "MET US Equity",
       "name": "Metlife",
       "sector": "Financials",
@@ -1541,9 +1555,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ADSK US Equity",
-      "name": "Autodesk",
-      "sector": "Information Technology",
+      "ticker": "DVN US Equity",
+      "name": "Devon Energy",
+      "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1562,23 +1576,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "EW US Equity",
-      "name": "Edwards Lifesciences",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "AZO US Equity",
-      "name": "Autozone Inc",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CTVA US Equity",
-      "name": "Corteva",
-      "sector": "Materials",
+      "ticker": "HONA US Equity",
+      "name": "Honeywell Aerospace Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1597,8 +1597,22 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CVNA US Equity",
-      "name": "Carvana Class A",
+      "ticker": "CTVA US Equity",
+      "name": "Corteva",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "FERG US Equity",
+      "name": "Ferguson Enterprises Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AZO US Equity",
+      "name": "Autozone Inc",
       "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
@@ -1611,27 +1625,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CARR US Equity",
-      "name": "Carrier Global",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "FERG US Equity",
-      "name": "Ferguson Enterprises Inc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "EBAY US Equity",
-      "name": "Ebay",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "AMP US Equity",
       "name": "Ameriprise Finance Inc",
       "sector": "Financials",
@@ -1639,16 +1632,23 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DVN US Equity",
-      "name": "Devon Energy",
-      "sector": "Energy",
+      "ticker": "WAB US Equity",
+      "name": "Westinghouse Air Brake Technologie",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "WAB US Equity",
-      "name": "Westinghouse Air Brake Technologie",
+      "ticker": "CARR US Equity",
+      "name": "Carrier Global",
       "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BDX US Equity",
+      "name": "Becton Dickinson",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1667,6 +1667,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "AXON US Equity",
+      "name": "Axon Enterprise",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "XEL US Equity",
       "name": "Xcel Energy Inc",
       "sector": "Utilities",
@@ -1674,16 +1681,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "BDX US Equity",
-      "name": "Becton Dickinson",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "EXC US Equity",
-      "name": "Exelon Corp",
-      "sector": "Utilities",
+      "ticker": "EBAY US Equity",
+      "name": "Ebay",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1702,30 +1702,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AXON US Equity",
-      "name": "Axon Enterprise",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "MCHP US Equity",
-      "name": "Microchip Technology Inc",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "VTR US Equity",
-      "name": "Ventas Reit",
-      "sector": "Real Estate",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "FLEX US Equity",
-      "name": "Flex Ltd",
-      "sector": "Information Technology",
+      "ticker": "EXC US Equity",
+      "name": "Exelon Corp",
+      "sector": "Utilities",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1737,8 +1716,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CBRE US Equity",
-      "name": "Cbre Group Class A",
+      "ticker": "VTR US Equity",
+      "name": "Ventas Reit",
       "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
@@ -1751,16 +1730,23 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "RSG US Equity",
-      "name": "Republic Services Inc",
-      "sector": "Industrials",
+      "ticker": "MCHP US Equity",
+      "name": "Microchip Technology Inc",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "XYZ US Equity",
-      "name": "Block Class A",
-      "sector": "Financials",
+      "ticker": "FLEX US Equity",
+      "name": "Flex Ltd",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "RSG US Equity",
+      "name": "Republic Services Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1772,6 +1758,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "OXY US Equity",
+      "name": "Occidental Petroleum Corp",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "PRU US Equity",
       "name": "Prudential Financial Inc",
       "sector": "Financials",
@@ -1779,9 +1772,23 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "UAL US Equity",
-      "name": "United Airlines Holdings",
-      "sector": "Industrials",
+      "ticker": "XYZ US Equity",
+      "name": "Block Class A",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CBRE US Equity",
+      "name": "Cbre Group Class A",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "A US Equity",
+      "name": "Agilent Technologies Inc",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1800,30 +1807,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "YUM US Equity",
-      "name": "Yum Brands",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "A US Equity",
-      "name": "Agilent Technologies Inc",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "MSCI US Equity",
       "name": "Msci Inc",
       "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "KDP US Equity",
-      "name": "Keurig Dr Pepper Inc",
-      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1835,58 +1821,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "OXY US Equity",
-      "name": "Occidental Petroleum Corp",
-      "sector": "Energy",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SYY US Equity",
-      "name": "Sysco",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "WAT US Equity",
       "name": "Waters Corp",
       "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "DHI US Equity",
-      "name": "D R Horton Inc",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "IQV US Equity",
-      "name": "Iqvia Holdings Inc",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "ED US Equity",
-      "name": "Consolidated Edison",
-      "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "ODFL US Equity",
-      "name": "Old Dominion Freight Line",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "HIG US Equity",
-      "name": "Hartford Insurance Group",
-      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1898,23 +1835,37 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "PAYX US Equity",
-      "name": "Paychex",
+      "ticker": "IQV US Equity",
+      "name": "Iqvia Holdings Inc",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "UAL US Equity",
+      "name": "United Airlines Holdings",
       "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "PCG US Equity",
-      "name": "Pg&E Corp",
-      "sector": "Utilities",
+      "ticker": "SYY US Equity",
+      "name": "Sysco",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "PEG US Equity",
-      "name": "Public Service Enterprise Group In",
-      "sector": "Utilities",
+      "ticker": "YUM US Equity",
+      "name": "Yum Brands",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "KDP US Equity",
+      "name": "Keurig Dr Pepper Inc",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1926,9 +1877,23 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CCL US Equity",
-      "name": "Carnival Corp Ltd",
-      "sector": "Consumer Discretionary",
+      "ticker": "ED US Equity",
+      "name": "Consolidated Edison",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PAYX US Equity",
+      "name": "Paychex",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ODFL US Equity",
+      "name": "Old Dominion Freight Line",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1940,30 +1905,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "VMC US Equity",
-      "name": "Vulcan Materials",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "KVUE US Equity",
-      "name": "Kenvue",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "MTB US Equity",
-      "name": "M&T Bank",
+      "ticker": "HIG US Equity",
+      "name": "Hartford Insurance Group",
       "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "WDAY US Equity",
-      "name": "Workday Class A",
-      "sector": "Information Technology",
+      "ticker": "DHI US Equity",
+      "name": "D R Horton Inc",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1975,16 +1926,51 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "KMB US Equity",
-      "name": "Kimberly Clark",
+      "ticker": "PCG US Equity",
+      "name": "Pg&E Corp",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "WDAY US Equity",
+      "name": "Workday Class A",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PEG US Equity",
+      "name": "Public Service Enterprise Group In",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "VMC US Equity",
+      "name": "Vulcan Materials",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MTB US Equity",
+      "name": "M&T Bank",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "KVUE US Equity",
+      "name": "Kenvue",
       "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "EME US Equity",
-      "name": "Emcor Group Inc",
-      "sector": "Industrials",
+      "ticker": "STLD US Equity",
+      "name": "Steel Dynamics Inc",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -1996,15 +1982,29 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "JBL US Equity",
-      "name": "Jabil",
-      "sector": "Information Technology",
+      "ticker": "EME US Equity",
+      "name": "Emcor Group Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
       "ticker": "EXPE US Equity",
       "name": "Expedia Group",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "KMB US Equity",
+      "name": "Kimberly Clark",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CCL US Equity",
+      "name": "Carnival Corp Ltd",
       "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
@@ -2017,16 +2017,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "STLD US Equity",
-      "name": "Steel Dynamics Inc",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "WEC US Equity",
-      "name": "Wec Energy Group Inc",
-      "sector": "Utilities",
+      "ticker": "JBL US Equity",
+      "name": "Jabil",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2045,6 +2038,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "WEC US Equity",
+      "name": "Wec Energy Group Inc",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "ACGL US Equity",
       "name": "Arch Capital Group",
       "sector": "Financials",
@@ -2052,30 +2052,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "COIN US Equity",
-      "name": "Coinbase Global Inc Class A",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CCI US Equity",
-      "name": "Crown Castle Inc",
-      "sector": "Real Estate",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "MLM US Equity",
-      "name": "Martin Marietta Materials",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "TPR US Equity",
-      "name": "Tapestry",
-      "sector": "Consumer Discretionary",
+      "ticker": "EQT US Equity",
+      "name": "Eqt",
+      "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2087,9 +2066,30 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "TPR US Equity",
+      "name": "Tapestry",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "GEHC US Equity",
       "name": "Ge Healthcare Technologies",
       "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "COIN US Equity",
+      "name": "Coinbase Global Inc Class A",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MLM US Equity",
+      "name": "Martin Marietta Materials",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2101,9 +2101,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "EQT US Equity",
-      "name": "Eqt",
-      "sector": "Energy",
+      "ticker": "CCI US Equity",
+      "name": "Crown Castle Inc",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2122,29 +2122,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ON US Equity",
-      "name": "On Semiconductor Corp",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "EXR US Equity",
-      "name": "Extra Space Storage Reit Inc",
-      "sector": "Real Estate",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "IR US Equity",
-      "name": "Ingersoll Rand Inc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CNC US Equity",
-      "name": "Centene Corp",
+      "ticker": "RMD US Equity",
+      "name": "Resmed",
       "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
@@ -2157,22 +2136,22 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "RMD US Equity",
-      "name": "Resmed",
+      "ticker": "ZTS US Equity",
+      "name": "Zoetis Inc Class A",
       "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "CFG US Equity",
-      "name": "Citizens Financial Group Inc",
-      "sector": "Financials",
+      "ticker": "ON US Equity",
+      "name": "On Semiconductor Corp",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "BIIB US Equity",
-      "name": "Biogen Inc",
+      "ticker": "CNC US Equity",
+      "name": "Centene Corp",
       "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
@@ -2185,16 +2164,30 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ZTS US Equity",
-      "name": "Zoetis Inc Class A",
-      "sector": "Health Care",
+      "ticker": "EXR US Equity",
+      "name": "Extra Space Storage Reit",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "AEE US Equity",
-      "name": "Ameren",
-      "sector": "Utilities",
+      "ticker": "IR US Equity",
+      "name": "Ingersoll Rand Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CFG US Equity",
+      "name": "Citizens Financial Group Inc",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BIIB US Equity",
+      "name": "Biogen",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2206,9 +2199,44 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "AEE US Equity",
+      "name": "Ameren",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "WSM US Equity",
       "name": "Williams Sonoma Inc",
       "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "LYV US Equity",
+      "name": "Live Nation Entertainment",
+      "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ARES US Equity",
+      "name": "Ares Management Class A",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MTD US Equity",
+      "name": "Mettler Toledo",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "XYL US Equity",
+      "name": "Xylem Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2227,9 +2255,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "MTD US Equity",
-      "name": "Mettler Toledo",
-      "sector": "Health Care",
+      "ticker": "DOV US Equity",
+      "name": "Dover Corp",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2241,30 +2269,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ARES US Equity",
-      "name": "Ares Management Class A",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "XYL US Equity",
-      "name": "Xylem Inc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "LYV US Equity",
-      "name": "Live Nation Entertainment",
-      "sector": "Communication",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "DOV US Equity",
-      "name": "Dover Corp",
-      "sector": "Industrials",
+      "ticker": "HAL US Equity",
+      "name": "Halliburton",
+      "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2290,9 +2297,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DG US Equity",
-      "name": "Dollar General Corp",
-      "sector": "Consumer Staples",
+      "ticker": "CTSH US Equity",
+      "name": "Cognizant Technology Solutions Cla",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2304,6 +2311,20 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "HSY US Equity",
+      "name": "Hershey Foods",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DG US Equity",
+      "name": "Dollar General Corp",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "CINF US Equity",
       "name": "Cincinnati Financial",
       "sector": "Financials",
@@ -2311,9 +2332,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CTSH US Equity",
-      "name": "Cognizant Technology Solutions Cla",
-      "sector": "Information Technology",
+      "ticker": "RF US Equity",
+      "name": "Regions Financial",
+      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2332,86 +2353,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "HSY US Equity",
-      "name": "Hershey Foods",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "FSLR US Equity",
-      "name": "First Solar",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "RF US Equity",
-      "name": "Regions Financial",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PPG US Equity",
-      "name": "Ppg Industries",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PPL US Equity",
-      "name": "Ppl Corp",
-      "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CNP US Equity",
-      "name": "Centerpoint Energy",
-      "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "HAL US Equity",
-      "name": "Halliburton",
-      "sector": "Energy",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SYF US Equity",
-      "name": "Synchrony Financial",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "AWK US Equity",
       "name": "American Water Works",
       "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "EIX US Equity",
-      "name": "Edison International",
-      "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "DGX US Equity",
-      "name": "Quest Diagnostics Inc",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CPRT US Equity",
-      "name": "Copart Inc",
-      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2423,9 +2367,37 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AVB US Equity",
-      "name": "Avalonbay Communities Reit",
-      "sector": "Real Estate",
+      "ticker": "PPL US Equity",
+      "name": "Ppl Corp",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SYF US Equity",
+      "name": "Synchrony Financial",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DGX US Equity",
+      "name": "Quest Diagnostics Inc",
+      "sector": "Health Care",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CNP US Equity",
+      "name": "Centerpoint Energy",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CPRT US Equity",
+      "name": "Copart Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2437,8 +2409,43 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "PHM US Equity",
-      "name": "Pultegroup",
+      "ticker": "EIX US Equity",
+      "name": "Edison International",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PPG US Equity",
+      "name": "Ppg Industries",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "FSLR US Equity",
+      "name": "First Solar",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AVB US Equity",
+      "name": "Avalonbay Communities Reit",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NRG US Equity",
+      "name": "Nrg Energy Inc",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DRI US Equity",
+      "name": "Darden Restaurants Inc",
       "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
@@ -2451,13 +2458,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "VRSK US Equity",
-      "name": "Verisk Analytics",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "WST US Equity",
       "name": "West Pharmaceutical Services",
       "sector": "Health Care",
@@ -2465,29 +2465,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "NRG US Equity",
-      "name": "Nrg Energy Inc",
-      "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "FE US Equity",
-      "name": "Firstenergy Corp",
-      "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "ULTA US Equity",
-      "name": "Ulta Beauty Inc",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "DRI US Equity",
-      "name": "Darden Restaurants Inc",
+      "ticker": "PHM US Equity",
+      "name": "Pultegroup",
       "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
@@ -2507,23 +2486,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "OMC US Equity",
-      "name": "Omnicom Group Inc",
-      "sector": "Communication",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "VLTO US Equity",
-      "name": "Veralto Corp",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "VRSN US Equity",
-      "name": "Verisign",
-      "sector": "Information Technology",
+      "ticker": "FE US Equity",
+      "name": "Firstenergy Corp",
+      "sector": "Utilities",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2535,16 +2500,44 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DLTR US Equity",
-      "name": "Dollar Tree Inc",
-      "sector": "Consumer Staples",
+      "ticker": "OMC US Equity",
+      "name": "Omnicom Group Inc",
+      "sector": "Communication",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "EXPD US Equity",
-      "name": "Expeditors International Of Washin",
+      "ticker": "VRSN US Equity",
+      "name": "Verisign",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ULTA US Equity",
+      "name": "Ulta Beauty Inc",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "VLTO US Equity",
+      "name": "Veralto Corp",
       "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "VRSK US Equity",
+      "name": "Verisk Analytics",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DLTR US Equity",
+      "name": "Dollar Tree Inc",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2556,37 +2549,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LUV US Equity",
-      "name": "Southwest Airlines",
+      "ticker": "EXPD US Equity",
+      "name": "Expeditors International Of Washin",
       "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "EQR US Equity",
-      "name": "Equity Residential Reit",
-      "sector": "Real Estate",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PKG US Equity",
-      "name": "Packaging Corp Of America",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "FFIV US Equity",
-      "name": "F5 Inc",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "PFG US Equity",
-      "name": "Principal Financial Group Inc",
-      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2598,8 +2563,36 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AMCR US Equity",
-      "name": "Amcor Plc",
+      "ticker": "FFIV US Equity",
+      "name": "F5 Inc",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PKG US Equity",
+      "name": "Packaging Corp Of America",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "EQR US Equity",
+      "name": "Equity Residential Reit",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PFG US Equity",
+      "name": "Principal Financial Group Inc",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "DOW US Equity",
+      "name": "Dow",
       "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
@@ -2612,6 +2605,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "LUV US Equity",
+      "name": "Southwest Airlines",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "IP US Equity",
       "name": "International Paper",
       "sector": "Materials",
@@ -2619,9 +2619,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CMS US Equity",
-      "name": "Cms Energy",
-      "sector": "Utilities",
+      "ticker": "AMCR US Equity",
+      "name": "Amcor Plc",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2647,9 +2647,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "KHC US Equity",
-      "name": "Kraft Heinz",
-      "sector": "Consumer Staples",
+      "ticker": "CMS US Equity",
+      "name": "Cms Energy",
+      "sector": "Utilities",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2661,23 +2661,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DOW US Equity",
-      "name": "Dow",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "WRB US Equity",
-      "name": "Wr Berkley",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "KEY US Equity",
-      "name": "Keycorp",
-      "sector": "Financials",
+      "ticker": "KHC US Equity",
+      "name": "Kraft Heinz",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2689,6 +2675,13 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "KEY US Equity",
+      "name": "Keycorp",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "BRO US Equity",
       "name": "Brown & Brown Inc",
       "sector": "Financials",
@@ -2696,9 +2689,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "NI US Equity",
-      "name": "Nisource",
-      "sector": "Utilities",
+      "ticker": "WRB US Equity",
+      "name": "Wr Berkley",
+      "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2710,9 +2703,37 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "TPL US Equity",
+      "name": "Texas Pacific Land",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BR US Equity",
+      "name": "Broadridge Financial Solutions Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NI US Equity",
+      "name": "Nisource",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "GPN US Equity",
       "name": "Global Payments Inc",
       "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "GIS US Equity",
+      "name": "General Mills Inc",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2724,16 +2745,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "TPL US Equity",
-      "name": "Texas Pacific Land",
-      "sector": "Energy",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "GIS US Equity",
-      "name": "General Mills Inc",
-      "sector": "Consumer Staples",
+      "ticker": "DD US Equity",
+      "name": "Dupont De Nemours",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2752,16 +2766,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "DD US Equity",
-      "name": "Dupont De Nemours",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "BR US Equity",
-      "name": "Broadridge Financial Solutions Inc",
-      "sector": "Industrials",
+      "ticker": "VTRS US Equity",
+      "name": "Viatris",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2773,23 +2780,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "VTRS US Equity",
-      "name": "Viatris",
+      "ticker": "ZBH US Equity",
+      "name": "Zimmer Biomet Holdings",
       "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "LEN US Equity",
-      "name": "Lennar A Corp Class A",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "STZ US Equity",
-      "name": "Constellation Brands Class A",
-      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2801,9 +2794,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ZBH US Equity",
-      "name": "Zimmer Biomet Holdings",
-      "sector": "Health Care",
+      "ticker": "CF US Equity",
+      "name": "Cf Industries Holdings Inc",
+      "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "STZ US Equity",
+      "name": "Constellation Brands Class A",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2815,15 +2815,22 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ESS US Equity",
-      "name": "Essex Property Trust Reit",
-      "sector": "Real Estate",
+      "ticker": "LEN US Equity",
+      "name": "Lennar A Corp Class A",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
     {
       "ticker": "WY US Equity",
       "name": "Weyerhaeuser Reit",
+      "sector": "Real Estate",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ESS US Equity",
+      "name": "Essex Property Trust Reit",
       "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
@@ -2843,27 +2850,6 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LNT US Equity",
-      "name": "Alliant Energy Corp",
-      "sector": "Utilities",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CHRW US Equity",
-      "name": "Ch Robinson Worldwide",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CF US Equity",
-      "name": "Cf Industries Holdings Inc",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "SMCI US Equity",
       "name": "Super Micro Computer Inc",
       "sector": "Information Technology",
@@ -2871,23 +2857,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "NVR US Equity",
-      "name": "Nvr",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "IEX US Equity",
-      "name": "Idex",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "CDW US Equity",
-      "name": "Cdw",
-      "sector": "Information Technology",
+      "ticker": "LNT US Equity",
+      "name": "Alliant Energy Corp",
+      "sector": "Utilities",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2899,8 +2871,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "J US Equity",
-      "name": "Jacobs Solutions Inc",
+      "ticker": "CHRW US Equity",
+      "name": "Ch Robinson Worldwide",
       "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
@@ -2913,9 +2885,51 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "CDW US Equity",
+      "name": "Cdw",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "J US Equity",
+      "name": "Jacobs Solutions Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "IEX US Equity",
+      "name": "Idex",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NVR US Equity",
+      "name": "Nvr",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AKAM US Equity",
+      "name": "Akamai Technologies Inc",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "BALL US Equity",
       "name": "Ball Corp",
       "sector": "Materials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "NDSN US Equity",
+      "name": "Nordson",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2934,23 +2948,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "NDSN US Equity",
-      "name": "Nordson",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "TSN US Equity",
-      "name": "Tyson Foods Inc Class A",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SWK US Equity",
-      "name": "Stanley Black & Decker Inc",
-      "sector": "Industrials",
+      "ticker": "LYB US Equity",
+      "name": "Lyondellbasell Industries Class A",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2962,9 +2962,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AKAM US Equity",
-      "name": "Akamai Technologies Inc",
-      "sector": "Information Technology",
+      "ticker": "TSN US Equity",
+      "name": "Tyson Foods Inc Class A",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "S&P 500"
     },
@@ -2976,23 +2976,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "MAA US Equity",
-      "name": "Mid America Apartment Communities",
-      "sector": "Real Estate",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "FDXF US Equity",
-      "name": "Fedex Freight Holding Company Inc",
+      "ticker": "SWK US Equity",
+      "name": "Stanley Black & Decker Inc",
       "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "MAS US Equity",
-      "name": "Masco",
-      "sector": "Industrials",
+      "ticker": "RL US Equity",
+      "name": "Ralph Lauren Class A",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3011,22 +3004,57 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LYB US Equity",
-      "name": "Lyondellbasell Industries Class A",
-      "sector": "Materials",
+      "ticker": "MAA US Equity",
+      "name": "Mid America Apartment Communities",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "RL US Equity",
-      "name": "Ralph Lauren Class A",
-      "sector": "Consumer Discretionary",
+      "ticker": "FDXF US Equity",
+      "name": "Fedex Freight Holding Company Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BG US Equity",
+      "name": "Bunge Global Sa",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MAS US Equity",
+      "name": "Masco",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "COO US Equity",
+      "name": "Cooper",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
     {
       "ticker": "EG US Equity",
       "name": "Everest Group Ltd",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "APA US Equity",
+      "name": "Apa",
+      "sector": "Energy",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "AIZ US Equity",
+      "name": "Assurant Inc",
       "sector": "Financials",
       "region": "US",
       "index": "S&P 500"
@@ -3046,29 +3074,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "BG US Equity",
-      "name": "Bunge Global Sa",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "AIZ US Equity",
-      "name": "Assurant Inc",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "ALLE US Equity",
-      "name": "Allegion Plc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "COO US Equity",
-      "name": "Cooper",
+      "ticker": "BAX US Equity",
+      "name": "Baxter International",
       "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
@@ -3081,9 +3088,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "BAX US Equity",
-      "name": "Baxter International",
-      "sector": "Health Care",
+      "ticker": "ALLE US Equity",
+      "name": "Allegion Plc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3095,16 +3102,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "LII US Equity",
-      "name": "Lennox International Inc",
-      "sector": "Industrials",
+      "ticker": "DECK US Equity",
+      "name": "Deckers Outdoor",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "DECK US Equity",
-      "name": "Deckers Outdoor",
-      "sector": "Consumer Discretionary",
+      "ticker": "AVY US Equity",
+      "name": "Avery Dennison Corp",
+      "sector": "Materials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3123,30 +3130,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "AVY US Equity",
-      "name": "Avery Dennison Corp",
-      "sector": "Materials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "MKC US Equity",
       "name": "Mccormick & Co Non-Voting",
       "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "LULU US Equity",
-      "name": "Lululemon Athletica",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "APA US Equity",
-      "name": "Apa",
-      "sector": "Energy",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3158,37 +3144,23 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CRL US Equity",
-      "name": "Charles River Laboratories Interna",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SJM US Equity",
-      "name": "Jm Smucker",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "RVTY US Equity",
-      "name": "Revvity",
-      "sector": "Health Care",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "HII US Equity",
-      "name": "Huntington Ingalls Industries",
+      "ticker": "LII US Equity",
+      "name": "Lennox International Inc",
       "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "FOXA US Equity",
-      "name": "Fox Class A",
-      "sector": "Communication",
+      "ticker": "LULU US Equity",
+      "name": "Lululemon Athletica",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "CRL US Equity",
+      "name": "Charles River Laboratories Interna",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3200,30 +3172,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "CHTR US Equity",
-      "name": "Charter Communications Class A",
-      "sector": "Communication",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "REG US Equity",
-      "name": "Regency Centers Reit Corp",
-      "sector": "Real Estate",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "HAS US Equity",
-      "name": "Hasbro",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "GNRC US Equity",
-      "name": "Generac Holdings",
+      "ticker": "HII US Equity",
+      "name": "Huntington Ingalls Industries",
       "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "RVTY US Equity",
+      "name": "Revvity",
+      "sector": "Health Care",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3242,16 +3200,37 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ECHO US Equity",
-      "name": "Echostar Class A",
+      "ticker": "CHTR US Equity",
+      "name": "Charter Communications Class A",
       "sector": "Communication",
       "region": "US",
       "index": "S&P 500"
     },
     {
-      "ticker": "PNW US Equity",
-      "name": "Pinnacle West",
-      "sector": "Utilities",
+      "ticker": "FOXA US Equity",
+      "name": "Fox Class A",
+      "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "HAS US Equity",
+      "name": "Hasbro",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SJM US Equity",
+      "name": "Jm Smucker",
+      "sector": "Consumer Staples",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "REG US Equity",
+      "name": "Regency Centers Reit Corp",
+      "sector": "Real Estate",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3263,9 +3242,30 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "ECHO US Equity",
+      "name": "Echostar Class A",
+      "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "GNRC US Equity",
+      "name": "Generac Holdings",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "GDDY US Equity",
       "name": "Godaddy Class A",
       "sector": "Information Technology",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "PNW US Equity",
+      "name": "Pinnacle West",
+      "sector": "Utilities",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3298,6 +3298,20 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "JKHY US Equity",
+      "name": "Jack Henry And Associates Inc",
+      "sector": "Financials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "ROL US Equity",
+      "name": "Rollins Inc",
+      "sector": "Industrials",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "CPT US Equity",
       "name": "Camden Property Trust Reit",
       "sector": "Real Estate",
@@ -3312,37 +3326,9 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "ROL US Equity",
-      "name": "Rollins Inc",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "JKHY US Equity",
-      "name": "Jack Henry And Associates Inc",
-      "sector": "Financials",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "DPZ US Equity",
       "name": "Dominos Pizza",
       "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "SWKS US Equity",
-      "name": "Skyworks Solutions",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "AES US Equity",
-      "name": "Aes",
-      "sector": "Utilities",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3354,9 +3340,23 @@
       "index": "S&P 500"
     },
     {
+      "ticker": "AES US Equity",
+      "name": "Aes",
+      "sector": "Utilities",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
       "ticker": "NWSA US Equity",
       "name": "News Class A",
       "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "SWKS US Equity",
+      "name": "Skyworks Solutions",
+      "sector": "Information Technology",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3403,22 +3403,8 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "NCLH US Equity",
-      "name": "Norwegian Cruise Line Holdings",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
       "ticker": "WYNN US Equity",
       "name": "Wynn Resorts",
-      "sector": "Consumer Discretionary",
-      "region": "US",
-      "index": "S&P 500"
-    },
-    {
-      "ticker": "MGM US Equity",
-      "name": "Mgm Resorts International",
       "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
@@ -3431,9 +3417,16 @@
       "index": "S&P 500"
     },
     {
-      "ticker": "BLDR US Equity",
-      "name": "Builders Firstsource Inc",
-      "sector": "Industrials",
+      "ticker": "NCLH US Equity",
+      "name": "Norwegian Cruise Line Holdings",
+      "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "MGM US Equity",
+      "name": "Mgm Resorts International",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "S&P 500"
     },
@@ -3441,6 +3434,13 @@
       "ticker": "FOX US Equity",
       "name": "Fox Class B",
       "sector": "Communication",
+      "region": "US",
+      "index": "S&P 500"
+    },
+    {
+      "ticker": "BLDR US Equity",
+      "name": "Builders Firstsource Inc",
+      "sector": "Industrials",
       "region": "US",
       "index": "S&P 500"
     },
@@ -4310,16 +4310,16 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "HD US Equity",
-      "name": "Home Depot Inc",
-      "sector": "Consumer Discretionary",
+      "ticker": "GOOGL US Equity",
+      "name": "Alphabet Inc Cl A",
+      "sector": "Communication",
       "region": "US",
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "GOOGL US Equity",
-      "name": "Alphabet Inc Cl A",
-      "sector": "Communication",
+      "ticker": "HD US Equity",
+      "name": "Home Depot Inc",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "Dow Jones 30"
     },

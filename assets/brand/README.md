@@ -1,6 +1,6 @@
-# BASIS brand assets
+﻿# BASIS brand assets
 
-**BASIS — Analysis · Strategy · Indicators.** The brand for the Strategy Monitor app.
+**BASIS — Analysis · Strategies · Indicators.** The brand for the Strategy Monitor app.
 
 The mark is a *convergence* play-button: a grey bracket on the left, a silver edge
 (top) and a gold edge (bottom) converging on a gold dot — analysis and strategy

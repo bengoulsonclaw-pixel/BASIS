@@ -1,4 +1,4 @@
-# BASIS — house theme (Analysis · Strategy · Indicators).
+# BASIS — house theme (Analysis · Strategies · Indicators).
 # This block is the DARK default: it paints the app on-brand before the app's
 # own CSS loads. The in-app sun/moon toggle re-skins to light at runtime
 # (see src/brand.py). primaryColor drives the active strategy button, the

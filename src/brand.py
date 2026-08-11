@@ -128,10 +128,11 @@ def _stops(stops) -> str:
 # is ENLARGED, not letter-spread — and the tagline is sized to fill the same width
 # beneath it. The lockup's on-screen size is set by the height passed to header_svg.
 _WORD_W = 224           # BASIS natural advance width (viewBox units) = shared width
-# Advance width of "ANALYSIS · STRATEGY · INDICATORS" per 1u of font-size in this
-# font stack (measured); lets us size the tagline so its natural width ≈ _WORD_W,
-# leaving textLength only a hair of spacing to nudge.
-_TAG_ADVANCE = 16.4
+# Advance width of "ANALYSIS · STRATEGIES · INDICATORS" per 1u of font-size in this
+# font stack (measured 16.4 for the old STRATEGY wording, scaled for the two extra
+# glyphs); lets us size the tagline so its natural width ≈ _WORD_W, leaving
+# textLength only a hair of spacing to nudge.
+_TAG_ADVANCE = 17.4
 
 
 def header_svg(pal: dict, height: int = 34, tagline: bool = False) -> str:
@@ -139,7 +140,7 @@ def header_svg(pal: dict, height: int = 34, tagline: bool = False) -> str:
 
     tagline=False -> mark + wordmark only (used in the sidebar).
     tagline=True  -> stacked lockup: the wordmark with
-    "Analysis · Strategy · Indicators" directly beneath it, both pinned to the
+    "Analysis · Strategies · Indicators" directly beneath it, both pinned to the
     SAME width via a shared `textLength`, so their left and right edges align and
     they scale together as one unit.
     """
@@ -184,14 +185,14 @@ def header_svg(pal: dict, height: int = 34, tagline: bool = False) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 18 {vbw:.0f} 86" '
         f'height="{height}" role="img" '
-        f'aria-label="BASIS — Analysis · Strategy · Indicators" '
+        f'aria-label="BASIS — Analysis · Strategies · Indicators" '
         f'style="display:block;max-width:100%;font-family:{_FONT}">'
         f'{defs}{mark}'
         f'<text x="132" y="82" font-family="{_FONT}" font-size="76" font-weight="700" '
         f'textLength="{w}" lengthAdjust="spacing" fill="url(#bw_{u})">BASIS</text>'
         f'<text x="132" y="100" font-family="{_FONT}" font-size="{f_sub}" font-weight="600" '
         f'textLength="{w}" lengthAdjust="spacing" fill="{pal["tagline"]}">'
-        f'ANALYSIS · STRATEGY · INDICATORS</text>'
+        f'ANALYSIS · STRATEGIES · INDICATORS</text>'
         f'</svg>'
     )
 
@@ -271,7 +272,7 @@ hr { border-color:$border; }
    their scripts. (Hide both the keyed block and, on newer Streamlit, its layout wrapper.) */
 div.st-key-basis_scroll_top,
 [data-testid="stLayoutWrapper"]:has(> .st-key-basis_scroll_top) { display:none; }
-.block-container { padding-top:132px; }   /* clears the FIXED top bar (clocks + masthead) */
+.block-container { padding-top:127px; }   /* clears the FIXED top bar (clocks + masthead, ~97px) */
 /* full-bleed terminal width: content uses the whole viewport minus the page padding
    (the old centered ~46rem column read as a website, not a terminal). */
 .block-container { max-width:100% !important; padding-left:1.6rem; padding-right:1.6rem; }
@@ -514,14 +515,14 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 .st-key-basis_masthead {
     background:$surface; border-bottom:1px solid $border;
 }
-.st-key-basis_masthead { padding:.45rem 1.2rem .4rem; }
-.bt-mast { display:flex; align-items:center; gap:14px; min-height:34px; }
+.st-key-basis_masthead { padding:.65rem 1.2rem .6rem; }
+.bt-mast { display:flex; align-items:center; gap:14px; min-height:40px; }
 .bt-word {
-    font-weight:700; font-size:1.35rem; letter-spacing:.11em;
+    font-weight:700; font-size:2.2rem; letter-spacing:.11em; line-height:1.05;
     background:linear-gradient(96deg,#EEF0F3,#C0C5CC 46%,#CBA53C 70%,#F4CC3A);
     -webkit-background-clip:text; background-clip:text; color:transparent;
 }
-.bt-div { width:1px; height:22px; background:$btn_border; }
+.bt-div { width:1px; height:30px; background:$btn_border; }
 .bt-crumb {
     font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.24em;
     text-transform:uppercase; color:$faint;
@@ -713,7 +714,7 @@ def masthead(breadcrumb: str | None = None, toggle: bool = True) -> None:
     on a surface strip with a bottom border. Same bar on every page; the breadcrumb
     carries the location. toggle=True keeps the theme toggle in-row (legacy layout);
     the fixed top bar renders the toggle on the clocks row instead and passes False."""
-    crumb = (breadcrumb or "ANALYSIS · STRATEGY · INDICATORS").upper()
+    crumb = (breadcrumb or "ANALYSIS · STRATEGIES · INDICATORS").upper()
     with st.container(key="basis_masthead"):
         mast = (f'<div class="bt-mast">'
                 f'<span class="bt-word">BASIS</span>'

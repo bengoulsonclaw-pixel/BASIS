@@ -329,7 +329,7 @@ st.set_page_config(
     page_title="BASIS — Strategy Monitor",
     page_icon=str(brand.ICON_PNG),
     layout="wide",
-    menu_items={"about": "BASIS — Analysis · Strategy · Indicators"},
+    menu_items={"about": "BASIS — Analysis · Strategies · Indicators"},
 )
 
 # BASIS brand theme: palettes, the dark/light CSS and the primary-button label
@@ -1057,8 +1057,8 @@ def _world_clocks() -> None:
         "<meta charset='utf-8'><style>"
         "*{box-sizing:border-box;margin:0;padding:0}"
         "body{background:transparent;font-family:" + mono + "}"
-        ".row{display:grid;grid-template-columns:repeat(6,minmax(150px,200px));"
-        "width:fit-content;max-width:100%;"
+        ".row{display:grid;grid-template-columns:repeat(6,1fr);"
+        "width:100%;"       # full-bleed strip: half-width fit-content read as clutter
         "background:" + pal["surface2"] + ";border:1px solid " + pal["border"] + "}"
         ".c{padding:7px 12px;min-width:0;border-right:1px solid " + pal["border"] + "}"
         ".c:last-child{border-right:none}"
@@ -1085,7 +1085,9 @@ def _world_clocks() -> None:
         "if(w<48)w=48;"
         "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');}catch(e){}}"
         "sb();setInterval(sb,500);</script>")
-    components.html(html, height=68)
+    # 54 = the rail's real rendered height (53px content + 1px slack) — anything
+    # taller leaves a dead dark band between the clocks and the masthead.
+    components.html(html, height=54)
 
 
 
@@ -4808,10 +4810,33 @@ def render_market_hours() -> None:
                f"the daily **settlement**; the red line is **now** — **{open_n}/{len(tickers) - closed_n} open** "
                f"({now:%H:%M} {pick}).{extra} Sessions crossing midnight wrap to the next line.")
 
+    # ── frozen time axis: the 24h scale + a red "now" notch render as their own thin
+    # chart inside a sticky wrapper pinned just below the fixed top bar, so the times
+    # stay on screen however far down the (very tall) Gantt you scroll. Both charts
+    # reserve an identical y gutter (minExtent=maxExtent) so their time columns line
+    # up; the Gantt keeps its gridlines but drops its own axis labels.
+    _yw = 214
+    st.markdown(
+        "<style>"
+        "[data-testid='stLayoutWrapper']:has(> .st-key-mh_axis_sticky),"
+        "div.st-key-mh_axis_sticky {"
+        f"position:sticky; top:96px; z-index:5; background:{brand.palette()['canvas']};"
+        "}</style>", unsafe_allow_html=True)
+    with st.container(key="mh_axis_sticky"):
+        _pad = alt.Chart(pd.DataFrame({"y": [""]})).mark_tick(opacity=0).encode(
+            y=alt.Y("y:N", axis=alt.Axis(title=None, labels=False, ticks=False, domain=False,
+                                         minExtent=_yw, maxExtent=_yw)))
+        _now = alt.Chart(pd.DataFrame({"x": [now_h]})).mark_rule(color="#E53935", size=2).encode(
+            x=alt.X("x:Q", scale=alt.Scale(domain=[0, 24], nice=False),
+                    axis=alt.Axis(title=None, orient="top", values=list(range(0, 25, 2)), grid=False,
+                                  labelExpr="(datum.value<10?'0':'')+datum.value+':00'")))
+        brand.show_chart(alt.layer(_pad, _now).properties(height=8))
+
     xaxis = alt.X("start:Q", scale=alt.Scale(domain=[0, 24], nice=False),
-                  axis=alt.Axis(title=None, values=list(range(0, 25, 2)),
-                                labelExpr="(datum.value<10?'0':'')+datum.value+':00'"))
-    yaxis = alt.Y("mkt:N", sort=y_order, axis=alt.Axis(title=None, labelFontSize=9, labelLimit=200))
+                  axis=alt.Axis(title=None, values=list(range(0, 25, 2)), grid=True,
+                                labels=False, ticks=False, domain=False))
+    yaxis = alt.Y("mkt:N", sort=y_order, axis=alt.Axis(title=None, labelFontSize=9, labelLimit=200,
+                                                       minExtent=_yw, maxExtent=_yw))
     cscale = alt.Scale(domain=_aorder,
                        range=[markethours.ASSET_COLORS.get(a, "#888") for a in _aorder])
     tip = [alt.Tooltip("mkt:N", title="Product"), alt.Tooltip("exch:N", title="Exchange"),
@@ -6418,14 +6443,41 @@ def render_stir_bank(bank_key: str) -> None:
 
     px_of_now = dict(zip(codes, prices))
 
-    _MKT_C, _YOU_C = "#7FB3F5", "#F5C518"           # market blue · your gold (chart colours)
+    _MKT_C, _YOU_C = "#E8EAED", "#F5C518"           # market/futures white · your gold
+    _MTG_C, _FUT_C = "#7FB3F5", _MKT_C              # meetings blue · contracts = market white
+    st.markdown("""<style>
+      .sp-hdr { font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase;
+                font-weight: 700; padding: 0 0.1rem; }
+      .sp-cell { background: rgba(128,128,128,0.08); border: 1px solid rgba(128,128,128,0.25);
+                 border-radius: 6px; height: 1.95rem; line-height: 1.85rem; padding: 0 0.45rem;
+                 font-size: 0.85rem; white-space: nowrap; overflow: hidden; }
+      .sp-sub { font-size: 0.7rem; color: #9AA4B0; }
+      .sp-lab { font-weight: 700; font-size: 0.8rem; padding-top: 0.35rem;
+                letter-spacing: 0.03em; }
+    </style>""", unsafe_allow_html=True)
+    _code_tip = {c.code: f"{p.short} {c.label}" for p, c in zip(owner, contracts)}
+
+    def _grid_hdr(cols_, title, items, color, tips=None):
+        cols_[0].markdown(f"<div class='sp-lab' style='color:{color};font-size:0.8rem;"
+                          f"padding-top:0.1rem'>{title}</div>", unsafe_allow_html=True)
+        for c_, it in zip(cols_[1:], items):
+            tip = f" title='{(tips or {}).get(it, '')}'" if tips else ""
+            c_.markdown(f"<div class='sp-hdr' style='color:{color}'{tip}>{it}</div>",
+                        unsafe_allow_html=True)
+
+    def _grid_row(cols_, label, label_color, cells):
+        cols_[0].markdown(f"<div class='sp-lab' style='color:{label_color}'>{label}</div>",
+                          unsafe_allow_html=True)
+        for c_, html in zip(cols_[1:], cells):
+            c_.markdown(f"<div class='sp-cell'>{html}</div>", unsafe_allow_html=True)
 
     # ---- 1 · where the futures trade now -------------------------------------
     st.markdown(f"**1 · <span style='color:{_MKT_C}'>MARKET</span> — where the futures trade "
                 "now**", unsafe_allow_html=True)
-    row1 = pd.DataFrame([["MARKET ▶"] + [f"{px_of_now[c]:.4f}" for c in codes]],
-                        columns=[""] + list(codes), index=[" "])
-    brand.themed_dataframe(row1, fmt={}, height=73)
+    gC = [1] + [1] * len(codes)
+    _grid_hdr(st.columns(gC, gap="small"), "FUTURES", codes, _FUT_C, _code_tip)
+    _grid_row(st.columns(gC, gap="small"), "MARKET", _MKT_C,
+              [f"{px_of_now[c]:.4f}" for c in codes])
 
     # ---- 2+3 · one table: the market's call, your call directly beneath ------
     h1_, h2_, h3_ = st.columns([4.2, 0.9, 1.5])
@@ -6476,26 +6528,17 @@ def render_stir_bank(bank_key: str) -> None:
           background: transparent; }}
       .st-key-{_wrap} div[data-testid="stNumberInput"] input {{
           padding: 0.2rem 0.45rem; font-size: 0.85rem; font-weight: 600; }}
-      .st-key-{_wrap} .sp-hdr {{ font-size: 0.8rem; letter-spacing: 0.04em;
-          text-transform: uppercase; color: #B39DDB; font-weight: 700;
-          padding: 0 0.1rem; }}
-      .st-key-{_wrap} .sp-cell {{ background: rgba(128,128,128,0.08);
-          border: 1px solid rgba(128,128,128,0.25); border-radius: 6px;
-          height: 1.95rem; line-height: 1.85rem; padding: 0 0.45rem;
-          font-size: 0.85rem; white-space: nowrap; overflow: hidden; }}
-      .st-key-{_wrap} .sp-sub {{ font-size: 0.7rem; color: #9AA4B0; }}
-      .st-key-{_wrap} .sp-lab {{ font-weight: 700; font-size: 0.8rem;
-          padding-top: 0.35rem; letter-spacing: 0.03em; }}
     </style>""", unsafe_allow_html=True)
     pairs = list(zip(ip.meetings, labels))
     grid = [1] + [1] * len(pairs)
     with st.container(key=_wrap):
         hdr = st.columns(grid, gap="small")         # dates, once, over both rows
-        hdr[0].markdown("<div class='sp-lab' style='color:#B39DDB;padding-top:0.1rem'>"
+        hdr[0].markdown(f"<div class='sp-lab' style='color:{_MTG_C};padding-top:0.1rem'>"
                         "RATE MEETINGS</div>", unsafe_allow_html=True)
         for c, (m, lab) in zip(hdr[1:], pairs):
-            c.markdown(f"<div class='sp-hdr' title='{bank.meeting_name} decision · "
-                       f"{m:%A %d %B %Y}'>{m:%d %b %y}</div>", unsafe_allow_html=True)
+            c.markdown(f"<div class='sp-hdr' style='color:{_MTG_C}' "
+                       f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
+                       f"{m:%d %b %y}</div>", unsafe_allow_html=True)
         mr = st.columns(grid, gap="small")          # MARKET row — same cell style as yours
         mr[0].markdown(f"<div class='sp-lab' style='color:{_MKT_C}'>MARKET</div>",
                        unsafe_allow_html=True)
@@ -6573,24 +6616,19 @@ def render_stir_bank(bank_key: str) -> None:
 
     # ---- 4 · where the futures land under YOUR odds --------------------------
     st.markdown(f"**4 · <span style='color:{_YOU_C}'>YOUR FUTURES</span> — where the same "
-                "contracts land if your calls are right** &nbsp;·&nbsp; second row = gap vs "
+                "contracts land if your calls are right** &nbsp;·&nbsp; Δ row = gap vs "
                 "row 1 in bp (green = cheap vs your view / buy, red = rich / sell)",
                 unsafe_allow_html=True)
-    row4 = pd.DataFrame([["YOU ▶"] + [f"{fair_of[c]:.4f}" for c in codes]],
-                        columns=[""] + list(codes), index=[" "])
-    brand.themed_dataframe(row4, fmt={}, height=73)
-
-    def _row_color(col):
-        d = dict(zip(codes, diff_bp))
-        if col.name not in d:
-            return [""] * len(col)
-        v = d[col.name]
-        css = ("color:#888" if abs(v) < 0.05 else
-               "color:#137333;font-weight:700" if v > 0 else "color:#c5221f;font-weight:700")
-        return [css] * len(col)
-    row4d = pd.DataFrame([["Δ bp ▶"] + [f"{d:+.1f}" for d in diff_bp]],
-                         columns=[""] + list(codes), index=[" "])
-    brand.themed_dataframe(row4d, fmt={}, colorers=[(list(codes), _row_color)], height=73)
+    _grid_hdr(st.columns(gC, gap="small"), "FUTURES", codes, _FUT_C, _code_tip)
+    _grid_row(st.columns(gC, gap="small"), "YOUR CALL", _YOU_C,
+              [f"{fair_of[c]:.4f}" for c in codes])
+    _d_cols = st.columns(gC, gap="small")
+    _d_cols[0].markdown("<div class='sp-lab' style='color:#E8EAED'>Δ BP</div>",
+                        unsafe_allow_html=True)
+    for c_, d in zip(_d_cols[1:], diff_bp):
+        tone = ("#9AA4B0" if abs(d) < 0.05 else "#66BB6A" if d > 0 else "#EF5350")
+        c_.markdown(f"<div class='sp-cell' style='color:{tone};font-weight:700'>{d:+.1f}</div>",
+                    unsafe_allow_html=True)
 
     # ---- the term structure: market vs your view -----------------------------
     st.markdown("#### Term structure — market vs your view")
@@ -10270,12 +10308,12 @@ if _active_dest in ("Home", "eq:Home"):
 else:
     _crumb = f"{_side} desk · {_active_dest.removeprefix('eq:')}"
 with st.container(key="basis_topbar"):
+    brand.masthead(_crumb, toggle=False)          # BASIS on top, clocks underneath
     _tb_cl, _tb_tg = st.columns([0.94, 0.06], vertical_alignment="center")
     with _tb_cl:
         _world_clocks()
     with _tb_tg:
         brand.theme_toggle()           # fills the space right of the clocks
-    brand.masthead(_crumb, toggle=False)
 # Top-of-page market ticker rail removed 2026-07-31 (Ben: no on-screen value). The masthead
 # + world clocks + theme toggle above are the top bar now. (brand.ticker_rail is left in place
 # but unused.)

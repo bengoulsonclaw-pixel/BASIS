@@ -78,9 +78,9 @@ def calendar_events() -> list:
         pass
     try:                                                # central-bank rate decisions (STIR Paths
         from . import stirpaths                         # calendars — same source as the module)
-        _CB = {"FED": ("🏛️", "FOMC", "#E53935", "14:00 ET"),
-               "ECB": ("💶", "ECB", "#1E88E5", "14:15 CET"),
-               "BOE": ("💷", "BoE MPC", "#43A047", "12:00 London")}
+        _CB = {"FED": ("🏛️", "FOMC", "#7FB3F5", "14:00 ET"),      # all in the meetings-blue
+               "ECB": ("💶", "ECB", "#7FB3F5", "14:15 CET"),      # of the STIR Paths pages —
+               "BOE": ("💷", "BoE MPC", "#7FB3F5", "12:00 London")}   # icons tell the banks apart
         for bk, bank in stirpaths.BANKS.items():
             icon, lbl, col, t = _CB[bk]
             for m in bank.meetings:
