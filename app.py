@@ -6171,9 +6171,9 @@ def render_stir_overview() -> None:
                 f"Next: <b>{bank.meeting_name}</b></div>"
                 f"<div style='color:#C3CAD3;font-size:0.78rem'>{nxt:%a %d %b} · in "
                 f"<b>{(nxt - asof).days}d</b></div>"
-                f"<div style='font-size:1.5rem;font-weight:700;margin:0.2rem 0 0.1rem'>"
-                f"{dec0:+.2f} <span style='font-size:0.85rem;color:#C3CAD3'>"
-                f"({_stir_odds_str(bp0, bank.step_bp)}, {bp0:+.1f}bp)</span></div>"
+                f"<div style='font-size:1.4rem;font-weight:700;margin:0.2rem 0 0.1rem'>"
+                f"{_stir_odds_str(bp0, bank.step_bp)} <span style='font-size:0.85rem;"
+                f"color:#C3CAD3'>{bp0:+.1f}bp</span></div>"
                 f"<div style='color:#C3CAD3;font-size:0.78rem'>Thru Dec {asof.year}: "
                 f"<b>{yend:+.0f}bp</b> &nbsp;·&nbsp; Terminal: <b>{term:.2f}%</b></div>"
                 f"</div>", unsafe_allow_html=True)
