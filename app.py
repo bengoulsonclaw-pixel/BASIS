@@ -876,11 +876,10 @@ _GROUP_TABS = {
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield")],
-    "STIR Paths":         [("🗓️ Expiry Timeline", "STIR Timeline"),
+    "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
                            ("🏛️ Fed", "Fed Path"),
                            ("💶 ECB", "ECB Path"),
-                           ("💷 BoE", "BoE Path"),
-                           ("⚖️ Cross-Bank", "STIR Cross")],
+                           ("💷 BoE", "BoE Path")],
     "Trade Testing":      [("🧪 Vol Backtester", "Vol Backtester"),
                            ("🎯 TA Backtester", "TA Backtester"),
                            ("📒 Signal Ledger", "Signal Ledger")],
@@ -6104,14 +6103,159 @@ def _stir_window_table(prods: list, bank_keys: list, asof, n_q: int) -> None:
 
 
 def render_stir_overview() -> None:
-    st.subheader("🗓️  STIR Expiry Timeline — futures, options & rate decisions")
-    st.caption(
-        "Every monthly **futures ●** and **options ◇** expiry across the STIR book, drawn against "
-        "the **central-bank decision calendar** — so you can see at a glance how many meetings sit "
-        "inside each contract's life, and which option expiry captures which decisions. "
-        "Choose products below and save your own default; each bank page carries the same "
-        "timeline filtered to its own market.")
+    """The module's home: the state of global rate expectations — bank cards,
+    what repriced, the cross-bank divergence chart (absorbed from the old
+    Cross tab), the next fortnight's events, then the full expiry timeline."""
+    import altair as alt
+    st.subheader("🗓️  STIR Paths — the state of rate expectations")
     asof = datetime.now(ZoneInfo("America/New_York")).date()
+    fits = {bk: stirpaths.default_bank_fit(bk, asof) for bk in stirpaths.BANKS}
+    src, src_asof = stirpaths.strip_source(
+        stirpaths.strip(stirpaths.PRODUCTS["SFRA Comdty"], asof, 8))
+    st.caption("Each bank's strip inverted into the meeting-step path it prices — prices from the "
+               + (f"**morning snapshot · {src_asof}**" if src == "snapshot"
+                  else "**synthetic demo feed**")
+               + ". Open a bank's cockpit to set your own odds against it.")
+
+    # ---- bank cards ----------------------------------------------------------
+    _dest = {"FED": "Fed Path", "ECB": "ECB Path", "BOE": "BoE Path"}
+    cards = st.columns(3)
+    for col, (bk, bank) in zip(cards, stirpaths.BANKS.items()):
+        ip = fits[bk]
+        with col:
+            if ip is None or not len(ip.meetings):
+                st.info(f"{bank.name}: no strip priced.")
+                continue
+            nxt = ip.meetings[0]
+            bp0 = float(ip.per_meeting_bp[0])
+            dec0 = _stir_signed_pct(bp0, bank.step_bp, bank.step_bp) / 100.0
+            eoy = [i for i, m in enumerate(ip.meetings) if m.year == asof.year]
+            yend = float(ip.cum_bp[eoy[-1]]) if eoy else float(ip.cum_bp[-1])
+            lvl0 = bank.default_rate
+            term = lvl0 + float(ip.cum_bp[-1]) / 100.0
+            col_c = _STIR_BANK_COLOR[bk]
+            st.markdown(
+                f"<div style='border:1px solid rgba(128,128,128,0.28);border-left:4px solid "
+                f"{col_c};border-radius:8px;padding:0.7rem 0.9rem 0.55rem'>"
+                f"<div style='font-weight:700;font-size:0.95rem'>{_STIR_ICON[bk]} {bank.name}"
+                f"</div>"
+                f"<div style='color:#C3CAD3;font-size:0.78rem;margin-top:0.15rem'>"
+                f"Next: <b>{bank.meeting_name}</b> · {nxt:%a %d %b} · in "
+                f"<b>{(nxt - asof).days}d</b></div>"
+                f"<div style='font-size:1.5rem;font-weight:700;margin:0.25rem 0 0.1rem'>"
+                f"{dec0:+.2f} <span style='font-size:0.85rem;color:#C3CAD3'>"
+                f"({_stir_odds_str(bp0, bank.step_bp)}, {bp0:+.1f}bp)</span></div>"
+                f"<div style='color:#C3CAD3;font-size:0.78rem'>Thru Dec {asof.year}: "
+                f"<b>{yend:+.0f}bp</b> &nbsp;·&nbsp; Terminal: <b>{term:.2f}%</b></div>"
+                f"</div>", unsafe_allow_html=True)
+            st.button(f"Open {bk} cockpit →", key=f"stir_card_{bk}",
+                      use_container_width=True, on_click=_go, args=(_dest[bk],))
+
+    # ---- what repriced (the daily ledger) ------------------------------------
+    rep = stirpaths.meeting_repricing(asof)
+    movers = []
+    for bk, mp in rep.items():
+        for iso, (bp, d) in mp.items():
+            if abs(d) >= 1.0:
+                movers.append((abs(d), bk, date.fromisoformat(iso), bp, d))
+    if movers:
+        movers.sort(reverse=True)
+        chips = " &nbsp;·&nbsp; ".join(
+            f"<span style='color:{'#66BB6A' if d > 0 else '#EF5350'};font-weight:700'>"
+            f"{_STIR_ICON[bk]} {m:%b %y} {d:+.1f}bp</span>"
+            f"<span style='color:#9AA4B0;font-size:0.78rem'> (now {bp:+.1f})</span>"
+            for _, bk, m, bp, d in movers[:5])
+        st.markdown("**Repriced since the last snapshot:** &nbsp;" + chips,
+                    unsafe_allow_html=True)
+    else:
+        st.caption("Repricing movers appear here once the morning snapshot has recorded two "
+                   "days of implied paths (data/stir_meeting_history.json).")
+
+    # ---- cross-bank divergence (absorbed from the old Cross tab) -------------
+    _sp = st.columns([5, 1.6])
+    _sp[0].markdown("#### Fed · ECB · BoE — where the cycles diverge")
+    view = _sp[1].radio("Show", ["Cumulative bp", "Rate level"], key="stir_home_view",
+                        horizontal=True, label_visibility="collapsed")
+    frames, mrows = [], []
+    for bk, bank in stirpaths.BANKS.items():
+        ip = fits[bk]
+        if ip is None or not len(ip.meetings):
+            continue
+        seg_dates = [asof] + [fedpath.effective_date(m) for m in ip.meetings]
+        lvl = ip.seg_rates - stirpaths.BANK_BASIS_SEED[bk] / 100.0
+        cum = np.concatenate([[0.0], (lvl[1:] - lvl[0]) * 100.0])
+        frames.append(pd.DataFrame({
+            "date": pd.to_datetime(seg_dates),
+            "value": cum if view == "Cumulative bp" else lvl,
+            "Bank": bank.name}))
+        for m, bp, cm in zip(ip.meetings, ip.per_meeting_bp, ip.cum_bp):
+            mrows.append({"_d": m, "Decision": f"{m:%a %d %b %y}",
+                          "Bank": {"FED": "Fed", "ECB": "ECB", "BOE": "BoE"}[bk],
+                          "In": f"{(m - asof).days}d",
+                          "Implied (bp)": float(bp),
+                          "Odds": _stir_odds_str(float(bp), bank.step_bp),
+                          "Cum (bp)": float(cm)})
+    if frames:
+        dom = [stirpaths.BANKS[b].name for b in ("FED", "ECB", "BOE")]
+        rng = [_STIR_BANK_COLOR[b] for b in ("FED", "ECB", "BOE")]
+        line = alt.Chart(pd.concat(frames)).mark_line(
+            interpolate="step-after", strokeWidth=3).encode(
+            x=alt.X("date:T", title=None),
+            y=alt.Y("value:Q",
+                    title="Cumulative bp vs today" if view == "Cumulative bp"
+                    else "Policy rate (%)",
+                    scale=alt.Scale(zero=(view == "Cumulative bp"))),
+            color=alt.Color("Bank:N", scale=alt.Scale(domain=dom, range=rng),
+                            legend=alt.Legend(title=None, orient="top")),
+            tooltip=[alt.Tooltip("date:T", title="From"), alt.Tooltip("Bank:N"),
+                     alt.Tooltip("value:Q", format=".2f")])
+        brand.show_chart(line.properties(height=330))
+    with st.expander("📋 Every decision, every bank — what's priced"):
+        if mrows:
+            mdf = (pd.DataFrame(sorted(mrows, key=lambda r: r["_d"]))
+                   .drop(columns="_d").head(24))
+            brand.themed_dataframe(
+                mdf, fmt={"Implied (bp)": "{:+.1f}".format, "Cum (bp)": "{:+.1f}".format},
+                height=min(500, 45 + 35 * len(mdf)))
+            st.caption("Chronological across all three banks — the screenshot for a client "
+                       "chat. Odds = implied move ÷ the bank's step, FedWatch-style.")
+
+    # ---- the next fortnight --------------------------------------------------
+    st.markdown("#### The next two weeks")
+    ev = []
+    horizon14 = asof + timedelta(days=14)
+    for bk, bank in stirpaths.BANKS.items():
+        for m in bank.meetings:
+            if asof <= m <= horizon14:
+                ev.append((m, f"{_STIR_ICON[bk]} {bank.meeting_name} rate decision",
+                           bank.name))
+    for p in stirpaths.PRODUCTS.values():
+        for c in stirpaths.strip(p, asof, 14):
+            lt = stirpaths.fut_last_trade(p, c)
+            if asof <= lt <= horizon14:
+                ev.append((lt, f"● {p.short} {c.label} futures last trade", c.code))
+        if p.has_options:
+            for r in stirpaths.expiry_rows(p, asof, 2):
+                if r.kind == "Option" and asof <= r.expiry <= horizon14:
+                    u = stirpaths.option_underlying(p, r.year, r.mon)
+                    ev.append((r.expiry, f"◇ {p.short} {r.month} options expire",
+                               f"into {u.code}"))
+            for r in stirpaths.midcurve_expiries(p, asof, 2):
+                if asof <= r.expiry <= horizon14:
+                    u = stirpaths.option_underlying_mc(p, r.year, r.mon)
+                    ev.append((r.expiry, f"△ {p.short} {r.month} 1Y-midcurve expires",
+                               f"into {u.code}"))
+    if ev:
+        ev.sort(key=lambda t: t[0])
+        brand.themed_dataframe(pd.DataFrame(
+            [{"Date": f"{d:%a %d %b}", "In": f"{(d - asof).days}d",
+              "Event": what, "Detail": det} for d, what, det in ev]),
+            fmt={}, height=min(420, 45 + 35 * len(ev)))
+    else:
+        st.caption("Nothing lands in the next two weeks — the calendar's quiet.")
+
+    # ---- full expiry timeline (the original page, demoted to a section) ------
+    st.markdown("#### Full expiry timeline — futures, options & rate decisions")
     sel = _stir_picker("timeline", list(stirpaths.PRODUCTS.values()))
     months = st.slider("Horizon (months)", 6, 24, 15, key="stir_tl_months")
     banks = sorted({stirpaths.PRODUCTS[t].bank for t in sel},
@@ -7132,95 +7276,6 @@ def render_stir_bank(bank_key: str) -> None:
                         st.session_state[f"sp{bank_key}_pdfb"],
                         subject=f"BASIS — {bank.name} Meeting-Risk Map (STIR)",
                         attachment_name=fname)
-
-
-def render_stir_cross() -> None:
-    import altair as alt
-    st.subheader("⚖️  Cross-Bank Implied Paths — Fed · ECB · BoE")
-    st.caption(
-        "Each bank's strip inverted into the meeting-step path it prices, on one chart — where the "
-        "cycles diverge is where the cross-market trades live. Uses each bank page's default "
-        "products; set the current policy rates below.")
-    asof = datetime.now(ZoneInfo("America/New_York")).date()
-    dflts = _stir_defaults()
-    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
-    rates = {
-        "FED": c1.number_input("Fed target mid (%)", value=4.375, step=0.125, format="%.3f",
-                               key="spx_FED"),
-        "ECB": c2.number_input("ECB depo (%)", value=stirpaths.BANKS["ECB"].default_rate,
-                               step=0.25, format="%.2f", key="spx_ECB"),
-        "BOE": c3.number_input("BoE Bank Rate (%)", value=stirpaths.BANKS["BOE"].default_rate,
-                               step=0.25, format="%.2f", key="spx_BOE"),
-    }
-    view = c4.radio("Show", ["Cumulative bp", "Rate level"], key="spx_view", horizontal=True)
-
-    frames, rows, mrows = [], [], []
-    for bk, bank in stirpaths.BANKS.items():
-        prods = [stirpaths.PRODUCTS[t] for t in dflts[bk]
-                 if stirpaths.PRODUCTS[t].in_strip and stirpaths.PRODUCTS[t].quarterly]
-        if not prods:
-            continue
-        r0 = rates[bk] + stirpaths.BANK_BASIS_SEED[bk] / 100.0
-        contracts, spreads, prices = [], [], []
-        for p in prods:
-            s = stirpaths.strip(p, asof, 8)
-            contracts += s
-            spreads += [p.spread_bp] * len(s)
-            prices += stirpaths.strip_prices(p, bank, s, asof, r0)
-        ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads)
-        seg_dates = [asof] + [fedpath.effective_date(m) for m in ip.meetings]
-        lvl = ip.seg_rates - stirpaths.BANK_BASIS_SEED[bk] / 100.0     # policy-rate space
-        cum = np.concatenate([[0.0], (lvl[1:] - lvl[0]) * 100.0])
-        frames.append(pd.DataFrame({
-            "date": pd.to_datetime(seg_dates),
-            "value": cum if view == "Cumulative bp" else lvl,
-            "Bank": bank.name}))
-        nxt = float(ip.per_meeting_bp[0]) if len(ip.per_meeting_bp) else 0.0
-        eoy = [i for i, m in enumerate(ip.meetings) if m.year == asof.year]
-        rows.append({
-            "Bank": bank.name,
-            "Products": " + ".join(p.short for p in prods),
-            "Next decision": f"{ip.meetings[0]:%d %b %y}" if ip.meetings else "—",
-            "Implied next": f"{nxt:+.0f} bp ({_stir_odds_str(nxt, bank.step_bp)})",
-            f"Through Dec {asof.year}": f"{float(ip.cum_bp[eoy[-1]]):+.0f} bp" if eoy else "—",
-            "Terminal": f"{float(lvl[-1]):.2f}%",
-        })
-        for m, bp, cum in zip(ip.meetings, ip.per_meeting_bp, ip.cum_bp):
-            mrows.append({"_d": m, "Decision": f"{m:%a %d %b %y}",
-                          "Bank": bank.name.replace("European Central Bank", "ECB")
-                                           .replace("Federal Reserve", "Fed")
-                                           .replace("Bank of England", "BoE"),
-                          "In": f"{(m - asof).days}d",
-                          "Implied (bp)": float(bp),
-                          "Odds": _stir_odds_str(float(bp), bank.step_bp),
-                          "Cum (bp)": float(cum)})
-    dom = [stirpaths.BANKS[b].name for b in ("FED", "ECB", "BOE")]
-    rng = [_STIR_BANK_COLOR[b] for b in ("FED", "ECB", "BOE")]
-    ch_df = pd.concat(frames)
-    line = alt.Chart(ch_df).mark_line(interpolate="step-after", strokeWidth=3).encode(
-        x=alt.X("date:T", title=None),
-        y=alt.Y("value:Q",
-                title="Cumulative bp vs today" if view == "Cumulative bp" else "Policy rate (%)",
-                scale=alt.Scale(zero=(view == "Cumulative bp"))),
-        color=alt.Color("Bank:N", scale=alt.Scale(domain=dom, range=rng),
-                        legend=alt.Legend(title=None, orient="top")),
-        tooltip=[alt.Tooltip("date:T", title="From"), alt.Tooltip("Bank:N"),
-                 alt.Tooltip("value:Q", format=".2f")])
-    brand.show_chart(line.properties(height=360))
-    brand.themed_dataframe(pd.DataFrame(rows), fmt={}, height=180)
-    st.caption("Implied paths from each bank's default strip (mock prices offline, live on the "
-               "Terminal). Cumulative view puts the three cycles on one axis; rate-level view "
-               "shows where each policy rate is heading in absolute terms.")
-    if mrows:
-        st.markdown("##### Every decision, every bank — what's priced")
-        mdf = (pd.DataFrame(sorted(mrows, key=lambda r: r["_d"]))
-               .drop(columns="_d").head(24))
-        brand.themed_dataframe(
-            mdf, fmt={"Implied (bp)": "{:+.1f}".format, "Cum (bp)": "{:+.1f}".format},
-            height=min(500, 45 + 35 * len(mdf)))
-        st.caption("Chronological across all three banks — the screenshot for a client chat. "
-                   "Odds = implied move ÷ the bank's step size, FedWatch-style; Cum = the "
-                   "cumulative move priced from today, per bank.")
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -10699,7 +10754,7 @@ if active == "ECB Path":
 if active == "BoE Path":
     render_stir_bank("BOE"); st.stop()
 if active == "STIR Cross":
-    render_stir_cross(); st.stop()
+    render_stir_overview(); st.stop()   # Cross merged into the STIR home (legacy links)
 if active == "Vol Backtester":
     render_vol_backtester(); st.stop()
 if active == "TA Backtester":

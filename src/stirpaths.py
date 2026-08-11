@@ -688,6 +688,10 @@ def refresh_strip_store(asof: date) -> int:
             {"asof": asof.isoformat(), "prices": prices, "settles": settles},
             indent=1), encoding="utf-8")
         refresh_fixings(asof)                       # 3 small bdh pulls, same session
+        try:
+            update_meeting_history(asof)            # pure math off the store just written
+        except Exception:
+            pass
         return len(set(prices) | set(settles))
     except Exception:
         return 0
@@ -737,6 +741,74 @@ def strip_prices(prod: Product, bank: Bank, contracts: list[Contract], asof: dat
     px, se = store.get("prices", {}), store.get("settles", {})
     mock = _mock_prices(prod, bank, contracts, asof, asof_rate)
     return [float(px.get(c.code, se.get(c.code, mock[c.code]))) for c in contracts]
+
+
+# ── daily per-meeting repricing history (the "what moved" ledger) ────────────────────
+# Written by the morning snapshot (after refresh_strip_store) — one entry per day of
+# {bank: {meeting iso: implied bp}} computed off the store with the default strips and
+# rates. The absolute level leans on those defaults; DAY-OVER-DAY DELTAS are the read.
+MEETING_HISTORY = Path(__file__).resolve().parents[1] / "data" / "stir_meeting_history.json"
+_HISTORY_KEEP_DAYS = 40
+
+
+def default_bank_fit(bank_key: str, asof: date) -> BankImplied | None:
+    """The bank's implied path off its default quarterly strip and default rate,
+    priced from the store/mock — the fit the home page and ledger share."""
+    bank = BANKS[bank_key]
+    prods = [p for p in bank_products(bank_key) if p.in_strip and p.quarterly]
+    if not prods:
+        return None
+    r0 = bank.default_rate + BANK_BASIS_SEED[bank_key] / 100.0
+    contracts, spreads, prices = [], [], []
+    for p in prods:
+        s = strip(p, asof, 8)
+        contracts += s
+        spreads += [p.spread_bp] * len(s)
+        prices += strip_prices(p, bank, s, asof, r0)
+    return implied_path(bank, contracts, prices, asof, r0, spreads)
+
+
+def update_meeting_history(asof: date) -> None:
+    """Append today's per-meeting implied map — ONLY when the strip store is real
+    (never record mock fits as history)."""
+    store = _load_strip_store()
+    if not (store.get("prices") or store.get("settles")):
+        return
+    try:
+        hist = json.loads(MEETING_HISTORY.read_text(encoding="utf-8"))
+    except Exception:
+        hist = {}
+    entry = {}
+    for bk in BANKS:
+        ip = default_bank_fit(bk, asof)
+        if ip is not None:
+            entry[bk] = {m.isoformat(): float(bp)
+                         for m, bp in zip(ip.meetings, ip.per_meeting_bp)}
+    if not entry:
+        return
+    hist[asof.isoformat()] = entry
+    keep = sorted(hist)[-_HISTORY_KEEP_DAYS:]
+    MEETING_HISTORY.parent.mkdir(parents=True, exist_ok=True)
+    MEETING_HISTORY.write_text(json.dumps({k: hist[k] for k in keep}, indent=1),
+                               encoding="utf-8")
+
+
+def meeting_repricing(asof: date) -> dict[str, dict[str, tuple[float, float]]]:
+    """{bank: {meeting iso: (bp_now, bp_change_vs_prior_entry)}} from the ledger's
+    two most recent distinct days — {} until two mornings have recorded."""
+    try:
+        hist = json.loads(MEETING_HISTORY.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    days = sorted(hist)
+    if len(days) < 2:
+        return {}
+    cur, prev = hist[days[-1]], hist[days[-2]]
+    out: dict[str, dict[str, tuple[float, float]]] = {}
+    for bk, mp in cur.items():
+        pv = prev.get(bk, {})
+        out[bk] = {iso: (bp, bp - pv[iso]) for iso, bp in mp.items() if iso in pv}
+    return out
 
 
 def strip_source(contracts: list[Contract]) -> tuple[str, str | None]:
