@@ -76,6 +76,19 @@ def calendar_events() -> list:
                        "tip": "CFTC Commitments of Traders (positioning) — Fri 3:30pm ET"})
     except Exception:
         pass
+    try:                                                # central-bank rate decisions (STIR Paths
+        from . import stirpaths                         # calendars — same source as the module)
+        _CB = {"FED": ("🏛️", "FOMC", "#E53935", "14:00 ET"),
+               "ECB": ("💶", "ECB", "#1E88E5", "14:15 CET"),
+               "BOE": ("💷", "BoE MPC", "#43A047", "12:00 London")}
+        for bk, bank in stirpaths.BANKS.items():
+            icon, lbl, col, t = _CB[bk]
+            for m in bank.meetings:
+                ev.append({"date": m, "icon": icon, "label": lbl, "color": col,
+                           "auto": False,
+                           "tip": f"{bank.name} — {bank.meeting_name} rate decision · {t}"})
+    except Exception:
+        pass
     return ev
 
 
