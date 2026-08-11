@@ -5754,10 +5754,10 @@ _STIR_HOUSE = {                                   # shipped defaults ("↺ Defau
     "BOE": ["SFIA Comdty"],
 }
 _STIR_ICON = {"FED": "🏛️", "ECB": "💶", "BOE": "💷"}
-# Each bank wears its flagship product's colour (SR3 gold / ER purple / SONIA
-# orange) so cards, curves and decision marks share the module palette — and
-# red/green stay reserved for direction (higher/lower, hike/cut) everywhere.
-_STIR_BANK_COLOR = {"FED": "#F5C518", "ECB": "#BA68C8", "BOE": "#FF8A65"}
+# Bank identity colours — Ben's explicit preference (2026-08-11): keep the
+# red/blue/green even though red/green mean direction elsewhere; a product-
+# colour palette (SR3 gold / ER purple / SONIA orange) was tried and rejected.
+_STIR_BANK_COLOR = {"FED": "#E53935", "ECB": "#1E88E5", "BOE": "#43A047"}
 
 
 def _stir_defaults() -> dict:
