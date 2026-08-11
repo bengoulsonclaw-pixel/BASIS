@@ -5754,7 +5754,10 @@ _STIR_HOUSE = {                                   # shipped defaults ("↺ Defau
     "BOE": ["SFIA Comdty"],
 }
 _STIR_ICON = {"FED": "🏛️", "ECB": "💶", "BOE": "💷"}
-_STIR_BANK_COLOR = {"FED": "#E53935", "ECB": "#1E88E5", "BOE": "#43A047"}
+# Each bank wears its flagship product's colour (SR3 gold / ER purple / SONIA
+# orange) so cards, curves and decision marks share the module palette — and
+# red/green stay reserved for direction (higher/lower, hike/cut) everywhere.
+_STIR_BANK_COLOR = {"FED": "#F5C518", "ECB": "#BA68C8", "BOE": "#FF8A65"}
 
 
 def _stir_defaults() -> dict:
@@ -5837,8 +5840,8 @@ def _stir_meeting_rules(banks: list, asof, hor_end, x_scale, mute=False):
     if not mrows:
         return None
     base = alt.Chart(pd.DataFrame(mrows)).mark_rule(
-        strokeDash=[5, 4], strokeWidth=1.4 if mute else 1.1,
-        opacity=0.35 if mute else 0.38).encode(
+        strokeDash=[5, 4], strokeWidth=1.4 if mute else 1.3,
+        opacity=0.35 if mute else 0.55).encode(
         x=alt.X("Date:T", scale=x_scale),
         tooltip=[alt.Tooltip("What:N", title="Meeting")])
     if mute:
@@ -5898,7 +5901,8 @@ def _stir_compact_chart(prods: list, banks: list, asof, months: int) -> None:
     order = [p.short for p in prods]
     h = max(190, 48 * len(prods) + 95)
     base = alt.Chart(pd.DataFrame(rows)).encode(
-        x=alt.X("Date:T", title=None, scale=x_scale),
+        x=alt.X("Date:T", title=None, scale=x_scale,
+                axis=alt.Axis(format="%b %y", labelAngle=0)),
         y=alt.Y("Product:N", sort=order, title=None,
                 scale=alt.Scale(paddingOuter=1.0)),
         color=alt.Color("Product:N", scale=alt.Scale(domain=order, range=[p.color for p in prods]),
@@ -5911,28 +5915,28 @@ def _stir_compact_chart(prods: list, banks: list, asof, months: int) -> None:
     rules = _stir_meeting_rules(banks, asof, hor_end, x_scale)
     if rules is not None:
         layers.append(rules)
-    # decision LANES: each bank gets a slim top lane with the decision's day-of-
-    # month in the bank colour — dated at a glance (month sits on the axis), and
-    # per-bank lanes mean labels can't collide across banks
+    # decision LANES: each bank gets a slim top lane with the decision's FULL
+    # date ("16 Sep 26") in the bank colour, sat just right of its dashed rule
+    # so the rule never runs through the text; per-bank lanes mean labels can't
+    # collide across banks
     lanes = [b for b in ("FED", "ECB", "BOE") if b in banks]
     for li, bk in enumerate(lanes):
         b = stirpaths.BANKS[bk]
-        lrows = [{"Date": pd.Timestamp(m), "lab": f"{m:%d}",
+        lrows = [{"Date": pd.Timestamp(m), "lab": f"{m:%d %b %y}",
                   "What": f"{b.meeting_name} decision · {m:%a %d %b %Y}"}
                  for m in b.meetings if asof <= m < hor_end]
         if lrows:
             layers.append(alt.Chart(pd.DataFrame(lrows)).mark_text(
-                fontSize=9.5, fontWeight="bold").encode(
-                x=alt.X("Date:T", scale=x_scale), y=alt.value(10 + 13 * li),
+                fontSize=10.5, fontWeight="bold", align="left", dx=4).encode(
+                x=alt.X("Date:T", scale=x_scale), y=alt.value(10 + 14 * li),
                 text="lab:N", color=alt.value(_STIR_BANK_COLOR[bk]),
                 tooltip=[alt.Tooltip("What:N", title="Decision")]))
     brand.show_chart(alt.layer(*layers).properties(height=h))
     lane_note = " / ".join(f"{stirpaths.BANKS[b].meeting_name}" for b in lanes)
-    st.caption("Top lanes: **decision days of the month**, one lane per bank "
-               f"({lane_note}, top to bottom), month on the axis — hover for the full date. "
+    st.caption("Top lanes: **rate decision dates**, one lane per bank "
+               f"({lane_note}, top to bottom), each label just right of its dashed rule. "
                "● futures last-trade day &nbsp;·&nbsp; ◇ monthly options expiry (standard "
-               "cycle, rule-based, exchange-holiday aware) &nbsp;·&nbsp; faint rules mark the "
-               "same decision dates down the chart.")
+               "cycle, rule-based, exchange-holiday aware).")
 
 
 def _stir_window_chart(prods: list, banks: list, asof, months: int,
@@ -6035,7 +6039,9 @@ def _stir_window_chart(prods: list, banks: list, asof, months: int,
         return cc["long"] if v > 0 else cc["short"] if v < 0 else cc["muted"]
 
     layers = [_enc(alt.Chart(pd.DataFrame(bars)).mark_bar(fillOpacity=0.20, size=17),
-                   "Contract").encode(x=alt.X("start:T", title=None, scale=x_scale), x2="end:T")]
+                   "Contract").encode(x=alt.X("start:T", title=None, scale=x_scale,
+                                              axis=alt.Axis(format="%b %y", labelAngle=0)),
+                                      x2="end:T")]
     rules = _stir_meeting_rules(banks, asof, hor_end, x_scale, mute=bool(ann))
     if rules is not None:
         layers.append(rules)
