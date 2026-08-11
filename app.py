@@ -6550,7 +6550,7 @@ def render_stir_bank(bank_key: str) -> None:
                  "cache when available.")
         a3.caption(("auto from fixings cache" if auto_stub is not None
                     else "no fixings cache — seeded from today's rate; adjust after a recent move"))
-        if stirpaths.MODE == "bloomberg":
+        if stirpaths.MODE == "bloomberg" and IS_ADMIN:
             if a3.button("↻ Pull o/n fixings", key=f"sp{bank_key}_fixpull",
                          help="Refresh data/stir_fixings.json from the Terminal (3 index bdh pulls)."):
                 got = stirpaths.refresh_fixings(asof)
@@ -6589,7 +6589,7 @@ def render_stir_bank(bank_key: str) -> None:
         st.session_state[src_key] = ("morning snapshot · " + src_asof if src == "snapshot"
                                      else "synthetic demo")
     src_note = st.session_state.get(src_key, "synthetic demo")
-    if stirpaths.MODE == "bloomberg":
+    if stirpaths.MODE == "bloomberg" and IS_ADMIN:
         lp1, lp2 = st.columns([5.2, 1.2])
         lp1.caption(f"Prices: **{src_note}** — the page never pulls Bloomberg on its own; "
                     "the ⚡ button requests THIS strip's tickers only.")
