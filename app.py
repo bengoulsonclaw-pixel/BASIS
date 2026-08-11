@@ -5830,8 +5830,8 @@ def _stir_meeting_rules(banks: list, asof, hor_end, x_scale, mute=False):
     if not mrows:
         return None
     base = alt.Chart(pd.DataFrame(mrows)).mark_rule(
-        strokeDash=[5, 4], strokeWidth=1.4 if mute else 1.6,
-        opacity=0.35 if mute else 0.65).encode(
+        strokeDash=[5, 4], strokeWidth=1.4 if mute else 1.1,
+        opacity=0.35 if mute else 0.38).encode(
         x=alt.X("Date:T", scale=x_scale),
         tooltip=[alt.Tooltip("What:N", title="Meeting")])
     if mute:
@@ -5889,9 +5889,11 @@ def _stir_compact_chart(prods: list, banks: list, asof, months: int) -> None:
                     rows.append({"Product": p.short, "Kind": "Option", "Date": pd.Timestamp(r.expiry),
                                  "What": f"{p.short} {r.month} option · {r.expiry:%a %d %b %Y}"})
     order = [p.short for p in prods]
+    h = max(190, 48 * len(prods) + 95)
     base = alt.Chart(pd.DataFrame(rows)).encode(
         x=alt.X("Date:T", title=None, scale=x_scale),
-        y=alt.Y("Product:N", sort=order, title=None),
+        y=alt.Y("Product:N", sort=order, title=None,
+                scale=alt.Scale(paddingOuter=1.0)),
         color=alt.Color("Product:N", scale=alt.Scale(domain=order, range=[p.color for p in prods]),
                         legend=None),
         tooltip=[alt.Tooltip("What:N", title="Expiry")])
@@ -5902,10 +5904,28 @@ def _stir_compact_chart(prods: list, banks: list, asof, months: int) -> None:
     rules = _stir_meeting_rules(banks, asof, hor_end, x_scale)
     if rules is not None:
         layers.append(rules)
-    brand.show_chart(alt.layer(*layers).properties(height=max(150, 48 * len(prods) + 55)))
-    st.caption("● futures last-trade day &nbsp;·&nbsp; ◇ monthly options expiry (standard cycle, "
-               "rule-based, exchange-holiday aware) &nbsp;·&nbsp; dashed rules = rate-decision dates. "
-               "Hover any mark.")
+    # decision LANES: each bank gets a slim top lane with the decision's day-of-
+    # month in the bank colour — dated at a glance (month sits on the axis), and
+    # per-bank lanes mean labels can't collide across banks
+    lanes = [b for b in ("FED", "ECB", "BOE") if b in banks]
+    for li, bk in enumerate(lanes):
+        b = stirpaths.BANKS[bk]
+        lrows = [{"Date": pd.Timestamp(m), "lab": f"{m:%d}",
+                  "What": f"{b.meeting_name} decision · {m:%a %d %b %Y}"}
+                 for m in b.meetings if asof <= m < hor_end]
+        if lrows:
+            layers.append(alt.Chart(pd.DataFrame(lrows)).mark_text(
+                fontSize=9.5, fontWeight="bold").encode(
+                x=alt.X("Date:T", scale=x_scale), y=alt.value(10 + 13 * li),
+                text="lab:N", color=alt.value(_STIR_BANK_COLOR[bk]),
+                tooltip=[alt.Tooltip("What:N", title="Decision")]))
+    brand.show_chart(alt.layer(*layers).properties(height=h))
+    lane_note = " / ".join(f"{stirpaths.BANKS[b].meeting_name}" for b in lanes)
+    st.caption("Top lanes: **decision days of the month**, one lane per bank "
+               f"({lane_note}, top to bottom), month on the axis — hover for the full date. "
+               "● futures last-trade day &nbsp;·&nbsp; ◇ monthly options expiry (standard "
+               "cycle, rule-based, exchange-holiday aware) &nbsp;·&nbsp; faint rules mark the "
+               "same decision dates down the chart.")
 
 
 def _stir_window_chart(prods: list, banks: list, asof, months: int,
