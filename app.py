@@ -9064,20 +9064,7 @@ def render_signal_ledger() -> None:
               lg_ok.sort_values(f"hit{horizon}", ascending=False)["strategy"].iloc[0]
               if len(lg_ok) else "—")
 
-    # ---- regime read — auto-written era comparison, recomputed with every rebuild ----
-    _rr = sigledger.regime_read(out)
-    if _rr:
-        with st.container(border=True):
-            st.markdown("##### 🧭 Regime read — what's working now vs what worked before")
-            st.markdown(_rr["text"])
-            st.caption(f"Written by the ledger itself from the full unfiltered book "
-                       f"(21-session horizon, min-sample gated) as of "
-                       f"{_rr['asof'].date()} — it re-writes with every morning snapshot, "
-                       f"so when signal leadership rotates, this paragraph rotates with it.")
-
-    # ---- era league — every window side by side, the regime rotation at a glance ----
-    # Deliberately ignores the Window filter (it IS all the windows at once); the product
-    # filter and min-signals bar still apply.
+    # Shared cell styling for every table on the page.
     def _div_bg(v, centre: float, span: float) -> str:
         if pd.isna(v):
             return ""
@@ -9093,58 +9080,6 @@ def render_signal_ledger() -> None:
             return "font-style: italic"
         c = "#27ae60" if float(v) > 0 else "#e05545"
         return f"font-style: italic; color: {c}; font-weight: 600"
-
-    _base = out[out["market"].isin(set(mkts))] if mkts else out
-    wl = sigledger.windows_league(_base, horizon, min_n=int(min_n))
-    if not wl.empty:
-        _yrs = out["date"].max().year - out["date"].min().year
-        _wlbl = {"Full": f"Full {_yrs}y", "5y": "5y", "3y": "3y", "1y": "1y"}
-        st.markdown(f"##### Era league — hit rate by lookback window ({horizon}d)")
-        wl_cols = [_wlbl[label] for _, label in sigledger.WINDOWS]
-        wnum = pd.DataFrame({
-            "Strategy": wl["strategy"].to_numpy(),
-            "Category": wl["strategy"].map(tascore.axis_tag).to_numpy(),
-            "Signals": wl["n Full"].to_numpy(),
-            **{_wlbl[label]: wl[label].to_numpy() for _, label in sigledger.WINDOWS},
-            f"Δ 1y vs full": wl["delta"].to_numpy(),
-        })
-        wsty = (wnum.style
-                .format({"Signals": "{:,.0f}",
-                         **{c: "{:.1f}%" for c in wl_cols},
-                         "Δ 1y vs full": "{:+.1f}pp"}, na_rep="—")
-                .map(lambda v: _div_bg(v, 50.0, 5.0), subset=wl_cols)
-                .map(lambda v: _div_bg(v, 0.0, 5.0), subset=["Δ 1y vs full"]))
-        st.dataframe(wsty, hide_index=True, use_container_width=True,
-                     height=min(560, 40 + 35 * len(wnum)))
-        st.caption("Each column is the hit rate over that trailing window (all ending today), "
-                   "shortest on the left — so one row tells a strategy's whole regime story: "
-                   "green on the left fading right is a strategy that works NOW but didn't "
-                   "before, green all the way across is persistence. Ignores the Window filter "
-                   "by design; products and min-signals still apply. Blank cells have fewer "
-                   "signals in that window than the min-signals bar.")
-
-        with st.expander(f"📆 Year-by-year breakdown ({horizon}d)"):
-            yl = sigledger.year_league(_base, horizon, min_n=int(min_n))
-            if yl.empty:
-                st.info("No year clears the min-signals bar with these filters.")
-            else:
-                yl = yl.reindex([s for s in wl["strategy"] if s in yl.index])
-                ynum = pd.DataFrame({
-                    "Strategy": yl.index.to_numpy(),
-                    "Category": yl.index.map(tascore.axis_tag).to_numpy(),
-                    **{str(y): yl[y].to_numpy() for y in yl.columns},
-                })
-                yr_cols = [str(y) for y in yl.columns]
-                ysty = (ynum.style
-                        .format({c: "{:.1f}%" for c in yr_cols}, na_rep="—")
-                        .map(lambda v: _div_bg(v, 50.0, 5.0), subset=yr_cols))
-                st.dataframe(ysty, hide_index=True, use_container_width=True,
-                             height=min(560, 40 + 35 * len(ynum)))
-                st.caption(f"Hit rate per calendar year at the {horizon}-session horizon, rows "
-                           f"in the era league's order. The first and last years are partial "
-                           f"({_base['date'].min():%b %Y} start, ledger runs to "
-                           f"{_base['date'].max():%b %Y}). Blank cells have fewer signals that "
-                           f"year than the min-signals bar.")
 
     # ---- league table --------------------------------------------------------------
     _lb1, _lb2 = st.columns([1, 2.2])
@@ -9235,6 +9170,71 @@ def render_signal_ledger() -> None:
         ).properties(height=26 * hm["strategy"].nunique() + 40), use_container_width=True)
         st.caption("Green = the signal family has historically been RIGHT on that product at this "
                    "horizon; red = fade-worthy. Thin cells (few signals) are dropped.")
+
+    # ---- era league + regime read (dropdown) — the regime-rotation story -----------
+    # Deliberately ignores the Window filter (it IS all the windows at once); the product
+    # filter and min-signals bar still apply.
+    _base = out[out["market"].isin(set(mkts))] if mkts else out
+    wl = sigledger.windows_league(_base, horizon, min_n=int(min_n))
+    if not wl.empty:
+        _yrs = out["date"].max().year - out["date"].min().year
+        _wlbl = {"Full": f"Full {_yrs}y", "5y": "5y", "3y": "3y", "1y": "1y"}
+        with st.expander(f"🧭 Era league — hit rate by lookback window ({horizon}d), "
+                         f"with the regime read"):
+            _rr = sigledger.regime_read(out)
+            if _rr:
+                st.markdown(_rr["text"])
+                st.caption(f"Written by the ledger itself from the full unfiltered book "
+                           f"(21-session horizon, min-sample gated) as of "
+                           f"{_rr['asof'].date()} — it re-writes with every morning snapshot, "
+                           f"so when signal leadership rotates, this paragraph rotates with it.")
+            wl_cols = [_wlbl[label] for _, label in sigledger.WINDOWS]
+            wnum = pd.DataFrame({
+                "Strategy": wl["strategy"].to_numpy(),
+                "Category": wl["strategy"].map(tascore.axis_tag).to_numpy(),
+                "Signals": wl["n Full"].to_numpy(),
+                **{_wlbl[label]: wl[label].to_numpy() for _, label in sigledger.WINDOWS},
+                f"Δ 1y vs full": wl["delta"].to_numpy(),
+            })
+            wsty = (wnum.style
+                    .format({"Signals": "{:,.0f}",
+                             **{c: "{:.1f}%" for c in wl_cols},
+                             "Δ 1y vs full": "{:+.1f}pp"}, na_rep="—")
+                    .map(lambda v: _div_bg(v, 50.0, 5.0), subset=wl_cols)
+                    .map(lambda v: _div_bg(v, 0.0, 5.0), subset=["Δ 1y vs full"]))
+            st.dataframe(wsty, hide_index=True, use_container_width=True,
+                         height=min(560, 40 + 35 * len(wnum)))
+            st.caption("Each column is the hit rate over that trailing window (all ending "
+                       "today), shortest on the left — so one row tells a strategy's whole "
+                       "regime story: green on the left fading right is a strategy that works "
+                       "NOW but didn't before, green all the way across is persistence. "
+                       "Ignores the Window filter by design; products and min-signals still "
+                       "apply. Blank cells have fewer signals in that window than the "
+                       "min-signals bar.")
+
+        # ---- year-by-year breakdown (dropdown) --------------------------------------
+        with st.expander(f"📆 Year-by-year breakdown ({horizon}d)"):
+            yl = sigledger.year_league(_base, horizon, min_n=int(min_n))
+            if yl.empty:
+                st.info("No year clears the min-signals bar with these filters.")
+            else:
+                yl = yl.reindex([s for s in wl["strategy"] if s in yl.index])
+                ynum = pd.DataFrame({
+                    "Strategy": yl.index.to_numpy(),
+                    "Category": yl.index.map(tascore.axis_tag).to_numpy(),
+                    **{str(y): yl[y].to_numpy() for y in yl.columns},
+                })
+                yr_cols = [str(y) for y in yl.columns]
+                ysty = (ynum.style
+                        .format({c: "{:.1f}%" for c in yr_cols}, na_rep="—")
+                        .map(lambda v: _div_bg(v, 50.0, 5.0), subset=yr_cols))
+                st.dataframe(ysty, hide_index=True, use_container_width=True,
+                             height=min(560, 40 + 35 * len(ynum)))
+                st.caption(f"Hit rate per calendar year at the {horizon}-session horizon, rows "
+                           f"in the era league's order. The first and last years are partial "
+                           f"({_base['date'].min():%b %Y} start, ledger runs to "
+                           f"{_base['date'].max():%b %Y}). Blank cells have fewer signals that "
+                           f"year than the min-signals bar.")
 
     # ---- recent signals blotter ----------------------------------------------------
     st.markdown("##### Latest signals — and how they resolved")
