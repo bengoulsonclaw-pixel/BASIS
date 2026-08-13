@@ -9075,6 +9075,15 @@ def render_signal_ledger() -> None:
         r, g, b = (30, 132, 73) if x > 0 else (192, 57, 43)     # #1e8449 / #c0392b
         return f"background-color: rgba({r},{g},{b},{0.12 + 0.43 * abs(x):.2f})"
 
+    def _sig_fg(v) -> str:
+        # σ-move styling: no fill, italic, text tinted by drift sign — visually distinct
+        # from the hit columns' filled cells while keeping green=good / red=bad. Mid-tone
+        # colours stay legible on both themes; ~zero drift keeps the theme's own text.
+        if pd.isna(v) or abs(float(v)) < 0.02:
+            return "font-style: italic"
+        c = "#27ae60" if float(v) > 0 else "#e05545"
+        return f"font-style: italic; color: {c}; font-weight: 600"
+
     _base = out[out["market"].isin(set(mkts))] if mkts else out
     wl = sigledger.windows_league(_base, horizon, min_n=int(min_n))
     if not wl.empty:
@@ -9151,8 +9160,9 @@ def render_signal_ledger() -> None:
                         **{c: "{:+.2f}" for c in sig_cols}}, na_rep="—")
                # hits: 50% = coin flip = neutral; ±5pp = full colour
                .map(lambda v: _div_bg(v, 50.0, 5.0), subset=hit_cols)
-               # σ-moves: 0 = no drift = neutral; ±0.10σ = full colour
-               .map(lambda v: _div_bg(v, 0.0, 0.10), subset=sig_cols))
+               # σ-moves deliberately DON'T get the fill (Ben: make the two measures look
+               # different) — plain cells, italic, text tinted by drift direction instead.
+               .map(_sig_fg, subset=sig_cols))
         st.dataframe(sty, hide_index=True, use_container_width=True,
                      height=min(560, 40 + 35 * len(num)))
         st.caption("Hit = the signal-space move went the signal's way by the horizon. σ-move = "
