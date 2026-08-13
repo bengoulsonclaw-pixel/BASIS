@@ -9141,8 +9141,9 @@ def render_signal_ledger() -> None:
             **({"Category": lg.iloc[:, 0].map(tascore.axis_tag).to_numpy()}
                if by == "Strategy" else {}),
             "Signals": lg["n"].to_numpy(),
-            **{f"Hit {h}d": lg[f"hit{h}"].to_numpy() for h in sigledger.HORIZONS},
-            **{f"σ-move {h}d": lg[f"sig{h}"].to_numpy() for h in sigledger.HORIZONS},
+            # hit + σ-move interleaved per horizon (Ben's preferred reading order)
+            **{col: lg[src].to_numpy() for h in sigledger.HORIZONS
+               for col, src in ((f"Hit {h}d", f"hit{h}"), (f"σ-move {h}d", f"sig{h}"))},
         })
         sty = (num.style
                .format({"Signals": "{:,.0f}",
