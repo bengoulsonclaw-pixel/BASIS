@@ -5917,6 +5917,25 @@ def _stir_scen_save(bank_key: str, name: str, vals: dict) -> None:
 def _stir_scen_delete(bank_key: str, name: str) -> None:
     d = _stir_scen_all()
     d.get(bank_key, {}).pop(name, None)
+    if d.get("_defaults", {}).get(bank_key) == name:   # deleting the ★ default
+        d["_defaults"].pop(bank_key, None)             # clears the pointer too
+    _STIR_SCEN_STORE.write_text(json.dumps(d, indent=1), encoding="utf-8")
+
+
+def _stir_scen_default(bank_key: str) -> str | None:
+    """The bank's ★ default scenario name — honoured only while it still exists."""
+    d = _stir_scen_all()
+    name = d.get("_defaults", {}).get(bank_key)
+    return name if name in d.get(bank_key, {}) else None
+
+
+def _stir_scen_set_default(bank_key: str, name: str | None) -> None:
+    d = _stir_scen_all()
+    if name is None:
+        d.get("_defaults", {}).pop(bank_key, None)
+    else:
+        d.setdefault("_defaults", {})[bank_key] = name
+    _STIR_SCEN_STORE.parent.mkdir(parents=True, exist_ok=True)
     _STIR_SCEN_STORE.write_text(json.dumps(d, indent=1), encoding="utf-8")
 
 
@@ -6787,17 +6806,32 @@ def render_stir_bank(bank_key: str) -> None:
     # the market's call in exact decimal odds — the seed AND the white/green/red anchor
     _mkt_dec = {lab: round(_stir_signed_pct(per_disp[lab], hike_bp, cut_bp) / 100.0, 3)
                 for lab in labels}
-    # per-meeting seeding: only meetings never seen get the market seed, so changing
-    # the contract slider / product set / horizon no longer wipes odds already set
+    # per-meeting seeding: only meetings never seen get seeded — from the bank's
+    # ★ default scenario when one is saved (Named scenarios expander), else from
+    # the market's call; changing the contract slider / product set / horizon
+    # never wipes odds already set
+    _def_name = _stir_scen_default(bank_key)
+    _def_vals = _stir_scen_all().get(bank_key, {}).get(_def_name, {}) if _def_name else {}
+    # labels whose value came from a SCENARIO (default seed or Load) — exempt
+    # from the rail-pin heal below, so a deliberate ±3.00 view isn't wiped
+    _scn_seeded = st.session_state.setdefault(f"sp{bank_key}_scn_seeded", set())
     for lab in labels:
         if mv_key(lab) not in st.session_state:
-            st.session_state[mv_key(lab)] = _mkt_dec[lab]
+            if lab in _def_vals:
+                # scenarios ALWAYS store percent units (Save writes decimal*100)
+                # — the conversion is unconditionally /100; an abs<=3 "already
+                # decimal" heuristic corrupts small-odds views 100x
+                st.session_state[mv_key(lab)] = float(_def_vals[lab]) / 100.0
+                _scn_seeded.add(lab)
+            else:
+                st.session_state[mv_key(lab)] = _mkt_dec[lab]
         if abs(float(st.session_state[mv_key(lab)])) > 3.0:    # migrate old %-unit state
             st.session_state[mv_key(lab)] = float(st.session_state[mv_key(lab)]) / 100.0
     # heal the one-off clamp artifact: a value sitting EXACTLY on the ±3.00 rail is
     # (practically) never a real view — reseed that meeting from the market.
+    # Scenario-sourced values are exempt: a saved ±3.00 was a deliberate choice.
     for lab in labels:
-        if abs(float(st.session_state[mv_key(lab)])) == 3.0:
+        if abs(float(st.session_state[mv_key(lab)])) == 3.0 and lab not in _scn_seeded:
             st.session_state[mv_key(lab)] = _mkt_dec.get(lab, 0.0)
 
     px_of_now = dict(zip(codes, prices))
@@ -7082,7 +7116,9 @@ def render_stir_bank(bank_key: str) -> None:
                "meetings that share a contract — hover a cell for the exact window.")
     with st.expander("💾 Named scenarios — save / load the desk's cases"):
         sc_all = _stir_scen_all().get(bank_key, {})
-        s1, s2, s3, s4 = st.columns([1.7, 0.9, 1.7, 0.9], vertical_alignment="bottom")
+        cur_def = _stir_scen_default(bank_key)
+        s1, s2, s3, s4, s5 = st.columns([1.7, 0.8, 1.6, 0.8, 1.1],
+                                        vertical_alignment="bottom")
         new_name = s1.text_input("Save current odds as", key=f"sp{bank_key}_scn_name",
                                  placeholder="base / hawkish / dovish …")
         if s2.button("Save", key=f"sp{bank_key}_scn_save", use_container_width=True):
@@ -7090,7 +7126,8 @@ def render_stir_bank(bank_key: str) -> None:
                 _stir_scen_save(bank_key, new_name.strip(), vals)
                 st.toast(f"Saved scenario '{new_name.strip()}'."); st.rerun()
         pickn = s3.selectbox("Saved scenarios", ["—"] + sorted(sc_all),
-                             key=f"sp{bank_key}_scn_pick")
+                             key=f"sp{bank_key}_scn_pick",
+                             format_func=lambda n: f"★ {n}" if n == cur_def else n)
 
         def _scn_load(name):
             # runs as a CALLBACK (before the next render), so writing the odds
@@ -7098,14 +7135,29 @@ def render_stir_bank(bank_key: str) -> None:
             # this button sits below the already-instantiated inputs
             for lab_, v_ in _stir_scen_all().get(bank_key, {}).get(name, {}).items():
                 if lab_ in labels:
-                    dec = float(v_)                     # scenarios store percent units
-                    st.session_state[mv_key(lab_)] = dec if abs(dec) <= 3.0 else dec / 100.0
+                    # percent -> decimal, unconditionally (see the seed loop note:
+                    # an abs<=3 heuristic corrupts small-odds views 100x)
+                    st.session_state[mv_key(lab_)] = float(v_) / 100.0
+                    st.session_state.setdefault(f"sp{bank_key}_scn_seeded", set()).add(lab_)
 
         s4.button("Load", key=f"sp{bank_key}_scn_load", use_container_width=True,
                   disabled=(pickn == "—"), on_click=_scn_load, args=(pickn,))
+        is_def = pickn != "—" and pickn == cur_def
+        if s5.button("☆ Clear default" if is_def else "★ Set as default",
+                     key=f"sp{bank_key}_scn_def", use_container_width=True,
+                     disabled=(pickn == "—"),
+                     help="The default scenario seeds YOUR CALL automatically when "
+                          "this page opens (instead of the market's odds)."):
+            _stir_scen_set_default(bank_key, None if is_def else pickn)
+            st.toast("Default cleared." if is_def
+                     else f"'{pickn}' now loads on open."); st.rerun()
         if pickn != "—" and st.button(f"🗑 Delete '{pickn}'", key=f"sp{bank_key}_scn_del"):
             _stir_scen_delete(bank_key, pickn); st.rerun()
-        st.caption("Scenarios persist to data/stirpaths_scenarios.json.")
+        _tail = "Scenarios persist to data/stirpaths_scenarios.json."
+        st.caption((f"★ **{cur_def}** seeds YOUR CALL whenever this page opens — "
+                    f"meetings it doesn't cover seed from the market. {_tail}")
+                   if cur_def else
+                   f"★ Set as default makes a scenario load automatically on open. {_tail}")
 
     # ---- the term structure: market vs your view -----------------------------
     _sp_gap()

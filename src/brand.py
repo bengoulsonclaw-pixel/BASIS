@@ -413,9 +413,13 @@ input, textarea,
     flex-shrink:0 !important; background:transparent !important; color:$gold !important; }
 
 /* expander / containers / metric */
-/* expanders as terminal panels: surface + 1px line border; the summary is a
-   surface2 header strip with an uppercase micro-title and a gold chevron. */
-[data-testid="stExpander"] { background:$surface; border:1px solid $border; }
+/* expanders as terminal panels: surface + 1px line; the summary is a
+   surface2 header strip with an uppercase micro-title and a gold chevron.
+   The line is an OUTSET box-shadow ring, not `border` — same Chrome per-edge
+   pixel-rounding dodge as the chips above (a real border's left edge floors
+   to 0 device px at some zooms and vanishes); outset (not inset) because the
+   opaque summary strip would paint over an inset ring's top edge. */
+[data-testid="stExpander"] { background:$surface; border:none; box-shadow:0 0 0 1px $border; }
 [data-testid="stExpander"] summary {
     background:$surface2 !important;
     font-weight:600; padding:.5rem .9rem !important;
@@ -429,8 +433,9 @@ input, textarea,
 [data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
     fill:$gold !important; color:$gold !important;
 }
-/* metric cells: flat panel, mono value, faint mono micro-label — the handoff KPI cell. */
-[data-testid="stMetric"] { background:$surface; border:1px solid $border; padding:.6rem .9rem; }
+/* metric cells: flat panel, mono value, faint mono micro-label — the handoff KPI cell.
+   Ring not border, per the expander note. */
+[data-testid="stMetric"] { background:$surface; border:none; box-shadow:0 0 0 1px $border; padding:.6rem .9rem; }
 [data-testid="stMetricValue"] { color:$text; font-family:var(--basis-mono); font-size:1.15rem; }
 [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {
     color:$faint !important; font-family:var(--basis-mono);
@@ -438,9 +443,9 @@ input, textarea,
 }
 [data-testid="stMetricDelta"] { font-family:var(--basis-mono); }
 
-/* dataframe / editor / table */
+/* dataframe / editor / table — ring not border, per the expander note */
 [data-testid="stDataFrame"], [data-testid="stDataEditor"], [data-testid="stTable"] {
-    background:$surface; border:1px solid $border;
+    background:$surface; border:none; box-shadow:0 0 0 1px $border;
 }
 /* markdown/html tables (report previews, small boards) follow the handoff table spec */
 [data-testid="stMarkdownContainer"] table { border-collapse:collapse; }
@@ -560,15 +565,17 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
                 color:$faint; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bt-pb-right { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.14em; color:$text_dim; }
 
-/* panel header strip */
+/* panel header strip — ring not border (expander note); the flush tablewrap
+   below paints its background over this ring's bottom edge, so the junction
+   stays a single 1px line exactly as the old border-bottom:none gave. */
 .bt-panelhead { display:flex; justify-content:space-between; align-items:center;
-                background:$surface; border:1px solid $border; border-bottom:none;
+                background:$surface; border:none; box-shadow:0 0 0 1px $border;
                 padding:9px 14px; margin-top:.35rem; }
 .bt-panelhead > span:first-child { font-size:.8rem; font-weight:600; letter-spacing:.18em; color:$text; }
 .bt-ph-right { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.12em; color:$gold; }
 
 /* terminal table */
-.bt-tablewrap { border:1px solid $border; background:$surface; overflow-x:auto; margin-bottom:.9rem; }
+.bt-tablewrap { border:none; box-shadow:0 0 0 1px $border; background:$surface; overflow-x:auto; margin-bottom:.9rem; }
 .bt-table { width:100%; border-collapse:collapse; font-size:.89rem; }
 .bt-table th { background:$surface2; color:$faint; font-family:var(--basis-mono);
                font-size:.68rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase;
@@ -690,8 +697,11 @@ def sidebar_logo() -> None:
         # Negative top margin pulls the tag up into the svg box's empty bottom band; the
         # bottom margin pushes the FICC/Equities row down the same amount — leaving the tag
         # at the OPTICAL midpoint between the drawn wordmark and the buttons (~12px each).
+        # letter-spacing tightened vs .basis-tag's .34em — this string is twice
+        # "Research Terminal"'s length and must still fit the sidebar width
         f'<div class="basis-tag" style="margin-top:-.5rem;margin-bottom:.4rem;'
-        f'text-align:center">Research Terminal</div></div>',
+        f'letter-spacing:.18em;text-align:center">Analysis · Strategies · Indicators'
+        f'</div></div>',
         unsafe_allow_html=True,
     )
 
