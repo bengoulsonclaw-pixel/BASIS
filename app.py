@@ -9140,18 +9140,18 @@ def render_signal_ledger() -> None:
     by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
     lg = sigledger.league(view, "strategy" if by == "Strategy" else "market")
     lg = lg[lg["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
-    if lg.empty:
-        st.info("No rows clear the min-signals bar — lower it to see thin samples.")
-    else:
+    def _render_league(frame: pd.DataFrame, first_col: str) -> None:
+        """One league table (main or drill-down): first column + optional Category,
+        Signals, then hit/σ-move interleaved per horizon with the shared styling."""
         hit_cols = [f"Hit {h}d" for h in sigledger.HORIZONS]
         sig_cols = [f"σ-move {h}d" for h in sigledger.HORIZONS]
         num = pd.DataFrame({
-            by: lg.iloc[:, 0].to_numpy(),
-            **({"Category": lg.iloc[:, 0].map(tascore.axis_tag).to_numpy()}
-               if by == "Strategy" else {}),
-            "Signals": lg["n"].to_numpy(),
+            first_col: frame.iloc[:, 0].to_numpy(),
+            **({"Category": frame.iloc[:, 0].map(tascore.axis_tag).to_numpy()}
+               if first_col == "Strategy" else {}),
+            "Signals": frame["n"].to_numpy(),
             # hit + σ-move interleaved per horizon (Ben's preferred reading order)
-            **{col: lg[src].to_numpy() for h in sigledger.HORIZONS
+            **{col: frame[src].to_numpy() for h in sigledger.HORIZONS
                for col, src in ((f"Hit {h}d", f"hit{h}"), (f"σ-move {h}d", f"sig{h}"))},
         })
         sty = (num.style
@@ -9165,10 +9165,31 @@ def render_signal_ledger() -> None:
                .map(_sig_fg, subset=sig_cols))
         st.dataframe(sty, hide_index=True, use_container_width=True,
                      height=min(560, 40 + 35 * len(num)))
+
+    if lg.empty:
+        st.info("No rows clear the min-signals bar — lower it to see thin samples.")
+    else:
+        _render_league(lg, by)
         st.caption("Hit = the signal-space move went the signal's way by the horizon. σ-move = "
                    "the mean signed move in trailing-21-session σ units — the honest size of the "
                    "edge, not just its frequency. 50% hit with +σ drift and 55% with none read "
                    "very differently.")
+
+        # ---- product drill-down: which strategies drive that product's record --------
+        if by == "Product":
+            pick = st.selectbox("🔍 Drill into a product — its per-strategy breakdown",
+                                ["—"] + list(lg.iloc[:, 0]), key="sl_drill")
+            if pick != "—":
+                dmin = max(5, int(min_n) // 5)
+                dl = sigledger.league(view[view["market"] == pick], "strategy")
+                dl = dl[dl["n"] >= dmin].sort_values(f"hit{horizon}", ascending=False)
+                if dl.empty:
+                    st.info(f"No strategy clears {dmin} signals on {pick} with these filters.")
+                else:
+                    _render_league(dl, "Strategy")
+                    st.caption(f"Strategies ranked on **{pick}** alone, same filters as the "
+                               f"league. Per-product samples are thinner, so the bar here is "
+                               f"min {dmin} signals per row (⅕ of the league's, floor 5).")
 
     # ---- strategy × product heat --------------------------------------------------
     hm = sigledger.heat(view, horizon)
