@@ -9083,9 +9083,13 @@ def render_signal_ledger() -> None:
 
     # ---- league table --------------------------------------------------------------
     _lb1, _lb2 = st.columns([1, 2.2])
-    by = _lb1.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
+    # Defaults per Ben 2026-08-13: Product league, de-duplicated counting; Strategy and
+    # All-signals stay one click away.
+    by = _lb1.radio("League by", ["Strategy", "Product"], index=1,
+                    horizontal=True, key="sl_by")
     _cnt = _lb2.radio(
-        "Counting", ["All signals", "One vote per axis / day"], horizontal=True, key="sl_cnt",
+        "Counting", ["All signals", "One vote per axis / day"], index=1,
+        horizontal=True, key="sl_cnt",
         help="**All signals** pools every flagged (day, strategy) row — five trend methods "
              "echoing the same call count five times, so axes with many members dominate. "
              "**One vote per axis / day** collapses each day's methods within an axis to its "
