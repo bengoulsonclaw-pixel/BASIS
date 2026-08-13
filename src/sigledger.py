@@ -40,6 +40,8 @@ OUTCOMES_FILE = DATA / "signal_cache" / "ledger_outcomes.parquet"
 
 HORIZONS = (5, 10, 21)     # sessions ahead a signal is judged at
 SIGMA_WINDOW = 21          # trailing sessions for the daily-σ normalizer
+SIGMA_ABS_CAP = 50.0       # |σ-move| above this is a broken normalizer, not a real move —
+                           # the row's σ-move goes NaN (its hit still counts)
 CONFLUENCE = "Confluence"  # the composite's pseudo-strategy name in the ledger
 
 
@@ -127,7 +129,12 @@ def rebuild(log=print) -> pd.DataFrame:
     out = flagged.merge(melted, on=["date", "instruments"], how="left")
     for h in HORIZONS:
         out[f"move{h}"] = out[f"chg{h}"] * out["direction"]              # signed: + = went our way
-        out[f"sig{h}"] = out[f"move{h}"] / (out["sigma"] * np.sqrt(h))   # in trailing-σ units
+        # ±inf guard: a σ of exactly 0 can still slip the median floor when a column's
+        # history is degenerate (mostly-flat/ffilled stretches) — an inf poisons every
+        # mean downstream, so σ-moves without a usable normalizer become NaN, like the
+        # floored rows.
+        s = (out[f"move{h}"] / (out["sigma"] * np.sqrt(h))).replace([np.inf, -np.inf], np.nan)
+        out[f"sig{h}"] = s.where(s.abs() <= SIGMA_ABS_CAP)
         out[f"hit{h}"] = np.where(out[f"move{h}"].notna(), out[f"move{h}"] > 0, np.nan)
         out = out.drop(columns=[f"chg{h}"])
     out["level"] = out["level"].fillna(out["entry_level"])
@@ -145,6 +152,10 @@ def load() -> pd.DataFrame:
         return pd.DataFrame()
     out = pd.read_parquet(OUTCOMES_FILE)
     out["date"] = pd.to_datetime(out["date"])
+    # Sanitize files written before the rebuild-side ±inf / |σ|-cap guards existed.
+    for c in (f"sig{h}" for h in HORIZONS):
+        s = out[c].replace([np.inf, -np.inf], np.nan)
+        out[c] = s.where(s.abs() <= SIGMA_ABS_CAP)
     return out
 
 
@@ -206,6 +217,40 @@ def year_league(out: pd.DataFrame, horizon: int = 21, min_n: int = 25) -> pd.Dat
     g = d.groupby(["strategy", "year"])[hcol].agg(["count", "mean"])
     hit = (g["mean"] * 100.0).where(g["count"] >= min_n)
     return hit.unstack("year").dropna(how="all")
+
+
+def axis_votes(out: pd.DataFrame) -> pd.DataFrame:
+    """Collapse the ledger to ONE observation per (day, product, axis) — the axis's net
+    direction that day (sign of its members' direction sum; exact ties drop out). Cures
+    the pooled league's double-counting: five trend methods echoing the same call is one
+    vote here, so an axis with many members can't flatter a product's hit rate, and
+    'Signals' becomes a count of independent daily calls. The confluence composite is
+    excluded (it is already a de-duplicated construct). Returns a frame shaped like the
+    ledger (strategy column = the axis tag) so league()/heat() work on it unchanged.
+    Simple majority within the axis — deliberately NOT the score's harmonic strength
+    weights, so the vote is a plain 'what did this dimension say' with no tuning."""
+    if out is None or out.empty:
+        return pd.DataFrame()
+    core = out[out["strategy"] != CONFLUENCE].copy()
+    core["axis"] = core["strategy"].map(tascore.axis_of)
+    # move/sig are direction-signed per row; un-sign them (identical for every row of a
+    # (day, product) group) so the group's net direction can re-sign them as one vote.
+    for h in HORIZONS:
+        core[f"chg{h}"] = core[f"move{h}"] * core["direction"]
+        core[f"schg{h}"] = core[f"sig{h}"] * core["direction"]
+    v = core.groupby(["date", "instruments", "axis"], as_index=False).agg(
+        market=("market", "first"), dirsum=("direction", "sum"),
+        **{f"chg{h}": (f"chg{h}", "first") for h in HORIZONS},
+        **{f"schg{h}": (f"schg{h}", "first") for h in HORIZONS})
+    v = v[v["dirsum"] != 0].copy()
+    v["direction"] = np.sign(v["dirsum"]).astype(int)
+    for h in HORIZONS:
+        v[f"move{h}"] = v[f"chg{h}"] * v["direction"]
+        v[f"sig{h}"] = v[f"schg{h}"] * v["direction"]
+        v[f"hit{h}"] = np.where(v[f"move{h}"].notna(), v[f"move{h}"] > 0, np.nan)
+        v = v.drop(columns=[f"chg{h}", f"schg{h}"])
+    v["strategy"] = v["axis"].map(lambda a: tascore.AXIS_TAGS.get(a, a))
+    return v.drop(columns=["axis", "dirsum"])
 
 
 def regime_read(out: pd.DataFrame, recent_years: int = 2, horizon: int = 21,

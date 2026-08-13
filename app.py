@@ -3909,6 +3909,16 @@ def render_ta_overview() -> None:
                        help="Persist this set — used by the weekly report and on every launch."):
             tascore.save_confluence_set(_conf or tascore.CONFLUENCE_DEFAULT)
             st.toast("Confluence set saved.", icon="🎯")
+            # Re-score the Signal Ledger NOW (Ben's ask 2026-08-13) — its Composite row is
+            # built from the SAVED set, so without this it would lag until the morning
+            # snapshot's rebuild. Whole-history recompute, pure pandas off the cache.
+            from src import sigledger as _sl
+            if _sl.OUTCOMES_FILE.exists():
+                with st.spinner("Re-scoring the Signal Ledger's Composite under the new set "
+                                "(~1 min, whole 10y history)…"):
+                    _sl.rebuild(log=lambda *_a, **_k: None)
+                st.toast("Signal Ledger rebuilt — its Composite row now tracks this set.",
+                         icon="📒")
         _cs2.caption("**Generate report** uses whatever's ticked here; **Save** also makes it the "
                      "default for the weekly email and future launches.")
     _conf = _conf or tascore.CONFLUENCE_DEFAULT            # never score an empty set
@@ -9137,8 +9147,19 @@ def render_signal_ledger() -> None:
                            f"year than the min-signals bar.")
 
     # ---- league table --------------------------------------------------------------
-    by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
-    lg = sigledger.league(view, "strategy" if by == "Strategy" else "market")
+    _lb1, _lb2 = st.columns([1, 2.2])
+    by = _lb1.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
+    _cnt = _lb2.radio(
+        "Counting", ["All signals", "One vote per axis / day"], horizontal=True, key="sl_cnt",
+        help="**All signals** pools every flagged (day, strategy) row — five trend methods "
+             "echoing the same call count five times, so axes with many members dominate. "
+             "**One vote per axis / day** collapses each day's methods within an axis to its "
+             "net direction (majority; ties drop) — one independent call per dimension per "
+             "day, the same double-count the confluence score's de-dup guards against.")
+    vote_mode = _cnt != "All signals"
+    _lg_src = sigledger.axis_votes(view) if vote_mode else view
+    _strat_col = "Axis" if vote_mode else "Strategy"
+    lg = sigledger.league(_lg_src, "strategy" if by == "Strategy" else "market")
     lg = lg[lg["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
     def _render_league(frame: pd.DataFrame, first_col: str) -> None:
         """One league table (main or drill-down): first column + optional Category,
@@ -9169,27 +9190,33 @@ def render_signal_ledger() -> None:
     if lg.empty:
         st.info("No rows clear the min-signals bar — lower it to see thin samples.")
     else:
-        _render_league(lg, by)
-        st.caption("Hit = the signal-space move went the signal's way by the horizon. σ-move = "
-                   "the mean signed move in trailing-21-session σ units — the honest size of the "
-                   "edge, not just its frequency. 50% hit with +σ drift and 55% with none read "
-                   "very differently.")
+        _render_league(lg, _strat_col if by == "Strategy" else by)
+        st.caption(("One row per (day, product, axis) net call — echoes within an axis "
+                    "already collapsed, so these are independent daily votes. "
+                    if vote_mode else
+                    "Every flagged (day, strategy) row counts once — correlated same-day "
+                    "signals from one axis each count in full (see the Counting toggle). ")
+                   + "Hit = the signal-space move went the signal's way by the horizon. "
+                     "σ-move = the mean signed move in trailing-21-session σ units — the "
+                     "honest size of the edge, not just its frequency.")
 
-        # ---- product drill-down: which strategies drive that product's record --------
+        # ---- product drill-down: which strategies/axes drive that product's record ----
         if by == "Product":
-            pick = st.selectbox("🔍 Drill into a product — its per-strategy breakdown",
-                                ["—"] + list(lg.iloc[:, 0]), key="sl_drill")
+            pick = st.selectbox(
+                f"🔍 Drill into a product — its per-{'axis' if vote_mode else 'strategy'} breakdown",
+                ["—"] + list(lg.iloc[:, 0]), key="sl_drill")
             if pick != "—":
                 dmin = max(5, int(min_n) // 5)
-                dl = sigledger.league(view[view["market"] == pick], "strategy")
+                dl = sigledger.league(_lg_src[_lg_src["market"] == pick], "strategy")
                 dl = dl[dl["n"] >= dmin].sort_values(f"hit{horizon}", ascending=False)
                 if dl.empty:
-                    st.info(f"No strategy clears {dmin} signals on {pick} with these filters.")
+                    st.info(f"Nothing clears {dmin} signals on {pick} with these filters.")
                 else:
-                    _render_league(dl, "Strategy")
-                    st.caption(f"Strategies ranked on **{pick}** alone, same filters as the "
-                               f"league. Per-product samples are thinner, so the bar here is "
-                               f"min {dmin} signals per row (⅕ of the league's, floor 5).")
+                    _render_league(dl, _strat_col)
+                    st.caption(f"{'Axes' if vote_mode else 'Strategies'} ranked on **{pick}** "
+                               f"alone, same filters as the league. Per-product samples are "
+                               f"thinner, so the bar here is min {dmin} signals per row "
+                               f"(⅕ of the league's, floor 5).")
 
     # ---- strategy × product heat --------------------------------------------------
     hm = sigledger.heat(view, horizon)
