@@ -166,16 +166,16 @@ def league(out: pd.DataFrame, by: str = "strategy") -> pd.DataFrame:
     return g.sort_values(f"hit{HORIZONS[-1]}", ascending=False).reset_index(drop=True)
 
 
-WINDOWS = ((None, "Full"), (5, "5y"), (3, "3y"), (1, "1y"))  # windows_league columns
+WINDOWS = ((1, "1y"), (3, "3y"), (5, "5y"), (None, "Full"))  # windows_league column order
 
 
 def windows_league(out: pd.DataFrame, horizon: int = 21, min_n: int = 25) -> pd.DataFrame:
-    """Per-strategy hit rates across lookback windows SIDE BY SIDE (full / 5y / 3y / 1y,
-    each anchored to the ledger's last date) plus the 1y-vs-full swing in pp — the
-    regime-rotation story in one table instead of behind the window filter. Cells with
-    fewer than `min_n` evaluable signals in that window go NaN (blank), the same
-    thin-sample bar as the league. Sorted by the shortest window's hit rate: 'what's
-    working now' reads top-down."""
+    """Per-strategy hit rates across lookback windows SIDE BY SIDE (1y / 3y / 5y / full,
+    each anchored to the ledger's last date, shortest first) plus the 1y-vs-full swing in
+    pp — the regime-rotation story in one table instead of behind the window filter.
+    Cells with fewer than `min_n` evaluable signals in that window go NaN (blank), the
+    same thin-sample bar as the league. Sorted by the 1y hit rate: 'what's working now'
+    reads top-down."""
     if out is None or out.empty:
         return pd.DataFrame()
     hcol = f"hit{horizon}"
@@ -186,10 +186,26 @@ def windows_league(out: pd.DataFrame, horizon: int = 21, min_n: int = 25) -> pd.
         g = sub.groupby("strategy")[hcol].agg(["count", "mean"])
         res[label] = (g["mean"] * 100.0).where(g["count"] >= min_n)
         res[f"n {label}"] = g["count"].reindex(res.index).fillna(0).astype(int)
-    first, last = WINDOWS[0][1], WINDOWS[-1][1]
-    res["delta"] = res[last] - res[first]
+    res["delta"] = res["1y"] - res["Full"]
     res = res.dropna(how="all", subset=[label for _, label in WINDOWS])
-    return res.sort_values(last, ascending=False).reset_index()
+    return res.sort_values("1y", ascending=False).reset_index()
+
+
+def year_league(out: pd.DataFrame, horizon: int = 21, min_n: int = 25) -> pd.DataFrame:
+    """Per-strategy hit % by CALENDAR YEAR (wide: strategy index × year columns) — the
+    era league at annual resolution, so you can see exactly when a strategy's era began
+    and ended rather than trailing-window blends. Cells with fewer than `min_n` evaluable
+    signals in that year go NaN; the first and last years are usually partial."""
+    if out is None or out.empty:
+        return pd.DataFrame()
+    hcol = f"hit{horizon}"
+    d = out.dropna(subset=[hcol]).copy()
+    if d.empty:
+        return pd.DataFrame()
+    d["year"] = d["date"].dt.year
+    g = d.groupby(["strategy", "year"])[hcol].agg(["count", "mean"])
+    hit = (g["mean"] * 100.0).where(g["count"] >= min_n)
+    return hit.unstack("year").dropna(how="all")
 
 
 def regime_read(out: pd.DataFrame, recent_years: int = 2, horizon: int = 21,

@@ -1044,28 +1044,34 @@ def _world_clocks() -> None:
     except Exception:
         wx = []
     wx = (wx + [{"temp": None, "icon": ""}] * len(worldclock.CITIES))[:len(worldclock.CITIES)]
+    # Weather sits BESIDE the clock (Ben, 2026-08-13) — the full-width cells leave
+    # plenty of room right of the time; on the caption row it crowded the city name.
     cells = "".join(
         '<div class="c"><div class="city">'
-        '<span class="wi">' + (w.get("icon") or "") + '</span>'
-        '<span class="nm">' + c["name"].upper() + '</span>'
+        '<span class="nm">' + c["name"].upper() + '</span></div>'
+        '<div class="tr"><div class="time" data-tz="' + c["tz"] + '">--:--:--</div>'
+        '<span class="wx"><span class="wi">' + (w.get("icon") or "") + '</span>'
         + ('<span class="tmp">' + str(w["temp"]) + '&#176;</span>'
            if w.get("temp") is not None else "")
-        + '</div><div class="time" data-tz="' + c["tz"] + '">--:--:--</div></div>'
+        + '</span></div></div>'
         for c, w in zip(worldclock.CITIES, wx))
     html = (
         "<meta charset='utf-8'><style>"
         "*{box-sizing:border-box;margin:0;padding:0}"
-        "body{background:transparent;font-family:" + mono + "}"
+        # top padding = the visible gap between the BASIS masthead and the clock strip
+        "body{background:transparent;font-family:" + mono + ";padding-top:8px}"
         ".row{display:grid;grid-template-columns:repeat(6,1fr);"
         "width:100%;"       # full-bleed strip: half-width fit-content read as clutter
         "background:" + pal["surface2"] + ";border:1px solid " + pal["border"] + "}"
         ".c{padding:7px 12px;min-width:0;border-right:1px solid " + pal["border"] + "}"
         ".c:last-child{border-right:none}"
-        ".city{display:flex;align-items:center;gap:5px;font-size:12px;"
+        ".city{display:flex;align-items:center;font-size:12px;"
         "letter-spacing:.12em;color:" + faint + "}"
         ".city .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+        ".tr{display:flex;align-items:center;gap:10px}"
+        ".wx{display:flex;align-items:center;gap:4px;flex:0 0 auto}"
         ".wi{display:flex;flex:0 0 auto}.wi svg{width:17px;height:17px}"
-        ".tmp{margin-left:auto;flex:0 0 auto;letter-spacing:0;font-size:11.5px;"
+        ".tmp{letter-spacing:0;font-size:11.5px;"
         "font-variant-numeric:tabular-nums;color:" + faint + "}"
         ".time{font-size:17px;font-weight:500;color:" + pal["text"] +
         ";font-variant-numeric:tabular-nums}"
@@ -1084,9 +1090,9 @@ def _world_clocks() -> None:
         "if(w<48)w=48;"
         "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');}catch(e){}}"
         "sb();setInterval(sb,500);</script>")
-    # 54 = the rail's real rendered height (53px content + 1px slack) — anything
-    # taller leaves a dead dark band between the clocks and the masthead.
-    components.html(html, height=54)
+    # 62 = 8px masthead gap + the rail's real rendered height (53px content + 1px
+    # slack) — anything taller leaves a dead dark band under the clocks.
+    components.html(html, height=62)
 
 
 
@@ -1758,6 +1764,56 @@ def render_weekly_review() -> None:
             st.caption(f"(Inline preview needs pypdfium2 — {_e})")
 
 
+def _explain_fetch_failure(out: str, err: str) -> None:
+    """Plain-English diagnosis of a failed Bloomberg fetch — the signatures were
+    learned from the real production failures of Aug 2026: the -4002 workflow-review
+    block, the Terminal session dying mid-pull (login closed / moved to another PC),
+    a Terminal that was never serving, and the engine wedging silently (stall cap).
+    The raw log lands in an expander so the full detail is one click away."""
+    text = ((err or "") + "\n" + (out or "")).strip()
+    nid = re.search(r"nid:(\d+)", text)
+    n_fail = text.count("PyEngine: request failed")
+    n_badsec = text.count('category="BAD_SEC"')
+    kept = "The existing snapshot was **kept** — nothing was overwritten."
+    if "WORKFLOW_REVIEW_NEEDED" in text or "-4002" in text:
+        st.error(
+            "🚫 **Bloomberg has blocked this account's API usage pending a workflow "
+            "review** (error -4002" + (f", nid:{nid.group(1)}" if nid else "") + "). "
+            "Every data request is rejected until Bloomberg lifts the block — keeping "
+            "the Terminal open does not help.\n\n"
+            "**What to do:** call the Help Desk (HELP HELP in the Terminal) and ask them "
+            "to clear the workflow review, quoting the code and nid above. " + kept)
+    elif "[BASIS] fetch stalled" in text:
+        st.error(
+            "⏱️ **The pull stalled and was stopped automatically** — it stopped making "
+            "progress mid-run, which in practice means the Bloomberg session silently "
+            "died underneath it (Terminal closed/logged out, login moved to another "
+            "PC, or a connection drop).\n\n"
+            "**What to do:** check the Terminal is open and logged in **on this "
+            "machine**, then pull again — a pull can't resume, it restarts and takes "
+            "~10–15 min. " + kept)
+    elif n_fail >= 8:
+        st.error(
+            "🔌 **The Bloomberg connection died mid-pull** — requests were flowing and "
+            f"then {n_fail} in a row failed. That is what it looks like when the "
+            "Terminal is closed, logs out, or the login moves to another PC while a "
+            "pull is running.\n\n"
+            "**What to do:** log the Terminal in on THIS machine and keep it open for "
+            "the whole Bloomberg phase (~10–15 min), then pull again. " + kept)
+    elif "NO price data" in text:
+        st.error(
+            "🖥️ **Bloomberg returned no data at all** — the Terminal wasn't open and "
+            "logged in on this machine when the pull started.\n\n"
+            "**What to do:** open the Terminal, log in, and pull again. " + kept)
+    else:
+        st.error("Snapshot fetch failed — the log below has the detail. " + kept)
+    if n_badsec:
+        st.caption(f"The log also notes **{n_badsec} expired/invalid option strikes** "
+                   "being skipped — routine housekeeping on every pull, not the cause.")
+    with st.expander("Technical log"):
+        st.code(text[-4000:] or "no output", language="text")
+
+
 def render_home() -> None:
     render_report_banner()
     _render_skew_backfill_banner()
@@ -1783,7 +1839,12 @@ def render_home() -> None:
         # TWO PHASES so the Terminal only needs to be open for the short one:
         # fetch (Bloomberg, ~3-5 min) -> banner flips to "close the Terminal" ->
         # compute (fits + signals, Terminal-closed). Live elapsed timers on both.
-        def _phase(args, msg):
+        def _phase(args, msg, cap_min=None):
+            # cap_min: hard stall guard — a wedged Bloomberg engine otherwise hangs
+            # FOREVER at ~0 CPU (seen 2026-08-13, three runs in one morning) and the
+            # banner just counts minutes. Past the cap the whole process TREE is
+            # killed (the fetch spawns grandchildren) and a marker lands in stderr
+            # for _explain_fetch_failure to diagnose.
             ph = st.empty()
             t0 = time.time()
             proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI), *args], cwd=str(ROOT),
@@ -1791,7 +1852,14 @@ def render_home() -> None:
                                     env={**os.environ, "DATAFEED_MODE": "bloomberg",
                                          "PYTHONUTF8": "1"})
             while proc.poll() is None:
-                ph.info(msg.format(el=(time.time() - t0) / 60))
+                el = (time.time() - t0) / 60
+                if cap_min and el > cap_min:
+                    subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                                   capture_output=True)
+                    out, err = proc.communicate()
+                    ph.empty()
+                    return -9, out, (err or "") + f"\n[BASIS] fetch stalled — killed after {el:.0f} min", el
+                ph.info(msg.format(el=el))
                 time.sleep(5)
             out, err = proc.communicate()
             ph.empty()
@@ -1800,10 +1868,12 @@ def render_home() -> None:
         _t_all = time.time()
         rc, _out, _err, _m1 = _phase(
             ["--fetch"],
-            "⏳ **Bloomberg phase** — {el:.1f} min elapsed (typically 3–5 min). "
-            "The Terminal must stay open for THIS phase only.")
+            "⏳ **Bloomberg phase** — {el:.1f} min elapsed (a full pull takes ~10–15 min; "
+            "auto-stops if stalled past 25). The Terminal must stay open **and logged in "
+            "on this machine** for THIS phase only.",
+            cap_min=25)
         if rc != 0:
-            st.error("Snapshot fetch failed:\n\n" + (_err or _out or "no output"))
+            _explain_fetch_failure(_out, _err)
             return
         _done = st.empty()
         _done.success(f"✅ **Bloomberg finished ({_m1:.1f} min) — you can CLOSE THE "
@@ -4826,7 +4896,7 @@ def render_market_hours() -> None:
         "<style>"
         "[data-testid='stLayoutWrapper']:has(> .st-key-mh_axis_sticky),"
         "div.st-key-mh_axis_sticky {"
-        f"position:sticky; top:96px; z-index:5; background:{brand.palette()['canvas']};"
+        f"position:sticky; top:107px; z-index:5; background:{brand.palette()['canvas']};"
         "}</style>", unsafe_allow_html=True)
     with st.container(key="mh_axis_sticky"):
         _pad = alt.Chart(pd.DataFrame({"y": [""]})).mark_tick(opacity=0).encode(
@@ -5397,6 +5467,41 @@ def _render_alert_settings() -> None:
 def render_recipients() -> None:
     st.subheader("\U0001F514 Alert settings")
     _render_alert_settings()
+
+    # ---- Failure alerts: who is emailed when a scheduled report CRASHES (not the report lists) ----
+    from src import failalert
+    st.markdown("#### ⚠️ Failure alerts")
+    st.caption("If a scheduled report **fails to build or send**, an alert email with the error goes to "
+               "these addresses (at most one per report per day). This list is separate from the report "
+               "recipient lists below — failures are internal, they never go to clients.")
+    fa = failalert.load_recipients()
+    for i, addr in enumerate(fa):
+        c1, c2 = st.columns([0.85, 0.15])
+        c1.write(addr)
+        if c2.button("Remove", key=f"fa_rm_{i}", use_container_width=True,
+                     disabled=len(fa) == 1,
+                     help="At least one address must stay on the list — otherwise failures go unseen."
+                          if len(fa) == 1 else None):
+            fa.pop(i)
+            failalert.save_recipients(fa)
+            st.rerun()
+    with st.form(key="fa_addform", clear_on_submit=True):
+        fc1, fc2 = st.columns([0.78, 0.22])
+        fa_new = fc1.text_input("Add failure-alert address", label_visibility="collapsed",
+                                placeholder="name@firm.com")
+        fa_add = fc2.form_submit_button("➕ Add", use_container_width=True)
+    if fa_add:
+        e = (fa_new or "").strip()
+        if "@" not in e or "." not in e.split("@")[-1]:
+            st.warning("Enter a valid email address (e.g. name@firm.com).")
+        elif e in fa:
+            st.info(f"{e} is already on the list.")
+        else:
+            fa.append(e)
+            failalert.save_recipients(fa)
+            st.rerun()
+    st.divider()
+
     st.markdown("#### \U0001F4E7 Email recipients")
     st.caption("Who receives each emailed report. Add or remove addresses — changes save "
                "immediately and are read by every report emailer.")
@@ -8993,10 +9098,34 @@ def render_signal_ledger() -> None:
         st.dataframe(wsty, hide_index=True, use_container_width=True,
                      height=min(560, 40 + 35 * len(wnum)))
         st.caption("Each column is the hit rate over that trailing window (all ending today), "
-                   "so one row tells a strategy's whole regime story — green all the way across "
-                   "is persistence, red-then-green is rotation into this era. Ignores the Window "
-                   "filter by design; products and min-signals still apply. Blank cells have "
-                   "fewer signals in that window than the min-signals bar.")
+                   "shortest on the left — so one row tells a strategy's whole regime story: "
+                   "green on the left fading right is a strategy that works NOW but didn't "
+                   "before, green all the way across is persistence. Ignores the Window filter "
+                   "by design; products and min-signals still apply. Blank cells have fewer "
+                   "signals in that window than the min-signals bar.")
+
+        with st.expander(f"📆 Year-by-year breakdown ({horizon}d)"):
+            yl = sigledger.year_league(_base, horizon, min_n=int(min_n))
+            if yl.empty:
+                st.info("No year clears the min-signals bar with these filters.")
+            else:
+                yl = yl.reindex([s for s in wl["strategy"] if s in yl.index])
+                ynum = pd.DataFrame({
+                    "Strategy": yl.index.to_numpy(),
+                    "Category": yl.index.map(tascore.axis_tag).to_numpy(),
+                    **{str(y): yl[y].to_numpy() for y in yl.columns},
+                })
+                yr_cols = [str(y) for y in yl.columns]
+                ysty = (ynum.style
+                        .format({c: "{:.1f}%" for c in yr_cols}, na_rep="—")
+                        .map(lambda v: _div_bg(v, 50.0, 5.0), subset=yr_cols))
+                st.dataframe(ysty, hide_index=True, use_container_width=True,
+                             height=min(560, 40 + 35 * len(ynum)))
+                st.caption(f"Hit rate per calendar year at the {horizon}-session horizon, rows "
+                           f"in the era league's order. The first and last years are partial "
+                           f"({_base['date'].min():%b %Y} start, ledger runs to "
+                           f"{_base['date'].max():%b %Y}). Blank cells have fewer signals that "
+                           f"year than the min-signals bar.")
 
     # ---- league table --------------------------------------------------------------
     by = st.radio("League by", ["Strategy", "Product"], horizontal=True, key="sl_by")
