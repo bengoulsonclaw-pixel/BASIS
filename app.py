@@ -9082,19 +9082,37 @@ def render_signal_ledger() -> None:
         return f"font-style: italic; color: {c}; font-weight: 600"
 
     # ---- league table --------------------------------------------------------------
-    _lb1, _lb2 = st.columns([1, 2.2])
-    # Defaults per Ben 2026-08-13: Product league, de-duplicated counting; Strategy and
-    # All-signals stay one click away.
-    by = _lb1.radio("League by", ["Strategy", "Product"], index=1,
-                    horizontal=True, key="sl_by")
+    # Landing state is persisted (💾) — factory default Product + one-vote (Ben
+    # 2026-08-13); the saved choice leads each radio so the default option sits LEFT.
+    _SL_PREFS = Path("data/sigledger_prefs.json")
+
+    def _sl_prefs() -> dict:
+        try:
+            return json.loads(_SL_PREFS.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+    _prefs = _sl_prefs()
+    _by_saved = _prefs.get("by", "Product")
+    _cnt_saved = _prefs.get("counting", "One vote per axis / day")
+    _by_opts = [_by_saved] + [o for o in ("Product", "Strategy") if o != _by_saved]
+    _cnt_opts = [_cnt_saved] + [o for o in ("One vote per axis / day", "All signals")
+                                if o != _cnt_saved]
+    _lb1, _lb2, _lb3 = st.columns([1, 2.0, 0.9])
+    by = _lb1.radio("League by", _by_opts, horizontal=True, key="sl_by")
     _cnt = _lb2.radio(
-        "Counting", ["All signals", "One vote per axis / day"], index=1,
-        horizontal=True, key="sl_cnt",
+        "Counting", _cnt_opts, horizontal=True, key="sl_cnt",
         help="**All signals** pools every flagged (day, strategy) row — five trend methods "
              "echoing the same call count five times, so axes with many members dominate. "
              "**One vote per axis / day** collapses each day's methods within an axis to its "
              "net direction (majority; ties drop) — one independent call per dimension per "
              "day, the same double-count the confluence score's de-dup guards against.")
+    _lb3.markdown("<div style='height:1.72em'></div>", unsafe_allow_html=True)
+    if _lb3.button("💾 Save as default", key="sl_prefs_save",
+                   help="Make the current League by + Counting the page's landing state "
+                        "(here and on the VPS after the next sync)."):
+        _SL_PREFS.write_text(json.dumps({"by": by, "counting": _cnt}), encoding="utf-8")
+        st.toast(f"Ledger default saved: {by} · {_cnt}.", icon="💾")
     vote_mode = _cnt != "All signals"
     _lg_src = sigledger.axis_votes(view) if vote_mode else view
     _strat_col = "Axis" if vote_mode else "Strategy"
