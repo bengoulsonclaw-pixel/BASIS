@@ -256,7 +256,7 @@ def stu_fig(bar):
 
 
 def render_html(year, asof, demo=False, light=False):
-    from reportkit import data_uri
+    from reportkit import data_uri, pretty_date
     data = build_data(year)
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     return env.get_template("wasdereport.html").render(

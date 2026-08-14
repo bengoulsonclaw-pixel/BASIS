@@ -4,20 +4,22 @@
 <meta charset="utf-8">
 {% include "_report_style.html" %}
 <style>
-  /* Roomy but one page: fills an A4 page top-to-bottom without spilling (verified). */
-  table { font-size: 8.6pt; margin-top: 2.2mm; }
-  thead th { padding: 3.6pt 5pt; }
-  tbody td { padding: 3.4pt 5pt; }
-  .banner { margin-top: 4mm; font-size: 10.5pt; padding: 3.6pt 6pt; }
+  /* Roomy but one page: fills an A4 page top-to-bottom without spilling (verified).
+     Line-heights are pinned here so edits to the shared house style can't silently
+     push the note onto a second page again. */
+  table { font-size: 8.6pt; margin-top: 2mm; line-height: 1.25; }
+  thead th { padding: 3.2pt 5pt; }
+  tbody td { padding: 2.8pt 5pt; }
+  .banner { margin-top: 3.2mm; font-size: 10.5pt; padding: 3.4pt 6pt; }
   .titleband { padding: 4pt 8pt; }
   .titleband h1 { font-size: 21pt; }
   .titleband .sub { font-size: 11.5pt; }
-  .summary { font-size: 8.6pt; margin: 2.8mm 0 0; }
-  .lead { font-size: 8.2pt; color: #333; margin: 2mm 0; }
-  .chart { margin-top: 2mm; }
-  hr.rule { margin: 3.5mm 0 2.5mm; }
-  .disclaimer { font-size: 7.6pt; margin-top: 3mm; }
-  .fine { font-size: 7pt; margin-top: 2mm; line-height: 1.4; }
+  .summary { font-size: 8.6pt; margin: 2.4mm 0 0; line-height: 1.35; }
+  .lead { font-size: 8.2pt; color: #333; margin: 1.8mm 0; line-height: 1.35; }
+  .chart { margin-top: 1.6mm; }
+  hr.rule { margin: 3mm 0 2mm; }
+  .disclaimer { font-size: 7.6pt; margin-top: 2.5mm; }
+  .fine { font-size: 7pt; margin-top: 1.8mm; line-height: 1.35; }
   .demo { background: #FFF8E1; border-left: 3pt solid var(--yellow); padding: 2mm 3mm;
           font-size: 8pt; color: #333; margin: 2.5mm 0; }
 </style>
@@ -137,8 +139,8 @@
       / KC &amp; Chicago wheat; the world table is the global backdrop (China especially).
     </p>
 
-    <div class="report-footer">
-    <div class="foot-disclaimer">
+    <!-- Disclaimer in NORMAL FLOW, not .report-footer: this note is a single page by design, and
+         .report-footer's break-before would push the disclaimer onto its own (near-blank) page. -->
     <hr class="rule">
     <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
@@ -146,8 +148,6 @@
       bushels (corn 39.37, soybeans / wheat 36.74 bu per metric ton); world in MMT. Stocks-to-use = ending stocks
       ÷ total use (US = domestic use + exports; world = domestic consumption). Free U.S.-government data.
       Information only &mdash; not investment advice or a solicitation.
-    </div>
-  </div>
     </div>
   </div>
 </body>

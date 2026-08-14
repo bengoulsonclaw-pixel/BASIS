@@ -122,4 +122,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from src.failalert import guard          # emails Ben on a crash/non-zero exit (one alert/day)
+    guard("USDA Reaction note", main)

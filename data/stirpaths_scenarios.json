@@ -13,5 +13,8 @@
    "Oct 2027": 0.0,
    "Dec 2027": 0.0
   }
+ },
+ "_defaults": {
+  "FED": "No Rate cuts until H7"
  }
 }
