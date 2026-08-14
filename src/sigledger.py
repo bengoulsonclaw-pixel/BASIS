@@ -25,6 +25,20 @@ CALL right?", free of exit-rule choices.
 
 `rebuild()` (snapshot compute phase, seconds — pure pandas) writes
 data/signal_cache/ledger_outcomes.parquet; the app page aggregates from disk.
+
+OUTCOMES ARE APPEND-ONLY (2026-08-14). A settled outcome is a historical FACT and is
+never re-measured: once a row's hit/σ-move is written, every later rebuild keeps it
+verbatim and only (a) fills outcomes that were still pending and (b) appends rows for
+new days. Before touching the file, the freshly-computed frame must AGREE with the
+settled history it overlaps (_frame_flip_rate ≤ GUARD_MAX_FLIP) — if it doesn't, the
+day's signal-space frame is corrupt and the whole merge is REFUSED, loudly, leaving the
+ledger untouched (marker in data/signal_cache/ledger_guard_<scope>.json, surfaced on the
+page). Lesson of 2026-08-13: the wedged-Bloomberg morning produced a transiently broken
+deep-adjusted frame, and the then-rebuild-from-scratch silently re-marked 10 YEARS of
+track record (full-book 21d hit rate 50.0% -> 44.7%) while every input on disk was fine
+by evening. `full=True` (backfill_signals.py --rebaseline-ledger) is the only deliberate
+re-baseline path; `rescore=(strategy, …)` re-derives just those pseudo-strategies (the
+Composite after a confluence-set change) while everything else stays frozen.
 """
 from __future__ import annotations
 
@@ -48,6 +62,26 @@ SIGMA_WINDOW = 21          # trailing sessions for the daily-σ normalizer
 SIGMA_ABS_CAP = 50.0       # |σ-move| above this is a broken normalizer, not a real move —
                            # the row's σ-move goes NaN (its hit still counts)
 CONFLUENCE = "Confluence"  # the composite's pseudo-strategy name in the ledger
+
+KEY = ["date", "strategy", "instruments"]          # a ledger row's identity
+OUTCOME_COLS = tuple(f"{p}{h}" for h in HORIZONS for p in ("move", "sig", "hit"))
+GUARD_SETTLE_DAYS = 45     # rows at least this far before the prior build's end are "settled"
+GUARD_MIN_OVERLAP = 500    # fewer settled overlapping rows than this -> too thin to judge
+GUARD_MAX_FLIP = 0.005     # settled hits disagreeing above this fraction = corrupt frame
+
+
+def _guard_path(scope: str = "ficc") -> Path:
+    return _outcomes_path(scope).parent / f"ledger_guard_{scope}.json"
+
+
+def guard_refusal(scope: str = "ficc") -> dict | None:
+    """The last refused-merge marker ({'when', 'flips', 'checked'}), or None after a
+    clean rebuild — the page shows it so a refusal can't go unnoticed."""
+    try:
+        import json
+        return json.loads(_guard_path(scope).read_text(encoding="utf-8"))
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +134,78 @@ def _confluence_rows(flagged: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # rebuild — flag everything, measure everything, persist
 # ---------------------------------------------------------------------------
-def rebuild(log=print, scope: str = "ficc") -> pd.DataFrame:
+def _frame_flip_rate(prior: pd.DataFrame, fresh: pd.DataFrame) -> tuple[float, int] | None:
+    """Fraction of SETTLED prior hits the fresh frame disagrees with (and how many were
+    checked), or None when the overlap is too thin to judge. Settled = evaluated rows at
+    least GUARD_SETTLE_DAYS before the prior build's end — recent rows can move for real
+    reasons (revised settles inside the deep store's 10-day re-pull buffer), old ones
+    cannot: a healthy panama re-anchor shifts LEVELS by a constant but never a move's
+    sign, so settled hits recompute identically off a healthy frame."""
+    hcol = f"hit{HORIZONS[-1]}"
+    cut = prior["date"].max() - pd.Timedelta(days=GUARD_SETTLE_DAYS)
+    p = prior.loc[prior["date"] <= cut].set_index(KEY)[hcol].dropna()
+    f = fresh.set_index(KEY)[hcol].dropna()
+    p, f = p[~p.index.duplicated()], f[~f.index.duplicated()]
+    common = p.index.intersection(f.index)
+    if len(common) < GUARD_MIN_OVERLAP:
+        return None
+    return float((p.loc[common] != f.loc[common]).mean()), len(common)
+
+
+def _merge_frozen(prior: pd.DataFrame, fresh: pd.DataFrame, rescore=(),
+                  log=print, scope: str = "ficc") -> pd.DataFrame | None:
+    """Append-only merge: prior rows are kept VERBATIM except outcome columns that were
+    still NaN (pending) get settled from `fresh`; rows new to `fresh` are appended;
+    strategies in `rescore` are dropped from prior and re-taken whole from fresh.
+    Returns the merged frame, or None to REFUSE (corrupt fresh frame — caller must
+    leave the ledger file untouched)."""
+    import json
+    core_fresh = fresh[~fresh["strategy"].isin(rescore)] if rescore else fresh
+    chk = _frame_flip_rate(prior[~prior["strategy"].isin(rescore)] if rescore else prior,
+                           core_fresh)
+    if chk is not None and chk[0] > GUARD_MAX_FLIP:
+        flips, n = chk
+        msg = (f"  signal ledger[{scope}]: REFUSED to touch the ledger — today's signal-space "
+               f"frame re-marks {flips:.1%} of {n:,} settled historical outcomes. Settled hits "
+               f"never legitimately change (a healthy roll re-anchor shifts levels, not moves), "
+               f"so the day's price frame is corrupt (partial deep store / wedged pull — see "
+               f"2026-08-13). The track record on disk is UNCHANGED; today's new signals will "
+               f"be appended by the next clean rebuild. If a re-mark is truly intended, run "
+               f"backfill_signals.py --rebaseline-ledger.")
+        log(msg)
+        try:
+            _guard_path(scope).write_text(json.dumps(
+                {"when": pd.Timestamp.now().isoformat(timespec="seconds"),
+                 "flips": flips, "checked": n}), encoding="utf-8")
+        except Exception:
+            pass
+        return None
+    try:
+        _guard_path(scope).unlink(missing_ok=True)
+    except Exception:
+        pass
+    pi = (prior[~prior["strategy"].isin(rescore)] if rescore else prior).set_index(KEY)
+    fi = fresh.set_index(KEY)
+    pi, fi = pi[~pi.index.duplicated()], fi[~fi.index.duplicated()]
+    common = pi.index.intersection(fi.index)
+    settled = 0
+    for c in OUTCOME_COLS:
+        if c not in pi.columns or c not in fi.columns:
+            continue
+        need = common[pi.loc[common, c].isna() & fi.loc[common, c].notna()]
+        pi.loc[need, c] = fi.loc[need, c]
+        if c == f"hit{HORIZONS[-1]}":
+            settled = len(need)
+    new = fi.loc[fi.index.difference(pi.index)]
+    merged = pd.concat([pi, new]).reset_index()
+    merged = merged.reindex(columns=list(fresh.columns)
+                            + [c for c in merged.columns if c not in fresh.columns])
+    log(f"  signal ledger[{scope}]: {len(pi):,} historical rows frozen, "
+        f"{settled:,} pending outcomes settled, {len(new):,} new rows appended")
+    return merged
+
+
+def rebuild(log=print, scope: str = "ficc", full: bool = False, rescore=()) -> pd.DataFrame:
     cov = sigcache.coverage(scope)
     if cov.empty:
         log(f"  signal ledger[{scope}]: no signal cache on disk yet — run backfill_signals.py"
@@ -159,8 +264,16 @@ def rebuild(log=print, scope: str = "ficc") -> pd.DataFrame:
 
     path = _outcomes_path(scope)
     path.parent.mkdir(parents=True, exist_ok=True)
-    out.sort_values(["date", "strategy", "instruments"]).to_parquet(path, index=False)
-    log(f"  signal ledger[{scope}]: {len(out):,} flagged signals evaluated "
+    if not full and path.exists():
+        prior = load(scope)
+        if not prior.empty:
+            merged = _merge_frozen(prior, out, rescore=rescore, log=log, scope=scope)
+            if merged is None:
+                return prior                       # refused — ledger file untouched
+            out = merged
+    out = out.sort_values(KEY)
+    out.to_parquet(path, index=False)
+    log(f"  signal ledger[{scope}]: {len(out):,} flagged signals on file "
         f"({out['date'].min().date()} -> {out['date'].max().date()})")
     return out
 

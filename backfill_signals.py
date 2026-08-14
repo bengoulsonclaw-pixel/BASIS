@@ -5,6 +5,8 @@
     python backfill_signals.py --equities            # equities book (~2,600 names), last 3y
     python backfill_signals.py --equities --years 5  # deeper, if the price cache allows
     python backfill_signals.py --equities --pull     # deepen the Yahoo price cache first
+    python backfill_signals.py --rebaseline-ledger   # DELIBERATE full re-measure of the
+                                                     # (append-only) ledger track record
 
 FICC is pure local compute off the deep price store — no Bloomberg, no Terminal; ~10y ×
 16 strategies is a few hours of CPU. Equities scores the whole ~2,600-name Yahoo book, so
@@ -39,9 +41,18 @@ def main():
                          "+ the 400-session warm-up)")
     ap.add_argument("--flush-every", type=int, default=None,
                     help="persist every N days (default: 25 FICC / 5 equities)")
+    ap.add_argument("--rebaseline-ledger", action="store_true",
+                    help="DELIBERATELY re-measure every ledger outcome from today's frames "
+                         "and overwrite the (otherwise append-only) track record, then exit")
     args = ap.parse_args()
     scope = "equities" if args.equities else "ficc"
     prefix = "eq" if scope == "equities" else "ficc"
+
+    if args.rebaseline_ledger:
+        from src import sigledger
+        print(f"Re-baselining the {scope} Signal Ledger (full outcome re-measure) …")
+        sigledger.rebuild(log=print, scope=scope, full=True)
+        return
 
     # Single-writer lock: two concurrent extend() runs race the yearly parquet rewrites
     # (last flush wins, the coverage log then masks the lost rows forever). Seen for real

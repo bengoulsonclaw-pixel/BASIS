@@ -3909,14 +3909,15 @@ def render_ta_overview() -> None:
                        help="Persist this set — used by the weekly report and on every launch."):
             tascore.save_confluence_set(_conf or tascore.CONFLUENCE_DEFAULT)
             st.toast("Confluence set saved.", icon="🎯")
-            # Re-score the Signal Ledger NOW (Ben's ask 2026-08-13) — its Composite row is
+            # Re-score the Signal Ledger's COMPOSITE NOW (Ben's ask 2026-08-13) — it is
             # built from the SAVED set, so without this it would lag until the morning
-            # snapshot's rebuild. Whole-history recompute, pure pandas off the cache.
+            # snapshot's rebuild. rescore= re-derives only the Composite pseudo-strategy;
+            # every per-strategy outcome stays frozen (the ledger is append-only).
             from src import sigledger as _sl
             if _sl.OUTCOMES_FILE.exists():
                 with st.spinner("Re-scoring the Signal Ledger's Composite under the new set "
                                 "(~1 min, whole 10y history)…"):
-                    _sl.rebuild(log=lambda *_a, **_k: None)
+                    _sl.rebuild(log=lambda *_a, **_k: None, rescore=(_sl.CONFLUENCE,))
                 st.toast("Signal Ledger rebuilt — its Composite row now tracks this set.",
                          icon="📒")
         _cs2.caption("**Generate report** uses whatever's ticked here; **Save** also makes it the "
@@ -9093,6 +9094,16 @@ def render_signal_ledger() -> None:
                 f"`python backfill_signals.py{' --equities' if scope == 'equities' else ''}` "
                 "once (then the daily pull keeps it fresh).")
         return
+
+    _guard = sigledger.guard_refusal(scope)
+    if _guard:
+        st.warning(
+            f"⚠️ The last ledger update ({_guard.get('when', '?')[:16]}) was **refused**: the "
+            f"day's price frame would have re-marked {_guard.get('flips', 0):.1%} of settled "
+            f"historical outcomes, which never legitimately happens — the frame was corrupt "
+            f"(typically a wedged/partial Bloomberg morning; see 2026-08-13). The track record "
+            f"below is intact and simply hasn't gained that day's signals yet; the next clean "
+            f"morning rebuild clears this notice automatically.")
 
     # ---- controls ------------------------------------------------------------------
     c1, c2, c3, c4 = st.columns([1.0, 1.2, 1.6, 0.9])
