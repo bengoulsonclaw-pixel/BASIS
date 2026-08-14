@@ -43,6 +43,31 @@ def main():
     scope = "equities" if args.equities else "ficc"
     prefix = "eq" if scope == "equities" else "ficc"
 
+    # Single-writer lock: two concurrent extend() runs race the yearly parquet rewrites
+    # (last flush wins, the coverage log then masks the lost rows forever). Seen for real
+    # 2026-08-14 when a reboot re-fired the same background job twice.
+    sigcache.STORE_DIR.mkdir(parents=True, exist_ok=True)
+    lock = sigcache.STORE_DIR / f"{prefix}_backfill.lock"
+    if lock.exists():
+        try:
+            other = int(lock.read_text().strip())
+        except Exception:
+            other = None
+        alive = False
+        if other:
+            import ctypes
+            h = ctypes.windll.kernel32.OpenProcess(0x1000, False, other)  # QUERY_LIMITED
+            if h:
+                ctypes.windll.kernel32.CloseHandle(h)
+                alive = True
+        if alive:
+            print(f"Another {scope} backfill is already running (pid {other}) — exiting.")
+            return
+        lock.unlink(missing_ok=True)
+    lock.write_text(str(os.getpid()))
+    import atexit
+    atexit.register(lambda: lock.unlink(missing_ok=True))
+
     if args.rebuild and sigcache.STORE_DIR.exists():
         for p in sigcache.STORE_DIR.glob(f"{prefix}_*.parquet"):
             p.unlink()
