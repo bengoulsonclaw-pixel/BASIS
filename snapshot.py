@@ -187,6 +187,18 @@ def run_equities() -> dict:
                     _sig = eqta.run()
                     print(f"  Technical Analysis: {_cl.shape[1]} names priced "
                           f"(latest settled close {_cl.index.max():%Y-%m-%d}), {len(_sig)} signals.")
+                    # Equities signal cache + ledger top-up. max_days caps the routine
+                    # pull at recent sessions — an incomplete 3y backfill stays with
+                    # backfill_signals.py --equities and can't hijack the daily job.
+                    try:
+                        from src import sigcache, sigledger
+                        if not sigcache.coverage("equities").empty:
+                            sigcache.book_frames(refresh=True, scope="equities")
+                            _n = sigcache.daily_update(log=print, scope="equities", max_days=10)
+                            if _n:
+                                sigledger.rebuild(log=print, scope="equities")
+                    except Exception as _e:
+                        print(f"  (Equities signal cache top-up skipped: {_e})")
         except Exception as e:
             print(f"  (Technical Analysis refresh skipped: {e})")
 

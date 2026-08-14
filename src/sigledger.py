@@ -38,6 +38,11 @@ from . import sigcache, tascore, universe
 DATA = Path(__file__).resolve().parents[1] / "data"
 OUTCOMES_FILE = DATA / "signal_cache" / "ledger_outcomes.parquet"
 
+
+def _outcomes_path(scope: str = "ficc") -> Path:
+    return (DATA / "signal_cache" / "ledger_outcomes_eq.parquet"
+            if scope == "equities" else OUTCOMES_FILE)
+
 HORIZONS = (5, 10, 21)     # sessions ahead a signal is judged at
 SIGMA_WINDOW = 21          # trailing sessions for the daily-σ normalizer
 SIGMA_ABS_CAP = 50.0       # |σ-move| above this is a broken normalizer, not a real move —
@@ -48,12 +53,15 @@ CONFLUENCE = "Confluence"  # the composite's pseudo-strategy name in the ledger
 # ---------------------------------------------------------------------------
 # signal-space series — products + Mean Reversion pair spreads
 # ---------------------------------------------------------------------------
-def _signal_space() -> pd.DataFrame:
-    """The signal-space frame outcomes are measured on: every product's series (yields
-    for FI) plus one 'A / B' column per universe.PAIRS spread, built from the SAME legs
-    Mean Reversion scored on."""
-    sig, _ = sigcache.book_frames()
+def _signal_space(scope: str = "ficc") -> pd.DataFrame:
+    """The signal-space frame outcomes are measured on. FICC: every product's series
+    (yields for FI) plus one 'A / B' column per universe.PAIRS spread, built from the
+    SAME legs Mean Reversion scored on. Equities: the split+dividend-adjusted closes the
+    strategies scored (no pairs — Mean Reversion is FICC-only)."""
+    sig, _ = sigcache.book_frames(scope=scope)
     out = sig.copy()
+    if scope == "equities":
+        return out
     for p in universe.PAIRS:
         a, b = p["a"], p["b"]
         if a in sig.columns and b in sig.columns:
@@ -92,24 +100,25 @@ def _confluence_rows(flagged: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # rebuild — flag everything, measure everything, persist
 # ---------------------------------------------------------------------------
-def rebuild(log=print) -> pd.DataFrame:
-    cov = sigcache.coverage()
+def rebuild(log=print, scope: str = "ficc") -> pd.DataFrame:
+    cov = sigcache.coverage(scope)
     if cov.empty:
-        log("  signal ledger: no signal cache on disk yet — run backfill_signals.py")
+        log(f"  signal ledger[{scope}]: no signal cache on disk yet — run backfill_signals.py"
+            + (" --equities" if scope == "equities" else ""))
         return pd.DataFrame()
     lo, hi = cov["date"].min(), cov["date"].max()
-    rows = sigcache.rows_for(lo, hi)
+    rows = sigcache.rows_for(lo, hi, scope=scope)
     if rows.empty:
         return pd.DataFrame()
 
-    per_strat = tascore.ta_flagged(rows, strategies=sigcache.cacheable_strategies())
-    conf_in = tascore.ta_flagged(rows, strategies=tascore.confluence_set("ficc"))
+    per_strat = tascore.ta_flagged(rows, strategies=sigcache.cacheable_strategies(scope))
+    conf_in = tascore.ta_flagged(rows, strategies=tascore.confluence_set(scope))
     flagged = pd.concat([per_strat, _confluence_rows(conf_in)], ignore_index=True)
     keep = ["date", "strategy", "market", "instruments", "signal", "direction", "metric", "level"]
     flagged = flagged[[c for c in keep if c in flagged.columns]].copy()
     flagged["date"] = pd.to_datetime(flagged["date"])
 
-    lv = _signal_space()
+    lv = _signal_space(scope)
     # Near-zero σ (ffilled holiday runs, pinned/collapsed series) turns a finite move
     # into a ±hundreds-of-σ artifact that poisons every mean downstream. A σ is only a
     # usable normalizer when it's in the product's NORMAL range — require at least 5% of
@@ -139,18 +148,28 @@ def rebuild(log=print) -> pd.DataFrame:
         out = out.drop(columns=[f"chg{h}"])
     out["level"] = out["level"].fillna(out["entry_level"])
 
-    OUTCOMES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    out.sort_values(["date", "strategy", "instruments"]).to_parquet(OUTCOMES_FILE, index=False)
-    log(f"  signal ledger: {len(out):,} flagged signals evaluated "
+    if scope == "equities":
+        # Cached rows carry raw tickers; label with company name + carry the sector so
+        # the page can heat-map by sector (2,600 single-name columns is unreadable).
+        from . import eqta
+        meta = eqta.member_meta()
+        out["sector"] = out["instruments"].map(lambda t: (meta.get(t) or {}).get("sector", "—"))
+        out["market"] = out["instruments"].map(
+            lambda t: (meta.get(t) or {}).get("name", t)).fillna(out["market"])
+
+    path = _outcomes_path(scope)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    out.sort_values(["date", "strategy", "instruments"]).to_parquet(path, index=False)
+    log(f"  signal ledger[{scope}]: {len(out):,} flagged signals evaluated "
         f"({out['date'].min().date()} -> {out['date'].max().date()})")
     return out
 
 
-def load() -> pd.DataFrame:
+def load(scope: str = "ficc") -> pd.DataFrame:
     """The evaluated ledger from disk (empty frame if never rebuilt)."""
-    if not OUTCOMES_FILE.exists():
+    if not _outcomes_path(scope).exists():
         return pd.DataFrame()
-    out = pd.read_parquet(OUTCOMES_FILE)
+    out = pd.read_parquet(_outcomes_path(scope))
     out["date"] = pd.to_datetime(out["date"])
     # Sanitize files written before the rebuild-side ±inf / |σ|-cap guards existed.
     for c in (f"sig{h}" for h in HORIZONS):
@@ -315,11 +334,14 @@ def regime_read(out: pd.DataFrame, recent_years: int = 2, horizon: int = 21,
     return {"text": text, "asof": hi, "cut": cut}
 
 
-def heat(out: pd.DataFrame, horizon: int) -> pd.DataFrame:
-    """strategy × market hit-% grid (long form: strategy, market, n, hit) at `horizon`."""
-    if out is None or out.empty:
+def heat(out: pd.DataFrame, horizon: int, by: str = "market") -> pd.DataFrame:
+    """strategy × `by` hit-% grid (long form: strategy, market, n, hit) at `horizon`.
+    `by='sector'` is the equities view — 2,600 single names don't fit on an axis."""
+    if out is None or out.empty or by not in out.columns:
         return pd.DataFrame()
-    g = (out.groupby(["strategy", "market"], as_index=False)
+    g = (out.groupby(["strategy", by], as_index=False)
          .agg(n=("strategy", "size"), hit=(f"hit{horizon}", "mean")))
+    if by != "market":
+        g = g.rename(columns={by: "market"})
     g["hit"] = g["hit"] * 100.0
     return g.dropna(subset=["hit"])

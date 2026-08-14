@@ -62,14 +62,28 @@ def member_meta() -> dict:
     return out
 
 
+def _merge_history(path: Path, new: pd.DataFrame) -> pd.DataFrame:
+    """Union `new` onto the parquet at `path` — new data wins on overlapping cells, older
+    rows and delisted columns are KEPT. Depth-preserving: a routine 504-session refresh
+    can never truncate the deep multi-year history the signal cache / ledger sit on."""
+    old = pd.read_parquet(path) if path.exists() else pd.DataFrame()
+    if old.empty:
+        return new
+    merged = new.combine_first(old)
+    return merged.sort_index()
+
+
 def backfill(tickers, sessions: int = 504):
-    """Pull ~`sessions` sessions of close + volume for `tickers` from yfinance and cache to parquet.
-    Returns (close, volume) frames, each date x Bloomberg ticker."""
+    """Pull ~`sessions` sessions of close + volume for `tickers` from yfinance and merge
+    into the parquet cache (depth-preserving — see _merge_history). Returns the merged
+    (close, volume) frames, each date x Bloomberg ticker."""
     _DIR.mkdir(parents=True, exist_ok=True)
     close, vol = yfin.get_ohlcv(list(dict.fromkeys(tickers)), sessions=sessions)
     if not close.empty:
+        close = _merge_history(CLOSE_FILE, close)
         close.rename_axis("date").to_parquet(CLOSE_FILE)
     if not vol.empty:
+        vol = _merge_history(VOL_FILE, vol)
         vol.rename_axis("date").to_parquet(VOL_FILE)
     return close, vol
 

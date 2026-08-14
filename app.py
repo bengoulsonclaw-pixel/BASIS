@@ -9064,21 +9064,34 @@ def render_signal_ledger() -> None:
     from src import sigledger
 
     st.subheader("📒  Signal Ledger")
+
+    _SLP = Path("data/sigledger_prefs.json")
+    try:
+        _book_saved = json.loads(_SLP.read_text(encoding="utf-8")).get("book", "FICC")
+    except Exception:
+        _book_saved = "FICC"
+    _book_opts = [_book_saved] + [b for b in ("FICC", "Equities") if b != _book_saved]
+    book = st.radio("Book", _book_opts, horizontal=True, key="sl_book")
+    scope = "equities" if book == "Equities" else "ficc"
+
     st.caption(
         "Every technical signal the TA hub would have flagged, tracked forward: did the market "
-        "go the signal's way 5, 10 and 21 sessions later? Judged in **signal space** — yields "
-        "for fixed income (a Long there means rising yields = short the future, the FI pages' "
-        "convention), pair spreads for Mean Reversion, prices elsewhere — with each move also "
-        "expressed in the product's own trailing-volatility units (σ) so a 2bp SOFR move and a "
-        "$40 gold move compare fairly. FICC book, settlement data. A historical read of the "
-        "signals' accuracy, not investment advice — dollar P&L with exits and sizing lives in "
-        "the TA Backtester."
+        "go the signal's way 5, 10 and 21 sessions later? Judged in **signal space** — "
+        + ("split- and dividend-adjusted closes for every name (the same series the Equities "
+           "TA page scores). "
+           if scope == "equities" else
+           "yields for fixed income (a Long there means rising yields = short the future, the "
+           "FI pages' convention), pair spreads for Mean Reversion, prices elsewhere. ")
+        + "Each move is also expressed in the product's own trailing-volatility units (σ) so "
+          "moves compare fairly across names. A historical read of the signals' accuracy, not "
+          "investment advice — dollar P&L with exits and sizing lives in the TA Backtester."
     )
 
-    out = sigledger.load()
+    out = sigledger.load(scope)
     if out.empty:
-        st.info("No ledger on disk yet — it builds from the signal cache. Run "
-                "`python backfill_signals.py` once (then the morning snapshot keeps it fresh).")
+        st.info("No ledger on disk yet for this book — it builds from the signal cache. Run "
+                f"`python backfill_signals.py{' --equities' if scope == 'equities' else ''}` "
+                "once (then the daily pull keeps it fresh).")
         return
 
     # ---- controls ------------------------------------------------------------------
@@ -9088,7 +9101,7 @@ def render_signal_ledger() -> None:
     _wins = {"All history": None, "Last year": 1, "Last 3 years": 3, "Last 5 years": 5}
     win = c2.selectbox("Window", list(_wins), key="sl_w")
     mkts = c3.multiselect("Products", sorted(out["market"].dropna().unique()),
-                          default=[], key="sl_m", help="Blank = the whole book.")
+                          default=[], key=f"sl_m_{scope}", help="Blank = the whole book.")
     min_n = c4.number_input("Min signals", 1, 500, 25, step=5, key="sl_n",
                             help="League rows with fewer signals than this are hidden — "
                                  "a 3-signal 100% hit rate isn't a track record.")
@@ -9163,8 +9176,9 @@ def render_signal_ledger() -> None:
     if _lb3.button("💾 Save as default", key="sl_prefs_save",
                    help="Make the current League by + Counting the page's landing state "
                         "(here and on the VPS after the next sync)."):
-        _SL_PREFS.write_text(json.dumps({"by": by, "counting": _cnt}), encoding="utf-8")
-        st.toast(f"Ledger default saved: {by} · {_cnt}.", icon="💾")
+        _SL_PREFS.write_text(json.dumps({"by": by, "counting": _cnt, "book": book}),
+                             encoding="utf-8")
+        st.toast(f"Ledger default saved: {book} · {by} · {_cnt}.", icon="💾")
     vote_mode = _cnt != "All signals"
     _lg_src = sigledger.axis_votes(view) if vote_mode else view
     _strat_col = "Axis" if vote_mode else "Strategy"
@@ -9213,7 +9227,7 @@ def render_signal_ledger() -> None:
         if by == "Product":
             pick = st.selectbox(
                 f"🔍 Drill into a product — its per-{'axis' if vote_mode else 'strategy'} breakdown",
-                ["—"] + list(lg.iloc[:, 0]), key="sl_drill")
+                ["—"] + list(lg.iloc[:, 0]), key=f"sl_drill_{scope}")
             if pick != "—":
                 dmin = max(5, int(min_n) // 5)
                 dl = sigledger.league(_lg_src[_lg_src["market"] == pick], "strategy")
@@ -9227,11 +9241,13 @@ def render_signal_ledger() -> None:
                                f"thinner, so the bar here is min {dmin} signals per row "
                                f"(⅕ of the league's, floor 5).")
 
-    # ---- strategy × product heat --------------------------------------------------
-    hm = sigledger.heat(view, horizon)
+    # ---- strategy × product/sector heat --------------------------------------------
+    _heat_by = "sector" if scope == "equities" else "market"
+    hm = sigledger.heat(view, horizon, by=_heat_by)
     hm = hm[hm["n"] >= max(5, min_n // 5)]
     if not hm.empty:
-        st.markdown(f"##### Hit rate by strategy × product ({horizon}d)")
+        st.markdown(f"##### Hit rate by strategy × "
+                    f"{'sector' if scope == 'equities' else 'product'} ({horizon}d)")
         st.altair_chart(alt.Chart(hm).mark_rect().encode(
             x=alt.X("market:N", title=None, sort=alt.SortField("market")),
             y=alt.Y("strategy:N", title=None),

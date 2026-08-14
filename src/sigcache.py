@@ -71,29 +71,32 @@ def _volume_strategies() -> set:
     return set(tabt.VOLUME_STRATEGIES)
 
 
-def cacheable_strategies() -> list:
-    """Every strategy the cache covers, in display order: the backtestable modules plus
-    pair-based Mean Reversion (cached as raw pair rows)."""
+def cacheable_strategies(scope: str = "ficc") -> list:
+    """Every strategy the cache covers for `scope`, in display order: the backtestable
+    modules plus pair-based Mean Reversion (FICC only — no single-name price line to
+    pair on the equities side, same exclusion as the Equities TA page)."""
     from . import tascore
     names = set(_modules()) | {"Mean Reversion"}
+    if scope == "equities":
+        names -= {"Mean Reversion"}
     return [s for s in tascore.TA_STRATEGIES if s in names]
 
 
 # ---------------------------------------------------------------------------
 # store I/O — yearly partitions so the daily append only rewrites one small file
 # ---------------------------------------------------------------------------
-def _rows_path(year: int) -> Path:
-    return STORE_DIR / f"ficc_{year}.parquet"
+def _rows_path(year: int, scope: str = "ficc") -> Path:
+    return STORE_DIR / f"{'eq' if scope == 'equities' else 'ficc'}_{year}.parquet"
 
 
-def _days_path() -> Path:
-    return STORE_DIR / "ficc_days.parquet"
+def _days_path(scope: str = "ficc") -> Path:
+    return STORE_DIR / f"{'eq' if scope == 'equities' else 'ficc'}_days.parquet"
 
 
-def _read_years(years) -> pd.DataFrame:
+def _read_years(years, scope: str = "ficc") -> pd.DataFrame:
     frames = []
     for y in sorted(set(years)):
-        p = _rows_path(y)
+        p = _rows_path(y, scope)
         if p.exists():
             try:
                 frames.append(pd.read_parquet(p))
@@ -106,9 +109,9 @@ def _read_years(years) -> pd.DataFrame:
     return out
 
 
-def coverage() -> pd.DataFrame:
+def coverage(scope: str = "ficc") -> pd.DataFrame:
     """The (date, strategy) pairs the cache has actually computed."""
-    p = _days_path()
+    p = _days_path(scope)
     if not p.exists():
         return pd.DataFrame(columns=["date", "strategy"])
     try:
@@ -119,11 +122,11 @@ def coverage() -> pd.DataFrame:
         return pd.DataFrame(columns=["date", "strategy"])
 
 
-def rows_for(start, end, strategies=None) -> pd.DataFrame:
+def rows_for(start, end, strategies=None, scope: str = "ficc") -> pd.DataFrame:
     """Cached raw rows with date ∈ [start, end] (and strategy ∈ `strategies` if given),
     long frame with a `date` column. Pure disk — no compute."""
     start, end = pd.Timestamp(start), pd.Timestamp(end)
-    out = _read_years(range(start.year, end.year + 1))
+    out = _read_years(range(start.year, end.year + 1), scope)
     if out.empty:
         return out
     out = out[(out["date"] >= start) & (out["date"] <= end)]
@@ -138,21 +141,27 @@ def rows_for(start, end, strategies=None) -> pd.DataFrame:
 _FRAMES_CACHE: dict = {}
 
 
-def book_frames(refresh: bool = False):
-    """(signal_hist, vol_hist) for the WHOLE FICC universe at full deep depth — built
-    exactly the way tabt._load_history builds its frames (get_history_ta / volume feed
-    + deepstore.overlay), so cached rows can never drift from what the backtester's
-    live path would compute on the same data."""
-    if _FRAMES_CACHE and not refresh:
-        return _FRAMES_CACHE["sig"], _FRAMES_CACHE["vol"]
-    uni = sorted(universe.INSTRUMENTS)
-    today = pd.Timestamp.today().normalize()
-    start = today - pd.DateOffset(years=deepstore.STORE_YEARS, days=30)
-    sig = get_history_ta(uni, start=start, end=today)
-    pnl = get_history(uni, start=start, end=today)
-    vol = get_volume_history(uni, start=start, end=today)
-    _, _, sig, vol = deepstore.overlay(uni, start, today, pnl, sig, vol)
-    _FRAMES_CACHE["sig"], _FRAMES_CACHE["vol"] = sig, vol
+def book_frames(refresh: bool = False, scope: str = "ficc"):
+    """(signal_hist, vol_hist) for the WHOLE `scope` universe at full cached depth.
+    FICC: built exactly the way tabt._load_history builds its frames (get_history_ta /
+    volume feed + deepstore.overlay), so cached rows can never drift from what the
+    backtester's live path would compute on the same data. Equities: the eqta parquet
+    cache (split+dividend-adjusted Yahoo closes + volume — the same frames the Equities
+    TA page scores)."""
+    if scope in _FRAMES_CACHE and not refresh:
+        return _FRAMES_CACHE[scope]
+    if scope == "equities":
+        from . import eqta
+        sig, vol = eqta.load_history()
+    else:
+        uni = sorted(universe.INSTRUMENTS)
+        today = pd.Timestamp.today().normalize()
+        start = today - pd.DateOffset(years=deepstore.STORE_YEARS, days=30)
+        sig = get_history_ta(uni, start=start, end=today)
+        pnl = get_history(uni, start=start, end=today)
+        vol = get_volume_history(uni, start=start, end=today)
+        _, _, sig, vol = deepstore.overlay(uni, start, today, pnl, sig, vol)
+    _FRAMES_CACHE[scope] = (sig, vol)
     return sig, vol
 
 
@@ -187,9 +196,9 @@ def compute_day(day, strategies, sig: pd.DataFrame, vol: pd.DataFrame) -> pd.Dat
 # ---------------------------------------------------------------------------
 # building / extending the cache
 # ---------------------------------------------------------------------------
-def missing_pairs(days, strategies) -> list:
+def missing_pairs(days, strategies, scope: str = "ficc") -> list:
     """(day, [strategies-not-yet-computed]) for each day that has gaps."""
-    cov = coverage()
+    cov = coverage(scope)
     have = set(zip(cov["date"], cov["strategy"])) if not cov.empty else set()
     out = []
     for d in days:
@@ -200,49 +209,54 @@ def missing_pairs(days, strategies) -> list:
     return out
 
 
-def _persist(new_rows: pd.DataFrame, done_pairs: list) -> None:
+def _persist(new_rows: pd.DataFrame, done_pairs: list, scope: str = "ficc") -> None:
     """Merge `new_rows` into the yearly partitions (replacing any existing rows for the
     same (date, strategy)) and log `done_pairs` into the coverage file."""
     if not new_rows.empty:
         STORE_DIR.mkdir(parents=True, exist_ok=True)
         for y, chunk in new_rows.groupby(new_rows["date"].dt.year):
-            old = _read_years([y])
+            old = _read_years([y], scope)
             if not old.empty:
                 repl = set(zip(chunk["date"], chunk["strategy"]))
                 old = old[~pd.Series(list(zip(old["date"], old["strategy"])),
                                      index=old.index).isin(repl)]
                 chunk = pd.concat([old, chunk], ignore_index=True)
             chunk.sort_values(["date", "strategy", "instruments"]).to_parquet(
-                _rows_path(int(y)), index=False)
+                _rows_path(int(y), scope), index=False)
     if done_pairs:
         STORE_DIR.mkdir(parents=True, exist_ok=True)
-        cov = coverage()
+        cov = coverage(scope)
         add = pd.DataFrame(done_pairs, columns=["date", "strategy"])
         cov = (pd.concat([cov, add], ignore_index=True)
                .drop_duplicates(["date", "strategy"]).sort_values(["date", "strategy"]))
-        cov.to_parquet(_days_path(), index=False)
+        cov.to_parquet(_days_path(scope), index=False)
 
 
-def extend(days=None, strategies=None, log=print, flush_every: int = 25) -> int:
+def extend(days=None, strategies=None, log=print, flush_every: int = 25,
+           scope: str = "ficc", max_days: int | None = None) -> int:
     """Compute + persist every missing (day, strategy) pair. `days=None` = every session
-    the deep signal frame has; resume-safe (already-computed pairs are skipped) and
-    incremental (persists every `flush_every` days so an interrupted run keeps its work).
-    Returns the number of (day, strategy) pairs computed."""
+    the scope's signal frame has; `max_days` limits to the LAST n sessions of the frame
+    (the routine-refresh guard — an incomplete equities backfill must not hijack the
+    daily pull). Resume-safe (already-computed pairs are skipped) and incremental
+    (persists every `flush_every` days so an interrupted run keeps its work). Returns
+    the number of (day, strategy) pairs computed."""
     import time
-    strategies = list(strategies or cacheable_strategies())
-    sig, vol = book_frames()
+    strategies = list(strategies or cacheable_strategies(scope))
+    sig, vol = book_frames(scope=scope)
     if sig is None or sig.empty:
-        log("  signal cache: no signal history available (deep store missing?) — nothing done")
+        log(f"  signal cache[{scope}]: no signal history available — nothing done")
         return 0
     all_days = sig.dropna(how="all").index
     if days is not None:
         want = {pd.Timestamp(d) for d in days}
         all_days = all_days[all_days.isin(want)]
-    todo = missing_pairs(all_days, strategies)
+    if max_days is not None:
+        all_days = all_days[-max_days:]
+    todo = missing_pairs(all_days, strategies, scope)
     if not todo:
         return 0
     n_pairs = sum(len(s) for _, s in todo)
-    log(f"  signal cache: {len(todo)} days / {n_pairs} (day×strategy) pairs to compute")
+    log(f"  signal cache[{scope}]: {len(todo)} days / {n_pairs} (day×strategy) pairs to compute")
     t0, done, rows_buf, pairs_buf = time.time(), 0, [], []
     for i, (d, strats) in enumerate(todo):
         rows = compute_day(d, strats, sig, vol)
@@ -252,7 +266,7 @@ def extend(days=None, strategies=None, log=print, flush_every: int = 25) -> int:
         done += len(strats)
         if (i + 1) % flush_every == 0 or i == len(todo) - 1:
             _persist(pd.concat(rows_buf, ignore_index=True) if rows_buf
-                     else pd.DataFrame(columns=["date", *KEEP_COLS]), pairs_buf)
+                     else pd.DataFrame(columns=["date", *KEEP_COLS]), pairs_buf, scope)
             rows_buf, pairs_buf = [], []
             rate = done / max(time.time() - t0, 1e-9)
             eta_min = (n_pairs - done) / max(rate, 1e-9) / 60
@@ -260,7 +274,9 @@ def extend(days=None, strategies=None, log=print, flush_every: int = 25) -> int:
     return done
 
 
-def daily_update(log=print) -> int:
+def daily_update(log=print, scope: str = "ficc", max_days: int | None = None) -> int:
     """The compute-phase entry point: cache any sessions not yet covered (normally just
-    today; self-heals longer gaps after a skipped day). Cheap once backfilled."""
-    return extend(log=log)
+    today; self-heals longer gaps after a skipped day). Cheap once backfilled. Equities
+    callers pass `max_days` so a routine pull only tops up recent sessions — deep
+    backfill stays with backfill_signals.py."""
+    return extend(log=log, scope=scope, max_days=max_days)
