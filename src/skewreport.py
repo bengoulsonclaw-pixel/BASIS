@@ -216,7 +216,12 @@ def render_html(df: pd.DataFrame, asof: str, threshold: float = 1.5, hist: pd.Da
         "z": f"{r.z:+.2f}" if pd.notna(r.z) else "—",
         "pctl": f"{int(r.pctl)}" if pd.notna(r.pctl) else "—",
         "signal": r.signal, "direction": int(r.direction),
+        "div": (f"{float(r.vs_bbg):+.2f}"
+                if getattr(r, "src", "") == "own" and pd.notna(getattr(r, "vs_bbg", float("nan")))
+                and abs(float(r.vs_bbg)) >= 0.10 else ""),
     } for r in flagged(df).itertuples(index=False)]
+    own_div = [(r["market"], r["div"]) for r in rows if r["div"]]
+    n_own = int((df.get("src", pd.Series(dtype=str)) == "own").sum())
     return env.get_template("skewreport.html").render(
         asof=pretty_date(asof), src=snapshot_stamp(),
         synopsis=build_synopsis(df),
@@ -226,6 +231,7 @@ def render_html(df: pd.DataFrame, asof: str, threshold: float = 1.5, hist: pd.Da
         wings=wings_png(df),
         history=history_sections(df, hist, asof, ai),
         rows=rows, n_markets=len(df), zflag=f"{threshold:g}",
+        own_div=own_div, n_own=n_own,
         n_rich=int((df["direction"] < 0).sum()), n_cheap=int((df["direction"] > 0).sum()),
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )

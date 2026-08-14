@@ -709,19 +709,16 @@ def _skew_charts(threshold):
     try:
         from src import owncurve as _oc
         _done, _tot = _oc.skew_backfill_progress()
-        _rem = _oc.skew_backfill_remaining()
-        _prog = ("**The own history needs backfilling** before this page can switch source."
-                 if _tot == 0 else
-                 f"**Backfill in progress — {_done}/{_tot} wing-capable products carry a full "
-                 f"year, {_rem} still queued** (~2 each morning)." if _rem > 0 else
-                 f"**Backfill finished ({_done}/{_tot} with a full year)** — awaiting validation "
-                 f"+ switchover (a banner on Home will say so).")
+        _cover = f" ({_done}/{_tot} wing-capable products carry a full year of our history)"
     except Exception:
-        _prog = "**The own history needs backfilling** before this page can switch source."
-    st.caption("⚠️ This page still runs on the **vendor surface's** 90/110% moneyness wings. Since "
-               "28 Jul 2026 we also record **our own settlement-built skew** daily (same Black-76 "
-               "machinery as the Volatility/Term pages — OTM put at 0.90×F, OTM call at 1.10×F, "
-               "interpolated to constant 30d; `data/snapshot/own_skew_history.parquet`). " + _prog)
+        _cover = ""
+    st.caption("Skew runs on **our own settlement-built wings** since 14 Aug 2026 — OTM put at "
+               "0.90×F and OTM call at 1.10×F inverted through Black-76, interpolated to constant "
+               "30d, same machinery as the Volatility/Term pages" + _cover + ". The vendor surface "
+               "backstops per date, FX stays the OTC 25Δ risk reversal, and short-duration bonds "
+               "stay vendor (their ±10% wings are model extrapolation at unlisted strikes — no "
+               "market marks exist to invert). Switchover validation: 28 products, median corr "
+               "+0.83 vs vendor, 94% sign agreement.")
     thr = float(threshold) if threshold is not None else 1.5
     d["flag"] = np.where(d["z"] >= thr, "Rich — sell skew",
                 np.where(d["z"] <= -thr, "Cheap — buy skew", "Neutral"))
@@ -1674,8 +1671,8 @@ def _render_skew_backfill_banner() -> None:
                + ("" if done == total else
                   f"; the other {total - done} (quarterly expiries / sparse wings) reconstructed "
                   "all their listed marks allow")
-               + ". The Skew page still runs on the vendor surface: next step is validation + "
-               "the switchover, whenever you say the word.")
+               + ". The Skew page now runs on our wings (switched 14 Aug 2026, validation on the "
+               "page caption); stragglers keep accruing daily.")
     if c2.button("Dismiss", key="skew_backfill_ack", use_container_width=True):
         try:
             ack.write_text('{"acknowledged": true}')

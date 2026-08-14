@@ -93,7 +93,7 @@
       <tbody>
         {% for r in rows %}
         <tr class="{% if r.direction > 0 %}long{% elif r.direction < 0 %}short{% endif %}">
-          <td class="market">{{ r.market }} <span style="color:#999">· {{ r.asset }}</span></td>
+          <td class="market">{{ r.market }}{% if r.div %} <span title="our wings vs vendor skew: {{ r.div }}" style="color:#8A94A6;font-weight:700">&dagger;</span>{% endif %} <span style="color:#999">· {{ r.asset }}</span></td>
           <td>{{ r.ticker }}</td>
           <td class="center sig">{{ r.signal }}{% if r.direction > 0 %} &#9650;{% elif r.direction < 0 %} &#9660;{% endif %}</td>
           <td class="center">{{ r.put }}</td>
@@ -106,6 +106,12 @@
         {% endfor %}
       </tbody>
     </table>
+    {% if own_div %}
+    <p class="histlegend">&dagger; our settlement-built wings print a materially different skew from
+      the vendor&rsquo;s surface (gap &ge; 0.10) &mdash;
+      {% for m, g in own_div %}<b>{{ m }}</b> {{ g }}{% if not loop.last %} &nbsp;&middot;&nbsp; {% endif %}{% endfor %}.
+      The table shows our numbers, taken from listed settlements.</p>
+    {% endif %}
     {% endif %}
 
     <div class="backpage">
@@ -113,8 +119,9 @@
       <div class="gloss">
         <div><b>Skew</b> &mdash; <b>(90% put &minus; 110% call) / ATM</b>: how much more the market pays
           for downside protection than upside participation; positive = puts the dearer side.</div>
-        <div><b>The wings</b> &mdash; constant-maturity vols at 90% and 110% moneyness off the listed
-          surface; FX uses its native OTC 25&Delta; risk reversal (it has no moneyness surface).</div>
+        <div><b>The wings</b> &mdash; <b>our own</b> constant-30-day vols at the listed strikes nearest
+          90% and 110% moneyness, inverted from option settlements (vendor surface as per-date backstop;
+          FX uses its native OTC 25&Delta; risk reversal — it has no moneyness surface).</div>
         <div><b>z-score &amp; percentile</b> &mdash; how stretched today's skew is against its own
           trailing year; |z| &ge; {{ zflag }} flags a market, the percentile ranks it (100 = most
           put-skewed of the year).</div>
@@ -128,10 +135,16 @@
       </div>
 
       <div class="fine">
-        <b>Sources &amp; timing.</b> All wing and ATM vols are taken from Bloomberg &mdash; the
-        listed-option surface at constant 1-month maturity, 90% / 110% moneyness and ATM (FX: Bloomberg
-        OTC 25&Delta; risk reversals and ATM pair vols).{% if src.settle %} Figures are as of the
-        <b>{{ src.settle }}</b> close{% if src.pulled %}, pulled from Bloomberg on {{ src.pulled }}{% endif %}.{% endif %}
+        <b>Sources &amp; timing.</b> Wing and ATM vols are <b>our own construction</b>{% if n_own %}
+        for {{ n_own }} of the {{ n_markets }} markets{% endif %}: the settlement prices of the listed
+        OTM put nearest 90% and OTM call nearest 110% moneyness, inverted through Black-76 and
+        interpolated to a constant 30 days, over the same fitted ATM as the Volatility Report. The
+        vendor surface backstops any market or date our build cannot price; FX uses its native OTC
+        25&Delta; risk reversal; short-duration bond futures stay on the vendor surface &mdash; their
+        &plusmn;10% wings sit at strikes no exchange lists, so those published values are model
+        extrapolation rather than market marks. &dagger; marks markets where our wings and the
+        vendor's disagree by 0.10+ of skew.{% if src.settle %} Figures are as of the
+        <b>{{ src.settle }}</b> close{% if src.pulled %}, pulled {{ src.pulled }}{% endif %}.{% endif %}
       </div>
 
       <div class="fine">

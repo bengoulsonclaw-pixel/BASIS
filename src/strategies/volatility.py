@@ -80,7 +80,8 @@ DETAIL_COLUMNS = ["market", "ticker", "asset", "region", "iv", "rv",
                   "src", "vs_bbg",   # implied source (own/bbg/otc) + own-vs-surface gap
                   "rv5", "rv_state"]  # 5d realized + decay/heat marker state
 SKEW_DETAIL_COLUMNS = ["market", "ticker", "asset", "region", "put", "call", "atm",
-                       "skew", "z", "pctl", "signal", "direction"]
+                       "skew", "z", "pctl", "signal", "direction",
+                       "src", "vs_bbg"]   # wing source (own/bbg/otc) + own-vs-vendor skew gap
 
 
 def _ord(n: float) -> str:
@@ -418,22 +419,71 @@ def compute_stir_table() -> pd.DataFrame:
     return df
 
 
+OWN_SKEW_FILE = Path(__file__).resolve().parents[2] / "data" / "snapshot" / "own_skew_history.parquet"
+
+
+def _own_skew_overlay(put: pd.DataFrame, call: pd.DataFrame, atm: pd.DataFrame):
+    """Run the skew book on OUR wings where they exist. Overlay the settle-dated
+    own_skew_history components (put90/call110 settlement-inverted, atm = ours30)
+    onto the vendor frames — own-first, vendor-fallback per date. Backfilled to a
+    full year for most wing-capable products (2026-08-14), so the skew z is
+    effectively OURS there from day one; FX (OTC 25Δ RR) and non-wing-capable
+    products (short-duration bonds — the vendor's 90/110 wings there are model
+    extrapolation at unlisted strikes) stay vendor throughout, disclosed via src.
+    Validation at switchover: 28 products / median corr +0.83 / median gap 0.009 /
+    94% sign agreement. Returns blended frames + {last own date, skew gap} meta."""
+    meta: dict = {}
+    try:
+        h = pd.read_parquet(OWN_SKEW_FILE)
+    except Exception:
+        return put, call, atm, meta
+    if h.empty:
+        return put, call, atm, meta
+    h = h.assign(date=pd.to_datetime(h["date"]))
+    out = []
+    for col, vend in (("put", put), ("call", call), ("atm", atm)):
+        piv = h.pivot_table(index="date", columns="ticker", values=col, aggfunc="last")
+        f2 = vend.reindex(vend.index.union(piv.index)).sort_index()
+        for t in piv.columns:
+            s = piv[t].dropna()
+            if s.empty:
+                continue
+            if t not in f2.columns:
+                f2[t] = np.nan
+            f2.loc[s.index, t] = s
+        out.append(f2)
+    for t, g in h.groupby("ticker"):
+        g = g.sort_values("date")
+        last = g["date"].iloc[-1]
+        gap = float("nan")
+        if all(t in d.columns for d in (put, call, atm)):
+            try:
+                v = float(((put[t] - call[t]) / atm[t].replace(0, np.nan)).dropna().loc[:last].iloc[-1])
+                gap = float(g["skew"].iloc[-1]) - v
+            except Exception:
+                pass
+        meta[t] = {"last": last, "vs_bbg": gap}
+    return out[0], out[1], out[2], meta
+
+
 def compute_skew_table() -> pd.DataFrame:
     """Cross-section of the normalized skew (90% put − 110% call)/ATM, z-scored over
-    the same 252-day window (positive = puts richer than calls). Listed markets use
-    the 90/110% moneyness wings off the surface, FX the OTC 25-delta risk reversal.
-    Feeds the report's skew page. z >= +1.5 -> skew rich (sell); z <= -1.5 -> cheap
-    (buy)."""
+    the same 252-day window (positive = puts richer than calls). The wings are OUR
+    OWN settlement-inverted marks wherever the own book covers them (since
+    2026-08-14); the vendor surface backstops per date, FX stays the OTC 25-delta
+    risk reversal. Feeds the report's skew page. z >= +1.5 -> skew rich (sell);
+    z <= -1.5 -> cheap (buy)."""
     tickers = list(INSTRUMENTS)
     comp = get_skew_components(tickers)
     put, call, atm = comp["put"], comp["call"], comp["atm"]
+    put, call, atm, own_meta = _own_skew_overlay(put, call, atm)
     try:
         _persist_skew_history(put, call, atm, get_history(tickers))   # 1y skew + underlying
     except Exception:
         pass
 
-    stale = stale_iv_reasons(atm)                    # skew rides on the ATM surface
-    recs, skipped_stale = [], []
+    stale = stale_iv_reasons(atm)                    # skew rides on the (overlaid) ATM
+    recs, skipped_stale, own_stale = [], [], []
     for t in tickers:
         if _excluded(t, SKEW_EXCLUDE_EXTRA):
             continue
@@ -459,6 +509,19 @@ def compute_skew_table() -> pd.DataFrame:
         else:
             signal, direction = "—", 0
 
+        # which construction produced today's wings (mirrors the vol/term books)
+        meta = own_meta.get(t)
+        skew_last = skew_s.index[-1] if len(skew_s) else None
+        if asset(t) == "FX":
+            src = "otc"
+        elif meta is not None and skew_last is not None and meta["last"] >= skew_last:
+            src = "own"
+        else:
+            src = "bbg"
+            if meta is not None:
+                own_stale.append(name(t))
+        vs_bbg = meta["vs_bbg"] if (src == "own" and meta is not None) else float("nan")
+
         recs.append({
             "market": name(t), "ticker": t, "asset": asset(t), "region": region(t),
             "put": round(put_now, 1), "call": round(call_now, 1), "atm": round(atm_now, 1),
@@ -466,9 +529,12 @@ def compute_skew_table() -> pd.DataFrame:
             "z": round(z, 2) if np.isfinite(z) else np.nan,
             "pctl": round(pctl) if np.isfinite(pctl) else np.nan,
             "signal": signal, "direction": direction,
+            "src": src,
+            "vs_bbg": round(vs_bbg, 3) if np.isfinite(vs_bbg) else np.nan,
         })
 
     warn_stale("Skew Volatility", [f"{name(t)} ({stale[t]})" for t in skipped_stale])
+    warn_stale("Own skew wings", [f"{m} (fell back to vendor wings)" for m in own_stale])
     df = pd.DataFrame(recs, columns=SKEW_DETAIL_COLUMNS)
     if not df.empty:
         order = df["z"].abs().sort_values(ascending=False, na_position="last").index
