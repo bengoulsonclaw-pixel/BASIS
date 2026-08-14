@@ -62,7 +62,19 @@ def main():
         sig, _ = sigcache.book_frames(scope=scope)
         all_days = sig.dropna(how="all").index
         cutoff = all_days.max() - pd.DateOffset(years=args.years)
-        days = list(all_days[all_days >= cutoff])
+        # Warm-up guard: a cached day must sit on a FULL 400-session trailing window
+        # (the hub's view) — days earlier in the frame would be scored on a short
+        # window, and coverage would mark that junk as done forever.
+        from src.datafeed import LOOKBACK_DAYS
+        eligible = all_days[LOOKBACK_DAYS:]
+        days = list(eligible[eligible >= cutoff])
+        if not days:
+            print("No eligible days: the price cache is too shallow for the requested "
+                  "window + the 400-session warm-up. Run with --pull (or lower --years).")
+            return
+        skipped = len(all_days[all_days >= cutoff]) - len(days)
+        if skipped:
+            print(f"  ({skipped} early sessions skipped — inside the 400-session warm-up)")
         print(f"Equities backfill window: {len(days)} sessions "
               f"({days[0]:%Y-%m-%d} -> {days[-1]:%Y-%m-%d})")
 
