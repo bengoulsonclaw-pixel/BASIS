@@ -601,6 +601,8 @@ def _vol_charts(threshold):
                        "(none for Euribor). 1M SOFR / Fed Funds options are too thin for a reliable mark; "
                        "€STR has no listed options.")
 
+    _volresponse_section()
+
     # ---- Relative-value: pick a product, see its vol-correlated peers + their signal ----
     if cm is not None:
         st.markdown("#### Relative-value — what to trade against it")
@@ -742,6 +744,8 @@ def _skew_charts(threshold):
     st.markdown(f"**All markets ranked by skew z-score** &nbsp;·&nbsp; flagged in colour; dashed = trigger (±{thr:g}).")
     _diverging_bars(d, color, thr, "(put − call)/ATM skew · z-score vs 1-yr")
 
+    _skewreal_section()
+
     fl = d[d["flag"] != "Neutral"].reindex(d.loc[d["flag"] != "Neutral", "z"].abs().sort_values(ascending=False).index)
     st.markdown(f"#### Flagged — {len(fl)} opportunit{'y' if len(fl) == 1 else 'ies'} at |z| ≥ {thr:g}")
     if fl.empty:
@@ -761,6 +765,155 @@ def _skew_charts(threshold):
         "market": "Market", "asset": "Asset", "ticker": "Instrument", "put": "Put", "call": "Call",
         "atm": "ATM", "Z": "z (1y)", "pctl": "%ile", "signal": "Signal"})
     st.dataframe(tbl, use_container_width=True, hide_index=True)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _skewreal_table(window: int):
+    from src import skewreal
+    return skewreal.analyze(window)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _volresponse_table():
+    from src import volmove
+    return volmove.response_table()
+
+
+def _volresponse_section():
+    """How vol PERFORMS on a move (Ben, 2026-08-14): down/up betas, the median
+    implied pop on the product's own 2σ+ days, and whether the pop holds — all
+    off our own implied history + the price store, no vendor anywhere."""
+    import altair as alt
+    from src import volmove
+    st.markdown("#### Vol response — what a move pays")
+    df = _volresponse_table()
+    if df is None or df.empty:
+        st.caption("Needs more own-implied history — builds daily.")
+        return
+    show = df.assign(
+        Down=df["down_beta"].map("{:+.2f}".format), Up=df["up_beta"].map("{:+.2f}".format),
+        Pop=[f"{p:+.1f} ({pc:+.0f}%)" if pd.notna(p) else "—"
+             for p, pc in zip(df["big_pop"], df["pop_pct"])],
+        Keep=df["keep5"].map(lambda v: f"{v:+.1f}" if pd.notna(v) else "—"),
+    )[["market", "iv_now", "Down", "Up", "big_n", "Pop", "Keep"]].rename(columns={
+        "market": "Market", "iv_now": "ATM", "Down": "Down-beta /1%", "Up": "Up-beta /1%",
+        "big_n": "2σ+ days", "Pop": "Median pop (of ATM)", "Keep": "Next 5d"})
+    st.dataframe(show, use_container_width=True, hide_index=True, height=420)
+    st.caption("**Down/Up-beta** = vol points implied gains per 1% move that way (positive = vol "
+               "rises — equity vol pays on the downside, energy often on rallies). **Median pop** = "
+               "the implied change on the product's own 2σ+ move days, with its size relative to "
+               "the ATM level in brackets — the cross-product rank. **Next 5d** = what the pop did "
+               "over the following week: positive kept building, negative bled back (gamma paid, "
+               "vega didn't). Everything is computed from our own implied history against settlement "
+               "prices. A cheap-vol flag on a market that responds hard here is a different "
+               "conversation from cheap vol that never wakes up.")
+
+    pick = st.selectbox("Chart a market (biggest big-day pop first)", df["market"].tolist(),
+                        key="vr_pick")
+    tk = df.set_index("market").loc[pick, "ticker"]
+    j = volmove.move_frame(tk, 260)
+    d = j.dropna(subset=["ret", "div"]).copy()
+    d["side"] = np.where(d["ret"] < 0, "down day", "up day")
+    cc = brand.chart_colors()
+    pts = alt.Chart(d.reset_index()).mark_circle(size=30, opacity=0.5, stroke="white",
+                                                 strokeWidth=0.3).encode(
+        x=alt.X("ret:Q", title="daily move (%)"),
+        y=alt.Y("div:Q", title="implied vol change (pts)"),
+        color=alt.Color("side:N", scale=alt.Scale(domain=["down day", "up day"],
+                                                  range=[cc["short"], cc["long"]]),
+                        legend=alt.Legend(title=None, orient="top")),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("ret:Q", format="+.2f"),
+                 alt.Tooltip("div:Q", format="+.2f")])
+    fits = []
+    for sub, lo, hi in ((d[d["ret"] < 0], float(d["ret"].min()), 0.0),
+                        (d[d["ret"] > 0], 0.0, float(d["ret"].max()))):
+        if len(sub) >= 25:
+            g, b = np.polyfit(sub["ret"], sub["div"], 1)
+            fits.append(pd.DataFrame({"ret": [lo, hi], "div": [g * lo + b, g * hi + b]}))
+    fitlayer = [alt.Chart(f).mark_line(color=cc["ink"], strokeDash=[5, 3],
+                                       strokeWidth=1.5).encode(x="ret:Q", y="div:Q")
+                for f in fits]
+    r = df[df["ticker"] == tk].iloc[0]
+    st.markdown(f"**{pick}** — each dot is a day (move vs implied change); dashed = the two "
+                f"half-fits. Down-beta {r['down_beta']:+.2f}, up-beta {r['up_beta']:+.2f} "
+                f"vol-pts per 1%.")
+    ch = pts
+    for f in fitlayer:
+        ch = ch + f
+    brand.show_chart(ch.properties(height=360))
+
+
+def _skewreal_section():
+    """Skew vs the realized spot-vol path (Ben, 2026-08-14): the best-fit line
+    through (underlying, ATM vol) over the window is the REALIZED skew; our own
+    wings charge the implied one. The gap at ±10% moneyness is each wing's
+    richness/cheapness 'on arrival' — when spot reaches the strike, the option is
+    ATM and marks near the then-ATM vol."""
+    import altair as alt
+    from src import skewreal
+    st.markdown("#### Skew vs realized path — are the wings fair?")
+    _wl = st.radio("Fit window", ["3M", "6M", "1Y"], index=1, horizontal=True, key="skr_win",
+                   help="How much history the best-fit line sees. Short = current regime, "
+                        "long = smoother gradient. The changes-beta column is the regime "
+                        "check: when it disagrees with the line's gradient, one trend "
+                        "dominated the window and the verdict is marked ≈ rather than ✓.")
+    win = {"3M": 63, "6M": 126, "1Y": 252}[_wl]
+    df = _skewreal_table(win)
+    if df is None or df.empty:
+        st.caption("No products with own wing marks yet — the skew history builds daily.")
+        return
+    show = df.assign(
+        conf=np.where(df["confident"], "✓", "≈ regime"),
+        Gradient=df["g_lvl"].map("{:+.2f}".format),
+        Chg=df["g_chg"].map("{:+.2f}".format),
+        Put=[f"{w:.1f} vs {p:.1f} → {g:+.1f}" for w, p, g in zip(df["put_wing"], df["pred_put"], df["put_gap"])],
+        Call=[f"{w:.1f} vs {p:.1f} → {g:+.1f}" for w, p, g in zip(df["call_wing"], df["pred_call"], df["call_gap"])],
+    )[["market", "iv_now", "Gradient", "Chg", "r2", "Put", "Call", "conf"]].rename(columns={
+        "market": "Market", "iv_now": "ATM", "Gradient": "Realized grad (per 1%)",
+        "Chg": "Chg-beta", "r2": "r²", "Put": "Put wing vs line → gap",
+        "Call": "Call wing vs line → gap", "conf": "Conf"})
+    st.dataframe(show, use_container_width=True, hide_index=True, height=420)
+    st.caption("**Gap > 0 = the wing looks cheap against the realized path** (the line predicts "
+               "MORE vol at that strike than the wing charges); < 0 = rich. Wings are our own "
+               "settlement-built 90/110% marks; the line is fitted on our own ATM history — "
+               "no vendor surface anywhere in this table. ✓ = the daily-changes beta agrees "
+               "with the line's gradient (sign and within 2×); ≈ = one trending regime "
+               "dominated the window — read the gap with care.")
+
+    pick = st.selectbox("Chart a market (largest wing gap first)", df["market"].tolist(), key="skr_pick")
+    tk = df.set_index("market").loc[pick, "ticker"]
+    j, fit = skewreal.scatter_frame(tk, win)
+    if j is None:
+        st.caption("Not enough joined history for this product at this window.")
+        return
+    cc = brand.chart_colors()
+    pts = alt.Chart(j.reset_index()).mark_circle(size=34, color=cc["series"], opacity=0.45,
+                                                 stroke="white", strokeWidth=0.3).encode(
+        x=alt.X("px:Q", title="underlying", scale=alt.Scale(zero=False)),
+        y=alt.Y("iv:Q", title="ATM vol (%)", scale=alt.Scale(zero=False)),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("px:Q", format=".2f"),
+                 alt.Tooltip("iv:Q", format=".1f")])
+    line = alt.Chart(fit["line"]).mark_line(color=cc["ink"], strokeDash=[5, 3],
+                                            strokeWidth=1.6).encode(x="px:Q", y="iv:Q")
+    wings = alt.Chart(fit["wings"]).mark_point(shape="diamond", size=170, filled=True,
+                                               color=cc["accent"], stroke="white",
+                                               strokeWidth=0.8).encode(
+        x="px:Q", y="iv:Q", tooltip=["kind:N", alt.Tooltip("iv:Q", format=".1f")])
+    preds = alt.Chart(fit["preds"]).mark_point(shape="circle", size=120, filled=False,
+                                               color=cc["ink"], strokeWidth=1.6).encode(
+        x="px:Q", y="iv:Q", tooltip=["kind:N", alt.Tooltip("iv:Q", format=".1f")])
+    st.markdown(f"**{pick}** — dots = the last {_wl} of (underlying, ATM vol); dashed = best fit "
+                "(the realized skew); **gold diamonds = our wing marks at ±10%**; hollow circles = "
+                "where the line says ATM vol trades at those strikes.")
+    brand.show_chart((pts + line + wings + preds).properties(height=380))
+    r = df[df["ticker"] == tk].iloc[0]
+    side = "call" if abs(r["call_gap"]) >= abs(r["put_gap"]) else "put"
+    gap = r[f"{side}_gap"]
+    st.caption(f"Verdict: the **{side} wing** is marked {r[f'{side}_wing']:.1f} where the realized "
+               f"path predicts {r[f'pred_{side}']:.1f} — **{'cheap' if gap > 0 else 'rich'} by "
+               f"{abs(gap):.1f} vols on arrival** (gradient {r['g_lvl']:+.2f}/1%, changes-beta "
+               f"{r['g_chg']:+.2f}, r² {r['r2']:.2f}"
+               + (", regime-flagged — treat as indicative" if not r["confident"] else "") + ").")
 
 
 def _term_charts(threshold):
