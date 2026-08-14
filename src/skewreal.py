@@ -105,6 +105,7 @@ def scatter_frame(ticker: str, window: int = 126):
             "iv": [g * (-WING_PCT) + b, g * WING_PCT + b],
             "kind": ["line at put strike", "line at call strike"],
         }),
+        "now": pd.DataFrame({"px": [s_now], "iv": [iv_now], "kind": ["today — ATM strike"]}),
         "g_lvl": g_lvl, "r2": r2, "g_chg": change_beta(j),
         "s_now": s_now, "iv_now": iv_now,
     }

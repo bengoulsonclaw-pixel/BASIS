@@ -902,10 +902,16 @@ def _skewreal_section():
     preds = alt.Chart(fit["preds"]).mark_point(shape="circle", size=120, filled=False,
                                                color=cc["ink"], strokeWidth=1.6).encode(
         x="px:Q", y="iv:Q", tooltip=["kind:N", alt.Tooltip("iv:Q", format=".1f")])
+    now = alt.Chart(fit["now"]).mark_point(shape="cross", size=200, filled=True,
+                                           color=cc["short"], stroke="white",
+                                           strokeWidth=0.8).encode(
+        x="px:Q", y="iv:Q",
+        tooltip=["kind:N", alt.Tooltip("px:Q", format=".2f"), alt.Tooltip("iv:Q", format=".1f")])
     st.markdown(f"**{pick}** — dots = the last {_wl} of (underlying, ATM vol); dashed = best fit "
-                "(the realized skew); **gold diamonds = our wing marks at ±10%**; hollow circles = "
-                "where the line says ATM vol trades at those strikes.")
-    brand.show_chart((pts + line + wings + preds).properties(height=380))
+                "(the realized skew); **red cross = today's ATM strike** (spot, our ATM vol); "
+                "**gold diamonds = our wing marks at ±10%**; hollow circles = where the line says "
+                "ATM vol trades at those strikes.")
+    brand.show_chart((pts + line + wings + preds + now).properties(height=380))
     r = df[df["ticker"] == tk].iloc[0]
     side = "call" if abs(r["call_gap"]) >= abs(r["put_gap"]) else "put"
     gap = r[f"{side}_gap"]
