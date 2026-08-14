@@ -1,0 +1,2903 @@
+﻿Equities backfill window: 775 sessions (2023-08-14 -> 2026-08-13)
+  signal cache[equities]: 775 days / 11625 (day×strategy) pairs to compute
+.venv\Scripts\python.exe : C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: 
+RuntimeWarning: invalid value encountered in scalar divide
+At line:1 char:360
++ ... dashboard"; .venv\Scripts\python.exe -u backfill_signals.py --equitie ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Ben\On...n scalar divide:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    75/11625 pairs (0.2/s, ~793 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    150/11625 pairs (0.2/s, ~894 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\flag_breakout.py:163: RuntimeWarning: Mean of empty 
+slice
+  flag_v = float(np.nanmean(va[anchor:]))
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    225/11625 pairs (0.2/s, ~851 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\flag_breakout.py:163: RuntimeWarning: Mean of empty 
+slice
+  flag_v = float(np.nanmean(va[anchor:]))
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\flag_breakout.py:163: RuntimeWarning: Mean of empty 
+slice
+  flag_v = float(np.nanmean(va[anchor:]))
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    300/11625 pairs (0.2/s, ~855 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    375/11625 pairs (0.2/s, ~996 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    450/11625 pairs (0.2/s, ~1047 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    525/11625 pairs (0.2/s, ~1033 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    600/11625 pairs (0.2/s, ~1018 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    675/11625 pairs (0.2/s, ~996 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    750/11625 pairs (0.2/s, ~1002 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    825/11625 pairs (0.2/s, ~991 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    900/11625 pairs (0.2/s, ~965 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    975/11625 pairs (0.2/s, ~940 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    1050/11625 pairs (0.2/s, ~940 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+    1125/11625 pairs (0.2/s, ~933 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:30: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: invalid value 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:117: RuntimeWarning: invalid value 
+encountered in scalar divide
+  ma_gap = (fast / slow - 1) * 100                     # crossover strength / conviction
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: invalid value 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+    1200/11625 pairs (0.2/s, ~938 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+    1275/11625 pairs (0.2/s, ~934 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+    1350/11625 pairs (0.2/s, ~922 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+    1425/11625 pairs (0.2/s, ~914 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\obv.py:112: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = price_now / p[-21] - 1.0 if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\mfi.py:84: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  r20 = float(p.iloc[-1] / p.iloc[-21] - 1.0) if len(p) > 21 else 0.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1500/11625 pairs (0.2/s, ~927 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1575/11625 pairs (0.2/s, ~920 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1650/11625 pairs (0.2/s, ~922 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1725/11625 pairs (0.2/s, ~934 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+Equities backfill window: 775 sessions (2023-08-14 -> 2026-08-13)
+  signal cache[equities]: 660 days / 9900 (day×strategy) pairs to compute
+.venv\Scripts\python.exe : C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: 
+RuntimeWarning: divide by zero encountered in scalar divide
+At line:1 char:360
++ ... dashboard"; .venv\Scripts\python.exe -u backfill_signals.py --equitie ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Ben\On...n scalar divide:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+Equities backfill window: 775 sessions (2023-08-14 -> 2026-08-13)
+  signal cache[equities]: 660 days / 9900 (day×strategy) pairs to compute
+.venv\Scripts\python.exe : C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: 
+RuntimeWarning: divide by zero encountered in scalar divide
+At line:1 char:419
++ ... $attempt++; .venv\Scripts\python.exe -u backfill_signals.py --equitie ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\Ben\On...n scalar divide:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    75/9900 pairs (0.1/s, ~1196 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    150/9900 pairs (0.2/s, ~870 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    225/9900 pairs (0.2/s, ~752 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    300/9900 pairs (0.2/s, ~690 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    375/9900 pairs (0.2/s, ~649 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\trend.py:29: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-MOM_WINDOW] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\src\strategies\ma_crossover.py:116: RuntimeWarning: divide by zero 
+encountered in scalar divide
+  mom = px.iloc[-1] / px.iloc[-cfg.mom] - 1.0
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    450/9900 pairs (0.2/s, ~646 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    525/9900 pairs (0.2/s, ~636 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    600/9900 pairs (0.2/s, ~629 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    675/9900 pairs (0.2/s, ~624 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    750/9900 pairs (0.2/s, ~618 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    825/9900 pairs (0.2/s, ~613 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    900/9900 pairs (0.2/s, ~607 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    975/9900 pairs (0.2/s, ~602 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1050/9900 pairs (0.2/s, ~606 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1125/9900 pairs (0.2/s, ~602 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1200/9900 pairs (0.2/s, ~596 min left)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+C:\Users\Ben\OneDrive\Desktop\AI\strategy-dashboard\.venv\Lib\site-packages\pandas\core\nanops.py:1028: 
+RuntimeWarning: invalid value encountered in subtract
+  sqr = _ensure_numeric((avg - values) ** 2)
+    1275/9900 pairs (0.2/s, ~591 min left)
+    1350/9900 pairs (0.2/s, ~586 min left)
+    1425/9900 pairs (0.2/s, ~583 min left)
+    1500/9900 pairs (0.2/s, ~577 min left)
+    1575/9900 pairs (0.2/s, ~572 min left)
+    1650/9900 pairs (0.2/s, ~567 min left)
+    1725/9900 pairs (0.2/s, ~561 min left)
+    1800/9900 pairs (0.2/s, ~554 min left)
+    1875/9900 pairs (0.2/s, ~548 min left)
+    1950/9900 pairs (0.2/s, ~542 min left)
+    2025/9900 pairs (0.2/s, ~541 min left)
+    2100/9900 pairs (0.2/s, ~540 min left)
+    2175/9900 pairs (0.2/s, ~535 min left)
+    2250/9900 pairs (0.2/s, ~531 min left)
+    2325/9900 pairs (0.2/s, ~530 min left)
+    2400/9900 pairs (0.2/s, ~526 min left)
+    2475/9900 pairs (0.2/s, ~521 min left)
+    2550/9900 pairs (0.2/s, ~514 min left)
+    2625/9900 pairs (0.2/s, ~506 min left)
+    2700/9900 pairs (0.2/s, ~499 min left)
+    2775/9900 pairs (0.2/s, ~494 min left)
+    2850/9900 pairs (0.2/s, ~492 min left)
+    2925/9900 pairs (0.2/s, ~487 min left)
+    3000/9900 pairs (0.2/s, ~490 min left)
+    3075/9900 pairs (0.2/s, ~495 min left)
+    3150/9900 pairs (0.2/s, ~498 min left)
+    3225/9900 pairs (0.2/s, ~501 min left)
+    3300/9900 pairs (0.2/s, ~503 min left)
+    3375/9900 pairs (0.2/s, ~506 min left)
+    3450/9900 pairs (0.2/s, ~504 min left)
+    3525/9900 pairs (0.2/s, ~536 min left)
+    3600/9900 pairs (0.2/s, ~527 min left)
+    3675/9900 pairs (0.2/s, ~523 min left)
+    3750/9900 pairs (0.2/s, ~521 min left)
+    3825/9900 pairs (0.2/s, ~514 min left)
+    3900/9900 pairs (0.2/s, ~507 min left)
+    3975/9900 pairs (0.2/s, ~499 min left)
+    4050/9900 pairs (0.2/s, ~492 min left)
+    4125/9900 pairs (0.2/s, ~485 min left)
+    4200/9900 pairs (0.2/s, ~478 min left)
+    4275/9900 pairs (0.2/s, ~471 min left)
+    4350/9900 pairs (0.2/s, ~471 min left)
+    4425/9900 pairs (0.2/s, ~468 min left)
+    4500/9900 pairs (0.2/s, ~461 min left)

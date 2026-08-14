@@ -1,115 +1,75 @@
 # ===========================================================================
-#  BASIS launcher / lifetime supervisor (run via run_dashboard*.bat, hidden).
+#  BASIS launcher (run via run_dashboard*.bat, hidden).
 #
-#  Replaces the old always-open black console: the server now runs INVISIBLY
-#  (its output goes to logs\basis_server.log instead of a console window), and
-#  this script stays alive only to watch for open BASIS windows — once NO window
-#  has been connected to the server for ~30s, it is shut down. Nothing is left
-#  running, but closing one of several open BASIS windows no longer kills it.
+#  Since 2026-08-14 the server itself is owned by the "BASIS Server" logon task
+#  (run_basis_server.ps1 keep-alive loop) — it is ALWAYS on and self-healing, so
+#  clicking any BASIS icon works at any time. This script only has to:
+#    1. make sure that keeper/server is actually up (kick the task if not),
+#    2. open BASIS as its own app window,
+#  and exit. It must NOT port-clear or kill servers — that fights the keeper.
 #
-#  -Mode snapshot   (default) read data/snapshot/, no Bloomberg needed
-#  -Mode bloomberg  live Bloomberg Desktop API (Terminal must be open + logged in)
+#  -Mode snapshot   (default) just ensure + open. The keeper's server runs
+#                   snapshot mode; Bloomberg pulls are on-demand from Home.
+#  -Mode bloomberg  live Desktop-API mode: replaces the running server with a
+#                   DATAFEED_MODE=bloomberg one (the keeper tolerates it while
+#                   it holds port 8501, and revives snapshot mode after it dies).
 # ===========================================================================
 param([string]$Mode = "snapshot")
 
 Set-Location $PSScriptRoot
 
-# Win32 window-title probe: TRUE while any visible top-level window is a BASIS
-# window (installed app, --app window, or a fronted browser tab — all carry
-# "Strategy Monitor" in the title, even on an error page). Get-Process can't do
-# this: app windows live inside the main Chrome process, whose MainWindowTitle
-# only reports one window.
-Add-Type @'
-using System;
-using System.Text;
-using System.Runtime.InteropServices;
-public class BasisWin {
-  delegate bool EnumProc(IntPtr h, IntPtr lp);
-  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc cb, IntPtr lp);
-  [DllImport("user32.dll")] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
-  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
-  public static bool Any() {
-    bool found = false;
-    EnumWindows((h, lp) => {
-      if (!IsWindowVisible(h)) return true;
-      var sb = new StringBuilder(256); GetWindowText(h, sb, 256);
-      if (sb.ToString().Contains("Strategy Monitor")) { found = true; return false; }
-      return true;
-    }, IntPtr.Zero);
-    return found;
-  }
-}
-'@
-$env:DATAFEED_MODE = $Mode
-$env:PYTHONUTF8 = "1"
-if (Test-Path "$PSScriptRoot\playwright-browsers") {
-    $env:PLAYWRIGHT_BROWSERS_PATH = "$PSScriptRoot\playwright-browsers"
-}
-
-# --- keeper-aware fast path (2026-08-10) --------------------------------------
-# The at-logon task "BASIS Server" (run_basis_server.ps1) keeps a healthy snapshot-mode
-# server on :8501 permanently. If one is already ANSWERING, leave it alone: the old
-# stale-code port-clear below KILLED the keeper's healthy server on every launch (the
-# 16:52 incident — user hit ERR_CONNECTION_REFUSED minutes after the keeper was
-# installed). In snapshot mode just open the window and exit — the keeper owns the
-# server's lifetime, so no watch loop is needed either. A bloomberg-mode launch still
-# takes the old path (it needs its OWN server in the right mode); the keeper stands
-# down while the port is busy and takes back over afterwards.
-$server = $null
-$healthy = $false
-if ($Mode -eq "snapshot") {
+function Test-Basis {
     try {
         $r = Invoke-WebRequest -Uri "http://localhost:8501" -UseBasicParsing -TimeoutSec 3
-        if ($r.StatusCode -eq 200) { $healthy = $true }
-    } catch { }
+        return ($r.StatusCode -eq 200)
+    } catch { return $false }
 }
 
-if (-not $healthy) {
-    # --- clear any previous instance still holding port 8501 (stale-code guard;
-    #     reached only when nothing on the port is serving properly) -------------
+if ($Mode -eq "bloomberg") {
+    # live mode wants ITS server on the port: clear it, start bloomberg-mode.
+    # The keeper sees the port occupied and leaves it alone; when this server
+    # eventually dies, the keeper brings snapshot mode back automatically.
     Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue |
         ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
-    Start-Sleep -Seconds 1
-
-    # --- start the server hidden, logging to logs\ ------------------------------
+    Start-Sleep -Seconds 2
+    $env:DATAFEED_MODE = "bloomberg"
+    $env:PYTHONUTF8 = "1"
     New-Item -ItemType Directory -Force -Path "$PSScriptRoot\logs" | Out-Null
-    $server = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\python.exe" `
+    Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\python.exe" `
         -ArgumentList "-m", "streamlit", "run", "app.py", "--server.port", "8501", `
-                      "--server.headless", "true", "--browser.gatherUsageStats", "false" `
-        -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
+                      "--server.headless", "true", "--browser.gatherUsageStats", "false", `
+                      "--server.fileWatcherType", "none" `
+        -WorkingDirectory $PSScriptRoot -WindowStyle Hidden `
         -RedirectStandardOutput "$PSScriptRoot\logs\basis_server.log" `
-        -RedirectStandardError "$PSScriptRoot\logs\basis_server_err.log"
+        -RedirectStandardError "$PSScriptRoot\logs\basis_server_err.log" | Out-Null
+} elseif (-not (Test-Basis)) {
+    # keeper task should be running the server — kick it (no-op if already going)
+    schtasks /Run /TN "BASIS Server" 2>$null | Out-Null
 }
 
-# --- wait until it answers (app.py imports a lot — allow a generous warm-up) --
-$up = $healthy
+# --- wait until the server answers (app.py imports a lot — generous warm-up) --
+$up = $false
 foreach ($i in 1..60) {
-    if ($up) { break }
+    if (Test-Basis) { $up = $true; break }
     Start-Sleep -Seconds 2
-    try {
-        $r = Invoke-WebRequest -Uri "http://localhost:8501" -UseBasicParsing -TimeoutSec 3
-        if ($r.StatusCode -eq 200) { $up = $true; break }
-    } catch { }
-    if ($server -and $server.HasExited) { break }
 }
 if (-not $up) {
     Add-Type -AssemblyName System.Windows.Forms | Out-Null
     [System.Windows.Forms.MessageBox]::Show(
-        "BASIS failed to start - see logs\basis_server_err.log", "BASIS",
+        "BASIS server did not answer - see logs\basis_server_err.log " +
+        "(is the 'BASIS Server' scheduled task enabled?)", "BASIS",
         [System.Windows.Forms.MessageBoxButtons]::OK,
         [System.Windows.Forms.MessageBoxIcon]::Error) | Out-Null
-    if ($server) { try { & taskkill /PID $server.Id /T /F 2>$null | Out-Null } catch { } }
     exit 1
 }
 
-# --- open BASIS as its own app window, tied to this supervisor ----------------
+# --- open BASIS as its own app window ------------------------------------------
 # Preferred: the INSTALLED "BASIS" web app in the user's main Chrome profile —
-# that window carries the real BASIS taskbar icon AND BASIS's own gold title bar
-# (manifest theme_color); a plain --app window ignores both and paints the bar
-# with Chrome's default profile theme instead. The app id is derived by Chrome
-# from start_url http://localhost:8501 and stays stable across reinstalls. The
-# spawned process usually hands off to the already-running Chrome and exits at
-# once — harmless: the connection watcher below owns the server's lifetime.
+# real BASIS taskbar icon + BASIS's own gold title bar (manifest theme_color);
+# a plain --app window ignores both and paints Chrome's default profile theme.
+# The app id is derived by Chrome from start_url http://localhost:8501 and stays
+# stable across reinstalls. Server lifetime is the keeper's job — this script
+# exits as soon as the window is launched.
 $browser = @("C:\Program Files\Google\Chrome\Application\chrome.exe",
              "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
              "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -119,8 +79,8 @@ $appId  = "fkkhajlpfoflidlepdpofgkmlcgcobng"
 $pwaDir = Join-Path $env:LOCALAPPDATA `
     "Google\Chrome\User Data\Default\Web Applications\Manifest Resources\$appId"
 if ($browser -and $browser -like "*chrome.exe" -and (Test-Path $pwaDir)) {
-    $win = Start-Process -FilePath $browser -PassThru -ArgumentList `
-        "--profile-directory=Default", "--app-id=$appId"
+    Start-Process -FilePath $browser -ArgumentList `
+        "--profile-directory=Default", "--app-id=$appId" | Out-Null
 } elseif ($browser) {
     # BASIS app not installed (or Chrome missing): chromeless --app window on a
     # dedicated profile. NB its title bar shows the browser's theme colour, not
@@ -128,40 +88,9 @@ if ($browser -and $browser -like "*chrome.exe" -and (Test-Path $pwaDir)) {
     # app) to get the branded window back.
     $profileDir = Join-Path $env:LOCALAPPDATA "BASIS\app-window-profile"
     New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
-    $win = Start-Process -FilePath $browser -PassThru -ArgumentList `
+    Start-Process -FilePath $browser -ArgumentList `
         "--app=http://localhost:8501", "--window-size=1440,900", `
-        "--user-data-dir=$profileDir", "--no-first-run", "--no-default-browser-check"
+        "--user-data-dir=$profileDir", "--no-first-run", "--no-default-browser-check" | Out-Null
 } else {
-    # No Chrome/Edge at the usual paths: plain browser tab in the default browser.
     Start-Process "http://localhost:8501"
-    $win = $null
 }
-
-# --- keeper mode: the window is open, the keeper task owns the server — done. --
-if (-not $server) { exit 0 }
-
-# --- lifetime: serve while ANY BASIS window is on screen ------------------------
-# Three signals, because each alone has a hole: the spawned $win exits at once
-# when Chrome hands the launch off to a running instance; TCP connections vanish
-# when an OPEN window is sitting on an error/frozen page (killing the server then
-# strands the user — hitting Reload must always work); and the title probe alone
-# would miss the moment between server-up and the window appearing. Shut down
-# only after ~30s with none of the three.
-$idle = 0
-while ($true) {
-    Start-Sleep -Seconds 3
-    if ($server.HasExited) { break }
-    $winAlive = ($win -and -not $win.HasExited)
-    $winOpen  = [BasisWin]::Any()
-    $conns = @(Get-NetTCPConnection -LocalPort 8501 -State Established `
-                   -ErrorAction SilentlyContinue).Count
-    if ($winAlive -or $winOpen -or $conns -gt 0) { $idle = 0; continue }
-    $idle += 3
-    if ($idle -ge 30) { break }
-}
-
-# --- every BASIS window closed -> stop the server (own process tree only) ------
-# No blanket port-8501 sweep here: it raced a concurrent relaunch and killed the
-# NEW instance's healthy server. Orphans are handled by the next launch's
-# port-clear at the top instead.
-try { & taskkill /PID $server.Id /T /F 2>$null | Out-Null } catch { }

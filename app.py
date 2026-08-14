@@ -1761,6 +1761,58 @@ def render_weekly_review() -> None:
             st.caption(f"(Inline preview needs pypdfium2 — {_e})")
 
 
+def _blp_block_probe() -> str | None:
+    """One raw refdata request straight at the Terminal — the ONLY reliable way to
+    tell 'not logged in' from the -4002 workflow-review block (they look identical
+    from a failed pull: both return no data, and the block's signature doesn't
+    always reach the pull's stderr — learned 2026-08-14, nid:19435).
+    Returns the block's nid if -4002 is active, '' if data flows, None if the API
+    isn't answering at all (Terminal closed / logged out / login on another PC)."""
+    try:
+        import blpapi
+        opts = blpapi.SessionOptions()
+        opts.setServerHost("localhost")
+        opts.setServerPort(8194)
+        s = blpapi.Session(opts)
+        if not s.start():
+            return None
+        try:
+            if not s.openService("//blp/refdata"):
+                return None
+            svc = s.getService("//blp/refdata")
+            req = svc.createRequest("ReferenceDataRequest")
+            req.getElement("securities").appendValue("CLA Comdty")
+            req.getElement("fields").appendValue("PX_LAST")
+            s.sendRequest(req)
+            while True:
+                ev = s.nextEvent(8000)
+                if ev.eventType() == blpapi.Event.TIMEOUT:
+                    return None
+                for msg in ev:
+                    t = str(msg)
+                    if "WORKFLOW_REVIEW_NEEDED" in t:
+                        m = re.search(r"nid:(\d+)", t)
+                        return m.group(1) if m else "unknown"
+                    if "PX_LAST" in t:
+                        return ""
+                if ev.eventType() == blpapi.Event.RESPONSE:
+                    return ""
+        finally:
+            s.stop()
+    except Exception:
+        return None
+
+
+def _block_error(nid: str) -> None:
+    st.error(
+        "🚫 **Bloomberg has blocked this account's API usage pending a workflow "
+        f"review** (error -4002, nid:{nid}). The Terminal is fine — every API "
+        "request is rejected until Bloomberg lifts the block.\n\n"
+        "**What to do:** call the Help Desk (HELP HELP in the Terminal) and ask them "
+        "to clear the workflow review, quoting the code and nid above. "
+        "The existing snapshot was **kept** — nothing was overwritten.")
+
+
 def _explain_fetch_failure(out: str, err: str) -> None:
     """Plain-English diagnosis of a failed Bloomberg fetch — the signatures were
     learned from the real production failures of Aug 2026: the -4002 workflow-review
@@ -1798,10 +1850,23 @@ def _explain_fetch_failure(out: str, err: str) -> None:
             "**What to do:** log the Terminal in on THIS machine and keep it open for "
             "the whole Bloomberg phase (~10–15 min), then pull again. " + kept)
     elif "NO price data" in text:
-        st.error(
-            "🖥️ **Bloomberg returned no data at all** — the Terminal wasn't open and "
-            "logged in on this machine when the pull started.\n\n"
-            "**What to do:** open the Terminal, log in, and pull again. " + kept)
+        # empty pull = EITHER not-logged-in OR the -4002 block; only a live raw
+        # request can tell them apart (the block hides from the pull's own log)
+        probe = _blp_block_probe()
+        if probe:
+            _block_error(probe)
+        elif probe == "":
+            st.error(
+                "🖥️ **Bloomberg returned no data during the pull, but is answering "
+                "now** — most likely the Terminal was logged in after the pull had "
+                "already started (or briefly dropped).\n\n"
+                "**What to do:** just pull again — it should work now. " + kept)
+        else:
+            st.error(
+                "🖥️ **Bloomberg isn't answering on this machine** — the Terminal is "
+                "closed, not logged in, or the login is active on another PC.\n\n"
+                "**What to do:** open the Terminal on THIS machine, log in, and pull "
+                "again. " + kept)
     else:
         st.error("Snapshot fetch failed — the log below has the detail. " + kept)
     if n_badsec:
@@ -1861,6 +1926,21 @@ def render_home() -> None:
             out, err = proc.communicate()
             ph.empty()
             return proc.returncode, out, err, (time.time() - t0) / 60
+
+        # Pre-flight: one raw request BEFORE committing to a 10-15 min pull — a
+        # -4002 block or a logged-out Terminal is caught here in ~2s instead of
+        # after a long doomed run that wastes API hits (learned 2026-08-14).
+        _pre = _blp_block_probe()
+        if _pre:
+            _block_error(_pre)
+            return
+        if _pre is None:
+            st.error(
+                "🖥️ **Bloomberg isn't answering on this machine** — the Terminal is "
+                "closed, not logged in, or the login is active on another PC. "
+                "Open it, log in, then pull again. (The pull was NOT started — "
+                "no API hits were spent.)")
+            return
 
         _t_all = time.time()
         rc, _out, _err, _m1 = _phase(

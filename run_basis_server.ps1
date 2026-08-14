@@ -1,20 +1,44 @@
-# BASIS always-on server (installed 2026-08-10, Ben's ask after one ERR_CONNECTION_REFUSED
-# too many): the Windows scheduled task "BASIS Server" runs this at logon, so the app window
-# ALWAYS has a server behind it no matter how it's opened — launcher, taskbar PWA icon,
-# restored window after reboot. Keeps the server alive forever: restarts streamlit if it
-# ever exits; stands down quietly (cheap poll) while another server owns :8501 (e.g. one
-# spawned by launch_basis.ps1), and takes over the moment that one goes away.
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$log = Join-Path $root "data\server_task.log"
+# ===========================================================================
+#  BASIS always-on server keeper (runs hidden via the "BASIS Server" logon task).
+#
+#  WHY: the BASIS icon (installed Chrome app / any shortcut) only opens a WINDOW —
+#  it cannot start the server, so every morning began with ERR_CONNECTION_REFUSED
+#  (recurred all week, Aug 2026). This loop keeps a server on port 8501 at all
+#  times: it starts one if the port is free and restarts it if it ever dies
+#  (crash, sleep/wake casualty, stray kill). Any BASIS window then works at any
+#  moment, with nothing to remember.
+#
+#  Mode: snapshot (reads data/snapshot; Bloomberg pulls are still on-demand from
+#  the Home page). Logs -> logs\basis_server.log / basis_server_err.log.
+#  To stop it for good: disable/delete the "BASIS Server" scheduled task, then
+#  kill the python on port 8501.
+# ===========================================================================
+Set-Location $PSScriptRoot
+$env:DATAFEED_MODE = "snapshot"
+$env:PYTHONUTF8 = "1"
+if (Test-Path "$PSScriptRoot\playwright-browsers") {
+    $env:PLAYWRIGHT_BROWSERS_PATH = "$PSScriptRoot\playwright-browsers"
+}
+New-Item -ItemType Directory -Force -Path "$PSScriptRoot\logs" | Out-Null
+
 while ($true) {
-    $busy = Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue
-    if (-not $busy) {
-        Add-Content $log "$(Get-Date -Format s) starting BASIS server on :8501"
-        $env:DATAFEED_MODE = "snapshot"
-        & "$root\.venv\Scripts\python.exe" -m streamlit run "$root\app.py" `
-            --server.port 8501 --server.headless true --browser.gatherUsageStats false *>> $log
-        Add-Content $log "$(Get-Date -Format s) server exited - restart check in 5s"
-        Start-Sleep -Seconds 5
+    $listening = @(Get-NetTCPConnection -LocalPort 8501 -State Listen `
+                       -ErrorAction SilentlyContinue).Count
+    if ($listening -eq 0) {
+        # fileWatcherType none: the production server must NOT hot-reload — OneDrive
+        # touching repo files raced Streamlit's watcher into KeyError crashes
+        # (run_daily / src.universe / src.strategies) at import and mid-session.
+        # Code changes reach it by restarting the server, not by saving files.
+        $server = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\python.exe" `
+            -ArgumentList "-m", "streamlit", "run", "app.py", "--server.port", "8501", `
+                          "--server.headless", "true", "--browser.gatherUsageStats", "false", `
+                          "--server.fileWatcherType", "none" `
+            -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput "$PSScriptRoot\logs\basis_server.log" `
+            -RedirectStandardError "$PSScriptRoot\logs\basis_server_err.log"
+        # wait while THIS server lives; when it exits (or loses the port) loop around
+        Wait-Process -Id $server.Id -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 5          # breathe before restarting (crash loops)
     } else {
         Start-Sleep -Seconds 15
     }
