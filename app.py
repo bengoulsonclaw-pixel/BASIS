@@ -1041,6 +1041,10 @@ _GROUP_TABS = {
     "Technical Analysis": [("📈 TA Hub", "Technical Analysis"),
                            ("🎯 TA Backtester", "TA Backtester"),
                            ("📒 Signal Ledger", "Signal Ledger")],
+    # Equities mirrors it (Ben 2026-08-15): the eq TA Backtester rides the eq TA module
+    # (the equities Signal Ledger is embedded at the foot of the TA hub page itself).
+    "Equities TA":        [("📈 TA Hub", "eq:Technical Analysis"),
+                           ("🎯 TA Backtester", "eq:TA Backtester")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]]
                           + [("🧪 Vol Backtester", "Vol Backtester")],
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
@@ -11099,13 +11103,14 @@ with st.sidebar:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
         # No "Equities Home" entry — the Equities desk segment (and the logo) already land there.
+        # Technical Analysis carries its tab row (hub + TA Backtester; the equities
+        # Signal Ledger is embedded at the hub's foot) — no separate Backtester entry.
         _nav_button("01 · Technical Analysis", "eq:Technical Analysis")
         _nav_button("02 · Company Fundamentals", "eq:Fundamentals")
         _nav_button("03 · Earnings Calendar", "eq:Earnings")
         _nav_button("04 · Single Stock Correlations", "eq:Correlations")
         _nav_button("05 · Index Dispersion", "eq:Dispersion")
         _nav_button("06 · Client ETFs", "eq:ETFs")
-        _nav_button("07 · TA Backtester", "eq:TA Backtester")
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
     _nav_button("Strategy Builder", "Strategy Builder")
