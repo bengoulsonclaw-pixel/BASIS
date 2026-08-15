@@ -9491,40 +9491,47 @@ def render_signal_ledger(scope: str = "ficc") -> None:
     if lg.empty:
         st.info("No rows clear the min-signals bar — lower it to see thin samples.")
     else:
-        _render_league(lg, _strat_col if by == "Strategy" else by)
+        _display, _fc, _opened = lg, (_strat_col if by == "Strategy" else by), []
+        if vote_mode and by == "Strategy":
+            # Open a sector IN PLACE: its member strategies splice in as indented rows
+            # right under their axis row — one table, same columns and shading.
+            _opened = st.multiselect(
+                "Open sectors — show their member strategies as their own rows",
+                list(lg.iloc[:, 0]), default=[], key=f"sl_axopen_{scope}",
+                help="An opened sector keeps its de-duplicated vote row; the indented "
+                     "rows beneath it are its individual strategies, pooled counting.")
+            if _opened:
+                _frames = []
+                for _, _r in lg.iterrows():
+                    _frames.append(_r.to_frame().T)
+                    _tag = _r.iloc[0]
+                    if _tag in _opened:
+                        _ax = next((a for a, t in tascore.AXIS_TAGS.items() if t == _tag),
+                                   None)
+                        dl = sigledger.league(
+                            view[view["strategy"].isin(set(tascore.TA_AXES.get(_ax, ())))],
+                            "strategy")
+                        dl = dl[dl["n"] >= min_n].sort_values(f"hit{horizon}",
+                                                              ascending=False)
+                        dl.iloc[:, 0] = "└  " + dl.iloc[:, 0].astype(str)
+                        _frames.append(dl)
+                _display = pd.concat(_frames, ignore_index=True)
+                for _c in _display.columns[1:]:
+                    _display[_c] = pd.to_numeric(_display[_c], errors="coerce")
+                _fc = "Axis / strategy"
+        _render_league(_display, _fc)
         st.caption(("One row per (day, product, axis) net call — echoes within an axis "
                     "already collapsed, so these are independent daily votes. "
                     if vote_mode else
                     "Every flagged (day, strategy) row counts once — correlated same-day "
                     "signals from one axis each count in full (see the Counting toggle). ")
+                   + ("Indented └ rows are an opened sector's individual strategies — "
+                      "they pool all their signals, so they can read stronger or weaker "
+                      "than the sector's single de-duplicated daily vote. "
+                      if _opened else "")
                    + "Hit = the signal-space move went the signal's way by the horizon. "
                      "σ-move = the mean signed move in trailing-21-session σ units — the "
                      "honest size of the edge, not just its frequency.")
-
-        # ---- axis drill-downs: each axis league row opens into its member strategies --
-        if vote_mode and by == "Strategy":
-            for _, _r in lg.iterrows():
-                _tag = _r.iloc[0]
-                _ax = next((a for a, t in tascore.AXIS_TAGS.items() if t == _tag), None)
-                _members = set(tascore.TA_AXES.get(_ax, ()))
-                if not _members:
-                    continue
-                _hit = _r[f"hit{horizon}"]
-                with st.expander(
-                        f"{_tag}  ·  "
-                        f"{f'{_hit:.1f}%' if pd.notna(_hit) else '—'} at {horizon}d over "
-                        f"{int(_r['n']):,} votes — open for its member strategies"):
-                    dl = sigledger.league(view[view["strategy"].isin(_members)], "strategy")
-                    dl = dl[dl["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
-                    if dl.empty:
-                        st.info("No member strategy clears the min-signals bar with "
-                                "these filters.")
-                    else:
-                        _render_league(dl, "Strategy")
-                        st.caption("Member strategies pool ALL their signals — the axis "
-                                   "vote above already de-duplicates their same-day "
-                                   "echoes, so members can each read stronger (or weaker) "
-                                   "than the axis's single daily call.")
 
         # ---- product drill-down: which strategies/axes drive that product's record ----
         if by == "Product":
