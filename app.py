@@ -9306,10 +9306,10 @@ def _ledger_cached(scope: str, stamp: float) -> pd.DataFrame:
     return sigledger.load(scope)
 
 
-@st.cache_data(show_spinner="Collapsing to one vote per axis / day …", max_entries=2)
+@st.cache_data(show_spinner="Loading the axis votes …", max_entries=2)
 def _ledger_votes_cached(scope: str, stamp: float) -> pd.DataFrame:
     from src import sigledger
-    return sigledger.axis_votes(_ledger_cached(scope, stamp))
+    return sigledger.load_votes(scope)
 
 
 def _ledger_stamp(scope: str) -> float:

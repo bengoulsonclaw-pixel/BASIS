@@ -65,6 +65,43 @@ def _eq_year_paths() -> list:
     return sorted((DATA / "signal_cache").glob("ledger_outcomes_eq_2*.parquet"))
 
 
+def _votes_paths(scope: str = "ficc") -> list:
+    d = DATA / "signal_cache"
+    return (sorted(d.glob("ledger_votes_eq_2*.parquet")) if scope == "equities"
+            else [d / "ledger_votes.parquet"])
+
+
+def _write_votes(v: pd.DataFrame, scope: str) -> None:
+    """Persist the axis-vote collapse next to the outcomes — collapsing the equities
+    book live costs ~30s of groupby (the page's default counting), so rebuild pays it
+    once and the page just reads."""
+    if v is None or v.empty:
+        return
+    d = DATA / "signal_cache"
+    d.mkdir(parents=True, exist_ok=True)
+    if scope != "equities":
+        v.to_parquet(d / "ledger_votes.parquet", index=False)
+        return
+    slim = v.copy()
+    for c in slim.columns:
+        if slim[c].dtype == "float64":
+            slim[c] = slim[c].astype("float32")
+    for y, chunk in slim.groupby(slim["date"].dt.year):
+        chunk.to_parquet(d / f"ledger_votes_eq_{int(y)}.parquet",
+                         index=False, compression="zstd")
+
+
+def load_votes(scope: str = "ficc") -> pd.DataFrame:
+    """The precomputed axis votes from disk; falls back to a live collapse for stores
+    written before votes were persisted."""
+    have = [p for p in _votes_paths(scope) if p.exists()]
+    if not have:
+        return axis_votes(load(scope))
+    v = pd.concat([pd.read_parquet(p) for p in have], ignore_index=True)
+    v["date"] = pd.to_datetime(v["date"])
+    return v
+
+
 def _write_outcomes(out: pd.DataFrame, scope: str) -> None:
     path = _outcomes_path(scope)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -296,6 +333,7 @@ def rebuild(log=print, scope: str = "ficc", full: bool = False, rescore=()) -> p
             out = merged
     out = out.sort_values(KEY)
     _write_outcomes(out, scope)
+    _write_votes(axis_votes(out), scope)
     log(f"  signal ledger[{scope}]: {len(out):,} flagged signals on file "
         f"({out['date'].min().date()} -> {out['date'].max().date()})")
     return out
