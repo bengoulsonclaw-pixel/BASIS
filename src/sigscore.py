@@ -56,6 +56,9 @@ LAST_FILE = ROOT / "data" / "scorecard_last.json"
 
 WEEK_SESSIONS = 5        # "this week" = the ledger's last 5 sessions
 TREND_WEEKS = 12         # weekly hit-rate bars on the trend chart
+ROLL_SESSIONS = 252      # rolling window (sessions ≈ 1y) for the regime-rotation chart
+ROLL_MIN_N = 200         # rolling points on fewer evaluable signals than this are masked
+ROLL_TOP = 3             # strategies coloured on the rotation chart (rest grey context)
 LEAGUE_MIN_N = 25        # same thin-sample bar as the Signal Ledger page default
 CELL_MIN_N = 25          # heatmap / watch: min signals in a strategy × product cell
 CALLOUT_MIN_N = 40       # callouts quote a single cell — hold them to a higher bar
@@ -143,6 +146,95 @@ def trend_png(out: pd.DataFrame) -> str:
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     return png(fig)
+
+
+def rolling_png(out: pd.DataFrame) -> str:
+    """The regime rotation in one picture: each core strategy's TRAILING-YEAR hit rate
+    (21-session verdicts, rolling ROLL_SESSIONS sessions) through the ledger's whole
+    history. Emphasis styling — the ROLL_TOP strategies leading the CURRENT trailing
+    year are coloured and end-labelled, everything else is grey context; where the lines
+    cross is where signal leadership rotated."""
+    core = out[(out["strategy"] != sigledger.CONFLUENCE) & out["hit21"].notna()]
+    daily = (core.groupby(["strategy", "date"])["hit21"].agg(["sum", "count"])
+             .reset_index())
+    sessions = pd.DatetimeIndex(sorted(core["date"].unique()))
+    curves, currents = {}, {}
+    for s, g in daily.groupby("strategy"):
+        g = g.set_index("date").reindex(sessions).fillna(0.0)
+        hits = g["sum"].rolling(ROLL_SESSIONS).sum()
+        n = g["count"].rolling(ROLL_SESSIONS).sum()
+        curve = (hits / n * 100.0).where(n >= ROLL_MIN_N)
+        if curve.notna().any():
+            curves[s] = curve
+            currents[s] = curve.dropna().iloc[-1]
+    if not curves:
+        return ""
+    top = [s for s, _ in sorted(currents.items(), key=lambda kv: -kv[1])[:ROLL_TOP]]
+    colours = ["#1e8449", "#C8901A", "#1F5FA8"]
+    fig, ax = plt.subplots(figsize=(6.6, 2.5))
+    for s, curve in curves.items():
+        if s not in top:
+            ax.plot(sessions, curve, color="#D2D2D2", lw=0.7, zorder=2)
+    # End labels: the current leaders sit within a point of one another, so labels are
+    # spread to a minimum vertical gap (label y only — the lines stay where they are).
+    ends = []
+    for i, s in enumerate(top):
+        curve = curves[s]
+        ax.plot(sessions, curve, color=colours[i], lw=1.5, zorder=4)
+        last = curve.dropna()
+        ends.append([last.index[-1], float(last.iloc[-1]), s, colours[i]])
+    gap = 3.2
+    for j, e in enumerate(sorted(ends, key=lambda e: e[1])):
+        if j and e[1] - prev_y < gap:                      # noqa: F821 (set below)
+            e[1] = prev_y + gap
+        prev_y = e[1]
+    for x, y, s, col in ends:
+        ax.annotate(f" {s} {curves[s].dropna().iloc[-1]:.0f}%", (x, y),
+                    fontsize=6.2, color=col, va="center", fontweight="bold")
+    ax.axhline(50, color=BLACK, lw=0.9, ls="--", zorder=3)
+    ax.set_ylabel("trailing-1y hit % (21d)", fontsize=7)
+    ax.margins(x=0.01)
+    ax.set_xlim(right=sessions[-1] + (sessions[-1] - sessions[0]) * 0.14)
+    ax.tick_params(labelsize=6)
+    ax.set_title("Trailing-year hit rate through time — where the lines cross, "
+                 "leadership rotated")
+    ax.grid(True, axis="y", color="#ECECEC", linewidth=0.6, zorder=0); ax.set_axisbelow(True)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    return png(fig, dpi=200)
+
+
+def axis_rows(out: pd.DataFrame) -> list:
+    """The de-duplicated view: one vote per (day, product, axis) — the axis's net
+    majority call — full-history vs trailing-year hit rates per axis. The same counting
+    the Signal Ledger page now defaults to: five trend methods echoing one call is one
+    vote here, so no family can flatter the book by shouting."""
+    v = sigledger.axis_votes(out)
+    if v.empty:
+        return []
+    hi = v["date"].max()
+    y1 = v[v["date"] >= hi - pd.DateOffset(years=1)]
+    rows = []
+    for ax_tag, g in v.groupby("strategy"):
+        full_n = int(g["hit21"].notna().sum())
+        if full_n < LEAGUE_MIN_N:
+            continue
+        full_hit = g["hit21"].mean() * 100.0
+        g1 = y1[y1["strategy"] == ax_tag]
+        n1 = int(g1["hit21"].notna().sum())
+        hit1 = g1["hit21"].mean() * 100.0 if n1 >= LEAGUE_MIN_N else None
+        rows.append({"axis": ax_tag, "n": f"{full_n:,}",
+                     "full": f"{full_hit:.1f}%", "full_bg": _cell_bg(full_hit, 50.0, 5.0),
+                     "y1": f"{hit1:.1f}%" if hit1 is not None else "—",
+                     "y1_bg": _cell_bg(hit1, 50.0, 5.0) if hit1 is not None else "",
+                     "delta": f"{hit1 - full_hit:+.1f}pp" if hit1 is not None else "—",
+                     "delta_bg": _cell_bg(hit1 - full_hit, 0.0, 5.0)
+                                 if hit1 is not None else "",
+                     "_sort": hit1 if hit1 is not None else -1})
+    rows.sort(key=lambda r: -r["_sort"])
+    for r in rows:
+        r.pop("_sort")
+    return rows
 
 
 def heat_png(cells: pd.DataFrame) -> str:
@@ -446,6 +538,7 @@ def render_html(out: pd.DataFrame, asof: str, ai_polish: bool = True,
         best_calls=best_calls, worst_calls=worst_calls,
         league=lg_rows, league_labels=lg_labels, has_prev=bool(prev),
         regime=regime_text.replace("**", ""), regime_changed=regime_changed,
+        rotation=rolling_png(out), axes=axis_rows(out),
         heatmap=heat_png(cells) if not cells.empty else "",
         callouts=callouts(cells, prev.get("heat", {})),
         watch=watch, median_note=f"{cells['hit'].median():.0f}%" if len(cells) else "—",

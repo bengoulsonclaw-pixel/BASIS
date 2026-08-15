@@ -87,6 +87,39 @@
       (&middot; = under 0.1pp of movement).</p>
     {% endif %}
 
+    {% if rotation %}
+    <div class="banner">The regime rotation in one picture</div>
+    <div class="section"><div class="chart"><img src="{{ rotation }}" alt="Rolling trailing-year hit rates"></div></div>
+    <p class="chartdesc">Each line is a strategy&rsquo;s trailing-year hit rate at 21 sessions,
+      recomputed every session across the ledger&rsquo;s full history &mdash; the era league
+      above, at full resolution. The current trailing-year leaders are coloured; the grey lines
+      are the rest of the book. Where lines cross, signal leadership rotated &mdash; the reason
+      this scorecard re-reads the regime every week rather than assuming last year&rsquo;s
+      leaders still lead.</p>
+    {% endif %}
+
+    {% if axes %}
+    <div class="banner">One vote per axis &mdash; the de-duplicated read</div>
+    <table>
+      <thead><tr><th>Axis of technical analysis</th><th class="center">Daily votes</th>
+        <th class="center">Full history</th><th class="center">Trailing 1y</th>
+        <th class="center">&Delta; 1y vs full</th></tr></thead>
+      <tbody>
+        {% for r in axes %}
+        <tr><td class="market">{{ r.axis }}</td><td class="center">{{ r.n }}</td>
+          <td class="center" style="{{ r.full_bg }}">{{ r.full }}</td>
+          <td class="center" style="{{ r.y1_bg }}">{{ r.y1 }}</td>
+          <td class="center" style="{{ r.delta_bg }}">{{ r.delta }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="chartdesc">Several methods reading the same dimension often fire on the same day
+      &mdash; five trend confirmations are one opinion, not five. Here each day&rsquo;s methods
+      within an axis collapse to a single net call per product (majority; ties drop out), so
+      these hit rates count independent daily opinions and no family can flatter the book by
+      echoing. The composite is excluded &mdash; it is already a de-duplicated construct.</p>
+    {% endif %}
+
     {% if verdicts %}
     <div class="banner">Verdicts in this week &mdash; how earlier calls resolved</div>
     <table>
