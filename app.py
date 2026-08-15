@@ -4767,6 +4767,11 @@ def render_eq_ta_overview() -> None:
     st.divider()
     _ta_reports(meta, prod, scope="equities", conf_set=_conf)
 
+    # The equities Signal Ledger lives HERE, at the foot of the equities TA module —
+    # kept fully separate from the FICC Trade Testing page (Ben, 2026-08-15).
+    st.divider()
+    render_signal_ledger(scope="equities")
+
 
 def render_eq_strategy(strat: str) -> None:
     """An Equities per-strategy page — the FICC strategy-page layout (quick-nav, per-strategy trigger
@@ -9292,24 +9297,37 @@ def render_ta_backtester(scope: str = "ficc") -> None:
     st.dataframe(tv, hide_index=True, use_container_width=True, height=min(400, 40 + 35 * len(tv)))
 
 
-def render_signal_ledger() -> None:
-    """Signal Ledger: every TA signal the hub would have flagged across ~10y of the FICC book,
-    tracked forward — hit rates by strategy / product + the confluence composite. Reads the
-    precomputed outcomes parquet (src/sigledger.py, rebuilt by the snapshot compute phase);
-    aggregation here is instant pandas, no signal recompute."""
+@st.cache_data(show_spinner="Loading the signal ledger …", max_entries=2)
+def _ledger_cached(scope: str, stamp: float) -> pd.DataFrame:
+    from src import sigledger
+    return sigledger.load(scope)
+
+
+@st.cache_data(show_spinner="Collapsing to one vote per axis / day …", max_entries=2)
+def _ledger_votes_cached(scope: str, stamp: float) -> pd.DataFrame:
+    from src import sigledger
+    return sigledger.axis_votes(_ledger_cached(scope, stamp))
+
+
+def _ledger_stamp(scope: str) -> float:
+    """Cache key: the outcome files' newest mtime — a morning rebuild busts the cache."""
+    from src import sigledger
+    paths = (sigledger._eq_year_paths() if scope == "equities"
+             else [sigledger.OUTCOMES_FILE])
+    return max((p.stat().st_mtime for p in paths if p.exists()), default=0.0)
+
+
+def render_signal_ledger(scope: str = "ficc") -> None:
+    """Signal Ledger: every TA signal the hub would have flagged, tracked forward — hit
+    rates by strategy / product + the confluence composite. FICC = its own Trade Testing
+    page; equities = embedded at the foot of the Equities TA module (fully separate books
+    per Ben). Reads the precomputed outcomes parquets (src/sigledger.py, rebuilt by the
+    daily pulls); aggregation is pandas over cached frames — the 10.7M-row equities book
+    loads once per rebuild, not once per widget click."""
     import altair as alt
     from src import sigledger
 
-    st.subheader("📒  Signal Ledger")
-
-    _SLP = Path("data/sigledger_prefs.json")
-    try:
-        _book_saved = json.loads(_SLP.read_text(encoding="utf-8")).get("book", "FICC")
-    except Exception:
-        _book_saved = "FICC"
-    _book_opts = [_book_saved] + [b for b in ("FICC", "Equities") if b != _book_saved]
-    book = st.radio("Book", _book_opts, horizontal=True, key="sl_book")
-    scope = "equities" if book == "Equities" else "ficc"
+    st.subheader("📒  Signal Ledger" + ("  —  Equities" if scope == "equities" else ""))
 
     st.caption(
         "Every technical signal the TA hub would have flagged, tracked forward: did the market "
@@ -9324,7 +9342,7 @@ def render_signal_ledger() -> None:
           "investment advice — dollar P&L with exits and sizing lives in the TA Backtester."
     )
 
-    out = sigledger.load(scope)
+    out = _ledger_cached(scope, _ledger_stamp(scope))
     if out.empty:
         st.info("No ledger on disk yet for this book — it builds from the signal cache. Run "
                 f"`python backfill_signals.py{' --equities' if scope == 'equities' else ''}` "
@@ -9423,11 +9441,21 @@ def render_signal_ledger() -> None:
     if _lb3.button("💾 Save as default", key="sl_prefs_save",
                    help="Make the current League by + Counting the page's landing state "
                         "(here and on the VPS after the next sync)."):
-        _SL_PREFS.write_text(json.dumps({"by": by, "counting": _cnt, "book": book}),
-                             encoding="utf-8")
-        st.toast(f"Ledger default saved: {book} · {by} · {_cnt}.", icon="💾")
+        _SL_PREFS.write_text(json.dumps({"by": by, "counting": _cnt}), encoding="utf-8")
+        st.toast(f"Ledger default saved: {by} · {_cnt}.", icon="💾")
     vote_mode = _cnt != "All signals"
-    _lg_src = sigledger.axis_votes(view) if vote_mode else view
+    if vote_mode:
+        # Cached full-book votes, then the same row filters as `view` — collapsing 10.7M
+        # equities rows per widget click would drag; filtering after the collapse is
+        # equivalent (both are row filters on date/market).
+        _v = _ledger_votes_cached(scope, _ledger_stamp(scope))
+        if _wins[win]:
+            _v = _v[_v["date"] >= out["date"].max() - pd.DateOffset(years=_wins[win])]
+        if mkts:
+            _v = _v[_v["market"].isin(set(mkts))]
+        _lg_src = _v
+    else:
+        _lg_src = view
     _strat_col = "Axis" if vote_mode else "Strategy"
     lg = sigledger.league(_lg_src, "strategy" if by == "Strategy" else "market")
     lg = lg[lg["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
