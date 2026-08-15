@@ -9501,6 +9501,31 @@ def render_signal_ledger(scope: str = "ficc") -> None:
                      "σ-move = the mean signed move in trailing-21-session σ units — the "
                      "honest size of the edge, not just its frequency.")
 
+        # ---- axis drill-downs: each axis league row opens into its member strategies --
+        if vote_mode and by == "Strategy":
+            for _, _r in lg.iterrows():
+                _tag = _r.iloc[0]
+                _ax = next((a for a, t in tascore.AXIS_TAGS.items() if t == _tag), None)
+                _members = set(tascore.TA_AXES.get(_ax, ()))
+                if not _members:
+                    continue
+                _hit = _r[f"hit{horizon}"]
+                with st.expander(
+                        f"{_tag}  ·  "
+                        f"{f'{_hit:.1f}%' if pd.notna(_hit) else '—'} at {horizon}d over "
+                        f"{int(_r['n']):,} votes — open for its member strategies"):
+                    dl = sigledger.league(view[view["strategy"].isin(_members)], "strategy")
+                    dl = dl[dl["n"] >= min_n].sort_values(f"hit{horizon}", ascending=False)
+                    if dl.empty:
+                        st.info("No member strategy clears the min-signals bar with "
+                                "these filters.")
+                    else:
+                        _render_league(dl, "Strategy")
+                        st.caption("Member strategies pool ALL their signals — the axis "
+                                   "vote above already de-duplicates their same-day "
+                                   "echoes, so members can each read stronger (or weaker) "
+                                   "than the axis's single daily call.")
+
         # ---- product drill-down: which strategies/axes drive that product's record ----
         if by == "Product":
             pick = st.selectbox(
