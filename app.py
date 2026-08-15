@@ -1044,7 +1044,8 @@ _GROUP_TABS = {
     # Equities mirrors it (Ben 2026-08-15): the eq TA Backtester rides the eq TA module
     # (the equities Signal Ledger is embedded at the foot of the TA hub page itself).
     "Equities TA":        [("📈 TA Hub", "eq:Technical Analysis"),
-                           ("🎯 TA Backtester", "eq:TA Backtester")],
+                           ("🎯 TA Backtester", "eq:TA Backtester"),
+                           ("📒 Signal Ledger", "eq:Signal Ledger")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]]
                           + [("🧪 Vol Backtester", "Vol Backtester")],
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
@@ -4773,11 +4774,6 @@ def render_eq_ta_overview() -> None:
     # yfinance OHLCV store) and scored on THIS page's confluence set.
     st.divider()
     _ta_reports(meta, prod, scope="equities", conf_set=_conf)
-
-    # The equities Signal Ledger lives HERE, at the foot of the equities TA module —
-    # kept fully separate from the FICC Trade Testing page (Ben, 2026-08-15).
-    st.divider()
-    render_signal_ledger(scope="equities")
 
 
 def render_eq_strategy(strat: str) -> None:
@@ -11303,6 +11299,9 @@ if auth.REQUIRE_LOGIN and st.session_state.get("_last_logged_page") != active:
 # ----- EQUITIES side: its own home (and future pages), dispatched before the FICC pipeline so the
 # futures report-popup + group-tab switcher never run on the Equities side -----------------------
 if side == "Equities" and active not in _SHARED_DESTS:
+    # The equities modules' own tab rows (e.g. TA Hub / TA Backtester / Signal Ledger) —
+    # the FICC switcher below never runs on this side, so render it here.
+    _render_group_tabs(active)
     if active == "eq:Fundamentals":
         render_eq_fundamentals()
     elif active == "eq:Earnings":
@@ -11317,6 +11316,8 @@ if side == "Equities" and active not in _SHARED_DESTS:
         render_eq_ta_overview()
     elif active == "eq:TA Backtester":
         render_ta_backtester("equities")
+    elif active == "eq:Signal Ledger":
+        render_signal_ledger("equities")
     elif active.startswith("eq:") and active[3:] in tascore.TA_STRATEGIES:
         render_eq_strategy(active[3:])           # per-strategy Equities page (trigger + chart + table)
     else:
