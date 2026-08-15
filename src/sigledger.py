@@ -57,6 +57,31 @@ def _outcomes_path(scope: str = "ficc") -> Path:
     return (DATA / "signal_cache" / "ledger_outcomes_eq.parquet"
             if scope == "equities" else OUTCOMES_FILE)
 
+
+def _eq_year_paths() -> list:
+    """The equities ledger's per-year partitions. The equities book is stored split by
+    year with float32 outcomes + zstd — one 10.7M-row file is ~314MB, over GitHub's
+    100MB hard limit, and the VPS gets its data via git."""
+    return sorted((DATA / "signal_cache").glob("ledger_outcomes_eq_2*.parquet"))
+
+
+def _write_outcomes(out: pd.DataFrame, scope: str) -> None:
+    path = _outcomes_path(scope)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if scope != "equities":
+        out.to_parquet(path, index=False)
+        return
+    slim = out.copy()
+    f32_cols = ("direction", "metric", "level", "entry_level", "sigma",
+                *(f"{p}{h}" for h in HORIZONS for p in ("move", "sig", "hit")))
+    for c in f32_cols:
+        if c in slim.columns:
+            slim[c] = slim[c].astype("float32")
+    for y, chunk in slim.groupby(slim["date"].dt.year):
+        chunk.to_parquet(path.parent / f"ledger_outcomes_eq_{int(y)}.parquet",
+                         index=False, compression="zstd")
+    path.unlink(missing_ok=True)               # retire the legacy single file
+
 HORIZONS = (5, 10, 21)     # sessions ahead a signal is judged at
 SIGMA_WINDOW = 21          # trailing sessions for the daily-σ normalizer
 SIGMA_ABS_CAP = 50.0       # |σ-move| above this is a broken normalizer, not a real move —
@@ -262,9 +287,7 @@ def rebuild(log=print, scope: str = "ficc", full: bool = False, rescore=()) -> p
         out["market"] = out["instruments"].map(
             lambda t: (meta.get(t) or {}).get("name", t)).fillna(out["market"])
 
-    path = _outcomes_path(scope)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not full and path.exists():
+    if not full:
         prior = load(scope)
         if not prior.empty:
             merged = _merge_frozen(prior, out, rescore=rescore, log=log, scope=scope)
@@ -272,7 +295,7 @@ def rebuild(log=print, scope: str = "ficc", full: bool = False, rescore=()) -> p
                 return prior                       # refused — ledger file untouched
             out = merged
     out = out.sort_values(KEY)
-    out.to_parquet(path, index=False)
+    _write_outcomes(out, scope)
     log(f"  signal ledger[{scope}]: {len(out):,} flagged signals on file "
         f"({out['date'].min().date()} -> {out['date'].max().date()})")
     return out
@@ -280,9 +303,12 @@ def rebuild(log=print, scope: str = "ficc", full: bool = False, rescore=()) -> p
 
 def load(scope: str = "ficc") -> pd.DataFrame:
     """The evaluated ledger from disk (empty frame if never rebuilt)."""
-    if not _outcomes_path(scope).exists():
+    if scope == "equities" and (parts := _eq_year_paths()):
+        out = pd.concat([pd.read_parquet(p) for p in parts], ignore_index=True)
+    elif _outcomes_path(scope).exists():           # FICC, or a pre-partition eq file
+        out = pd.read_parquet(_outcomes_path(scope))
+    else:
         return pd.DataFrame()
-    out = pd.read_parquet(_outcomes_path(scope))
     out["date"] = pd.to_datetime(out["date"])
     # Sanitize files written before the rebuild-side ±inf / |σ|-cap guards existed.
     for c in (f"sig{h}" for h in HORIZONS):
