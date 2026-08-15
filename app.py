@@ -1036,7 +1036,9 @@ _GROUP_TABS = {
                            ("🏛️ Fed", "Fed Path"),
                            ("💶 ECB", "ECB Path"),
                            ("💷 BoE", "BoE Path")],
-    "Trade Testing":      [("🧪 Vol Backtester", "Vol Backtester"),
+    # TA Backtester + Signal Ledger live under Technical Analysis (Ben 2026-08-15);
+    # Trade Testing is the Vol Backtester alone, so it needs no tab row.
+    "Technical Analysis": [("📈 TA Hub", "Technical Analysis"),
                            ("🎯 TA Backtester", "TA Backtester"),
                            ("📒 Signal Ledger", "Signal Ledger")],
     "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
@@ -9319,9 +9321,9 @@ def _ledger_stamp(scope: str) -> float:
 
 def render_signal_ledger(scope: str = "ficc") -> None:
     """Signal Ledger: every TA signal the hub would have flagged, tracked forward — hit
-    rates by strategy / product + the confluence composite. FICC = its own Trade Testing
-    page; equities = embedded at the foot of the Equities TA module (fully separate books
-    per Ben). Reads the precomputed outcomes parquets (src/sigledger.py, rebuilt by the
+    rates by strategy / product + the confluence composite. FICC = its own page under the
+    Technical Analysis module's tab row; equities = embedded at the foot of the Equities
+    TA page (fully separate books per Ben). Reads the precomputed outcomes parquets (src/sigledger.py, rebuilt by the
     daily pulls); aggregation is pandas over cached frames — the 10.7M-row equities book
     loads once per rebuild, not once per widget click."""
     import altair as alt
@@ -11060,9 +11062,10 @@ with st.sidebar:
     if _side == "FICC":
         st.markdown('<div class="bt-sect">FICC modules</div>', unsafe_allow_html=True)
         # Market Information (Reports Calendar / Market Hours / Block Sizes / Fut-Yield)
-        # collapses to one entry; STIR Paths (timeline + bank pages) and Trade Testing do the same, numbered
-        # in after the strategy groups. Both carry the tab-row switcher (_render_group_tabs).
-        # Morning Coffee is reached from the Home page's Data row.
+        # collapses to one entry; STIR Paths and Technical Analysis (hub + TA Backtester +
+        # Signal Ledger) do the same, numbered in after the strategy groups, each carrying
+        # the tab-row switcher (_render_group_tabs). Trade Testing is the Vol Backtester
+        # alone. Morning Coffee is reached from the Home page's Data row.
         _nav_button("01 · Market Information", "Release Calendar")
         _nav_button("02 · Confluence", "Confluence")
         _n_mod = 2
