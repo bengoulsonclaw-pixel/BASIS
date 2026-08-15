@@ -1036,12 +1036,13 @@ _GROUP_TABS = {
                            ("🏛️ Fed", "Fed Path"),
                            ("💶 ECB", "ECB Path"),
                            ("💷 BoE", "BoE Path")],
-    # TA Backtester + Signal Ledger live under Technical Analysis (Ben 2026-08-15);
-    # Trade Testing is the Vol Backtester alone, so it needs no tab row.
+    # The old Trade Testing module dissolved (Ben 2026-08-15): TA Backtester + Signal
+    # Ledger live under Technical Analysis, the Vol Backtester under Volatility.
     "Technical Analysis": [("📈 TA Hub", "Technical Analysis"),
                            ("🎯 TA Backtester", "TA Backtester"),
                            ("📒 Signal Ledger", "Signal Ledger")],
-    "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]],
+    "Volatility":         [(s, s) for s in NAV_GROUPS["Volatility"]]
+                          + [("🧪 Vol Backtester", "Vol Backtester")],
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
                            ("🛢️ OPEC Report", "OPEC Report"),
@@ -11094,8 +11095,6 @@ with st.sidebar:
         _nav_button(f"{_n_mod:02d} · Seasonality", "Seasonality")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · STIR Paths", "STIR Timeline")
-        _n_mod += 1
-        _nav_button(f"{_n_mod:02d} · Trade Testing", "Vol Backtester")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
