@@ -9476,10 +9476,21 @@ def render_signal_ledger(scope: str = "ficc") -> None:
             **{col: frame[src].to_numpy() for h in sigledger.HORIZONS
                for col, src in ((f"Hit {h}d", f"hit{h}"), (f"σ-move {h}d", f"sig{h}"))},
         })
+        # Opened-sector member rows (└) get a light BASIS-gold backdrop on their label
+        # cells so they read as a band under their sector — the hit/σ cells keep the
+        # diverging colour code untouched.
+        _label_cols = [c for c in num.columns if c not in hit_cols + sig_cols]
+
+        def _member_bg(row):
+            gold = ("background-color: rgba(245,197,24,0.14)"
+                    if str(row.iloc[0]).lstrip().startswith("└") else "")
+            return [gold if c in _label_cols else "" for c in row.index]
+
         sty = (num.style
                .format({"Signals": "{:,.0f}",
                         **{c: "{:.1f}%" for c in hit_cols},
                         **{c: "{:+.2f}" for c in sig_cols}}, na_rep="—")
+               .apply(_member_bg, axis=1)
                # hits: 50% = coin flip = neutral; ±5pp = full colour
                .map(lambda v: _div_bg(v, 50.0, 5.0), subset=hit_cols)
                # σ-moves deliberately DON'T get the fill (Ben: make the two measures look
