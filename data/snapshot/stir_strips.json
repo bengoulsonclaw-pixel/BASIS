@@ -42,7 +42,22 @@
   "SFIU8": 95.715,
   "SFIZ8": 95.7,
   "SFIH9": 95.685,
-  "SFIM9": 95.67
+  "SFIM9": 95.67,
+  "TKYM6": 97.81,
+  "TKYU6": 97.5525,
+  "TKYZ6": 97.3975,
+  "TKYH7": 97.295,
+  "TKYM7": 97.25,
+  "TKYU7": 97.245,
+  "TKYZ7": 97.2625,
+  "TKYH8": 97.27,
+  "TKYM8": 97.2675,
+  "TKYU8": 97.26,
+  "TKYZ8": 97.2475,
+  "TKYH9": 97.2275,
+  "TKYM9": 97.2125,
+  "TKYU9": 97.1975,
+  "TKYZ9": 97.18
  },
  "settles": {},
  "source": "manual entry from Terminal by Ben (pull blocked -4002 nid:19433)"

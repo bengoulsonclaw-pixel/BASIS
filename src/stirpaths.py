@@ -100,10 +100,13 @@ BANKS: dict[str, Bank] = {
     # FED 3.625 = 3.50-3.75 target band, confirmed off WIRP 14 Aug 2026.
     "FED": Bank("FED", "Federal Reserve", "FOMC", "Target band midpoint",
                 fedpath.FOMC_DECISIONS, 3.625, 25.0, "$"),
+    # ECB 2.25 / BOE 3.75 derived 15 Aug 2026 from the realized front arrears
+    # contracts Ben supplied (TKYM6 97.81 -> ESTR ~2.17 = depo-8bp; SFIM6
+    # 96.2525 -> SONIA ~3.75) — pending Ben's on-screen confirmation.
     "ECB": Bank("ECB", "European Central Bank", "Governing Council", "Deposit facility rate",
-                ECB_DECISIONS, 2.00, 25.0, "€"),
+                ECB_DECISIONS, 2.25, 25.0, "€"),
     "BOE": Bank("BOE", "Bank of England", "MPC", "Bank Rate",
-                BOE_DECISIONS, 4.00, 25.0, "£"),
+                BOE_DECISIONS, 3.75, 25.0, "£"),
 }
 
 
@@ -132,16 +135,21 @@ PRODUCTS: dict[str, Product] = {
                            "sofr1m", False, False, 41.67, "#64B5F6", in_strip=False),
     "FFA Comdty":  Product("FFA Comdty", "30-Day Fed Funds", "FF", "FED", "FF",
                            "fedfunds", False, False, 41.67, "#81C784", in_strip=False),
+    # ER spread 15bp MEASURED off the 14-Aug-2026 real strips (ER vs ESTR-fair
+    # implied +14.5/+14.9/+15.6bp on the liquid quarterlies); was 10, which made
+    # the joint ECB fit dump phantom moves into late meetings. Page-tunable.
     "ERA Comdty":  Product("ERA Comdty", "3M Euribor", "ER", "ECB", "ER",
-                           "euribor", True, True, 25.0, "#BA68C8", spread_bp=10.0),
+                           "euribor", True, True, 25.0, "#BA68C8", spread_bp=15.0),
     "TKYA Comdty": Product("TKYA Comdty", "3M €STR", "€STR", "ECB", "TKY",
                            "estr", True, True, 25.0, "#4DD0E1", has_options=False),
     "SFIA Comdty": Product("SFIA Comdty", "3M SONIA", "SONIA", "BOE", "SFI",
                            "sonia", True, True, 25.0, "#FF8A65"),
 }
 # Overnight proxy vs the policy rate, in bp (page-tunable; these seed the input):
-# SOFR ≈ target mid + 0 · €STR ≈ depo − 8 · SONIA ≈ Bank Rate − 5.
-BANK_BASIS_SEED = {"FED": 0.0, "ECB": -8.0, "BOE": -5.0}
+# SOFR ≈ target mid + 0 · €STR ≈ depo − 8 · SONIA ≈ Bank Rate + 0 (the −5 seed
+# left a −4.7bp phantom on the BoE front fit vs the realized SFIM6 window —
+# SONIA is fixing AT Bank Rate on the real 14-Aug-2026 data).
+BANK_BASIS_SEED = {"FED": 0.0, "ECB": -8.0, "BOE": 0.0}
 
 
 def bank_products(bank: str) -> list[Product]:
