@@ -212,6 +212,8 @@ SPECS: dict[str, dict] = {
                 "time": ("18:00", "Brussels")},
     "sonia":   {"cycle": _q(), "fut": ("bdays_before_nth_wd", 1, 3, WED),   # backward-looking
                 "opt": ("kth_wd_before_nth_wd", FRI, 1, 3, WED), "opt_cycle": _all(), "time": ("18:00", "London")},
+    "sonia1m": {"cycle": _all(), "fut": ("last_bday",),                     # ICE 1M SONIA: calendar-month avg,
+                "time": ("18:00", "London")},                               # futures-only, no listed options
     # ── Rates — US Treasuries (CBOT), Euro govvies (Eurex), Long Gilt (ICE) ───────────────
     "ust_short": {"cycle": _q(), "fut": ("last_bday",),                     # TU / FV: last bday of month
                   "opt": ("last_wd_prior", FRI, 1), "opt_cycle": _all(), "time": ("12:01", "CT")},

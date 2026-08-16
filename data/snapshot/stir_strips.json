@@ -108,7 +108,17 @@
   "SOOU7": 95.73,
   "SOOV7": 95.72,
   "SOOX7": 95.715,
-  "SOOZ7": 95.725
+  "SOOZ7": 95.725,
+  "ERQ6": 97.485,
+  "ERV6": 97.34,
+  "ERX6": 97.29,
+  "ERF7": 97.195,
+  "TKYK6": 97.89,
+  "TKYN6": 97.725,
+  "TKYQ6": 97.64,
+  "TKYV6": 97.5125,
+  "TKYX6": 97.465,
+  "TKYF7": 97.36
  },
  "settles": {},
  "source": "manual entry from Terminal by Ben (pull blocked -4002 nid:19433)"

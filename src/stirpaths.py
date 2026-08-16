@@ -202,6 +202,47 @@ def strip(prod: Product, asof: date, n: int = 8) -> list[Contract]:
     return out
 
 
+# Quarterly products whose SERIAL (non-IMM) months actually list and trade —
+# confirmed on the Terminal 15 Aug 2026 (ERV6/ERX6…, TKYN6/TKYQ6/TKYV6…). Each
+# serial has a full [3rd Wed, +3M) window one month offset from its quarterly
+# neighbours, so consecutive serials DIFFERENCE out single months — the per-
+# meeting pinning the quarterly strip alone cannot do.
+SERIAL_FIT_PRODUCTS = {"ERA Comdty", "TKYA Comdty"}
+
+
+def pull_universe(asof: date) -> list[tuple["Product", Contract]]:
+    """EVERY contract the morning pull fetches and the store must carry — the
+    SINGLE source of truth shared by refresh_strip_store and (as a superset)
+    fit_instruments. Quarterlies 12 deep, monthlies 13 (the fit's monthly cap),
+    serial months for SERIAL_FIT_PRODUCTS, ALL products including fit-excluded
+    ones (SOO is stored for display even though the fit drops its marks).
+    Divergence between pull and fit silently starved the fit of serials once —
+    keep both sides on this function."""
+    out: list[tuple[Product, Contract]] = []
+    for p in PRODUCTS.values():
+        for c in strip(p, asof, 12 if p.quarterly else 13):
+            out.append((p, c))
+        if p.quarterly and p.ticker in SERIAL_FIT_PRODUCTS:
+            for c in serial_strip(p, asof):
+                out.append((p, c))
+    return out
+
+
+def serial_strip(prod: Product, asof: date, months: int = 10) -> list[Contract]:
+    """The serial (non-IMM-month) contracts of a quarterly product still trading
+    at `asof` — same window construction as the quarterlies, off-cycle months.
+    Looks a quarter back too: arrears serials outlive their named month."""
+    out = []
+    y, m = _add_months(asof.year, asof.month, -3)
+    for _ in range(months + 3):
+        if m not in (3, 6, 9, 12):
+            c = quarterly_contract(prod, y, m)
+            if fut_last_trade(prod, c) >= asof:
+                out.append(c)
+        y, m = _add_months(y, m, 1)
+    return out
+
+
 # ── expiry timeline (rule-generated, holiday-aware — src/expiries.py) ────────────────
 @dataclass(frozen=True)
 class ExpiryRow:
@@ -275,10 +316,25 @@ def meetings_between(bank: Bank, a: date, b: date) -> list[date]:
     return [m for m in bank.meetings if a < m <= b]
 
 
+def bank_effective_date(bank: Bank | str, m: date) -> date:
+    """When a decision actually hits the overnight fixing — per-bank convention:
+    Fed and ECB next business day, BoE SAME day (announced noon, effective
+    immediately). A following-Wednesday MRO rule for the ECB was tried and
+    REJECTED by validation: hand-solving the €STR serial pair against the
+    14-Aug-2026 market reproduces WIRP's front odds exactly under next-bday
+    (91% vs 91.9), and degrades ~25pts under following-Wednesday — the market
+    prices €STR as moving the day after the decision."""
+    key = bank if isinstance(bank, str) else bank.key
+    if key == "BOE":
+        return m
+    return effective_date(m)
+
+
 def meetings_in_window(bank: Bank, c: Contract) -> list[date]:
-    """Decisions whose EFFECTIVE date (next bday) lands inside the contract's
-    reference window — the ones that move its settlement."""
-    return [m for m in bank.meetings if c.start <= effective_date(m) < c.end]
+    """Decisions whose EFFECTIVE date (bank convention, see bank_effective_date)
+    lands inside the contract's reference window — the ones that move its
+    settlement."""
+    return [m for m in bank.meetings if c.start <= bank_effective_date(bank, m) < c.end]
 
 
 # ── market-implied path + odds (per bank, meetings parameterised) ────────────────────
@@ -291,12 +347,15 @@ class BankImplied:
     cum_bp: np.ndarray
     fair_price: np.ndarray
     residual_bp: np.ndarray
+    stub: float | None = None   # realized pre-asof o/n average: solved (solve_stub),
+                                # passed (stub_rate) or None (nothing elapsed / legacy)
 
 
 def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
                  asof: date, asof_rate: float,
                  spreads_bp: list[float] | None = None,
-                 stub_rate: float | None = None) -> BankImplied:
+                 stub_rate: float | None = None,
+                 solve_stub: bool = False, lam: float = 5e-3) -> BankImplied:
     """fedpath.implied_path with the meeting calendar (and optional per-contract
     settlement-index spread, e.g. Euribor−€STR) parameterised. Linear (simple-avg)
     form, L[0] pinned to `asof_rate` — see fedpath for the derivation.
@@ -307,24 +366,43 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
     front contract, which least squares then shoves into the next meeting's
     implied odds — wrong exactly in the weeks after a move. A single average is
     exact: the realized days enter the settlement linearly, so only their sum
-    matters."""
+    matters.
+
+    `solve_stub=True` estimates that realized average FROM the contracts instead
+    (an extra unsmoothed unknown, lightly ridged toward `asof_rate`): the front
+    arrears quarterly + front monthlies carry ~half their weight on elapsed days,
+    which identifies it well — the market tells us what already fixed, no
+    fixings feed needed. Ignored when `stub_rate` is given or nothing elapsed."""
     spreads = spreads_bp or [0.0] * len(contracts)
     # asof <= m: on DECISION DAY the meeting stays in the fit all day — the strip
     # prices the move until the announcement, and dropping it at midnight shoved
     # ~a full step of front-contract pricing into the wrong meeting's odds.
     decisions = [m for m in bank.meetings if asof <= m < max(c.end for c in contracts)]
-    bounds = [effective_date(m) for m in decisions]
+    bounds = [bank_effective_date(bank, m) for m in decisions]
     n_seg = len(bounds) + 1
+    solving = solve_stub and stub_rate is None
 
     W = np.zeros((len(contracts), n_seg))
     const = np.zeros(len(contracts))               # realized-stub contribution (rate %·days)
+    # solve_stub: one realized-average unknown PER DISTINCT WINDOW START among
+    # the elapsed spans — a single shared scalar cannot represent contracts
+    # whose elapsed days cover different slices of history once a policy move
+    # sits between their starts (front quarterly from the IMM date, serials a
+    # month later, monthlies from month-start: measured 3-4bp of phantom odds
+    # in the weeks after a move with one scalar).
+    starts = sorted({c.start for c in contracts if c.start < asof}) if solving else []
+    g_of = {s: gi for gi, s in enumerate(starts)}
+    Wstub = np.zeros((len(contracts), max(1, len(starts))))
     for ci, c in enumerate(contracts):
         days = list(_daterange(c.start, c.end))
         if not days:
             continue
         for d in days:
-            if stub_rate is not None and d < asof:
-                const[ci] += stub_rate
+            if d < asof and (solving or stub_rate is not None):
+                if solving:
+                    Wstub[ci, g_of[c.start]] += 1.0
+                else:
+                    const[ci] += stub_rate
                 continue
             s = 0
             for b in bounds:
@@ -334,35 +412,67 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
                     break
             W[ci, s] += 1.0
         W[ci, :] /= len(days)
+        Wstub[ci, :] /= len(days)
         const[ci] /= len(days)
+
+    n_stub = len(starts)
+    if solving and (n_stub == 0 or Wstub.sum() <= 0):   # nothing elapsed
+        solving = False
+        n_stub = 0
 
     y = np.array([100.0 - p - sp / 100.0 for p, sp in zip(prices, spreads)])
     rhs = y - const - W[:, 0] * asof_rate
-    if n_seg > 1:
+    stub_out = stub_rate
+    stub_vec = None
+    if n_seg > 1 or solving:
         # The system is usually under-determined (more meetings than contracts), and
         # min-norm lstsq wanders freely inside the null space. A tiny second-difference
         # penalty on the segment levels selects the SMOOTHEST fit consistent with the
         # prices — it leaves the cumulative path unbiased and residuals essentially
-        # untouched, but kills the alternating per-meeting wiggle.
-        lam = 5e-3
+        # untouched, but kills the alternating per-meeting wiggle. The stub unknowns
+        # (leading cols when solving) are kept OUT of the smoothing and instead get a
+        # light ridge toward asof_rate so degenerate elapsed coverage can't blow up.
+        n_unk = n_stub + (n_seg - 1)
+        A_data = np.hstack([Wstub[:, :n_stub], W[:, 1:]]) if solving else W[:, 1:]
+        rows = [A_data]
+        rhss = [rhs]
         if n_seg >= 3:
             D2 = np.zeros((n_seg - 2, n_seg))
             for i in range(n_seg - 2):
-                D2[i, i], D2[i, i + 1], D2[i, i + 2] = 1.0, -2.0, 1.0
-            A = np.vstack([W[:, 1:], lam * D2[:, 1:]])
-            b = np.concatenate([rhs, -lam * D2[:, 0] * asof_rate])
+                # Ramp: base weight over the front (where dedicated monthlies
+                # genuinely pin meetings), rising with distance — far meetings
+                # sit past the liquid monthlies, and sub-bp noise in far marks
+                # otherwise prints as double-digit phantom odds out there.
+                w = 1.0 + max(0, i - 3) * 0.75
+                D2[i, i], D2[i, i + 1], D2[i, i + 2] = w, -2.0 * w, w
+            D2u = lam * D2[:, 1:]
+            if solving:
+                D2u = np.hstack([np.zeros((D2u.shape[0], n_stub)), D2u])
+            rows.append(D2u)
+            rhss.append(-lam * D2[:, 0] * asof_rate)
+        if solving:
+            mu = 0.02
+            ridge = np.zeros((n_stub, n_unk))
+            for gi in range(n_stub):
+                ridge[gi, gi] = mu
+            rows.append(ridge)
+            rhss.append(np.full(n_stub, mu * asof_rate))
+        sol, *_ = np.linalg.lstsq(np.vstack(rows), np.concatenate(rhss), rcond=None)
+        if solving:
+            stub_vec = sol[:n_stub]
+            stub_out = float(stub_vec[0])           # front window's realized average
+            seg = np.concatenate([[asof_rate], sol[n_stub:]])
         else:
-            A, b = W[:, 1:], rhs
-        sol, *_ = np.linalg.lstsq(A, b, rcond=None)
-        seg = np.concatenate([[asof_rate], sol])
+            seg = np.concatenate([[asof_rate], sol])
     else:
         seg = np.array([asof_rate])
 
-    fair = np.array([100.0 - const[ci] - float(W[ci] @ seg) - spreads[ci] / 100.0
+    stub_w = (Wstub[:, :n_stub] @ stub_vec) if (solving and stub_vec is not None) else const
+    fair = np.array([100.0 - stub_w[ci] - float(W[ci] @ seg) - spreads[ci] / 100.0
                      for ci in range(len(contracts))])
     residual_bp = (np.array(prices) - fair) * 100.0
     return BankImplied(contracts, decisions, seg, np.diff(seg) * 100.0,
-                       (seg[1:] - seg[0]) * 100.0, fair, residual_bp)
+                       (seg[1:] - seg[0]) * 100.0, fair, residual_bp, stub_out)
 
 
 def implied_odds(per_meeting_bp: float, step_bp: float = 25.0) -> tuple[str, float]:
@@ -710,9 +820,7 @@ def refresh_strip_store(asof: date) -> int:
         return 0
     try:
         from xbbg import blp
-        contracts: list[Contract] = []
-        for p in PRODUCTS.values():
-            contracts += strip(p, asof, 12)
+        contracts = [c for _, c in pull_universe(asof)]
         tickers = [f"{c.code} Comdty" for c in contracts]
         df = blp.bdp(tickers, ["PX_LAST", "PX_SETTLE"])
         if df is None or df.empty:
@@ -807,21 +915,156 @@ MEETING_HISTORY = Path(__file__).resolve().parents[1] / "data" / "stir_meeting_h
 _HISTORY_KEEP_DAYS = 40
 
 
-def default_bank_fit(bank_key: str, asof: date) -> BankImplied | None:
-    """The bank's implied path off its default quarterly strip and default rate,
-    priced from the store/mock — the fit the home page and ledger share."""
+# Contracts whose settles are exchange MARKS with no open interest (dead 1M
+# SONIA): including them DRAGS the fit off the liquid market — SOO's Sep-26 mark
+# priced zero hike odds while the 3M strip and OIS both said ~+20%.
+FIT_EXCLUDE = {"SOOA Comdty"}
+
+
+def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
+                    override_prices: dict | None = None):
+    """(owners, contracts, spreads_bp, prices): EVERY liquid instrument the
+    bank's market odds should be fit from — quarterly strips, SR1/FF monthlies,
+    ER/€STR serials — independent of what any page DISPLAYS. Store-aware: with
+    a live store only store-priced (or page-overridden) contracts enter; a
+    silent per-contract mock fallback would pollute a real fit. In demo mode
+    everything enters (the mock generator is self-consistent)."""
     bank = BANKS[bank_key]
-    prods = [p for p in bank_products(bank_key) if p.in_strip and p.quarterly]
-    if not prods:
+    if r0 is None:
+        r0 = bank.default_rate + BANK_BASIS_SEED[bank_key] / 100.0
+    store = _load_strip_store()
+    have = set(store.get("prices", {})) | set(store.get("settles", {}))
+    live = bool(have)
+    ov = override_prices or {}
+    owners, contracts, spreads, prices = [], [], [], []
+    # The candidate set IS the pull universe (quarterlies + monthlies capped
+    # ~13mo where SER-vs-FF marks stay coherent + serials) — same function the
+    # morning pull fetches, so the store can never starve the fit again.
+    for p, c in pull_universe(asof):
+        if p.bank != bank_key or p.ticker in FIT_EXCLUDE:
+            continue
+        if fut_last_trade(p, c) < asof:
+            continue
+        if live and c.code not in have and c.code not in ov:
+            continue
+        # Drop nearly-dead contracts (>70% of the window already elapsed):
+        # they are one number about HISTORY, and when a policy move sits in
+        # that history the stub model cannot honour them — TKYK6 (96%
+        # realized, straddling the June ECB hike) alone dragged the solved
+        # stub 3bp low and printed +12pts of phantom front odds.
+        total = max(1, (c.end - c.start).days)
+        if (min(asof, c.end) - c.start).days / total > 0.70:
+            continue
+        px = ov.get(c.code)
+        if px is None:
+            px = strip_prices(p, bank, [c], asof, r0)[0]
+        owners.append(p)
+        contracts.append(c)
+        spreads.append(p.spread_bp)
+        prices.append(float(px))
+    return owners, contracts, spreads, prices
+
+
+def store_codes() -> set:
+    """Codes the live store actually prices — the page's override filter uses
+    this to keep mock-seeded display values out of a real fit."""
+    store = _load_strip_store()
+    return set(store.get("prices", {})) | set(store.get("settles", {}))
+
+
+def clean_month_anchor(bank_key: str, asof: date,
+                       override_prices: dict | None = None) -> tuple[float, str] | None:
+    """The market's own read of the CURRENT policy rate: a monthly contract
+    whose window contains no decision is a pure average of the prevailing
+    overnight rate — no model, no fit. Returns (implied policy %, code) from
+    the nearest such priced month, or None (needs monthlies — Fed only for
+    now). This is the guard against a stale hand-maintained default_rate."""
+    bank = BANKS[bank_key]
+    store = _load_strip_store()
+    ov = override_prices or {}
+    px_of = {**store.get("settles", {}), **store.get("prices", {}), **ov}
+    for p in bank_products(bank_key):
+        if p.quarterly or p.ticker in FIT_EXCLUDE:
+            continue
+        for c in strip(p, asof, 3):
+            if meetings_in_window(bank, c):
+                continue
+            px = px_of.get(c.code)
+            if px is None:
+                continue
+            proxy = 100.0 - float(px) - p.spread_bp / 100.0
+            return proxy - BANK_BASIS_SEED[bank_key] / 100.0, c.code
+    return None
+
+
+@dataclass
+class BankFit:
+    implied: BankImplied
+    pinned: list[bool]          # per meeting: True = the data pins it, False =
+                                # the smoothing chose it (indicative only)
+    anchor: tuple[float, str] | None   # clean-month implied CURRENT policy rate
+    n_instruments: int
+
+
+def bank_fit(bank_key: str, asof: date, r0: float | None = None,
+             stub_rate: float | None = None,
+             override_prices: dict | None = None,
+             override_spreads: dict | None = None) -> BankFit | None:
+    """The one-stop full-accuracy market fit: all liquid instruments, the front
+    stub solved from the market (unless a realized average is passed), and a
+    per-meeting pinned/interpolated diagnostic (odds stable when the smoothing
+    weight changes 8x = the data decided them; moving = the smoothing did).
+
+    The starting rate is the CLEAN-MONTH ANCHOR when one prices (a no-meeting
+    monthly is the market's own read of the current o/n level — e.g. it knows
+    the effective rate is 3.63x when the hand-set band mid says 3.625, worth
+    several points of front-meeting odds), sanity-clamped to ±40bp of the
+    registry default so a corrupt store can't hijack the level. Pass `r0` to
+    override both (the page's band/rate input does)."""
+    bank = BANKS[bank_key]
+    anchor = clean_month_anchor(bank_key, asof, override_prices)
+    if r0 is None:
+        r0 = bank.default_rate + BANK_BASIS_SEED[bank_key] / 100.0
+        if anchor is not None and abs(anchor[0] - bank.default_rate) <= 0.40:
+            r0 = anchor[0] + BANK_BASIS_SEED[bank_key] / 100.0
+    owners, contracts, spreads, prices = fit_instruments(
+        bank_key, asof, r0=r0, override_prices=override_prices)
+    if not contracts:
         return None
-    r0 = bank.default_rate + BANK_BASIS_SEED[bank_key] / 100.0
-    contracts, spreads, prices = [], [], []
-    for p in prods:
-        s = strip(p, asof, 8)
-        contracts += s
-        spreads += [p.spread_bp] * len(s)
-        prices += strip_prices(p, bank, s, asof, r0)
-    return implied_path(bank, contracts, prices, asof, r0, spreads)
+    if override_spreads:
+        spreads = [override_spreads.get(c.code, s) for c, s in zip(contracts, spreads)]
+    # lam 4x the legacy default: with dedicated pinning instruments in the fit
+    # the data overwhelms the smoothing wherever it's real (Fed odds move <0.1pt
+    # between 5e-3 and 2e-2), and the firmer floor stops serial-pair mark noise
+    # printing implausible mid-path sawtooth (ECB Mar-27 was -8.9% mid-hiking-cycle).
+    kw = dict(spreads_bp=spreads, stub_rate=stub_rate, solve_stub=stub_rate is None)
+    ip = implied_path(bank, contracts, prices, asof, r0, **kw, lam=2e-2)
+    # PINNED needs BOTH tests — the review measured each alone over-claiming:
+    # (1) STRUCTURE: some fitted window contains the meeting alone, or two
+    #     windows differ by exactly it (the serial-pair difference);
+    # (2) STABILITY: the number barely moves when the smoothing weight rises 8x
+    #     (structure can run through few-day slivers and conflicting marks that
+    #     the smoothing still arbitrates).
+    tight = implied_path(bank, contracts, prices, asof, r0, **kw, lam=2e-2 * 8)
+    live_m = set(ip.meetings)
+    msets = {frozenset(x for x in meetings_in_window(bank, c) if x in live_m)
+             for c in contracts}
+    singles = {next(iter(s)) for s in msets if len(s) == 1}
+    for a in msets:
+        for b in msets:
+            d = a - b
+            if len(d) == 1:
+                singles.add(next(iter(d)))
+    pins = [m in singles and abs(float(a) - float(b)) < 1.5
+            for m, a, b in zip(ip.meetings, ip.per_meeting_bp, tight.per_meeting_bp)]
+    return BankFit(ip, pins, anchor, len(contracts))
+
+
+def default_bank_fit(bank_key: str, asof: date) -> BankImplied | None:
+    """The shared default fit (home page, ledger, weekly review): now the full
+    liquid-instrument fit with the market-solved stub — no longer quarterlies-only."""
+    bf = bank_fit(bank_key, asof)
+    return bf.implied if bf is not None else None
 
 
 def update_meeting_history(asof: date) -> None:

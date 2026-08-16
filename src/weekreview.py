@@ -375,22 +375,18 @@ _stir_now: dict = {}         # this run's implied map — saved by save_stir_led
 
 
 def _stir_implied() -> dict:
-    """bank key -> {decision iso: implied per-meeting bp} off each bank's default
-    quarterly strip (the same fit the STIR Paths cross page runs; mock offline)."""
+    """bank key -> {decision iso: implied per-meeting bp} — stirpaths'
+    default_bank_fit, so the Monday wrap quotes EXACTLY the numbers the Home
+    cards / cockpits / ledger show (a stale quarterlies-only inline copy here
+    once diverged from the cockpit by 28bp on an ECB meeting)."""
     from src import stirpaths
     today = date.today()
     out = {}
-    for bk, bank in stirpaths.BANKS.items():
-        prods = [p for p in stirpaths.bank_products(bk) if p.in_strip and p.quarterly]
-        r0 = bank.default_rate + stirpaths.BANK_BASIS_SEED[bk] / 100.0
-        contracts, spreads, prices = [], [], []
-        for p in prods:
-            s = stirpaths.strip(p, today, 8)
-            contracts += s
-            spreads += [p.spread_bp] * len(s)
-            prices += stirpaths.strip_prices(p, bank, s, today, r0)
-        ip = stirpaths.implied_path(bank, contracts, prices, today, r0, spreads)
-        out[bk] = {m.isoformat(): float(bp) for m, bp in zip(ip.meetings, ip.per_meeting_bp)}
+    for bk in stirpaths.BANKS:
+        ip = stirpaths.default_bank_fit(bk, today)
+        if ip is not None:
+            out[bk] = {m.isoformat(): float(bp)
+                       for m, bp in zip(ip.meetings, ip.per_meeting_bp)}
     return out
 
 

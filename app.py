@@ -7847,10 +7847,12 @@ def render_stir_bank(bank_key: str) -> None:
                                        "(prices and fair values stay untouched). 0 = off.")
         er_spread = 0.0
         if bank_key == "ECB":
-            er_spread = a3.number_input("Euribor − €STR spread (bp)", value=10.0, step=1.0,
-                                        format="%.1f", key="spECB_ersp",
+            er_spread = a3.number_input("Euribor − €STR spread (bp)",
+                                        value=stirpaths.PRODUCTS["ERA Comdty"].spread_bp,
+                                        step=1.0, format="%.1f", key="spECB_ersp",
                                         help="Seeds the per-contract Spread column in the market-"
-                                             "prices grid (Euribor is a forward-looking term fix).")
+                                             "prices grid (Euribor is a forward-looking term fix). "
+                                             "Default measured off the real strips vs €STR-fair.")
         stub = a3.number_input(
             f"Realized o/n avg since {front_start:%d %b} (%)",
             value=round(float(auto_stub), 3) if auto_stub is not None
@@ -7866,9 +7868,30 @@ def render_stir_bank(bank_key: str) -> None:
                          help="Refresh data/stir_fixings.json from the Terminal (3 index bdh pulls)."):
                 got = stirpaths.refresh_fixings(asof)
                 st.session_state.pop(f"sp{bank_key}_stub", None)
+                st.session_state.pop(f"sp{bank_key}_stub_seed0", None)
                 st.toast(f"Fixings refreshed: {got}" if got else "Pull failed (blocked/offline).")
                 st.rerun()
+    # remember the stub input's FIRST-render seed: the widget keeps its old
+    # value when policy/basis change, so comparing against a RECOMPUTED seed
+    # mistook the stale auto-seed for a deliberate user stub and silently
+    # disabled the market solve
+    _st0_key = f"sp{bank_key}_stub_seed0"
+    st.session_state.setdefault(_st0_key, round(float(stub), 3))
+
     r0 = policy + basis_bp / 100.0                  # overnight-proxy level today, %
+    # The market's own current-rate read (a no-meeting monthly = pure average
+    # of the prevailing o/n rate) is the fit's starting level whenever the
+    # policy input is UNTOUCHED (still the registry default) — the Aug FF/SR1
+    # clean month knows the effective rate is 3.63x when the band mid says
+    # 3.625, worth several points on the front meeting's odds, and it stays
+    # right even when the registry has gone stale by a whole move. Touch the
+    # band/rate input and your what-if always wins.
+    _anchor = stirpaths.clean_month_anchor(bank_key, asof)
+    _policy_touched = abs(policy - bank.default_rate) > 1e-9
+    _anchor_used = (_anchor is not None and not _policy_touched
+                    and abs(_anchor[0] - bank.default_rate) <= 0.40)
+    if _anchor_used:
+        r0 = _anchor[0] + basis_bp / 100.0
 
     sel = _stir_picker(bank_key, prods_all, label="Products in the tools")
     prods = [stirpaths.PRODUCTS[t] for t in sel] or [prods_all[0]]
@@ -7897,6 +7920,10 @@ def render_stir_bank(bank_key: str) -> None:
         st.session_state[px_key] = dict(zip(codes, feed_px))
         st.session_state[spd_key] = dict(zip(codes, seed_spd))
         st.session_state[sig_key] = tuple(codes)
+        # the untouched seed values, kept so the fit can tell a REAL page edit
+        # (or store price) from a mock-backfilled display seed — mock-seeded
+        # untouched codes must never enter a live fit as overrides
+        st.session_state[f"sp{bank_key}_px_seed0"] = dict(zip(codes, feed_px))
         st.session_state[src_key] = ("morning snapshot · " + src_asof if src == "snapshot"
                                      else "synthetic demo")
     src_note = st.session_state.get(src_key, "synthetic demo")
@@ -7904,10 +7931,16 @@ def render_stir_bank(bank_key: str) -> None:
         lp1, lp2 = st.columns([5.2, 1.2])
         lp1.caption(f"Prices: **{src_note}** — the page never pulls Bloomberg on its own; "
                     "the ⚡ button requests THIS strip's tickers only.")
+        # the pull covers this bank's whole FIT universe (incl. fit-only
+        # serials/monthlies) — refreshing only the displayed contracts left the
+        # hidden instruments at morning vintage, and the serial-pair
+        # differences turned that gap into phantom "pinned" meeting moves
+        _live_cs = [c for p_, c in stirpaths.pull_universe(asof) if p_.bank == bank_key]
         if lp2.button("⚡ Live pull", key=f"sp{bank_key}_livepull", use_container_width=True,
-                      help="One request for exactly this page's strip tickers "
-                           f"({len(codes)} contracts) — nothing else touches Bloomberg."):
-            got = stirpaths.live_strip_prices(contracts)
+                      help="One request for exactly this bank's strip + serial/monthly "
+                           f"tickers ({len(_live_cs)} contracts) — nothing else touches "
+                           "Bloomberg."):
+            got = stirpaths.live_strip_prices(_live_cs)
             if got:
                 cur = dict(st.session_state[px_key])
                 cur.update(got)
@@ -7951,8 +7984,42 @@ def render_stir_bank(bank_key: str) -> None:
     spreads = [float(st.session_state[spd_key].get(c, s)) for c, s in zip(codes, seed_spd)]
     spread_of = dict(zip(codes, spreads))
 
-    # ---- market-implied path (joint, stub-aware fit across the strips) -------
-    ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads, stub_rate=stub)
+    # ---- market-implied path: the FULL liquid-instrument fit ------------------
+    # Display and fit are decoupled: the odds below come from EVERY liquid
+    # instrument for this bank (quarterlies + SR1/FF monthlies + ER/€STR
+    # serials), whatever the picker shows. Page-edited prices/spreads override
+    # the store for the contracts on screen; the front stub is SOLVED from the
+    # market unless real fixings exist or the Advanced input was changed
+    # (changed vs its FIRST-render seed — see _st0_key above).
+    _stub_arg = stub if (auto_stub is not None
+                         or round(float(stub), 3) != st.session_state.get(
+                             _st0_key, round(float(stub), 3))) else None
+    # overrides = store-priced codes, genuine page edits, and live-pull
+    # additions ONLY — an untouched display seed for a code the store lacks is
+    # a MOCK number and must not slip into a real fit through the override door
+    _have = stirpaths.store_codes()
+    _seed0 = st.session_state.get(f"sp{bank_key}_px_seed0", {})
+    _ov_px = {k: float(v) for k, v in (st.session_state.get(px_key) or {}).items()
+              if k in _have or k not in _seed0 or abs(float(v) - float(_seed0[k])) > 1e-9}
+    if bank_key == "ECB":
+        # fit-only ER serials must price off the SAME basis as the page's
+        # spread input — mixing the registry default with an edited page value
+        # inside one least-squares printed phantom "pinned" meeting moves
+        for _c in stirpaths.serial_strip(stirpaths.PRODUCTS["ERA Comdty"], asof):
+            spread_of.setdefault(_c.code, er_spread)
+    bf = stirpaths.bank_fit(bank_key, asof, r0=r0, stub_rate=_stub_arg,
+                            override_prices=_ov_px,
+                            override_spreads=spread_of)
+    if bf is not None:
+        ip = bf.implied
+    else:                                           # nothing liquid (shouldn't happen)
+        ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads,
+                                    stub_rate=stub)
+    # the stub every scenario/landing price shares: solved > fixings/manual input
+    stub = float(ip.stub) if ip.stub is not None else stub
+    # residuals by CODE: the fit universe is wider than the displayed contracts,
+    # so positional zips against ip.* would misalign (or crash) — always map
+    _resid_of = {c.code: float(r) for c, r in zip(ip.contracts, ip.residual_bp)}
     labels = [fedpath.meeting_label(m) for m in ip.meetings]
     yrs = np.array([(fedpath.effective_date(m) - asof).days / 365.25 for m in ip.meetings])
     cum_disp = np.array(ip.cum_bp) - haircut * yrs
@@ -8236,11 +8303,18 @@ def render_stir_bank(bank_key: str) -> None:
         mr = st.columns(grid, gap="small")          # MARKET row — same cell style as yours
         mr[0].markdown(_rail("MARKET ODDS", _MKT_C, "hike/cut priced in now",
                              "The odds of a move the futures strip currently prices at "
-                             "each decision (−0.66 = 66% odds of a cut)"),
+                             "each decision (−0.66 = 66% odds of a cut). ≈ = no single "
+                             "contract isolates that meeting — the number is interpolated"),
                        unsafe_allow_html=True)
+        _pin_of = dict(zip(labels, bf.pinned)) if bf is not None else {}
         for c, (m, lab) in zip(mr[1:], pairs):
-            c.markdown(f"<div class='sp-cell' title='{bank.meeting_name} {m:%a %d %b %Y}'>"
-                       f"{_mkt_dec[lab]:+.2f} "
+            _pinned = _pin_of.get(lab, True)
+            _tip = (f"{bank.meeting_name} {m:%a %d %b %Y} · "
+                    + ("pinned by its own contract — trust it"
+                       if _pinned else
+                       "no single contract isolates this meeting — interpolated, indicative"))
+            c.markdown(f"<div class='sp-cell' title='{_tip}'>"
+                       f"{'' if _pinned else '≈ '}{_mkt_dec[lab]:+.2f} "
                        f"<span class='sp-sub'>({per_disp[lab]:+.1f}bp)</span></div>",
                        unsafe_allow_html=True)
         # your number: green when above the market's call, red when below
@@ -8278,6 +8352,27 @@ def render_stir_bank(bank_key: str) -> None:
                "white when in line. **SETTLES INTO** = the quarterly future whose settlement "
                "window the decision lands in (codes match section 1); the shading groups "
                "meetings that share a contract — hover a cell for the exact window.")
+    if bf is not None:
+        _bits = [f"market odds fit from **{bf.n_instruments} liquid instruments** — quarterlies "
+                 "+ monthlies/serials, independent of the products displayed above"]
+        if ip.stub is not None and _stub_arg is None:
+            _bits.append(f"front stub **solved from the market**: {ip.stub:.3f}%")
+        if _anchor is not None:
+            _av = _anchor[0] + basis_bp / 100.0
+            _bits.append(f"current {proxy} per the {_anchor[1]} clean month: **{_av:.3f}%**"
+                         + (" (anchors the fit)" if _anchor_used
+                            else " — your page setting drives the fit instead"))
+        st.caption(" &nbsp;·&nbsp; ".join(_bits))
+        if _anchor is not None and abs(_anchor[0] - bank.default_rate) > 0.10:
+            _gap = abs(_anchor[0] - bank.default_rate) * 100
+            st.warning(f"The market's clean-month read of the current policy rate "
+                       f"({_anchor[0]:.2f}%) sits {_gap:.0f}bp from the app's registry setting "
+                       f"({bank.default_rate:.2f}%) — the registry looks stale. "
+                       + ("The fit already uses the market's read; update stirpaths.BANKS "
+                          "default_rate when convenient."
+                          if _anchor_used else
+                          "The fit is running on YOUR page setting, which disagrees with the "
+                          "market's read — double-check the level before quoting these odds."))
     with st.expander("💾 Named scenarios — save / load the desk's cases"):
         sc_all = _stir_scen_all().get(bank_key, {})
         cur_def = _stir_scen_default(bank_key)
@@ -8419,11 +8514,12 @@ def render_stir_bank(bank_key: str) -> None:
         "Your fair": your_px,
         "Diff (bp)": diff_bp,
         "Diff (/lot)": [d * p.bp_value for d, p in zip(diff_bp, owner)],
-        "vs fit (bp)": [float(v) for v in ip.residual_bp],
+        "vs fit (bp)": [_resid_of.get(c.code, float("nan")) for c in contracts],
     })
     fmt = {"Market": "{:.4f}".format, "Mkt-implied rate": "{:.3f}".format,
            "Your fair": "{:.4f}".format, "Diff (bp)": "{:+.1f}".format,
-           "Diff (/lot)": (bank.ccy + "{:,.0f}").format, "vs fit (bp)": "{:+.1f}".format}
+           "Diff (/lot)": (bank.ccy + "{:,.0f}").format,
+           "vs fit (bp)": (lambda v: "—" if v != v else f"{v:+.1f}")}
 
     def _color_diff(col):
         out = []
@@ -8609,7 +8705,8 @@ def render_stir_bank(bank_key: str) -> None:
                                    "your": f"{your_px[i]:.4f}",
                                    "diff_bp": f"{diff_bp[i]:+.1f}",
                                    "diff_ccy": f"{bank.ccy}{diff_bp[i] * owner[i].bp_value:,.0f}",
-                                   "resid": f"{float(ip.residual_bp[i]):+.1f}",
+                                   "resid": (f"{_resid_of[codes[i]]:+.1f}"
+                                             if codes[i] in _resid_of else "—"),
                                    "dir": 1 if diff_bp[i] > 0.05 else
                                           (-1 if diff_bp[i] < -0.05 else 0)}
                                   for i in range(len(codes))],
