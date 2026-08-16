@@ -8266,74 +8266,82 @@ def render_stir_bank(bank_key: str) -> None:
           padding: 0.2rem 0.45rem; font-size: 0.85rem; font-weight: 600; }}
     </style>""", unsafe_allow_html=True)
     pairs = list(zip(ip.meetings, labels))
-    grid = [1] + [1] * len(pairs)
+    # WIRP-style VERTICAL table (Ben, 2026-08-15): one ROW per meeting, columns
+    # mirroring the WIRP screen (%Hike/Cut · #Hikes/Cuts · Imp Rate Δ · Implied
+    # Rate) plus our SETTLES INTO and the editable YOUR CALL — compact, and
+    # familiar to anyone who has lived on WIRP.
+    _vgrid = [1.05, 0.55, 1.0, 0.7, 0.7, 0.8, 1.15]
+    # which quarterly future each decision SETTLES INTO (windows tile, so each
+    # meeting maps to exactly one) — shading groups meetings sharing a contract
+    qprod = next((p for p in prods if p.quarterly), prods[0])
+    qstrip = stirpaths.strip(qprod, asof, n_q + 4)
+    win_cells, _tints, _ti, _last = [], ["rgba(127,179,245,0.10)",
+                                         "rgba(127,179,245,0.24)"], 0, None
+    for m, lab in pairs:
+        eff = stirpaths.bank_effective_date(bank, m)
+        wc = next((c for c in qstrip if c.start <= eff < c.end), None)
+        tag = wc.code[-2:] if wc else "—"
+        if tag != _last:
+            _ti, _last = 1 - _ti, tag
+        tip = (f"{bank.meeting_name} {m:%d %b %y} settles inside {wc.code} "
+               f"(window {wc.start:%d %b %y} → {wc.end:%d %b %y})" if wc else "")
+        win_cells.append((tag, tip, _tints[_ti]))
+    # your number: green when above the market's call, red when below
+    _tone_css = []
+    for i, (m, lab) in enumerate(pairs):
+        mine = float(st.session_state[mv_key(lab)])
+        tone = ("#66BB6A" if mine > _mkt_dec[lab] + 0.012 else
+                "#EF5350" if mine < _mkt_dec[lab] - 0.012 else "#E8EAED")
+        _tone_css.append(f".st-key-sp{bank_key}_oc_{i} input "
+                         f"{{ color: {tone} !important; }}")
+    st.markdown("<style>" + "\n".join(_tone_css) + "</style>", unsafe_allow_html=True)
+    _pin_of = dict(zip(labels, bf.pinned)) if bf is not None else {}
+    step_bp = float(hike_bp)
     with st.container(key=_wrap):
-        hdr = st.columns(grid, gap="small")         # dates, once, over both rows
-        hdr[0].markdown(_rail("RATE MEETINGS", _MTG_C, "decision dates",
-                              f"Each column is one scheduled {bank.meeting_name} "
-                              "rate decision"), unsafe_allow_html=True)
-        for c, (m, lab) in zip(hdr[1:], pairs):
-            c.markdown(f"<div class='sp-hdr' style='color:{_MTG_C}' "
-                       f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
-                       f"{m:%d %b %y}</div>", unsafe_allow_html=True)
-        # which quarterly future each decision SETTLES INTO (windows tile, so each
-        # meeting maps to exactly one) — shading groups meetings sharing a contract
-        qprod = next((p for p in prods if p.quarterly), prods[0])
-        qstrip = stirpaths.strip(qprod, asof, n_q + 4)
-        win_cells, _tints, _ti, _last = [], ["rgba(127,179,245,0.10)",
-                                             "rgba(127,179,245,0.24)"], 0, None
-        for m, lab in pairs:
-            eff = fedpath.effective_date(m)
-            wc = next((c for c in qstrip if c.start <= eff < c.end), None)
-            tag = wc.code[-2:] if wc else "—"
-            if tag != _last:
-                _ti, _last = 1 - _ti, tag
-            tip = (f"{bank.meeting_name} {m:%d %b %y} settles inside {wc.code} "
-                   f"(window {wc.start:%d %b %y} → {wc.end:%d %b %y})" if wc else "")
-            win_cells.append((tag, tip, _tints[_ti]))
-        wr = st.columns(grid, gap="small")
-        wr[0].markdown(_rail("SETTLES INTO", _FUT_C, "future hit by this decision",
-                             "The futures contract whose final settlement this decision "
-                             "feeds into — codes match the FUTURES row above"),
-                       unsafe_allow_html=True)
-        for c_, (tag, tip, tint) in zip(wr[1:], win_cells):
-            c_.markdown(f"<div class='sp-cell' style='height:1.35rem;line-height:1.3rem;"
-                        f"background:{tint};font-size:0.75rem;font-weight:700' "
-                        f"title='{tip}'>{tag}</div>", unsafe_allow_html=True)
-        mr = st.columns(grid, gap="small")          # MARKET row — same cell style as yours
-        mr[0].markdown(_rail("MARKET ODDS", _MKT_C, "hike/cut priced in now",
-                             "The odds of a move the futures strip currently prices at "
-                             "each decision (−0.66 = 66% odds of a cut). ≈ = no single "
-                             "contract isolates that meeting — the number is interpolated"),
-                       unsafe_allow_html=True)
-        _pin_of = dict(zip(labels, bf.pinned)) if bf is not None else {}
-        for c, (m, lab) in zip(mr[1:], pairs):
+        hdr = st.columns(_vgrid, gap="small")
+        for c_, (txt, col, tip) in zip(hdr, [
+                ("MEETING", _MTG_C, f"Scheduled {bank.meeting_name} decision dates"),
+                ("INTO", _FUT_C, "The futures contract whose settlement this decision "
+                                 "feeds into — codes match section 1"),
+                ("%HIKE/CUT", _MKT_C, "The move the strip prices AT this meeting: "
+                                      "+0.35 = 35% odds of one hike, −0.66 = 66% odds "
+                                      "of a cut · ≈ = interpolated, no contract "
+                                      "isolates this meeting"),
+                ("#H/C", _MKT_C, "Cumulative hikes/cuts priced THROUGH this meeting "
+                                 "(in steps) — WIRP's #Hikes/Cuts column"),
+                ("CUM BP", _MKT_C, "Cumulative bp priced through this meeting — "
+                                   "WIRP's Imp. Rate Δ column"),
+                ("IMPLIED", _MKT_C, "The overnight-proxy level the strip implies "
+                                    "after this meeting — WIRP's Implied Rate column"),
+                ("YOUR CALL", _YOU_C, "The only column you edit: your odds per "
+                                      "decision (type or ＋/－) — drives section 1, "
+                                      "the Δbp row and the gold curve")]):
+            c_.markdown(f"<div class='sp-hdr' style='color:{col}' title='{tip}'>{txt}</div>",
+                        unsafe_allow_html=True)
+        for i, (m, lab) in enumerate(pairs):
+            row = st.columns(_vgrid, gap="small", vertical_alignment="center")
+            row[0].markdown(f"<div class='sp-cell' style='color:{_MTG_C};font-weight:700' "
+                            f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
+                            f"{m:%d %b %y}</div>", unsafe_allow_html=True)
+            tag, tip, tint = win_cells[i]
+            row[1].markdown(f"<div class='sp-cell' style='background:{tint};"
+                            f"font-size:0.75rem;font-weight:700' title='{tip}'>{tag}</div>",
+                            unsafe_allow_html=True)
             _pinned = _pin_of.get(lab, True)
             _tip = (f"{bank.meeting_name} {m:%a %d %b %Y} · "
-                    + ("pinned by its own contract — trust it"
-                       if _pinned else
+                    + ("pinned by its own contract — trust it" if _pinned else
                        "no single contract isolates this meeting — interpolated, indicative"))
-            c.markdown(f"<div class='sp-cell' title='{_tip}'>"
-                       f"{'' if _pinned else '≈ '}{_mkt_dec[lab]:+.2f} "
-                       f"<span class='sp-sub'>({per_disp[lab]:+.1f}bp)</span></div>",
-                       unsafe_allow_html=True)
-        # your number: green when above the market's call, red when below
-        _tone_css = []
-        for i, (m, lab) in enumerate(pairs):
-            mine = float(st.session_state[mv_key(lab)])
-            tone = ("#66BB6A" if mine > _mkt_dec[lab] + 0.012 else
-                    "#EF5350" if mine < _mkt_dec[lab] - 0.012 else "#E8EAED")
-            _tone_css.append(f".st-key-sp{bank_key}_oc_{i} input "
-                             f"{{ color: {tone} !important; }}")
-        st.markdown("<style>" + "\n".join(_tone_css) + "</style>", unsafe_allow_html=True)
-        yr = st.columns(grid, gap="small")          # YOUR row — editable version of the same cell
-        yr[0].markdown(_rail("YOUR CALL", _YOU_C, "edit me — drives §1 ▲",
-                             "The only row you edit: your odds for each decision (type or "
-                             "use ＋/－). The YOUR CALL prices in section 1, the Δbp row and "
-                             "the gold curve below are all re-priced from these numbers"),
-                       unsafe_allow_html=True)
-        for i, (c, (m, lab)) in enumerate(zip(yr[1:], pairs)):
-            with c:
+            row[2].markdown(f"<div class='sp-cell' title='{_tip}'>"
+                            f"{'' if _pinned else '≈ '}{_mkt_dec[lab]:+.2f} "
+                            f"<span class='sp-sub'>({per_disp[lab]:+.1f}bp)</span></div>",
+                            unsafe_allow_html=True)
+            row[3].markdown(f"<div class='sp-cell'>{cum_disp[i] / step_bp:+.2f}</div>",
+                            unsafe_allow_html=True)
+            row[4].markdown(f"<div class='sp-cell'>{cum_disp[i]:+.1f}</div>",
+                            unsafe_allow_html=True)
+            row[5].markdown(f"<div class='sp-cell'>{r0 + cum_disp[i] / 100.0:.3f}</div>",
+                            unsafe_allow_html=True)
+            with row[6]:
                 with st.container(key=f"sp{bank_key}_oc_{i}"):
                     cin, cbtn = st.columns([3.1, 0.9], gap="small")
                     cin.number_input(lab, min_value=-3.0, max_value=3.0, step=0.05,
@@ -8347,11 +8355,12 @@ def render_stir_bank(bank_key: str) -> None:
                         st.button("－", key=f"sp{bank_key}_dn_{lab}",
                                   use_container_width=True,
                                   on_click=_stir_bump, args=(mv_key(lab), -0.05))
-    st.caption("Gold-edged boxes are **yours to edit** — click ＋/－ or type. Your number shows "
-               "**green above** the market's call (more hawkish), **red below** (more dovish), "
-               "white when in line. **SETTLES INTO** = the quarterly future whose settlement "
-               "window the decision lands in (codes match section 1); the shading groups "
-               "meetings that share a contract — hover a cell for the exact window.")
+    st.caption("One row per decision, WIRP's column conventions: **%HIKE/CUT** = the move "
+               "priced at that meeting alone (≈ = interpolated) · **#H/C** and **CUM BP** = "
+               "cumulative through it · **IMPLIED** = the o/n level after it. Gold boxes are "
+               "**yours to edit** — green above the market (more hawkish), red below (more "
+               "dovish), white in line. **INTO** = the quarterly future the decision settles "
+               "into (codes match section 1, shading groups a shared contract).")
     if bf is not None:
         _bits = [f"market odds fit from **{bf.n_instruments} liquid instruments** — quarterlies "
                  "+ monthlies/serials, independent of the products displayed above"]
