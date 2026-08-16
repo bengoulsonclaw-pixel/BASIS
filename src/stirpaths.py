@@ -149,7 +149,7 @@ PRODUCTS: dict[str, Product] = {
     # settles are exchange MARKS, fine for fitting, not dealable quotes. £3m
     # notional -> ~£25/bp. Simple-average settlement assumed (sub-bp vs
     # compounded over one month either way).
-    "SOOA Comdty": Product("SOOA Comdty", "1M SONIA (SOO)", "SO1", "BOE", "SOO",
+    "SOOA Comdty": Product("SOOA Comdty", "1M SONIA (SOO)", "SOO1", "BOE", "SOO",
                            "sonia1m", False, False, 25.0, "#FFCC80",
                            has_options=False, in_strip=False),
 }
