@@ -8328,34 +8328,39 @@ def render_stir_bank(bank_key: str) -> None:
                          "padding:0 0.1rem 2px' title='Everything in gold is YOURS: "
                          "editable, two-way'>YOUR CALL — EDITABLE</div>",
                          unsafe_allow_html=True)
-        hdr = st.columns(_vgrid, gap="small")
+        # NB: tooltips render inside title='…' HTML attributes — an apostrophe
+        # in the text TERMINATES the attribute and mangles the tag (a header
+        # once rendered unstyled because of a stray "you're"). Keep them
+        # apostrophe-free.
+        hdr = st.columns(_vgrid, gap="small", vertical_alignment="bottom")
         for c_, (txt, col, tip) in zip(hdr, [
                 ("MEETING", _MTG_C, f"Scheduled {bank.meeting_name} decision dates"),
                 ("INTO", _MTG_C, "The futures contract whose settlement this decision "
                                  "feeds into — codes match section 1"),
-                ("SETTLE", _MTG_C, "That contract's latest settlement from the morning "
-                                   f"snapshot store ({_s_asof or 'demo'}) — last night's "
-                                   "mark, not the editable page price"),
+                ("SETTLE", _MTG_C, "The latest stored settlement of that contract "
+                                   f"(morning snapshot store · {_s_asof or 'demo'}) — "
+                                   "the overnight mark, not the editable page price"),
                 ("%HIKE/CUT", _MTG_C, "The move the strip prices AT this meeting: "
                                       "+0.35 = 35% odds of one hike, −0.66 = 66% odds "
                                       "of a cut · ≈ = interpolated, no contract "
                                       "isolates this meeting"),
                 ("#H/C", _MTG_C, "Cumulative hikes/cuts priced THROUGH this meeting "
-                                 "(in steps) — WIRP's #Hikes/Cuts column"),
+                                 "(in steps) — the #Hikes/Cuts column on WIRP"),
                 ("CUM BP", _MTG_C, "Cumulative bp priced through this meeting — "
-                                   "WIRP's Imp. Rate Δ column"),
+                                   "the Imp Rate Δ column on WIRP"),
                 ("IMPLIED", _MTG_C, "The overnight-proxy level the strip implies "
-                                    "after this meeting — WIRP's Implied Rate column"),
+                                    "after this meeting — the Implied Rate column "
+                                    "on WIRP"),
                 ("YOUR CALL", _YOU_C, "Your odds per decision (type or ＋/－) — "
                                       "YOUR FUT, the Δbp row and the gold curve "
                                       "re-price from these"),
-                ("INTO", _YOU_C, "Same contract tag again so the price you're editing "
-                                 "is never ambiguous — gold shading groups match the "
-                                 "blue ones on the left"),
+                ("INTO", _YOU_C, "The same contract tag again, so the price being "
+                                 "edited is never ambiguous — gold groups match "
+                                 "the blue ones on the left"),
                 ("YOUR FUT", _YOU_C, "Where the INTO future lands under YOUR odds — "
                                      "two-way: type a target price here and the odds "
                                      "of the meetings inside that contract re-solve. "
-                                     "One editor per contract (its first row)")]):
+                                     "One editor per contract, on its first row")]):
             c_.markdown(f"<div class='sp-hdr' style='color:{col}' title='{tip}'>{txt}</div>",
                         unsafe_allow_html=True)
         for i, (m, lab) in enumerate(pairs):
@@ -8404,7 +8409,7 @@ def render_stir_bank(bank_key: str) -> None:
                         st.button("－", key=f"sp{bank_key}_dn_{lab}",
                                   use_container_width=True,
                                   on_click=_stir_bump, args=(mv_key(lab), -0.05))
-            row[8].markdown(f"<div class='sp-cell' style='background:{_gt};color:{_YOU_C};"
+            row[8].markdown(f"<div class='sp-cell' style='background:{_gt};color:#FFE08C;"
                             f"font-size:0.75rem;font-weight:700' title='{tip}'>{tag}</div>",
                             unsafe_allow_html=True)
             with row[9]:
