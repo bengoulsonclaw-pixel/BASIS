@@ -8259,6 +8259,12 @@ def render_stir_bank(bank_key: str) -> None:
           background: transparent; }}
       .st-key-{_wrap} div[data-testid="stNumberInput"] input {{
           padding: 0.2rem 0.45rem; font-size: 0.85rem; font-weight: 600; }}
+      /* the vertical table's columns are wide enough that Streamlit's NATIVE
+         steppers render (they were width-gated out of the old narrow cells) —
+         hide them, ours carry the snap/re-solve logic */
+      .st-key-{_wrap} button[data-testid="stNumberInputStepUp"],
+      .st-key-{_wrap} button[data-testid="stNumberInputStepDown"] {{
+          display: none !important; }}
     </style>""", unsafe_allow_html=True)
     pairs = list(zip(ip.meetings, labels))
     # WIRP-style VERTICAL table (Ben, 2026-08-15): one ROW per meeting, columns
