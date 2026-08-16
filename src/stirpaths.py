@@ -144,6 +144,14 @@ PRODUCTS: dict[str, Product] = {
                            "estr", True, True, 25.0, "#4DD0E1", has_options=False),
     "SFIA Comdty": Product("SFIA Comdty", "3M SONIA", "SONIA", "BOE", "SFI",
                            "sonia", True, True, 25.0, "#FF8A65"),
+    # ICE 1M SONIA (root SOO, Ben confirmed 15 Aug 2026): the BoE's per-meeting
+    # pinning instrument, like SR1/FF for the Fed. Screens show OI "N.A." — the
+    # settles are exchange MARKS, fine for fitting, not dealable quotes. £3m
+    # notional -> ~£25/bp. Simple-average settlement assumed (sub-bp vs
+    # compounded over one month either way).
+    "SOOA Comdty": Product("SOOA Comdty", "1M SONIA (SOO)", "SO1", "BOE", "SOO",
+                           "sonia1m", False, False, 25.0, "#FFCC80",
+                           has_options=False, in_strip=False),
 }
 # Overnight proxy vs the policy rate, in bp (page-tunable; these seed the input):
 # SOFR ≈ target mid + 0 · €STR ≈ depo − 8 · SONIA ≈ Bank Rate + 0 (the −5 seed
