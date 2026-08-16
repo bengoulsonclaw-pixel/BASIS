@@ -8270,9 +8270,15 @@ def render_stir_bank(bank_key: str) -> None:
     # mirroring the WIRP screen (%Hike/Cut · #Hikes/Cuts · Imp Rate Δ · Implied
     # Rate) plus our SETTLES INTO and the editable YOUR CALL — compact, and
     # familiar to anyone who has lived on WIRP.
-    _vgrid = [1.05, 0.55, 1.0, 0.7, 0.7, 0.8, 1.15]
+    _vgrid = [1.05, 0.55, 0.85, 1.0, 0.7, 0.7, 0.8, 1.15]
     # which quarterly future each decision SETTLES INTO (windows tile, so each
-    # meeting maps to exactly one) — shading groups meetings sharing a contract
+    # meeting maps to exactly one) — shading groups meetings sharing a contract.
+    # Beside it: that contract's latest SETTLE from the snapshot store (the
+    # morning pull's numbers — manual Terminal entry while the pull is blocked),
+    # deliberately NOT the page-edited price: this column is last night's mark.
+    _sstore = stirpaths._load_strip_store()
+    _spx = {**_sstore.get("settles", {}), **_sstore.get("prices", {})}
+    _s_asof = _sstore.get("asof", "")
     qprod = next((p for p in prods if p.quarterly), prods[0])
     qstrip = stirpaths.strip(qprod, asof, n_q + 4)
     win_cells, _tints, _ti, _last = [], ["rgba(127,179,245,0.10)",
@@ -8285,7 +8291,12 @@ def render_stir_bank(bank_key: str) -> None:
             _ti, _last = 1 - _ti, tag
         tip = (f"{bank.meeting_name} {m:%d %b %y} settles inside {wc.code} "
                f"(window {wc.start:%d %b %y} → {wc.end:%d %b %y})" if wc else "")
-        win_cells.append((tag, tip, _tints[_ti]))
+        _sv = _spx.get(wc.code) if wc else None
+        settle_txt = f"{_sv:.4f}" if _sv is not None else "—"
+        settle_tip = (f"{wc.code} settlement, snapshot store · {_s_asof}"
+                      if wc and _sv is not None else
+                      "no stored settlement for this contract")
+        win_cells.append((tag, tip, _tints[_ti], settle_txt, settle_tip))
     # your number: green when above the market's call, red when below
     _tone_css = []
     for i, (m, lab) in enumerate(pairs):
@@ -8303,6 +8314,9 @@ def render_stir_bank(bank_key: str) -> None:
                 ("MEETING", _MTG_C, f"Scheduled {bank.meeting_name} decision dates"),
                 ("INTO", _FUT_C, "The futures contract whose settlement this decision "
                                  "feeds into — codes match section 1"),
+                ("SETTLE", _MKT_C, "That contract's latest settlement from the morning "
+                                   f"snapshot store ({_s_asof or 'demo'}) — last night's "
+                                   "mark, not the editable page price"),
                 ("%HIKE/CUT", _MKT_C, "The move the strip prices AT this meeting: "
                                       "+0.35 = 35% odds of one hike, −0.66 = 66% odds "
                                       "of a cut · ≈ = interpolated, no contract "
@@ -8323,25 +8337,28 @@ def render_stir_bank(bank_key: str) -> None:
             row[0].markdown(f"<div class='sp-cell' style='color:{_MTG_C};font-weight:700' "
                             f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
                             f"{m:%d %b %y}</div>", unsafe_allow_html=True)
-            tag, tip, tint = win_cells[i]
+            tag, tip, tint, settle_txt, settle_tip = win_cells[i]
             row[1].markdown(f"<div class='sp-cell' style='background:{tint};"
                             f"font-size:0.75rem;font-weight:700' title='{tip}'>{tag}</div>",
+                            unsafe_allow_html=True)
+            row[2].markdown(f"<div class='sp-cell' style='background:{tint};"
+                            f"font-size:0.8rem' title='{settle_tip}'>{settle_txt}</div>",
                             unsafe_allow_html=True)
             _pinned = _pin_of.get(lab, True)
             _tip = (f"{bank.meeting_name} {m:%a %d %b %Y} · "
                     + ("pinned by its own contract — trust it" if _pinned else
                        "no single contract isolates this meeting — interpolated, indicative"))
-            row[2].markdown(f"<div class='sp-cell' title='{_tip}'>"
+            row[3].markdown(f"<div class='sp-cell' title='{_tip}'>"
                             f"{'' if _pinned else '≈ '}{_mkt_dec[lab]:+.2f} "
                             f"<span class='sp-sub'>({per_disp[lab]:+.1f}bp)</span></div>",
                             unsafe_allow_html=True)
-            row[3].markdown(f"<div class='sp-cell'>{cum_disp[i] / step_bp:+.2f}</div>",
+            row[4].markdown(f"<div class='sp-cell'>{cum_disp[i] / step_bp:+.2f}</div>",
                             unsafe_allow_html=True)
-            row[4].markdown(f"<div class='sp-cell'>{cum_disp[i]:+.1f}</div>",
+            row[5].markdown(f"<div class='sp-cell'>{cum_disp[i]:+.1f}</div>",
                             unsafe_allow_html=True)
-            row[5].markdown(f"<div class='sp-cell'>{r0 + cum_disp[i] / 100.0:.3f}</div>",
+            row[6].markdown(f"<div class='sp-cell'>{r0 + cum_disp[i] / 100.0:.3f}</div>",
                             unsafe_allow_html=True)
-            with row[6]:
+            with row[7]:
                 with st.container(key=f"sp{bank_key}_oc_{i}"):
                     cin, cbtn = st.columns([3.1, 0.9], gap="small")
                     cin.number_input(lab, min_value=-3.0, max_value=3.0, step=0.05,
@@ -8359,8 +8376,9 @@ def render_stir_bank(bank_key: str) -> None:
                "priced at that meeting alone (≈ = interpolated) · **#H/C** and **CUM BP** = "
                "cumulative through it · **IMPLIED** = the o/n level after it. Gold boxes are "
                "**yours to edit** — green above the market (more hawkish), red below (more "
-               "dovish), white in line. **INTO** = the quarterly future the decision settles "
-               "into (codes match section 1, shading groups a shared contract).")
+               "dovish), white in line. **INTO** / **SETTLE** = the quarterly future the "
+               "decision settles into and its latest stored settlement (codes match "
+               "section 1, shading groups a shared contract).")
     if bf is not None:
         _bits = [f"market odds fit from **{bf.n_instruments} liquid instruments** — quarterlies "
                  "+ monthlies/serials, independent of the products displayed above"]
