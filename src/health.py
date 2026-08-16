@@ -482,6 +482,32 @@ def checks(*, frames: pd.DataFrame | None = None, deep: dict | None = None,
         add("warn", "CB calendars", "Could not read the STIR meeting calendars (stirpaths import "
             "failed) — the STIR Paths module may be broken.")
 
+    try:
+        from src import stirpaths as _sp
+        _err = _sp.strip_error()
+        if _err:
+            add("warn", "STIR strip store", f"The morning STIR strip pull is FAILING "
+                f"(last try {_err.get('when', '?')}, stage: {_err.get('stage', '?')}): "
+                f"{_err.get('detail', 'no detail recorded')} The cockpits run on the last "
+                "good store (or synthetic demo) until it succeeds.")
+        elif not _sp.STRIP_STORE.exists():
+            add("warn", "STIR strip store", "Never filled — the STIR cockpits run on the "
+                "synthetic demo strip until the morning leg succeeds (or prices are "
+                "entered manually).")
+        else:
+            _st = json.loads(_sp.STRIP_STORE.read_text(encoding="utf-8"))
+            _age = (pd.Timestamp.now().normalize()
+                    - pd.Timestamp(_st.get("asof", "1970-01-01"))).days
+            if _age > 5:
+                add("warn", "STIR strip store", f"Store is {_age} days old (asof "
+                    f"{_st.get('asof')}) — the morning leg hasn't refreshed it; the "
+                    "cockpit odds are priced off stale strips.")
+            else:
+                add("ok", "STIR strip store", f"Strip store fresh (asof {_st.get('asof')}, "
+                    f"{len(_st.get('prices', {}) or _st.get('settles', {}))} contracts).")
+    except Exception:
+        add("warn", "STIR strip store", "Could not read the STIR strip store state.")
+
     tr = last_test_run()
     if not tr:
         add("warn", "Regression suite", "Never run on this box — run run_tests.bat (or push "

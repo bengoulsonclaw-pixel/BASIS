@@ -52,6 +52,7 @@ from src import futyield
 from src import optbuilder
 from src import equities
 from src import eqfunda
+from src import eqanalyst
 from src import eqcorr
 from src import eqdisp
 from src import curvemon
@@ -341,6 +342,10 @@ brand.apply()
 # valid session exists; everything below only ever runs for an authenticated user. See src/auth.py.
 CURRENT_USER = auth.require_login()
 IS_ADMIN = auth.is_admin()
+
+# Fresh sessions land on the BASIS front door (logo + the trading-week calendar);
+# set BEFORE any consumer so every later .get("active", ...) default never fires.
+st.session_state.setdefault("active", "Landing")
 
 
 @st.cache_data
@@ -2043,6 +2048,239 @@ def _explain_fetch_failure(out: str, err: str) -> None:
         st.code(text[-4000:] or "no output", language="text")
 
 
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _landing_eq_events() -> list:
+    """The landing page's earnings chips — cached LONG (6h): the underlying
+    fundamentals frame's own cache is only 10 min, and its ~30s cold load left the
+    front door looking empty/broken. Earnings dates only move on the weekly
+    fundamentals pull cadence, so 6h staleness is invisible."""
+    from src import eqearncal
+    _edf, _easof, _esrc = _eqf_frame(tuple(equities.INDICES.keys()))
+    return eqearncal.events(_edf, cap=10)      # the day panel has room for a full list
+
+
+_MACRO_FLAGS = {"USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵", "CAD": "🇨🇦",
+                "AUD": "🇦🇺", "CHF": "🇨🇭", "CNY": "🇨🇳", "NZD": "🇳🇿"}
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _landing_macro(day_iso: str) -> list:
+    """High-impact economic prints (CPI, PPI, NFP… — the ECO-page majors) for one
+    day as landing-board events. Short TTL: the feed fills in `actual` as figures
+    print. The free feed only covers the current week — other days return []."""
+    rows = econ.fetch_day(date.fromisoformat(day_iso))
+    ev = []
+    for r in rows:
+        tip = f"{r['title']} ({r['country']})"
+        if r["actual"]:
+            tip += f" · actual {r['actual']}"
+        if r["forecast"]:
+            tip += f" · fcst {r['forecast']}"
+        if r["previous"]:
+            tip += f" · prev {r['previous']}"
+        lbl = f"{r['country']} {r['title']}"
+        if r["actual"]:                 # the print is IN — show it on the chip itself
+            lbl += f" · {r['actual']}" + (f" (vs {r['forecast']}e)" if r["forecast"] else "")
+        ev.append({"date": date.fromisoformat(day_iso),
+                   "icon": _MACRO_FLAGS.get(r["country"], "📊"),
+                   "label": lbl, "color": "#546E7A",
+                   "auto": False, "tip": tip, "time": r["time_et"]})
+    return ev
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _earnings_times(bbg_tickers: tuple) -> dict:
+    """{bloomberg ticker: '06:30 ET' | None} via Yahoo for the day's reporters —
+    Bloomberg's field is date-only, Yahoo's earnings timestamp carries the hour."""
+    from src import yfin
+    return {b: yfin.earnings_time_et(b) for b in bbg_tickers}
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _landing_expiries(day_iso: str) -> list:
+    """Products whose NEXT futures/options expiry lands ON `day` — the ⏳ rows of the
+    landing FICC panel. Groups big shared expiries (index option Fridays…) into one
+    row per sector so twenty products don't become twenty rows. Pure calendar maths
+    (src/expiries) — zero Bloomberg."""
+    from src import expiries as _exp
+    d = date.fromisoformat(day_iso)
+    key = f"{d:%a %d %b %Y}"                        # expiries._fmt_date format
+    bucket: dict = {}
+    for t in INSTRUMENTS:
+        name, asset = INSTRUMENTS[t][0], INSTRUMENTS[t][2]
+        try:
+            ex = _exp.describe(t, asset, d)
+        except Exception:
+            continue
+        for kind, dkey, tkey in (("future", "fut", "fut_time"), ("options", "opt", "opt_time")):
+            if ex.get(dkey) == key:
+                bucket.setdefault((asset, kind, ex.get(tkey) or ""), []).append(name)
+    ev = []
+    for (asset, kind, tm), names in bucket.items():
+        col = markethours.ASSET_COLORS.get(asset, "#616161")
+        base = {"date": d, "icon": "⏳", "color": col, "auto": False, "time": tm or None}
+        if len(names) <= 2:
+            for n in names:
+                ev.append({**base, "label": f"{n} — {kind} expiry",
+                           "tip": f"{n}: next {kind} expiry" + (f" · {tm}" if tm else "")})
+        else:
+            ev.append({**base, "label": f"{asset} — {kind} expiries (×{len(names)})",
+                       "tip": ", ".join(sorted(names)) + (f" · {tm}" if tm else "")})
+    return ev
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _landing_closures(day_iso: str) -> list:
+    """'🚫 CME closed — Labor Day'-style notes for `day` (full holidays + early
+    closes), one per exchange. markethours calendar maths only."""
+    d = date.fromisoformat(day_iso)
+    closed, half = {}, {}
+    for t in INSTRUMENTS:
+        try:
+            seg = markethours.day_segments(t, "America/New_York", d, INSTRUMENTS[t][2])
+        except Exception:
+            continue
+        if seg.get("closed"):
+            closed.setdefault(seg.get("exchange", "?"), seg["closed"])
+        elif seg.get("half_day"):
+            half.setdefault(seg.get("exchange", "?"),
+                            seg.get("early_close") or seg["half_day"])
+    return ([f"🚫 {x} closed — {why}" for x, why in sorted(closed.items())]
+            + [f"⏱️ {x} early close {v}" for x, v in sorted(half.items())])
+
+
+def _land_desk_go(side: str, dest: str) -> None:
+    """Landing-page deep link that may cross desks: flip the desk first, then nav."""
+    st.session_state["side"] = side
+    _go(dest)
+
+
+def _land_day_set(off: int) -> None:
+    st.session_state["land_day"] = off
+
+
+def _add_weekdays(d: date, n: int) -> date:
+    """d shifted by n TRADING days (Mon–Fri) — the landing ‹ › never lands on a weekend."""
+    step = 1 if n >= 0 else -1
+    k = abs(n)
+    while k:
+        d += timedelta(days=step)
+        if d.weekday() < 5:
+            k -= 1
+    return d
+
+
+def render_landing() -> None:
+    """The BASIS front door — what the sidebar logo (and a fresh session) lands on:
+    the brand lockup over ONE trading-week calendar covering BOTH desks. Each day
+    splits into a FICC band (fundamental reports + FOMC/ECB/BoE rate decisions —
+    repcal.calendar_events) on top and an EQUITIES · EARNINGS band (eqearncal off
+    the fundamentals DB) beneath — Ben's separation, 2026-08-15. The two full
+    month calendars stay one click away."""
+    from src import repcal, eqearncal
+    pal = brand.palette()
+    # Hero: the ❯ mark anchored LEFT, the enlarged BASIS + strapline centred on the
+    # page, tight to the top (Ben's layout, 2026-08-15). The wordmark is the REAL
+    # brand SVG — a CSS text-gradient stand-in read as the wrong colours.
+    st.markdown(
+        f'<div style="position:relative;padding:.05rem 0 .4rem;min-height:112px">'
+        f'<div style="position:absolute;left:.3rem;top:50%;transform:translateY(-50%)">'
+        f'{brand.mark_svg(pal, height=88)}</div>'
+        f'<div style="display:flex;flex-direction:column;align-items:center">'
+        f'{brand.word_svg(pal, height=68)}'
+        f'<div style="font-size:17px;font-weight:600;letter-spacing:.44em;'
+        f'text-transform:uppercase;color:{pal["tagline"]};margin-top:3px">'
+        f'Analysis · Strategies · Indicators</div>'
+        f'</div></div>',
+        unsafe_allow_html=True)
+
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    # weekends look ahead: the front door shows the NEXT trading day, labelled as such
+    base = today if today.weekday() < 5 else _add_weekdays(today, 1)
+    st.session_state.setdefault("land_day", 0)
+    off = st.session_state["land_day"]
+    day = _add_weekdays(base, off)
+    if day == today:
+        _title = f"Today · {day:%a %d %b %Y}"
+    elif off == 0:
+        _title = f"{day:%a %d %b %Y} · next trading day"
+    else:
+        _title = f"{day:%A %d %b %Y}"
+    # centred nav cluster:  ‹  day  ›  (arrows hug the date; trading days only)
+    _sp1, n_prev, n_title, n_next, _sp2 = st.columns([2.4, 0.55, 3.1, 0.55, 2.4],
+                                                     vertical_alignment="center")
+    n_prev.button("‹", key="land_prev", on_click=_land_day_set, args=(off - 1,),
+                  use_container_width=True)
+    n_title.markdown(f"<div style='font-size:21px;font-weight:700;text-align:center'>"
+                     f"{_title}</div>", unsafe_allow_html=True)
+    n_next.button("›", key="land_next", on_click=_land_day_set, args=(off + 1,),
+                  use_container_width=True)
+    if off != 0:                       # only offer the way back once you've left
+        _r1, _r2, _r3 = st.columns([4, 1.7, 4])
+        _r2.button("↩ Today", key="land_today", on_click=_land_day_set, args=(0,),
+                   use_container_width=True)
+
+    # holidays / early closes for the shown day, right under the date
+    try:
+        _cl = _landing_closures(day.isoformat())
+        if _cl:
+            st.markdown(f"<div style='text-align:center;font-size:13px;"
+                        f"color:{brand.palette()['caption']};padding:2px 0 4px'>"
+                        f"{' &nbsp;·&nbsp; '.join(_cl)}</div>", unsafe_allow_html=True)
+    except Exception:
+        pass
+
+    ficc_ev = repcal.calendar_events()
+    try:                              # + the ECO-page majors (CPI, PPI, NFP…) with times
+        ficc_ev = ficc_ev + _landing_macro(day.isoformat())
+    except Exception:
+        pass
+    try:                              # + products whose future/options expire this day
+        ficc_ev = ficc_ev + _landing_expiries(day.isoformat())
+    except Exception:
+        pass
+    try:
+        with st.spinner("Loading the earnings calendar…"):
+            eq_ev = _landing_eq_events()
+    except Exception:
+        eq_ev = []
+    try:                              # Yahoo carries the report HOUR the DB date lacks
+        _days = tuple(e["bbg"] for e in eq_ev if e.get("bbg") and e["date"] == day)
+        if _days:
+            with st.spinner("Looking up earnings times…"):
+                _times = _earnings_times(_days)
+            for e in eq_ev:
+                t = _times.get(e.get("bbg"))
+                if t:
+                    e["time"] = t
+    except Exception:
+        pass
+    def _next_line(evs):
+        fut = [e for e in evs if e["date"] > day]
+        if not fut:
+            return None
+        nd = min(e["date"] for e in fut)
+        labs = sorted({f'{e["icon"]} {e["label"]}'.strip() for e in fut if e["date"] == nd})
+        return (f'Next: {", ".join(labs[:3])}{"…" if len(labs) > 3 else ""} · {nd:%a %d %b}')
+    st.markdown(repcal.day_html(ficc_ev, eq_ev, day,
+                                next_ficc=_next_line(ficc_ev), next_eq=_next_line(eq_ev)),
+                unsafe_allow_html=True)
+    _cap = ("Left: fundamental reports, central-bank decisions, the day's major economic "
+            "prints (actuals appear on the chip once released) and futures/options expiries, "
+            "with times in ET (~ = typical). Right: expected earnings reporters — times via "
+            "Yahoo where published, — where only the date is known. "
+            "★ = auto-emails the desk · hover any chip for details.")
+    if not eq_ev:
+        _cap += " No earnings dates loaded yet — pull equities data to fill the right panel."
+    st.caption(_cap)
+
+    b1, b2, _ = st.columns([1.7, 1.7, 4.6])
+    b1.button("📅 Full reports calendar", key="land_ficc_cal", use_container_width=True,
+              on_click=_land_desk_go, args=("FICC", "Release Calendar"))
+    b2.button("📅 Full earnings calendar", key="land_eq_cal", use_container_width=True,
+              on_click=_land_desk_go, args=("Equities", "eq:Earnings"))
+
+
 def render_home() -> None:
     render_report_banner()
     _render_skew_backfill_banner()
@@ -2270,6 +2508,69 @@ def _equities_overnight_moves(index_keys, snap) -> None:
             "σ (1m)": lambda v: f"{v:+.1f}σ" if v == v else "—"}
     brand.themed_dataframe(disp, _fmt,
                            colorers=[(["% (o/n)", "σ (1m)"], _color_move)], height=440)
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _eq_recent_actions(index_keys: tuple, n_names: int = 30, days: int = 60):
+    """Recent rating actions across the most-moved names in the selected indices.
+
+    Bounded on purpose: the feed costs one Yahoo request set per name, so it follows the
+    ~`n_names` biggest overnight movers (the names already on this screen) and only US-listed
+    lines — Yahoo's grade history doesn't exist for other listings. eqanalyst's disk cache
+    serves everything already seen instantly and re-pulls only what's stale."""
+    f = _eq_movers(tuple(index_keys))
+    if f is None or getattr(f, "empty", True):
+        return pd.DataFrame(), {}
+    d = f.dropna(subset=["pct"]).copy()
+    if d.empty:
+        return pd.DataFrame(), {}
+    d["_rank"] = pd.to_numeric(d["sigma"], errors="coerce").abs()
+    d["_rank"] = d["_rank"].fillna(pd.to_numeric(d["pct"], errors="coerce").abs())
+    d = d[[eqanalyst.is_us_line(t) for t in d["ticker"]]]
+    if d.empty:
+        return pd.DataFrame(), {}
+    d = d.sort_values("_rank", ascending=False).drop_duplicates("ticker").head(int(n_names))
+    tks = list(d["ticker"])
+    try:
+        feed = eqanalyst.recent_actions(tks, names=dict(zip(d["ticker"], d["name"])),
+                                        days=days, limit=10, max_fetch=int(n_names))
+        return feed, eqanalyst.coverage(tks)
+    except Exception:
+        return pd.DataFrame(), {}
+
+
+def _eq_rating_actions(index_keys) -> None:
+    """The Equities home's rating-actions strip: who changed their view on the names in view."""
+    st.subheader("Recent rating actions")
+    with st.spinner("Checking the analyst feed…"):
+        feed, cov = _eq_recent_actions(tuple(index_keys))
+    scope = (f"the {cov.get('asked', 0)} biggest overnight movers among the **US-listed** names "
+             f"in the selected indices ({cov.get('cached', 0)} of them with published coverage)"
+             if cov else "the biggest overnight movers among the US-listed names in the "
+                         "selected indices")
+    if feed is None or getattr(feed, "empty", True):
+        st.caption(f"No upgrades, downgrades or new coverage in the last 60 days across {scope}. "
+                   "(Yahoo's free grade history covers US-listed lines only; full detail for any "
+                   "single company is on **Company Fundamentals → Company tearsheet → Analyst view**.)")
+        return
+    rows = []
+    for _, r in feed.iterrows():
+        grade = (f"{r['from']} → {r['to']}" if r["from"] and r["to"] and r["from"] != r["to"]
+                 else (r["to"] or r["from"] or "—"))
+        tgt = eqanalyst.fmt_px(r.get("target"), r.get("ccy") or "")
+        rows.append({"Date": r["date"].strftime("%d %b"), "Stock": r["stock"], "Firm": r["firm"],
+                     "Rating": grade, "Action": eqanalyst.action_label(r["action"]),
+                     "Price target": tgt, "_dir": int(r.get("dir") or 0)})
+    tbl = pd.DataFrame(rows)
+    dirs = tbl.pop("_dir").tolist()
+    sty = [_EQF_GOOD_CSS if d0 > 0 else _EQF_BAD_CSS if d0 < 0 else "" for d0 in dirs]
+    st.caption(f"Upgrades, downgrades and new coverage published in the last 60 days across "
+               f"{scope} — grade changes only (routine target tweaks are left out). Published "
+               "third-party analyst views, shown for context. Full consensus, targets and the "
+               "longer action history for any company: **Company Fundamentals → Company "
+               "tearsheet → Analyst view**.")
+    brand.themed_dataframe(tbl, {}, colorers=[(["Action"], (lambda s: lambda col: s)(sty))],
+                           height=int(40 + 35.2 * min(len(tbl), 10)))
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -2525,6 +2826,7 @@ def render_equities_home() -> None:
                "Finance free of charge; Bloomberg only refreshes index membership.")
     st.divider()
     _equities_overnight_moves(sel, snap)
+    _eq_rating_actions(sel)
     _econ_figures()
     _equities_heatmap(sel)
 
@@ -2536,6 +2838,10 @@ _EQF_BAD_CSS = "color:#c5221f;font-weight:700"
 # Preset screens — thresholds are SECTOR percentiles (like-for-like within GICS sector),
 # except 'raw<=' which caps the raw value (a payout ratio over ~80% strains the dividend
 # whatever the sector norms are).
+# The page's three views. A plain control (not st.tabs) so the screener can send you
+# straight to a company — Streamlit can't switch tabs programmatically.
+_EQF_VIEWS = ["🔎 Screener", "📇 Company", "⚖️ Compare"]
+
 _EQF_PRESETS = {
     "All companies": [],
     "Quality — high ROE, low leverage": [("RETURN_COM_EQY", ">=", 70.0),
@@ -2588,16 +2894,162 @@ def _eqf_styles(sub: pd.DataFrame, field: str) -> list:
     return out
 
 
+# ── shared price / signal seams for the company page (all on-disk, no network) ─
+@st.cache_data(ttl=1800, show_spinner=False)
+def _eqf_closes():
+    """The equities TA backfill: ~4.5 years of split+dividend-adjusted daily closes for the
+    whole ~2,670-name universe, straight off disk. Refreshed by the daily equities pull —
+    reading it costs nothing, so the company page charts without touching Yahoo."""
+    from src import eqta
+    try:
+        close, _vol = eqta.load_history()
+        return close if close is not None else pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _eqf_signal_rows(ticker: str):
+    """(this name's live technical signals, signals meta) from the equities TA run."""
+    from src import eqta
+    try:
+        sig, meta = eqta.load_signals()
+    except Exception:
+        return pd.DataFrame(), {}
+    if sig is None or getattr(sig, "empty", True):
+        return pd.DataFrame(), {}
+    d = sig[sig["instruments"].astype(str) == str(ticker)]
+    return d.copy(), (meta or {})
+
+
+def _eqf_price_stats(ticker: str) -> dict | None:
+    """Last settled close + the return/σ/52-week context for the company header. None when
+    the name isn't in the TA backfill (a very recent index addition, or a non-mapping line)."""
+    c = _eqf_closes()
+    if c.empty or ticker not in c.columns:
+        return None
+    s = pd.to_numeric(c[ticker], errors="coerce").dropna()
+    if s.empty:
+        return None
+    last = float(s.iloc[-1])
+    prev = float(s.iloc[-2]) if len(s) > 1 else float("nan")
+    pct = (last / prev - 1.0) * 100.0 if prev == prev and prev else float("nan")
+    rets = s.pct_change().dropna() * 100.0
+    sd = float(rets.tail(21).std()) if len(rets) >= 5 else float("nan")
+    out = {"last": last, "asof": s.index[-1], "pct": pct,
+           "sigma": (pct / sd) if (sd == sd and sd > 1e-9 and pct == pct) else float("nan")}
+    for lbl, n in (("r1m", 21), ("r3m", 63), ("r12m", 252)):
+        out[lbl] = ((last / float(s.iloc[-n - 1]) - 1.0) * 100.0
+                    if len(s) > n and float(s.iloc[-n - 1]) else float("nan"))
+    yr = s.tail(252)
+    hi, lo = float(yr.max()), float(yr.min())
+    out.update({"hi52": hi, "lo52": lo,
+                "range_pos": ((last - lo) / (hi - lo) * 100.0) if hi > lo else float("nan")})
+    return out
+
+
+def _eqf_days_to_report(row) -> tuple:
+    """(display string, days until) for the next expected report date on this name."""
+    raw = eqfunda.fmt_value("EXPECTED_REPORT_DT", row.get("EXPECTED_REPORT_DT"))
+    if raw == "—":
+        return "—", None
+    try:
+        d = pd.Timestamp(raw).normalize()
+    except (TypeError, ValueError):
+        return raw, None
+    days = int((d - pd.Timestamp.today().normalize()).days)
+    return f"{d:%d %b %Y}", days
+
+
+# ── screener ─────────────────────────────────────────────────────────────────
+def _eqf_range_bounds(df: pd.DataFrame, field: str):
+    """(lo, hi) slider bounds for a metric — the 1st/99th percentile of the current selection,
+    so one outlier can't stretch the slider into uselessness. None when nothing is valued."""
+    s = pd.to_numeric(df.get(field), errors="coerce").dropna()
+    if s.empty:
+        return None
+    lo, hi = float(s.quantile(0.01)), float(s.quantile(0.99))
+    if not (hi > lo):
+        lo, hi = float(s.min()), float(s.max())
+    return (lo, hi) if hi > lo else None
+
+
+def _eqf_apply_pending() -> None:
+    """Apply a queued screen/company jump BEFORE the widgets are built (Streamlit refuses
+    session_state writes to a key whose widget already ran this pass)."""
+    spec = st.session_state.pop("_eqf_apply", None)
+    if not spec:
+        return
+    if spec.get("preset") in _EQF_PRESETS:
+        st.session_state["eqf_preset"] = spec["preset"]
+    for k, key in (("sectors", "eqf_sectors"), ("cols", "eqf_cols")):
+        if isinstance(spec.get(k), list):
+            st.session_state[key] = spec[k]
+    ranges = spec.get("ranges") or {}
+    st.session_state["eqf_rng_fields"] = list(ranges)
+    for f, pair in ranges.items():
+        try:
+            st.session_state[f"eqf_rng_{f}"] = (float(pair[0]), float(pair[1]))
+        except (TypeError, ValueError, IndexError):
+            pass
+
+
 def _eqf_screener(df: pd.DataFrame) -> None:
     labels = {f["field"]: f["label"] for f in eqfunda.FIELDS}
+    metric_opts = [f["field"] for f in eqfunda.FIELDS if f["kind"] not in ("text", "date")]
     c1, c2 = st.columns([2, 3])
     preset = c1.selectbox("Preset screen", list(_EQF_PRESETS), key="eqf_preset")
     sectors = sorted(df["sector"].dropna().unique())
     sec_sel = c2.multiselect("Sectors", sectors, key="eqf_sectors", help="Blank = all sectors.")
-    metric_opts = [f["field"] for f in eqfunda.FIELDS if f["kind"] not in ("text", "date")]
     cols = st.multiselect("Metrics (columns)", metric_opts, default=eqfunda.SCREENER_DEFAULT,
                           format_func=lambda f: labels[f], key="eqf_cols") or eqfunda.SCREENER_DEFAULT
     cols = [f for f in cols if f in df.columns]        # a field a pull didn't return can't be a column
+
+    # ---- value filters: raw-number ranges on top of the percentile presets ----
+    ranges: dict = {}
+    with st.expander("🎚️ Value filters — screen on the actual numbers, not just sector rank"):
+        rng_fields = st.multiselect("Metrics to filter", metric_opts, key="eqf_rng_fields",
+                                    format_func=lambda f: labels[f],
+                                    help="Each metric adds a range slider below. Presets screen on "
+                                         "SECTOR PERCENTILE; these screen on the raw value "
+                                         "(e.g. 'yield above 3%' regardless of sector).")
+        scols = st.columns(2)
+        for i, f in enumerate([f for f in rng_fields if f in df.columns]):
+            b = _eqf_range_bounds(df, f)
+            if b is None:
+                scols[i % 2].caption(f"_{labels[f]}: nothing valued in this selection._")
+                continue
+            lo, hi = b
+            step = max((hi - lo) / 200.0, 1e-6)
+            sel = scols[i % 2].slider(labels[f], lo, hi, value=(lo, hi), step=step,
+                                      key=f"eqf_rng_{f}")
+            if sel and (sel[0] > lo or sel[1] < hi):
+                ranges[f] = [float(sel[0]), float(sel[1])]
+        if rng_fields:
+            st.caption("Sliders span the 1st–99th percentile of the current selection. A metric left "
+                       "at full width doesn't filter; narrowing one drops names with **no value** "
+                       "for it, since they can't be shown to pass.")
+
+    # ---- saved screens ----
+    saved = eqfunda.load_screens()
+    s1, s2, s3 = st.columns([2, 1.4, 1.4])
+    nm = s1.text_input("Save this screen as", key="eqf_screen_name",
+                       placeholder="e.g. Quality compounders, EU")
+    if s2.button("💾 Save screen", use_container_width=True, key="eqf_screen_save",
+                 disabled=not str(nm).strip()):
+        eqfunda.save_screen(nm, {"preset": preset, "sectors": list(sec_sel), "cols": list(cols),
+                                 "ranges": ranges})
+        st.success(f"Saved “{nm}”.")
+    if saved:
+        pick = s3.selectbox("Saved screens", ["—"] + sorted(saved), key="eqf_screen_pick")
+        l1, l2, _ = st.columns([1.2, 1.2, 4])
+        if l1.button("📂 Load", key="eqf_screen_load", disabled=pick == "—"):
+            st.session_state["_eqf_apply"] = saved.get(pick, {})
+            st.rerun()
+        if l2.button("🗑️ Delete", key="eqf_screen_del", disabled=pick == "—"):
+            eqfunda.delete_screen(pick)
+            st.rerun()
+
     sub = df[df["sector"].isin(sec_sel)] if sec_sel else df
     sub, _q = prodsearch.search_row_box(sub, ["name", "ticker", "sector", "indices"], key="eqf_search")
     if _q and sub.empty:
@@ -2609,6 +3061,9 @@ def _eqf_screener(df: pd.DataFrame) -> None:
             continue                                   # metric absent from this pull — skip this leg
         v = pd.to_numeric(sub[col], errors="coerce")
         sub = sub[v.notna() & ((v >= thr) if op == ">=" else (v <= thr))]
+    for f, (lo, hi) in ranges.items():
+        v = pd.to_numeric(sub.get(f), errors="coerce")
+        sub = sub[v.notna() & v.between(lo, hi)]
     if sub.empty or not cols:
         st.caption("No companies pass this screen in the current selection.")
         return
@@ -2621,10 +3076,30 @@ def _eqf_screener(df: pd.DataFrame) -> None:
         disp[labels[f]] = pd.to_numeric(sub[f], errors="coerce").values
         fmt[labels[f]] = (lambda _f: lambda v: eqfunda.fmt_value(_f, v))(f)
         colorers.append(([labels[f]], (lambda sty: lambda col: sty)(_eqf_styles(sub, f))))
+    # Hover text on every metric header — what the number measures and how to read it.
+    col_cfg = {labels[f]: st.column_config.Column(labels[f], help=eqfunda.help_for(f))
+               for f in cols}
     st.caption(f"**{len(disp)}** companies · sorted by market cap · **green / red = top / bottom "
                "20% of the stock's own GICS sector** on that metric, direction-aware (low is the "
-               "good end for valuation multiples and leverage, high for the rest).")
-    brand.themed_dataframe(disp, fmt, colorers=colorers, na_rep="—", height=520)
+               "good end for valuation multiples and leverage, high for the rest)."
+               + ("  ·  Value filters: "
+                  + ", ".join(f"{labels[f]} {eqfunda.fmt_value(f, lo)}–{eqfunda.fmt_value(f, hi)}"
+                              for f, (lo, hi) in ranges.items()) if ranges else "")
+               + "  ·  **Click a row to open that company**, or hover a column header for what "
+                 "the metric measures.")
+    # The grid key carries a counter: bumping it on a jump hands back a FRESH grid with no row
+    # selected, so coming back to the screener doesn't instantly re-fire the last click.
+    ev = brand.themed_dataframe(disp, fmt, colorers=colorers, na_rep="—", height=520,
+                                column_config=col_cfg,
+                                key=f"eqf_screen_grid_{st.session_state.get('_eqf_grid_n', 0)}",
+                                selection_mode="single-row", on_select="rerun")
+    picked = list(((getattr(ev, "selection", None) or {}) if ev is not None else {}).get("rows", []))
+    if picked:
+        r = sub.iloc[picked[0]]
+        st.session_state["_eqf_grid_n"] = st.session_state.get("_eqf_grid_n", 0) + 1
+        st.session_state["_eqf_goto"] = {"view": _EQF_VIEWS[1],
+                                         "company": f"{r['name']}  ({r['ticker']})"}
+        st.rerun()
 
 
 def _eqf_group_rows(row, peers: pd.DataFrame) -> dict:
@@ -2642,9 +3117,249 @@ def _eqf_group_rows(row, peers: pd.DataFrame) -> dict:
             "label": spec["label"], "value": eqfunda.fmt_value(f, row.get(f)),
             "median": eqfunda.fmt_value(f, med),
             "pctl": p, "pctl_txt": "—" if p is None else eqfunda.ordinal(p),
-            "good": eqfunda.goodness(f, p),
+            "good": eqfunda.goodness(f, p), "help": eqfunda.help_for(f),
         })
     return out
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _eqa_record(ticker: str):
+    """One name's analyst record (consensus / targets / counts trend / rating actions).
+    Cached per session on top of eqanalyst's own daily disk cache, so flipping between
+    companies never re-hits Yahoo for a name already seen."""
+    try:
+        return eqanalyst.analyst(ticker)
+    except Exception:
+        return None
+
+
+def _eqa_actions_table(rec: dict, height_rows: int = 8) -> None:
+    """The rating-actions feed for one name — date · firm · from → to · action · target."""
+    d = eqanalyst.actions_frame(rec, limit=12)
+    if d.empty:
+        st.caption("No rating actions on the free feed for this name"
+                   + (" in the stored window (~2 years)."
+                      if eqanalyst.is_us_line(rec.get("ticker", ""))
+                      else " — Yahoo carries the upgrade/downgrade history for **US-listed** "
+                           "lines only, so non-US listings show consensus and targets but an "
+                           "empty action feed."))
+        return
+    ccy = (rec.get("targets") or {}).get("ccy") or ""
+    rows = []
+    for _, r in d.iterrows():
+        grade = (f"{r['from']} → {r['to']}" if r["from"] and r["to"] and r["from"] != r["to"]
+                 else (r["to"] or r["from"] or "—"))
+        tgt = eqanalyst.fmt_px(r.get("target"), ccy)
+        if r.get("prior") and r.get("target") and r["prior"] != r["target"]:
+            tgt += f"  (was {eqanalyst.fmt_px(r['prior'])})"
+        rows.append({"Date": r["date"].strftime("%d %b %Y"), "Firm": r["firm"],
+                     "Rating": grade, "Action": eqanalyst.action_label(r["action"]),
+                     "Price target": tgt,
+                     "_dir": eqanalyst.action_direction(r["action"])})
+    tbl = pd.DataFrame(rows)
+    dirs = tbl.pop("_dir").tolist()
+    sty = [_EQF_GOOD_CSS if d0 > 0 else _EQF_BAD_CSS if d0 < 0 else "" for d0 in dirs]
+    brand.themed_dataframe(tbl, {}, colorers=[(["Action"], (lambda s: lambda col: s)(sty))],
+                           height=int(40 + 35.2 * min(len(tbl), height_rows)))
+
+
+def _eqa_tearsheet_block(ticker: str, name: str) -> None:
+    """'Analyst view' — what the sell side currently publishes on this name: consensus
+    rating, the buy/hold/sell split and how it has moved, price targets vs spot, and the
+    recent rating actions. Free Yahoo data; descriptive only."""
+    st.markdown("#### Analyst view")
+    with st.spinner("Loading the analyst consensus…"):
+        rec = _eqa_record(ticker)
+    if not rec:
+        st.caption(f"No published analyst consensus for **{name}** on the free feed "
+                   "(coverage is thinnest in small caps and some non-US listings).")
+        return
+    con, tg = rec.get("consensus") or {}, rec.get("targets") or {}
+    ccy = tg.get("ccy") or ""
+    mean, n = con.get("mean"), con.get("n")
+    up = eqanalyst.implied_upside(rec)
+    pos = eqanalyst.target_range_pos(rec)
+    trend = eqanalyst.trend_frame(rec)
+    shift = eqanalyst.trend_shift(rec)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Street consensus", con.get("label") or "—",
+              (f"mean {mean:.2f}" if isinstance(mean, (int, float)) else "—")
+              + (f" · {n} analysts" if n else ""), delta_color="off",
+              help="Yahoo's consensus mean on the **1 = most positive … 5 = least positive** "
+                   "scale. The 'Consensus rating (1–5)' in the Income & Ownership table above "
+                   "is the same figure on the inverted Bloomberg convention (5 = most positive).")
+    m2.metric("Mean price target", eqanalyst.fmt_px(tg.get("mean"), ccy),
+              (f"{up:+.1f}% vs {eqanalyst.fmt_px(tg.get('spot'))}" if up == up else "—"),
+              help="Consensus mean target and the implied move from the price it was pulled "
+                   "against — both in the listing currency, so the ratio is unit-safe.")
+    m3.metric("Target range",
+              f"{eqanalyst.fmt_px(tg.get('low'))} – {eqanalyst.fmt_px(tg.get('high'))}",
+              (f"price sits {pos:.0f}% up the range" if pos is not None else "—"),
+              delta_color="off",
+              help="Lowest and highest published target, and where the pull-time price sits "
+                   "between them.")
+    _posnow = trend["pos_pct"].iloc[0] if not trend.empty and trend["pos_pct"].notna().any() else None
+    m4.metric("Positive ratings", f"{_posnow:.0f}%" if _posnow is not None and _posnow == _posnow else "—",
+              (f"{shift:+.0f}pp vs 3m ago" if shift == shift else "—"),
+              help="Share of covering analysts at buy or strong buy, and how that share has "
+                   "moved across the four stored monthly vintages.")
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        st.markdown("**Rating split — last four monthly vintages**")
+        if trend.empty:
+            st.caption("No stored buy/hold/sell split for this name.")
+        else:
+            lbl = {"0m": "Now", "-1m": "1m ago", "-2m": "2m ago", "-3m": "3m ago"}
+            tt = pd.DataFrame({
+                "Vintage": [lbl.get(p, p) for p in trend["period"]],
+                "Strong buy": trend["strongBuy"], "Buy": trend["buy"], "Hold": trend["hold"],
+                "Sell": trend["sell"], "Strong sell": trend["strongSell"],
+                "Analysts": trend["total"],
+                "% positive": [f"{v:.0f}%" if v == v and v is not None else "—"
+                               for v in trend["pos_pct"]],
+            })
+            brand.themed_dataframe(tt, {}, height=int(40 + 35.2 * len(tt)))
+    with c2:
+        st.markdown("**Recent rating actions**")
+        _eqa_actions_table(rec)
+    _age = eqanalyst.age_days(rec)
+    st.caption("Consensus, targets and rating actions are published **third-party analyst "
+               "views**, summarised here for context — they are observations about the "
+               "Street's positioning, not a recommendation. Source: Yahoo Finance (free), "
+               f"pulled {rec.get('pulled', '—')}"
+               + (" (today)." if _age == 0 else f" ({_age}d ago)." if _age else ".")
+               + "  Rating actions are US-listed lines only on this feed.")
+
+
+def _eqf_header_metrics(row, stats: dict | None) -> None:
+    """The company page's top strip: where the price is, how it has travelled, and when the
+    next set of numbers lands."""
+    rep, days = _eqf_days_to_report(row)
+    h = st.columns(6)
+    if stats:
+        h[0].metric("Last close", f"{stats['last']:,.2f}",
+                    f"{stats['pct']:+.2f}%" if stats["pct"] == stats["pct"] else "—",
+                    help=f"Settled close for {stats['asof']:%d %b %Y} from the equities TA "
+                         "backfill (split + dividend adjusted), and the move vs the prior close.")
+        h[1].metric("Move in σ", f"{stats['sigma']:+.1f}σ" if stats["sigma"] == stats["sigma"] else "—",
+                    "vs its own 1m daily σ", delta_color="off",
+                    help="The last session's move in standard deviations of this stock's own "
+                         "~1-month daily moves — the same sizing rule as the movers table.")
+        h[2].metric("3-month", f"{stats['r3m']:+.1f}%" if stats["r3m"] == stats["r3m"] else "—",
+                    f"12m {stats['r12m']:+.1f}%" if stats["r12m"] == stats["r12m"] else "—",
+                    delta_color="off", help="Total return over the last ~63 and ~252 sessions.")
+        h[3].metric("52-week range",
+                    f"{stats['range_pos']:.0f}%" if stats["range_pos"] == stats["range_pos"] else "—",
+                    f"{stats['lo52']:,.0f} – {stats['hi52']:,.0f}", delta_color="off",
+                    help="Where the last close sits between the 52-week low and high.")
+    else:
+        h[0].metric("Last close", "—", "no price history")
+    h[4].metric("Market cap",
+                eqfunda.fmt_value("CRNCY_ADJ_MKT_CAP", row.get("CRNCY_ADJ_MKT_CAP")),
+                eqfunda.fmt_value("CRNCY", row.get("CRNCY")), delta_color="off")
+    h[5].metric("Next report", rep,
+                ("today" if days == 0 else f"in {days}d" if days and days > 0
+                 else f"{abs(days)}d ago" if days else "—"),
+                delta_color="off",
+                help="Expected reporting date from the fundamentals pull. Anything inside a "
+                     "week is flagged under the strip.")
+    if days is not None and 0 <= days <= 5:
+        st.warning(f"📅 **{row['name']} reports in {days} day(s)** ({rep}) — figures and technical "
+                   "levels below can move sharply around the release.")
+
+
+def _eqf_price_panel(ticker: str, name: str) -> None:
+    """Adjusted price with 50/200-day averages, over a pickable window. Reads the on-disk TA
+    backfill, so it costs nothing and matches exactly what the technical strategies see."""
+    import altair as alt
+    c = _eqf_closes()
+    if c.empty or ticker not in c.columns:
+        st.caption("No stored price history for this name — it joins the chart after the next "
+                   "equities pull (Equities home → **Pull equities data**).")
+        return
+    s = pd.to_numeric(c[ticker], errors="coerce").dropna()
+    if len(s) < 5:
+        st.caption("Too little stored price history to chart yet.")
+        return
+    span = st.segmented_control("Window", ["1M", "3M", "6M", "1Y", "3Y", "Max"], default="1Y",
+                                key="eqf_px_span") or "1Y"
+    n = {"1M": 21, "3M": 63, "6M": 126, "1Y": 252, "3Y": 756}.get(span)
+    ma50, ma200 = s.rolling(50).mean(), s.rolling(200).mean()
+    win = s.tail(n) if n else s
+    d = pd.DataFrame({"date": win.index, "Price": win.values,
+                      "50-day": ma50.reindex(win.index).values,
+                      "200-day": ma200.reindex(win.index).values})
+    long = d.melt("date", var_name="series", value_name="level").dropna(subset=["level"])
+    cc = brand.chart_colors()
+    line = alt.Chart(long).mark_line().encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("level:Q", title="Adjusted price", scale=alt.Scale(zero=False)),
+        color=alt.Color("series:N", title=None,
+                        scale=alt.Scale(domain=["Price", "50-day", "200-day"],
+                                        range=[cc["accent"], cc["long"], cc["muted"]]),
+                        legend=alt.Legend(orient="top")),
+        strokeWidth=alt.condition("datum.series == 'Price'", alt.value(2.0), alt.value(1.1)),
+        tooltip=[alt.Tooltip("date:T", title="Date"), alt.Tooltip("series:N", title=""),
+                 alt.Tooltip("level:Q", title="Level", format=",.2f")])
+    brand.show_chart(line.properties(height=300))
+    st.caption("Split- and dividend-adjusted closes from the equities backfill — the same series "
+               "every technical strategy runs on, so the chart and the signals below can't "
+               "disagree. Moving averages are computed on the full history, then windowed.")
+
+
+def _eqf_tech_read(ticker: str, name: str) -> None:
+    """Which technical strategies are currently firing on this name, straight from the daily
+    equities TA run — the read the Technical Analysis page has and the tearsheet never did."""
+    sig, meta = _eqf_signal_rows(ticker)
+    st.markdown("#### Technical read")
+    if sig.empty:
+        st.caption(f"No technical strategy is currently firing on {name}"
+                   + (f" (signals as of {meta.get('as_of')})." if meta.get("as_of") else ".")
+                   + " That is a flat read, not missing data — most names are quiet on most days.")
+        return
+    sig = sig.sort_values("metric", ascending=False, na_position="last")
+    # Strategies rank on different yardsticks (3m return %, distance to the level, …), so the
+    # measure travels WITH each row rather than becoming a column of mostly-blank cells.
+    rows = [{"Strategy": r["strategy"], "Signal": r["signal"],
+             "Ranking measure": (f"{str(r['metric_label'])}: {float(r['level']):,.2f}"
+                                 if pd.notna(r.get("level")) else str(r["metric_label"])),
+             "What triggered it": r.get("context") or "—",
+             "_dir": int(r.get("direction") or 0)} for _, r in sig.iterrows()]
+    tbl = pd.DataFrame(rows)
+    dirs = tbl.pop("_dir").tolist()
+    sty = [_EQF_GOOD_CSS if d0 > 0 else _EQF_BAD_CSS if d0 < 0 else "" for d0 in dirs]
+    brand.themed_dataframe(tbl, {}, colorers=[(["Signal"], (lambda s: lambda col: s)(sty))],
+                           height=int(40 + 35.2 * min(len(tbl), 9)))
+    st.caption(f"**{len(sig)}** strategy signal(s) live on this name"
+               + (f" · signals as of {meta.get('as_of')}" if meta.get("as_of") else "")
+               + ". Long/short is the strategy's own directional wording; the full trigger logic "
+                 "and backtests live on **Equities → Technical Analysis**.")
+
+
+def _eqf_group_tables(groups: dict, n_peers: int) -> None:
+    """The four fundamentals groups, each metric with its value, the sector median, and a bar
+    showing where in the sector the value ranks (gold in the top/bottom decile)."""
+    st.caption("**Sector rank** places the value inside the stock's own GICS sector "
+               f"({n_peers} names in the current index selection), direction-aware — the bar "
+               "fills to the percentile and the centre tick is the sector median. Values at an "
+               "extreme of their sector range may be worth a closer look. **Hover any metric "
+               "name** (dotted underline) for what it measures.")
+    cols2 = st.columns(2)
+    for i, g in enumerate(eqfunda.GROUP_ORDER):
+        rows = groups.get(g)
+        if not rows:
+            continue
+        with cols2[i % 2]:
+            brand.panel_header(g, right=f"{len(rows)} metrics")
+            brand.terminal_table(
+                [{"m": r["label"], "v": r["value"], "med": r["median"],
+                  "p": r["pctl_txt"], "bar": r["pctl"], "tip": r.get("help", "")} for r in rows],
+                [{"key": "m", "label": "Metric", "help_key": "tip"},
+                 {"key": "v", "label": "Value", "align": "right"},
+                 {"key": "med", "label": "Sector med", "align": "right"},
+                 {"key": "p", "label": "Pctl", "align": "right"},
+                 {"key": "bar", "label": "Sector rank", "pbar": True,
+                  "help": "Percentile within the GICS sector — left is low, right is high."}])
 
 
 def _eqf_tearsheet(df: pd.DataFrame, asof: str, src: str) -> None:
@@ -2652,32 +3367,32 @@ def _eqf_tearsheet(df: pd.DataFrame, asof: str, src: str) -> None:
     lab = (d["name"] + "  (" + d["ticker"] + ")").tolist()
     pick = st.selectbox("Company", lab, key="eqf_co")
     row = d.iloc[lab.index(pick)]
-    bits = [row["sector"], row["indices"], row["region"],
-            "Mkt cap " + eqfunda.fmt_value("CRNCY_ADJ_MKT_CAP", row.get("CRNCY_ADJ_MKT_CAP")),
-            eqfunda.fmt_value("CRNCY", row.get("CRNCY")),
-            "next report " + eqfunda.fmt_value("EXPECTED_REPORT_DT", row.get("EXPECTED_REPORT_DT"))]
+    ticker = str(row["ticker"])
+    bits = [row["sector"], row["indices"], row["region"], ticker]
     st.markdown(f"### {row['name']}")
-    st.caption("  ·  ".join(str(b) for b in bits if b and b != "—") + f"  ·  as of {asof} ({src}).")
+    st.caption("  ·  ".join(str(b) for b in bits if b and b != "—")
+               + f"  ·  fundamentals as of {asof} ({src}).")
+    stats = _eqf_price_stats(ticker)
+    _eqf_header_metrics(row, stats)
+    cc1, cc2 = st.columns([1, 1])
+    with cc1:
+        if st.button("⚖️ Compare with its peers", key="eqf_to_peers", use_container_width=True,
+                     help="Opens the Compare view pre-loaded with this name and the five "
+                          "closest comparables in its sector."):
+            st.session_state["_eqf_goto"] = {"view": _EQF_VIEWS[2], "peers_for": ticker}
+            st.rerun()
+    st.divider()
+    _eqf_price_panel(ticker, str(row["name"]))
+    st.divider()
+    _eqf_tech_read(ticker, str(row["name"]))
+    st.divider()
     peers = df[df["sector"] == row["sector"]]
     groups = _eqf_group_rows(row, peers)
-    st.caption("**Sector pctl** places the value inside the stock's own GICS sector "
-               f"({len(peers)} names in the current index selection) — coloured only at the "
-               "tails (top/bottom 20%), direction-aware. Values at an extreme of their sector "
-               "range may be worth a closer look.")
-    cols2 = st.columns(2)
-    for i, g in enumerate(eqfunda.GROUP_ORDER):
-        rows = groups.get(g)
-        if not rows:
-            continue
-        with cols2[i % 2]:
-            st.markdown(f"**{g}**")
-            tbl = pd.DataFrame([{"Metric": r["label"], "Value": r["value"],
-                                 "Sector median": r["median"], "Sector pctl": r["pctl_txt"]}
-                                for r in rows])
-            sty = [_EQF_GOOD_CSS if r["good"] > 0 else _EQF_BAD_CSS if r["good"] < 0 else ""
-                   for r in rows]
-            brand.themed_dataframe(tbl, {}, colorers=[(["Sector pctl"], (lambda s: lambda col: s)(sty))],
-                                   height=int(40 + 35.2 * len(rows)))
+    st.markdown("#### Fundamentals vs sector")
+    _eqf_group_tables(groups, len(peers))
+
+    st.divider()
+    _eqa_tearsheet_block(ticker, str(row["name"]))
 
     with st.expander("📈 Metric history — builds as pulls append to the database"):
         mf = st.selectbox("Metric", [f["field"] for f in eqfunda.FIELDS
@@ -2732,15 +3447,151 @@ def _eqf_tearsheet(df: pd.DataFrame, asof: str, src: str) -> None:
                         attachment_name=st.session_state.get("eqf_pdf_name", "Company_Fundamentals.pdf"))
 
 
+def _eqf_rebased_chart(tickers: list, names: dict, span: str) -> None:
+    """Total-return price paths for the compare set, rebased to 100 at the start of the window —
+    the 'who has actually outperformed' picture the numbers alone don't give."""
+    import altair as alt
+    c = _eqf_closes()
+    have = [t for t in tickers if t in getattr(c, "columns", [])]
+    if not have:
+        st.caption("No stored price history for the selected names yet.")
+        return
+    n = {"3M": 63, "6M": 126, "1Y": 252, "3Y": 756}.get(span)
+    rows = []
+    for t in have:
+        s = pd.to_numeric(c[t], errors="coerce").dropna()
+        s = s.tail(n) if n else s
+        if len(s) < 2 or not float(s.iloc[0]):
+            continue
+        base = float(s.iloc[0])
+        rows.append(pd.DataFrame({"date": s.index, "level": s.values / base * 100.0,
+                                  "name": names.get(t, t)}))
+    if not rows:
+        st.caption("Not enough overlapping history to rebase these names.")
+        return
+    d = pd.concat(rows, ignore_index=True)
+    ch = alt.Chart(d).mark_line(strokeWidth=1.6).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("level:Q", title=f"Rebased to 100 ({span})", scale=alt.Scale(zero=False)),
+        color=alt.Color("name:N", title=None, legend=alt.Legend(orient="top", columns=3)),
+        tooltip=[alt.Tooltip("name:N", title="Company"), alt.Tooltip("date:T", title="Date"),
+                 alt.Tooltip("level:Q", title="Rebased", format=",.1f")])
+    brand.show_chart(ch.properties(height=290))
+
+
+def _eqf_street_rows(tickers: list, names: dict) -> list:
+    """Consensus / target / implied-move rows for the compare table — a bounded analyst pull
+    (the compare set is six names at most, and eqanalyst serves cached ones instantly)."""
+    try:
+        recs = eqanalyst.bulk(tickers, max_fetch=len(tickers))
+    except Exception:
+        recs = {}
+    if not recs:
+        return []
+    out = []
+    for label, fn in (("Street consensus",
+                       lambda r: (r.get("consensus") or {}).get("label") or "—"),
+                      ("Analysts covering",
+                       lambda r: str((r.get("consensus") or {}).get("n") or "—")),
+                      ("Mean price target",
+                       lambda r: eqanalyst.fmt_px((r.get("targets") or {}).get("mean"),
+                                                  (r.get("targets") or {}).get("ccy") or "")),
+                      ("Implied move to target",
+                       lambda r: eqanalyst.fmt_pct(eqanalyst.implied_upside(r)))):
+        rec = {"Group": "Street view", "Metric": label}
+        for t in tickers:
+            r = recs.get(t)
+            rec[names.get(t, t)] = fn(r) if r else "—"
+        out.append(rec)
+    return out
+
+
+def _eqf_scatter(df: pd.DataFrame, highlight: list, labels: dict) -> None:
+    """Any metric against any other across a sector — where the outliers actually show up."""
+    import altair as alt
+    metric_opts = [f["field"] for f in eqfunda.FIELDS
+                   if f["kind"] not in ("text", "date") and f["field"] in df.columns]
+    if len(metric_opts) < 2:
+        return
+    c1, c2, c3 = st.columns([2, 2, 2])
+    xf = c1.selectbox("X axis", metric_opts, key="eqf_sc_x",
+                      index=metric_opts.index("BEST_PE_RATIO") if "BEST_PE_RATIO" in metric_opts else 0,
+                      format_func=lambda f: labels[f])
+    yf = c2.selectbox("Y axis", metric_opts, key="eqf_sc_y",
+                      index=metric_opts.index("RETURN_COM_EQY") if "RETURN_COM_EQY" in metric_opts else 1,
+                      format_func=lambda f: labels[f])
+    sectors = sorted(df["sector"].dropna().unique())
+    scope = c3.multiselect("Sectors plotted", sectors, key="eqf_sc_sec",
+                           help="Blank = the sectors of the compared names.")
+    if not scope:
+        scope = sorted({s for s in df[df["ticker"].isin(highlight)]["sector"].dropna()}) or sectors
+    d = df[df["sector"].isin(scope)].copy()
+    d["x"] = pd.to_numeric(d[xf], errors="coerce")
+    d["y"] = pd.to_numeric(d[yf], errors="coerce")
+    d["cap"] = pd.to_numeric(d.get("CRNCY_ADJ_MKT_CAP"), errors="coerce")
+    d = d[d["x"].notna() & d["y"].notna()]
+    # Trim the far tails so one 900x P/E doesn't flatten every other name onto the axis — but
+    # never drop a COMPARED name, which is exactly the case where the outlier is the point.
+    keep = d["ticker"].isin(highlight)
+    for col in ("x", "y"):
+        lo, hi = d[col].quantile(0.01), d[col].quantile(0.99)
+        d = d[keep.loc[d.index] | d[col].between(lo, hi)]
+    if d.empty:
+        st.caption("Nothing valued on both metrics in this scope.")
+        return
+    d["set"] = np.where(d["ticker"].isin(highlight), "Compared", "Sector")
+    d["x_lbl"] = [eqfunda.fmt_value(xf, v) for v in d["x"]]
+    d["y_lbl"] = [eqfunda.fmt_value(yf, v) for v in d["y"]]
+    cc = brand.chart_colors()
+    pts = alt.Chart(d).mark_circle(stroke="white", strokeWidth=0.4).encode(
+        x=alt.X("x:Q", title=labels[xf], scale=alt.Scale(zero=False)),
+        y=alt.Y("y:Q", title=labels[yf], scale=alt.Scale(zero=False)),
+        size=alt.Size("cap:Q", title="Market cap", legend=None,
+                      scale=alt.Scale(range=[25, 420])),
+        color=alt.Color("set:N", title=None,
+                        scale=alt.Scale(domain=["Compared", "Sector"],
+                                        range=[cc["accent"], cc["muted"]]),
+                        legend=alt.Legend(orient="top")),
+        opacity=alt.condition("datum.set == 'Compared'", alt.value(0.95), alt.value(0.45)),
+        tooltip=[alt.Tooltip("name:N", title="Company"), alt.Tooltip("sector:N", title="Sector"),
+                 alt.Tooltip("x_lbl:N", title=labels[xf]),
+                 alt.Tooltip("y_lbl:N", title=labels[yf])])
+    txt = alt.Chart(d[d["set"] == "Compared"]).mark_text(
+        dy=-11, fontSize=10, color=cc["accent"]).encode(x="x:Q", y="y:Q", text="name:N")
+    brand.show_chart((pts + txt).properties(height=380))
+    st.caption(f"**{len(d)}** companies across {', '.join(scope)} · dot size = market cap · the "
+               "compared names are labelled. Axes are trimmed at the 1st/99th percentile so a "
+               "single extreme multiple can't flatten the cloud.")
+
+
 def _eqf_peers(df: pd.DataFrame) -> None:
     d = df.sort_values("name").reset_index(drop=True)
     lab = (d["name"] + "  (" + d["ticker"] + ")").tolist()
+    by_ticker = {str(r["ticker"]): f"{r['name']}  ({r['ticker']})" for _, r in d.iterrows()}
+    labels = {f["field"]: f["label"] for f in eqfunda.FIELDS}
+
+    a1, a2 = st.columns([3, 2])
+    anchor_lab = a1.selectbox("Anchor company", ["—"] + lab, key="eqf_peer_anchor",
+                              help="The name you're comparing FROM — auto-peers builds its "
+                                   "comparison set from here.")
+    if a2.button("👥 Auto-peers (same sector, nearest size)", use_container_width=True,
+                 key="eqf_peer_auto", disabled=anchor_lab == "—"):
+        tk = str(d.iloc[lab.index(anchor_lab)]["ticker"])
+        picks = [by_ticker[p] for p in eqfunda.peer_set(df, tk, 5) if p in by_ticker]
+        st.session_state["_eqf_goto"] = {"view": _EQF_VIEWS[2],
+                                         "peer_sel": [anchor_lab] + picks}
+        st.rerun()
     sel = st.multiselect("Companies (2–6)", lab, key="eqf_peer_sel", max_selections=6,
                          help="Pick a name and its peers — e.g. the sector rivals across indices.")
     if len(sel) < 2:
-        st.caption("Pick at least two companies to compare side by side.")
+        st.caption("Pick at least two companies to compare side by side — or choose an anchor "
+                   "above and hit **Auto-peers**, which takes the five closest names in its GICS "
+                   "sector by market cap.")
         return
     rows_d = [d.iloc[lab.index(x)] for x in sel]
+    tickers = [str(r["ticker"]) for r in rows_d]
+    names = {str(r["ticker"]): x for r, x in zip(rows_d, sel)}
+
     recs, best = [], {}
     for spec in eqfunda.FIELDS:
         if spec["kind"] in ("text", "date"):
@@ -2754,21 +3605,75 @@ def _eqf_peers(df: pd.DataFrame) -> None:
         recs.append(rec)
         if spec["better"] and vals.notna().any():
             best[spec["label"]] = vals.idxmax() if spec["better"] == "high" else vals.idxmin()
+    with st.spinner("Loading the Street's view on the set…"):
+        street = _eqf_street_rows(tickers, names)
+    recs = recs + street
     disp = pd.DataFrame(recs)
     colorers = [([x], (lambda s: lambda col: s)(
                     [(_EQF_GOOD_CSS if best.get(r["Metric"]) == x else "") for r in recs]))
                 for x in sel]
     st.caption("**Green = best of the selected group** on that metric, direction-aware; context "
-               "metrics with no better/worse end (yield, payout, size) stay unmarked.")
-    brand.themed_dataframe(disp, {}, colorers=colorers, height=int(40 + 35.2 * len(recs)))
+               "metrics with no better/worse end (yield, payout, size) stay unmarked. The "
+               "**Street view** rows are published analyst consensus, shown for context.")
+    brand.themed_dataframe(disp, {}, colorers=colorers, height=int(40 + 35.2 * min(len(recs), 16)))
+
+    st.divider()
+    st.markdown("#### Sector rank across the set")
+    pctl_cols = [f for f in eqfunda.SCREENER_DEFAULT if f + "__pctl" in df.columns]
+    if pctl_cols:
+        grid = pd.DataFrame({"Company": [str(r["name"]) for r in rows_d]})
+        cell_style = {}
+        for f in pctl_cols:
+            vals = [r.get(f + "__pctl") for r in rows_d]
+            grid[labels[f]] = ["—" if (v is None or v != v) else eqfunda.ordinal(v) for v in vals]
+            cell_style[labels[f]] = [_EQF_GOOD_CSS if eqfunda.goodness(f, v) > 0
+                                     else _EQF_BAD_CSS if eqfunda.goodness(f, v) < 0 else ""
+                                     for v in vals]
+        brand.themed_dataframe(grid, {}, colorers=[([c], (lambda s: lambda col: s)(cell_style[c]))
+                                                   for c in cell_style],
+                               column_config={labels[f]: st.column_config.Column(
+                                   labels[f], help=eqfunda.help_for(f)) for f in pctl_cols},
+                               height=int(40 + 35.2 * len(grid)))
+        st.caption("Each cell is the company's percentile **within its own GICS sector** — so two "
+                   "names from different sectors are still judged against their own peers. Green / "
+                   "red mark the top / bottom 20%, direction-aware. Hover a column header for what "
+                   "the metric measures.")
+
+    st.divider()
+    st.markdown("#### Price paths")
+    span = st.segmented_control("Window", ["3M", "6M", "1Y", "3Y", "Max"], default="1Y",
+                                key="eqf_cmp_span") or "1Y"
+    _eqf_rebased_chart(tickers, {t: str(r["name"]) for t, r in zip(tickers, rows_d)}, span)
+
+    st.divider()
+    st.markdown("#### Metric scatter")
+    _eqf_scatter(df, tickers, labels)
+
+
+def _eqf_take_goto() -> None:
+    """Consume a queued view jump (screener row click, 'compare with peers', auto-peers) before
+    any of those widgets are built this pass."""
+    goto = st.session_state.pop("_eqf_goto", None)
+    if not goto:
+        return
+    if goto.get("view") in _EQF_VIEWS:
+        st.session_state["eqf_view"] = goto["view"]
+    if goto.get("company"):
+        st.session_state["eqf_co"] = goto["company"]
+    if goto.get("peer_sel"):
+        st.session_state["eqf_peer_sel"] = list(goto["peer_sel"])[:6]
+    if goto.get("peers_for"):
+        st.session_state["_eqf_peers_for"] = goto["peers_for"]
 
 
 def render_eq_fundamentals() -> None:
     st.subheader("🏢 Company Fundamentals")
-    st.caption("The research fundamentals — valuation, profitability, leverage, growth and income "
-               "— for every index constituent, always ranked **within GICS sector** so a bank's "
-               "P/B is judged against banks, not software. Every pull **appends** to the "
+    st.caption("Everything BASIS holds on a listed company — price and technicals, the research "
+               "fundamentals ranked **within GICS sector** so a bank's P/B is judged against "
+               "banks not software, and the Street's published view — plus a screener over the "
+               "whole universe and a side-by-side compare. Every pull **appends** to the "
                "fundamentals database, so trends accumulate over time.")
+    _eqf_take_goto()
     _eqf_pull_note()
     c1, c2 = st.columns([1, 2])
     if IS_ADMIN and c1.button("📥 Pull fundamentals", use_container_width=True, key="eqf_pull",
@@ -2807,20 +3712,30 @@ def render_eq_fundamentals() -> None:
                        "Bloomberg mode on the work PC._"))
     _keys = list(equities.INDICES.keys())
     sel = st.multiselect("Indices", _keys, default=list(equities.DEFAULT_INDICES), key="eqf_idx",
-                         help="Scope the screener / tearsheet / peers to these indices. "
+                         help="Scope the screener / company page / compare to these indices. "
                               "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
     with st.spinner("Loading the fundamentals database…"):
         df, asof, src = _eqf_frame(tuple(sel or _keys))
     if df.empty:
         st.caption("No universe loaded — pull equities data first (Equities Home).")
         return
-    t1, t2, t3 = st.tabs(["🔎 Screener", "📇 Company tearsheet", "⚖️ Peer comparison"])
-    with t1:
-        _eqf_screener(df)
-    with t2:
+    _eqf_apply_pending()
+    # A queued "compare with its peers" resolves here — peer_set needs the loaded frame.
+    _pf = st.session_state.pop("_eqf_peers_for", None)
+    if _pf:
+        _by = {str(r["ticker"]): f"{r['name']}  ({r['ticker']})" for _, r in df.iterrows()}
+        if _pf in _by:
+            st.session_state["eqf_peer_anchor"] = _by[_pf]
+            st.session_state["eqf_peer_sel"] = ([_by[_pf]]
+                                                + [_by[p] for p in eqfunda.peer_set(df, _pf, 5)
+                                                   if p in _by])
+    view = st.segmented_control("View", _EQF_VIEWS, default=_EQF_VIEWS[0], key="eqf_view")
+    if view == _EQF_VIEWS[1]:
         _eqf_tearsheet(df, asof, src)
-    with t3:
+    elif view == _EQF_VIEWS[2]:
         _eqf_peers(df)
+    else:
+        _eqf_screener(df)
 
 
 # ── Earnings Calendar (Equities) ──────────────────────────────────────────────
@@ -6546,7 +7461,8 @@ def render_stir_overview() -> None:
             lvl0 = bank.default_rate
             term = lvl0 + float(ip.cum_bp[-1]) / 100.0
             col_c = _STIR_BANK_COLOR[bk]
-            rate_big = "4.25–4.50" if bk == "FED" else f"{lvl0:.2f}"
+            rate_big = (f"{lvl0 - 0.125:.2f}–{lvl0 + 0.125:.2f}" if bk == "FED"
+                        else f"{lvl0:.2f}")   # Fed band derives from default_rate
             rate_tip = {"FED": "Current FOMC target band (%)",
                         "ECB": "Current deposit facility rate (%)",
                         "BOE": "Current Bank Rate (%)"}[bk]
@@ -6889,8 +7805,11 @@ def render_stir_bank(bank_key: str) -> None:
     # ---- assumptions ---------------------------------------------------------
     c1, c2, c3, c4 = st.columns([1.5, 1.1, 1, 1])
     if bank_key == "FED":
+        _b0 = f"{bank.default_rate - 0.125:.2f} – {bank.default_rate + 0.125:.2f}"
         band = c1.selectbox("Current target band (%)", _stir_fed_bands(),
-                            index=_stir_fed_bands().index("4.25 – 4.50"), key="spFED_band",
+                            index=(_stir_fed_bands().index(_b0)
+                                   if _b0 in _stir_fed_bands() else 0),
+                            key="spFED_band",
                             help="Today's FOMC target range. Sets the starting level of the path.")
         policy = float(band.split("–")[0]) + 0.125
     else:
@@ -11069,24 +11988,28 @@ section[data-testid="stSidebar"] div[data-testid="stElementContainer"][data-stal
 with st.sidebar:
     st.markdown(_LOGO_HOME_CSS, unsafe_allow_html=True)
     _side = st.session_state.get("side", "FICC")
-    _home_dest = "eq:Home" if _side == "Equities" else "Home"
     # Logo + the FICC/Equities switch live in one sticky wrapper (styled in brand._CSS) so
     # they stay pinned at the top of the sidebar while the nav list scrolls beneath them.
     with st.container(key="basis_sidebar_sticky"):
         with st.container(key="basis_logo_home"):
             brand.sidebar_logo()
-            st.button("Home", key="basis_logo_home_btn", on_click=_go, args=(_home_dest,),
+            st.button("Home", key="basis_logo_home_btn", on_click=_go, args=("Landing",),
                       use_container_width=True)
-        # TERMINAL: the cross-asset home, above the desk split (handoff §sidebar).
-        st.markdown('<div class="bt-sect">Terminal</div>', unsafe_allow_html=True)
-        _nav_button("00 · Overview", _home_dest)
-        # DESK: FICC | EQUITIES segmented control.
+        # ("00 · Overview" + its TERMINAL header dropped 2026-08-15 — redundant since
+        # the desk buttons below land on the same overview pages and the logo owns
+        # the front door.)
+        # DESK: FICC | EQUITIES segmented control. On the desk-neutral Landing page
+        # NEITHER side highlights (Ben, 2026-08-15) — the gold state means "you are
+        # on this desk", and the front door belongs to both.
+        _on_landing = st.session_state.get("active") == "Landing"
         st.markdown('<div class="bt-sect">Desk</div>', unsafe_allow_html=True)
         _sc1, _sc2 = st.columns(2, gap="small")
         _sc1.button("FICC", key="side_ficc", use_container_width=True,
-                    type="primary" if _side == "FICC" else "secondary", on_click=_set_side, args=("FICC",))
+                    type="primary" if (_side == "FICC" and not _on_landing) else "secondary",
+                    on_click=_set_side, args=("FICC",))
         _sc2.button("Equities", key="side_equities", use_container_width=True,
-                    type="primary" if _side == "Equities" else "secondary", on_click=_set_side, args=("Equities",))
+                    type="primary" if (_side == "Equities" and not _on_landing) else "secondary",
+                    on_click=_set_side, args=("Equities",))
     snap = _load_snap()
     _data_badge(snap, _side)
     df, meta = load_signals()
@@ -11176,8 +12099,8 @@ with st.sidebar:
 # over the masthead row (logo left · module breadcrumb · ET clock · theme toggle).
 # Pinned by brand CSS (.st-key-basis_topbar wrapper -> position:fixed).
 _active_dest = st.session_state.get("active", "Home")
-if _active_dest in ("Home", "eq:Home"):
-    _crumb = None                                      # Overview: the tagline
+if _active_dest in ("Home", "eq:Home", "Landing"):
+    _crumb = None                                      # Overview/front door: the tagline
 else:
     _crumb = f"{_side} desk · {_active_dest.removeprefix('eq:')}"
 with st.container(key="basis_topbar"):
@@ -11322,7 +12245,7 @@ def render_universe():
 # either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
 # chain below rather than being swallowed by its else-branch back into the Equities home page.
 _SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "User Admin",
-                 "User Activity"}
+                 "User Activity", "Landing"}
 
 # Defense-in-depth: even though colleague sessions never see the nav buttons/tabs that set `active`
 # to one of these admin-only destinations, refuse to render them for a non-admin session regardless
@@ -11377,6 +12300,8 @@ if side != "Equities":
 _render_group_tabs(active)
 
 # ----- page dispatch: render the active view ------------------------------
+if active == "Landing":
+    render_landing(); st.stop()
 if active == "Home":
     render_home(); st.stop()
 if active == "Confluence":

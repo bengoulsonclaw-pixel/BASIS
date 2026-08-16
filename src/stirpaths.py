@@ -94,8 +94,12 @@ class Bank:
 
 
 BANKS: dict[str, Bank] = {
+    # default_rate = the CURRENT policy setting and must track reality by hand:
+    # it anchors the live fit (r0) AND generates the synthetic demo strip. The
+    # Home cards and the Fed page's band picker derive from it — update HERE.
+    # FED 3.625 = 3.50-3.75 target band, confirmed off WIRP 14 Aug 2026.
     "FED": Bank("FED", "Federal Reserve", "FOMC", "Target band midpoint",
-                fedpath.FOMC_DECISIONS, 4.375, 25.0, "$"),
+                fedpath.FOMC_DECISIONS, 3.625, 25.0, "$"),
     "ECB": Bank("ECB", "European Central Bank", "Governing Council", "Deposit facility rate",
                 ECB_DECISIONS, 2.00, 25.0, "€"),
     "BOE": Bank("BOE", "Bank of England", "MPC", "Bank Rate",
@@ -656,11 +660,36 @@ def strip_store_asof() -> str | None:
     return _load_strip_store().get("asof") or None
 
 
+STRIP_ERROR = STRIP_STORE.with_name("stir_strips_error.json")
+
+
+def _strip_error_write(stage: str, detail: str) -> None:
+    """Record WHY the morning strip leg failed — read by Data health + the page
+    provenance captions. A silent `return 0` hid a -4002 block for a week."""
+    try:
+        from datetime import datetime
+        STRIP_ERROR.parent.mkdir(parents=True, exist_ok=True)
+        STRIP_ERROR.write_text(json.dumps(
+            {"when": datetime.now().isoformat(timespec="seconds"),
+             "stage": stage, "detail": detail}, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def strip_error() -> dict | None:
+    """The last recorded strip-pull failure, or None after a clean run."""
+    try:
+        return json.loads(STRIP_ERROR.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def refresh_strip_store(asof: date) -> int:
     """Pull ALL six products' specific strips (PX_LAST + PX_SETTLE, one batched bdp,
     ~72 tickers) into the snapshot store, and refresh the o/n fixings cache while
     the Terminal is connected. Called from snapshot.py's morning fetch phase ONLY —
-    a failed pull leaves the previous store untouched. Returns priced-ticker count."""
+    a failed pull leaves the previous store untouched (and records its reason to
+    STRIP_ERROR — never fail silently). Returns priced-ticker count."""
     if MODE != "bloomberg":
         return 0
     try:
@@ -671,6 +700,10 @@ def refresh_strip_store(asof: date) -> int:
         tickers = [f"{c.code} Comdty" for c in contracts]
         df = blp.bdp(tickers, ["PX_LAST", "PX_SETTLE"])
         if df is None or df.empty:
+            _strip_error_write("reference pull", f"empty response for {len(tickers)} tickers "
+                               "with the Terminal expected up — this is Bloomberg's -4002 "
+                               "WORKFLOW_REVIEW_NEEDED signature (a raw blpapi probe shows the "
+                               "code + nid; ring the Help Desk with them).")
             return 0
         prices, settles = {}, {}
         for c in contracts:
@@ -682,18 +715,25 @@ def refresh_strip_store(asof: date) -> int:
                 if "px_settle" in df.columns and row.get("px_settle") == row.get("px_settle"):
                     settles[c.code] = float(row["px_settle"])
         if not prices and not settles:
+            _strip_error_write("parse", "response carried no PX_LAST/PX_SETTLE values "
+                               f"for any of {len(tickers)} tickers.")
             return 0
         STRIP_STORE.parent.mkdir(parents=True, exist_ok=True)
         STRIP_STORE.write_text(json.dumps(
             {"asof": asof.isoformat(), "prices": prices, "settles": settles},
             indent=1), encoding="utf-8")
+        try:
+            STRIP_ERROR.unlink(missing_ok=True)     # clean run — clear the flag
+        except Exception:
+            pass
         refresh_fixings(asof)                       # 3 small bdh pulls, same session
         try:
             update_meeting_history(asof)            # pure math off the store just written
         except Exception:
             pass
         return len(set(prices) | set(settles))
-    except Exception:
+    except Exception as e:
+        _strip_error_write("exception", repr(e))
         return 0
 
 
