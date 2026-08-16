@@ -8178,27 +8178,22 @@ def render_stir_bank(bank_key: str) -> None:
           padding: 0.2rem 0.45rem; font-size: 0.85rem; font-weight: 600; }}
     </style>""", unsafe_allow_html=True)
     with st.container(key=_fwrap):
+        # DISPLAY-ONLY since the vertical meetings table took over the editing
+        # (its YOUR FUT column uses these same sp_fpx keys — a key can only own
+        # one widget). Slaving the keys here keeps _fpx_edit's inversion seeing
+        # odds-consistent values for every displayed contract.
         ycols = st.columns(gC, gap="small")
-        ycols[0].markdown(_rail("YOUR CALL", _YOU_C, "editable — re-solves §2 odds ▼",
-                                "Two-way: this row re-prices from the odds you set in "
-                                "section 2 — and typing a target price HERE back-solves "
-                                "the section-2 odds to match it"),
+        ycols[0].markdown(_rail("YOUR CALL", _YOU_C, "your fair — edit in §2 ▼",
+                                "Your fair value per contract, re-priced from your odds. "
+                                "Editing is two-way in the meetings table below: type odds "
+                                "OR a YOUR FUT price and the other re-solves"),
                           unsafe_allow_html=True)
         for c_, code in zip(ycols[1:], codes):
-            k = f"sp{bank_key}_fpx_{code}"
-            st.session_state[k] = round(fair_of[code], 4)   # slaved to the odds each run
-            with c_:
-                fin, fbtn = st.columns([3.1, 0.9], gap="small")
-                fin.number_input(code, min_value=90.0, max_value=100.0, step=0.005,
-                                 format="%.4f", key=k, label_visibility="collapsed",
-                                 on_change=_fpx_edit,
-                                 help=f"Type a target price for {code} — the meeting odds "
-                                      "in section 2 re-solve to be consistent with it")
-                with fbtn:
-                    st.button("＋", key=f"sp{bank_key}_fup_{code}", use_container_width=True,
-                              on_click=_fpx_bump, args=(k, 0.005))
-                    st.button("－", key=f"sp{bank_key}_fdn_{code}", use_container_width=True,
-                              on_click=_fpx_bump, args=(k, -0.005))
+            st.session_state[f"sp{bank_key}_fpx_{code}"] = round(fair_of[code], 4)
+            c_.markdown(f"<div class='sp-cell' style='border:1px solid "
+                        f"rgba(245,197,24,0.35);color:#F5C518;font-weight:600' "
+                        f"title='Your fair for {code} under your §2 odds'>"
+                        f"{fair_of[code]:.4f}</div>", unsafe_allow_html=True)
     _d_cols = st.columns(gC, gap="small")
     _d_cols[0].markdown(_rail("Δ BP", "#E8EAED", "your fair − market price",
                               "The gap between your fair value and the live market, in "
@@ -8270,7 +8265,7 @@ def render_stir_bank(bank_key: str) -> None:
     # mirroring the WIRP screen (%Hike/Cut · #Hikes/Cuts · Imp Rate Δ · Implied
     # Rate) plus our SETTLES INTO and the editable YOUR CALL — compact, and
     # familiar to anyone who has lived on WIRP.
-    _vgrid = [1.05, 0.55, 0.85, 1.0, 0.7, 0.7, 0.8, 1.15]
+    _vgrid = [1.0, 0.5, 0.8, 0.95, 0.6, 0.6, 0.72, 1.08, 1.18]
     # which quarterly future each decision SETTLES INTO (windows tile, so each
     # meeting maps to exactly one) — shading groups meetings sharing a contract.
     # Beside it: that contract's latest SETTLE from the snapshot store (the
@@ -8287,7 +8282,8 @@ def render_stir_bank(bank_key: str) -> None:
         eff = stirpaths.bank_effective_date(bank, m)
         wc = next((c for c in qstrip if c.start <= eff < c.end), None)
         tag = wc.code[-2:] if wc else "—"
-        if tag != _last:
+        first = tag != _last                        # first row of a contract group
+        if first:
             _ti, _last = 1 - _ti, tag
         tip = (f"{bank.meeting_name} {m:%d %b %y} settles inside {wc.code} "
                f"(window {wc.start:%d %b %y} → {wc.end:%d %b %y})" if wc else "")
@@ -8296,7 +8292,8 @@ def render_stir_bank(bank_key: str) -> None:
         settle_tip = (f"{wc.code} settlement, snapshot store · {_s_asof}"
                       if wc and _sv is not None else
                       "no stored settlement for this contract")
-        win_cells.append((tag, tip, _tints[_ti], settle_txt, settle_tip))
+        win_cells.append((tag, tip, _tints[_ti], settle_txt, settle_tip,
+                          wc.code if wc else None, first))
     # your number: green when above the market's call, red when below
     _tone_css = []
     for i, (m, lab) in enumerate(pairs):
@@ -8327,9 +8324,13 @@ def render_stir_bank(bank_key: str) -> None:
                                    "WIRP's Imp. Rate Δ column"),
                 ("IMPLIED", _MKT_C, "The overnight-proxy level the strip implies "
                                     "after this meeting — WIRP's Implied Rate column"),
-                ("YOUR CALL", _YOU_C, "The only column you edit: your odds per "
-                                      "decision (type or ＋/－) — drives section 1, "
-                                      "the Δbp row and the gold curve")]):
+                ("YOUR CALL", _YOU_C, "Your odds per decision (type or ＋/－) — "
+                                      "YOUR FUT, the Δbp row and the gold curve "
+                                      "re-price from these"),
+                ("YOUR FUT", _YOU_C, "Where the INTO future lands under YOUR odds — "
+                                     "two-way: type a target price here and the odds "
+                                     "of the meetings inside that contract re-solve. "
+                                     "One editor per contract (its first row)")]):
             c_.markdown(f"<div class='sp-hdr' style='color:{col}' title='{tip}'>{txt}</div>",
                         unsafe_allow_html=True)
         for i, (m, lab) in enumerate(pairs):
@@ -8337,7 +8338,7 @@ def render_stir_bank(bank_key: str) -> None:
             row[0].markdown(f"<div class='sp-cell' style='color:{_MTG_C};font-weight:700' "
                             f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
                             f"{m:%d %b %y}</div>", unsafe_allow_html=True)
-            tag, tip, tint, settle_txt, settle_tip = win_cells[i]
+            tag, tip, tint, settle_txt, settle_tip, wc_code, first = win_cells[i]
             row[1].markdown(f"<div class='sp-cell' style='background:{tint};"
                             f"font-size:0.75rem;font-weight:700' title='{tip}'>{tag}</div>",
                             unsafe_allow_html=True)
@@ -8372,13 +8373,44 @@ def render_stir_bank(bank_key: str) -> None:
                         st.button("－", key=f"sp{bank_key}_dn_{lab}",
                                   use_container_width=True,
                                   on_click=_stir_bump, args=(mv_key(lab), -0.05))
+            with row[8]:
+                # YOUR FUT: two-way editor on the INTO contract — first row of
+                # each contract group only (one contract = one price; later rows
+                # of the group show it dimmed). Shares §1's sp_fpx keys, slaved
+                # to the odds each run; typing re-solves the odds via _fpx_edit.
+                if wc_code and wc_code in fair_of and first:
+                    _fk = f"sp{bank_key}_fpx_{wc_code}"
+                    with st.container(key=f"sp{bank_key}_vf_{i}"):
+                        fin, fbtn = st.columns([3.1, 0.9], gap="small")
+                        fin.number_input(wc_code, min_value=90.0, max_value=100.0,
+                                         step=0.005, format="%.4f", key=_fk,
+                                         label_visibility="collapsed",
+                                         on_change=_fpx_edit,
+                                         help=f"Where {wc_code} lands under your odds — "
+                                              "type a target and the odds of its "
+                                              "meetings re-solve")
+                        with fbtn:
+                            st.button("＋", key=f"sp{bank_key}_fup_{wc_code}",
+                                      use_container_width=True,
+                                      on_click=_fpx_bump, args=(_fk, 0.005))
+                            st.button("－", key=f"sp{bank_key}_fdn_{wc_code}",
+                                      use_container_width=True,
+                                      on_click=_fpx_bump, args=(_fk, -0.005))
+                elif wc_code and wc_code in fair_of:
+                    st.markdown(f"<div class='sp-cell' style='opacity:0.45;color:#F5C518' "
+                                f"title='Same contract ({wc_code}) — edit on its first "
+                                f"row above'>{fair_of[wc_code]:.4f}</div>",
+                                unsafe_allow_html=True)
+                else:
+                    st.markdown("<div class='sp-cell'>—</div>", unsafe_allow_html=True)
     st.caption("One row per decision, WIRP's column conventions: **%HIKE/CUT** = the move "
                "priced at that meeting alone (≈ = interpolated) · **#H/C** and **CUM BP** = "
-               "cumulative through it · **IMPLIED** = the o/n level after it. Gold boxes are "
-               "**yours to edit** — green above the market (more hawkish), red below (more "
-               "dovish), white in line. **INTO** / **SETTLE** = the quarterly future the "
-               "decision settles into and its latest stored settlement (codes match "
-               "section 1, shading groups a shared contract).")
+               "cumulative through it · **IMPLIED** = the o/n level after it. The two gold "
+               "columns are **two-way**: edit **YOUR CALL** odds and YOUR FUT re-prices, or "
+               "type a target in **YOUR FUT** and the odds of that contract's meetings "
+               "re-solve (one price editor per contract, on its first row — green/red = "
+               "more hawkish/dovish than the market). **INTO** / **SETTLE** = the quarterly "
+               "future the decision settles into and its latest stored settlement.")
     if bf is not None:
         _bits = [f"market odds fit from **{bf.n_instruments} liquid instruments** — quarterlies "
                  "+ monthlies/serials, independent of the products displayed above"]
