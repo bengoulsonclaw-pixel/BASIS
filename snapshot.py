@@ -169,6 +169,19 @@ def run_equities() -> dict:
             except Exception as e:
                 print(f"  (Fundamentals pull skipped: {e})")
 
+        # Analyst view — top up the sell-side consensus cache (src/eqanalyst.py). Deliberately
+        # NOT a universe-wide pull: it re-pulls only the names already cached (i.e. the ones the
+        # desk has actually opened) that have gone stale, so the Analyst view blocks open
+        # instantly for a few seconds of free Yahoo traffic. Zero Bloomberg hits; guarded like
+        # the rest — a failure never blocks the pull and never wipes the cache.
+        try:
+            from src import eqanalyst
+            ar = eqanalyst.refresh_stale()
+            print(f"  Analyst view: {ar.get('n', 0)} cached name(s) refreshed"
+                  + (f" — {ar.get('reason')}" if ar.get("reason") else "."))
+        except Exception as e:
+            print(f"  (Analyst view refresh skipped: {e})")
+
         # Technical Analysis — refresh the equity OHLCV backfill + re-run every technical strategy, so the
         # Equities → Technical Analysis page (and its reports) are current each pull. Runs AFTER the
         # membership refresh above (it reads the just-updated universe). Settlement-based: yfin.get_ohlcv

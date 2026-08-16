@@ -16,6 +16,39 @@ from zoneinfo import ZoneInfo
 _URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 
 
+def fetch_day(day, impacts=("High",)) -> list:
+    """[{time_et, country, title, actual, forecast, previous}, ...] for `day`
+    (a date), sorted by release time. The feed only covers the CURRENT week —
+    days outside it legitimately return []."""
+    try:
+        req = urllib.request.Request(_URL, headers={"User-Agent": "Mozilla/5.0"})
+        data = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    except Exception:
+        return []
+    et = ZoneInfo("America/New_York")
+    rows = []
+    for e in data:
+        if e.get("impact") not in impacts:
+            continue
+        try:
+            dt = datetime.fromisoformat(e["date"]).astimezone(et)
+        except Exception:
+            continue
+        if dt.date() != day:
+            continue
+        rows.append({"_dt": dt,
+                     "time_et": dt.strftime("%H:%M ET"),
+                     "country": e.get("country", ""),
+                     "title": (e.get("title") or "").strip(),
+                     "actual": (e.get("actual") or "").strip(),
+                     "forecast": (e.get("forecast") or "").strip(),
+                     "previous": (e.get("previous") or "").strip()})
+    rows.sort(key=lambda r: r["_dt"])
+    for r in rows:
+        r.pop("_dt", None)
+    return rows
+
+
 def fetch_today(impacts=("High",)) -> list:
     """[{time, country, title, actual, forecast, previous}, ...] for today, sorted
     by release time. `impacts` filters the feed's impact level."""

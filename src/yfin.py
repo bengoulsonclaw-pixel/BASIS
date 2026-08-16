@@ -321,6 +321,25 @@ def _fund_values(info: dict) -> tuple:
     return vals, texts
 
 
+def earnings_time_et(bbg_ticker: str) -> str | None:
+    """'06:30 ET'-style expected-report CLOCK time for one name — Yahoo's
+    earningsTimestamp(Start) carries the hour that Bloomberg's EXPECTED_REPORT_DT
+    truncates away. None when unmapped/offline or Yahoo only has a date-level
+    placeholder (midnight)."""
+    sym = to_yahoo(bbg_ticker)
+    if not sym or OFFLINE:
+        return None
+    info = _info_one(sym)
+    ts = info.get("earningsTimestampStart") or info.get("earningsTimestamp")
+    try:
+        t = pd.Timestamp(int(ts), unit="s", tz="UTC").tz_convert("America/New_York")
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if t.hour == 0 and t.minute == 0:            # date-only placeholder
+        return None
+    return f"{t:%H:%M} ET"
+
+
 def _info_one(sym: str) -> dict:
     if OFFLINE:
         return {}

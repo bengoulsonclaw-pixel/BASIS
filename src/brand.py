@@ -56,10 +56,14 @@ DARK = dict(
     btn="transparent", btn_border="#333B49", btn_hover="#1C212A",
     btn_gold="rgba(245,197,24,.10)", btn_gold_hover="rgba(245,197,24,.16)",
     label_ring="rgba(245,197,24,.34)",
-    text="#E7EAEE", text_dim="#C3CAD3", caption="#C3CAD3", faint="#9AA4B0",
+    # Secondary-text floors RAISED 2026-08-15 (Ben: "barely readable... across the
+    # entire app") — was text_dim/caption #C3CAD3, faint #9AA4B0, tagline #8A94A1.
+    # Never re-dim below these.
+    text="#E7EAEE", text_dim="#CDD3DB", caption="#CDD3DB", faint="#AEB7C2",
     sidebar="#0A0C10",
     gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.10)",
-    bracket="#8A94A1", tagline="#8A94A1",
+    bracket="#9FA9B5", tagline="#9FA9B5",
+    cal_ink="#B6BFC9", cal_ink_strong="#E7EAEE",
     word=(("0", "#EEF0F3"), ("0.46", "#C0C5CC"), ("0.70", "#CBA53C"), ("1", "#F4CC3A")),
 )
 LIGHT = dict(
@@ -73,6 +77,7 @@ LIGHT = dict(
     sidebar="#E4E8EC",
     gold="#A87A0C", gold_deep="#8A6208", gold_soft="rgba(245,197,24,.16)",
     bracket="#6A737E", tagline="#6A737E",
+    cal_ink="#4A545F", cal_ink_strong="#12161B",
     word=(("0", "#12161B"), ("0.58", "#12161B"), ("0.73", "#8A6208"), ("1", "#A87A0C")),
 )
 PALETTES = {"dark": DARK, "light": LIGHT}
@@ -133,6 +138,41 @@ _WORD_W = 224           # BASIS natural advance width (viewBox units) = shared w
 # glyphs); lets us size the tagline so its natural width ≈ _WORD_W, leaving
 # textLength only a hair of spacing to nudge.
 _TAG_ADVANCE = 17.4
+
+
+def mark_svg(pal: dict, height: int = 86) -> str:
+    """Just the convergence ❯ mark (no wordmark) — the landing hero anchors it at
+    the page's left while the enlarged BASIS text centres independently."""
+    u = pal["name"] + "mk"
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -8 172 124" height="{height}" '
+        f'role="img" aria-label="BASIS mark" style="display:block">'
+        f'<defs>'
+        f'<linearGradient id="mgo_{u}" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0" stop-color="#F6D24A"/><stop offset="1" stop-color="#D9971C"/></linearGradient>'
+        f'<linearGradient id="msi_{u}" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0" stop-color="#F2F4F6"/><stop offset="1" stop-color="#9CA2A9"/></linearGradient>'
+        f'</defs>'
+        f'<path d="M8 2 L150 52" fill="none" stroke="url(#msi_{u})" stroke-width="12" stroke-linecap="round"/>'
+        f'<path d="M8 102 L150 52" fill="none" stroke="url(#mgo_{u})" stroke-width="12" stroke-linecap="round"/>'
+        f'<circle cx="150" cy="52" r="11" fill="url(#mgo_{u})"/></svg>'
+    )
+
+
+def word_svg(pal: dict, height: int = 64) -> str:
+    """Just the BASIS wordmark — the exact gradient/geometry of the sidebar lockup
+    (a CSS text-gradient approximation on the landing hero read as the wrong
+    colours; the SVG is the single source of the brand look)."""
+    u = pal["name"] + "wd"
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 96" height="{height}" '
+        f'role="img" aria-label="BASIS" style="display:block;font-family:{_FONT}">'
+        f'<defs><linearGradient id="bww_{u}" x1="0" y1="0" x2="1" y2="0">'
+        f'{_stops(pal["word"])}</linearGradient></defs>'
+        f'<text x="4" y="76" font-family="{_FONT}" font-size="76" font-weight="700" '
+        f'letter-spacing="2.5" fill="url(#bww_{u})">BASIS</text>'
+        f'</svg>'
+    )
 
 
 def header_svg(pal: dict, height: int = 34, tagline: bool = False) -> str:
@@ -202,6 +242,7 @@ _CSS = Template("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 :root { --basis-gold:$gold; --basis-gold-deep:$gold_deep;
+        --basis-cal-ink:$cal_ink; --basis-cal-ink-strong:$cal_ink_strong;
         --basis-mono:'IBM Plex Mono', Consolas, 'SF Mono', Menlo, monospace; }
 
 /* terminal geometry: sharp corners everywhere — separation comes from borders and
@@ -776,10 +817,11 @@ def panel_header(title: str, right: str = "") -> None:
 
 def terminal_table(rows: list[dict], columns: list[dict]) -> None:
     """Handoff-spec HTML table. columns = [{key, label, align?, color?, zbar?, pbar?,
-    help?, keep_case?}]: color=True paints +green/−red from the raw value; zbar=True
+    help?, help_key?, keep_case?}]: color=True paints +green/−red from the raw value; zbar=True
     renders the centered z-range bar (value in σ, clamped at ±2); pbar=True a 0–100
     percentile bar (left-anchored fill, centre tick = the median, gold fill inside the
-    top/bottom decile); help adds a hover tooltip to the header; keep_case skips the
+    top/bottom decile); help adds a hover tooltip to the header, help_key names a row field
+    whose text becomes a per-CELL tooltip (e.g. what a metric means); keep_case skips the
     upper-casing for symbol labels (±2σ would otherwise render as ±2Σ)."""
     pal = palette()
     up, down = ("#46C58A", "#EC6A57") if pal["name"] == "dark" else ("#0F7A45", "#C0392B")
@@ -814,6 +856,13 @@ def terminal_table(rows: list[dict], columns: list[dict]) -> None:
                            f'background:{colr}"></div></div></td>')
                 continue
             txt = "—" if v is None or (isinstance(v, float) and v != v) else str(v)
+            tip = ""
+            if c.get("help_key"):
+                _h = r.get(c["help_key"])
+                if _h:
+                    tip = (f' title="{str(_h).replace(chr(34), "&quot;")}"'
+                           ' style="cursor:help;text-decoration:underline dotted 1px;'
+                           'text-underline-offset:3px"')
             style = ""
             if c.get("color") and isinstance(v, (int, float)) and v == v:
                 style = f' style="color:{up if v > 0 else down};font-weight:600"'
@@ -823,6 +872,8 @@ def terminal_table(rows: list[dict], columns: list[dict]) -> None:
             cls = ' class="num"' if c.get("align") == "right" or c.get("color") else ""
             if cls and style:
                 out.append(f'<td class="num"{style}>{txt}</td>')
+            elif tip and not style:                 # per-cell tooltip (dotted underline hint)
+                out.append(f'<td{cls}><span{tip}>{txt}</span></td>')
             else:
                 out.append(f'<td{cls}{style}>{txt}</td>')
         out.append('</tr>')
@@ -842,7 +893,8 @@ def sidebar_footer(rows: list[tuple[str, str, str]]) -> None:
 
 # --- data tables -----------------------------------------------------------
 def themed_dataframe(df, fmt, colorers=None, *, na_rep=None, height=None,
-                     pal: dict | None = None, column_config: dict | None = None) -> None:
+                     pal: dict | None = None, column_config: dict | None = None,
+                     key: str | None = None, selection_mode=None, on_select=None):
     """st.dataframe whose cells follow the active palette.
 
     Streamlit's data grid is canvas-rendered and ignores the app's CSS, so it
@@ -852,6 +904,10 @@ def themed_dataframe(df, fmt, colorers=None, *, na_rep=None, height=None,
 
     colorers: list of (subset_columns, styler_func). Applied after the base so
     their `color:` overrides the base text colour on those columns.
+
+    Pass `key` + `selection_mode` + `on_select` to make the grid clickable; the
+    widget's return value (rows the user picked) is then handed back to the caller.
+    Returns None for the plain, non-interactive case.
     """
     pal = pal or palette()
     kw = {"use_container_width": True, "hide_index": True}
@@ -859,12 +915,18 @@ def themed_dataframe(df, fmt, colorers=None, *, na_rep=None, height=None,
         kw["height"] = height
     if column_config is not None:           # per-column width/label control (keeps narrow cols narrow)
         kw["column_config"] = column_config
+    if key is not None:
+        kw["key"] = key
+    if selection_mode is not None:
+        kw["selection_mode"] = selection_mode
+    if on_select is not None:
+        kw["on_select"] = on_select
     try:
         sty = df.style.format(fmt, na_rep=na_rep) if na_rep is not None else df.style.format(fmt)
         sty = sty.set_properties(**{"background-color": pal["surface"], "color": pal["text"]})
         for subset, fn in (colorers or []):
             sty = sty.apply(fn, subset=subset)
-        st.dataframe(sty, **kw)
+        return st.dataframe(sty, **kw)
     except Exception:                       # Styler needs jinja2 — plain fallback
         plain = df.copy()
 
@@ -877,7 +939,7 @@ def themed_dataframe(df, fmt, colorers=None, *, na_rep=None, height=None,
         for col, fn in (fmt or {}).items():
             if col in plain:
                 plain[col] = plain[col].map(lambda v, fn=fn: _one(v, fn))
-        st.dataframe(plain, **kw)
+        return st.dataframe(plain, **kw)
 
 
 # --- altair charts ---------------------------------------------------------

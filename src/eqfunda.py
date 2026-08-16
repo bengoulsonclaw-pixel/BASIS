@@ -93,7 +93,109 @@ FIELDS = [
     _f("EXPECTED_REPORT_DT",  "Next expected report",   "Income & Ownership", "date", None),
 ]
 
+# Plain-English "what is this and how do I read it" for every metric — the hover text on the
+# screener's column headers, the company page's metric rows and the compare grid. Kept out of
+# the _f() rows so the registry stays readable, and neutral in tone: what the number measures
+# and what moves it, never what to do about it.
+FIELD_HELP = {
+    "PE_RATIO":
+        "Share price ÷ the last 12 months' earnings per share — how many years of current "
+        "profit the price represents. Lower looks cheaper, but a low multiple usually reflects "
+        "doubt that those earnings persist.",
+    "BEST_PE_RATIO":
+        "Price ÷ the earnings analysts expect over the coming year. Forward-looking, so it "
+        "moves whenever estimates are revised, not just when the price does.",
+    "PX_TO_BOOK_RATIO":
+        "Price ÷ book value (assets minus liabilities). Most meaningful for banks and insurers "
+        "where book value tracks the real asset base; below 1.0x the market is valuing the "
+        "company under its accounting net worth.",
+    "PX_TO_SALES_RATIO":
+        "Price ÷ revenue. Useful where earnings are negative or depressed — revenue can't be "
+        "flattered by cost cuts or one-off charges.",
+    "BEST_PEG_RATIO_CUR_YR":
+        "Forward P/E ÷ expected earnings growth. Around 1.0 is the traditional 'growth fairly "
+        "priced' line; below it the growth is cheap relative to the multiple being paid.",
+    "EV_TO_T12M_EBITDA":
+        "Enterprise value (market cap plus net debt) ÷ EBITDA — the takeover-style multiple. "
+        "Because it counts debt, it compares a leveraged company with an unleveraged one fairly.",
+    "GROSS_MARGIN":
+        "Revenue left after the direct cost of producing the product, as a % of revenue — the "
+        "cleanest read on pricing power.",
+    "OPER_MARGIN":
+        "Profit from operations as a % of revenue: after the costs of running the business, "
+        "before interest and tax.",
+    "PROF_MARGIN":
+        "Bottom-line profit as a % of revenue, after everything including interest and tax.",
+    "EBITDA_TO_REVENUE":
+        "EBITDA as a % of revenue — margin before depreciation and amortisation, so "
+        "capital-heavy and capital-light businesses compare more evenly.",
+    "RETURN_COM_EQY":
+        "Profit as a % of shareholders' equity — how hard the owners' capital works. Leverage "
+        "flatters it, so read it alongside debt / equity.",
+    "RETURN_ON_INV_CAPITAL":
+        "Profit as a % of ALL capital employed, debt included — the leverage-neutral version of "
+        "ROE. No Yahoo source, so it shows '—' on Yahoo pulls.",
+    "TOT_DEBT_TO_TOT_EQY":
+        "Total debt as a % of equity. Above 100% the company runs on more borrowed than owned "
+        "capital; what counts as normal varies enormously by sector, hence the sector ranking.",
+    "NET_DEBT_TO_EBITDA":
+        "Years of EBITDA needed to repay net debt. Around 3x is where lenders typically start "
+        "to tighten terms in most sectors; a negative figure means net cash.",
+    "CUR_RATIO":
+        "Current assets ÷ current liabilities — whether the next year's obligations are "
+        "covered. Below 1.0 isn't automatically a strain for businesses paid up front.",
+    "INTEREST_COVERAGE_RATIO":
+        "Operating profit ÷ the interest bill — how many times over the interest is covered. "
+        "No Yahoo source, so it shows '—' on Yahoo pulls.",
+    "SALES_GROWTH":
+        "Revenue against the same period a year earlier.",
+    "SALES_3YR_AVG_GROWTH":
+        "Average annual revenue growth over three years — smooths out one exceptional year. "
+        "No Yahoo source, so it shows '—' on Yahoo pulls.",
+    "EPS_GROWTH":
+        "Earnings per share against a year earlier. Measured per share, so buybacks lift it "
+        "even when total profit is flat.",
+    "CF_CASH_FROM_OPER":
+        "Cash the business itself generated, before investment and financing.",
+    "CF_FREE_CASH_FLOW":
+        "Operating cash flow after capital spending — the cash actually available for "
+        "dividends, buybacks and paying down debt.",
+    "FREE_CASH_FLOW_YIELD":
+        "Free cash flow as a % of market cap — the cash-based answer to what the business "
+        "throws off relative to its price, and harder to massage than earnings.",
+    "NET_INCOME":
+        "Bottom-line accounting profit for the period.",
+    "OCF_TO_NET_INCOME":
+        "Operating cash flow ÷ net income. At or above 1.0 reported profit is arriving as "
+        "cash; persistently below it raises questions about earnings quality.",
+    "EQY_DVD_YLD_IND":
+        "Indicated annual dividend as a % of the share price.",
+    "DVD_PAYOUT_RATIO":
+        "The share of earnings paid out as dividends. Above roughly 80% there is little "
+        "headroom if profits dip.",
+    "EQY_SH_OUT":
+        "Shares in issue, in millions. A falling count means buybacks; a rising one means "
+        "issuance diluting existing holders.",
+    "CRNCY_ADJ_MKT_CAP":
+        "Market value of all shares in issue, in millions of the reporting currency.",
+    "BEST_ANALYST_RATING":
+        "Consensus analyst rating on the Bloomberg convention — 5 = most positive, 1 = least. "
+        "Careful: the Analyst view block quotes Yahoo's consensus mean, which runs the OTHER "
+        "way (1 = most positive).",
+    "CRNCY":
+        "The currency the fundamentals are reported in. LSE lines trade in pence but report "
+        "in pounds.",
+    "EXPECTED_REPORT_DT":
+        "The next expected reporting date, from the fundamentals pull.",
+}
+
+
 SPEC = {f["field"]: f for f in FIELDS}
+
+
+def help_for(field: str) -> str:
+    """Hover text for a metric — falls back to the label when no description is written."""
+    return FIELD_HELP.get(field) or SPEC.get(field, {}).get("label", field)
 NUMERIC_FIELDS = [f["field"] for f in FIELDS if f["kind"] not in ("text", "date")]
 _PULL_FIELDS = [f["field"] for f in FIELDS if not f["derived"]]
 
@@ -456,6 +558,60 @@ def add_sector_percentiles(df: pd.DataFrame, fields=None) -> pd.DataFrame:
         n = s.notna().groupby(grp).transform("sum")
         out[f + "__pctl"] = pct.where(n >= 3)
     return out
+
+
+def peer_set(df: pd.DataFrame, ticker: str, n: int = 5) -> list:
+    """The `n` closest comparables to `ticker` in the frame: same GICS sector, ranked by how
+    near their market cap is on a LOG scale (a 60bn name compares to a 40bn one, not to the
+    600bn megacap that happens to sit next to it in absolute terms). Falls back to the same
+    index when the sector has too few valued names. Returns tickers, nearest first."""
+    if df.empty or "ticker" not in df.columns or ticker not in set(df["ticker"]):
+        return []
+    me = df[df["ticker"] == ticker].iloc[0]
+    cap_col = "CRNCY_ADJ_MKT_CAP"
+    pool = df[(df["sector"] == me.get("sector")) & (df["ticker"] != ticker)]
+    if len(pool) < 2 and "indices" in df.columns:      # thin sector — widen to index-mates
+        pool = df[(df["indices"] == me.get("indices")) & (df["ticker"] != ticker)]
+    if pool.empty:
+        return []
+    my_cap = pd.to_numeric(pd.Series([me.get(cap_col)]), errors="coerce").iloc[0] \
+        if cap_col in df.columns else np.nan
+    if my_cap != my_cap or my_cap <= 0 or cap_col not in pool.columns:
+        return list(pool["ticker"].head(n))            # no cap to rank on — first names in sector
+    caps = pd.to_numeric(pool[cap_col], errors="coerce")
+    dist = (np.log(caps.where(caps > 0)) - np.log(my_cap)).abs()
+    return list(pool.assign(_d=dist).sort_values("_d", na_position="last")["ticker"].head(n))
+
+
+# ── saved screens (the screener's named filter sets) ─────────────────────────
+_SCREENS_FILE = _DATA_DIR / "screens.json"
+
+
+def load_screens() -> dict:
+    """{name: {preset, sectors, cols, ranges}} — the user's saved screener setups."""
+    try:
+        d = json.loads(_SCREENS_FILE.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_screen(name: str, spec: dict) -> dict:
+    name = str(name).strip()
+    if not name:
+        return load_screens()
+    screens = load_screens()
+    screens[name] = spec
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    _SCREENS_FILE.write_text(json.dumps(screens, ensure_ascii=False, indent=1), encoding="utf-8")
+    return screens
+
+
+def delete_screen(name: str) -> dict:
+    screens = load_screens()
+    if screens.pop(str(name), None) is not None:
+        _SCREENS_FILE.write_text(json.dumps(screens, ensure_ascii=False, indent=1), encoding="utf-8")
+    return screens
 
 
 def data_status() -> str:

@@ -36,6 +36,24 @@ def _mc_str(mc: float) -> str:
     return f" · {mc / 1000:,.0f}bn" if mc >= 1000 else f" · {mc:,.0f}mm"
 
 
+# Bloomberg ticker exchange code -> venue name (the code is the 2nd token of e.g.
+# "III LN Equity"). Covers every venue in the current universe; unknown codes fall
+# back to the raw code so a new market is visible rather than blank.
+EXCH_NAME = {
+    "UW": "NASDAQ", "UN": "NYSE", "UA": "NYSE American", "UR": "NYSE Arca", "US": "US",
+    "LN": "London", "GY": "Xetra", "GR": "Xetra", "FP": "Paris", "NA": "Amsterdam",
+    "BB": "Brussels", "IM": "Milan", "SM": "Madrid", "SW": "SIX Swiss", "SE": "SIX Swiss",
+    "ID": "Dublin", "PL": "Lisbon", "HE": "Helsinki", "DC": "Copenhagen",
+    "SS": "Stockholm", "NO": "Oslo", "AV": "Vienna", "CN": "Toronto", "CT": "Toronto",
+}
+
+
+def _exchange(ticker: str) -> str:
+    parts = str(ticker).split()
+    code = parts[1] if len(parts) > 1 else ""
+    return EXCH_NAME.get(code, code)
+
+
 def events(df: pd.DataFrame, cap: int = CAP) -> list:
     """Company-earnings events for repcal.month_html: {date, icon, label, color, auto, tip}.
     `df` is the Company Fundamentals frame (one row per company, EXPECTED_REPORT_DT +
@@ -54,10 +72,21 @@ def events(df: pd.DataFrame, cap: int = CAP) -> list:
         grp = grp.sort_values("_mc", ascending=False, na_position="last")
         for _, r in grp.head(cap).iterrows():
             tick = str(r.get("ticker", "")).split()[0] or "?"
+            # `sub` = the plain-text detail the landing day-board writes beside the
+            # chip (full name · index · venue) — month cells ignore it (tooltip only).
+            _bits = [str(r.get("name", tick))]
+            if r.get("indices"):
+                _bits.append(str(r["indices"]))
+            _x = _exchange(r.get("ticker", ""))
+            if _x:
+                _bits.append(_x)
             ev.append({"date": day, "icon": "", "label": tick,
                        "color": SECTOR_COLORS.get(r.get("sector"), OTHER_COLOR), "auto": False,
+                       "bbg": str(r.get("ticker", "")),      # full ticker — the landing
+                       "sub": " · ".join(_bits),             # board's Yahoo time lookup
                        "tip": f"{r.get('name', tick)} — {r.get('sector', '—')} · "
-                              f"{r.get('indices', '')}{_mc_str(r['_mc'])}"})
+                              f"{r.get('indices', '')} · {_exchange(r.get('ticker', ''))}"
+                              f"{_mc_str(r['_mc'])}"})
         rest = grp.iloc[cap:]
         if len(rest):
             names = ", ".join(str(x) for x in rest["name"].head(40))
