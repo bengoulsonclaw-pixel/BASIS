@@ -8271,7 +8271,7 @@ def render_stir_bank(bank_key: str) -> None:
     # mirroring the WIRP screen (%Hike/Cut · #Hikes/Cuts · Imp Rate Δ · Implied
     # Rate) plus our SETTLES INTO and the editable YOUR CALL — compact, and
     # familiar to anyone who has lived on WIRP.
-    _vgrid = [1.0, 0.5, 0.8, 0.95, 0.6, 0.6, 0.72, 1.08, 1.18]
+    _vgrid = [1.0, 0.5, 0.8, 0.95, 0.6, 0.6, 0.72, 1.08, 0.5, 1.18]
     # which quarterly future each decision SETTLES INTO (windows tile, so each
     # meeting maps to exactly one) — shading groups meetings sharing a contract.
     # Beside it: that contract's latest SETTLE from the snapshot store (the
@@ -8298,8 +8298,12 @@ def render_stir_bank(bank_key: str) -> None:
         settle_tip = (f"{wc.code} settlement, snapshot store · {_s_asof}"
                       if wc and _sv is not None else
                       "no stored settlement for this contract")
-        win_cells.append((tag, tip, _tints[_ti], settle_txt, settle_tip,
+        win_cells.append((tag, tip, _ti, settle_txt, settle_tip,
                           wc.code if wc else None, first))
+    # blue tints for the market-side INTO/SETTLE groups, gold twins for the
+    # your-side repeat tag — blue = market, gold = your call, everywhere
+    _gold_tints = ["rgba(245,197,24,0.08)", "rgba(245,197,24,0.20)"]
+    _mkt_wash = "rgba(127,179,245,0.07)"
     # your number: green when above the market's call, red when below
     _tone_css = []
     for i, (m, lab) in enumerate(pairs):
@@ -8312,27 +8316,42 @@ def render_stir_bank(bank_key: str) -> None:
     _pin_of = dict(zip(labels, bf.pinned)) if bf is not None else {}
     step_bp = float(hike_bp)
     with st.container(key=_wrap):
+        # group band: BLUE = the market's side, GOLD = yours — the split at a glance
+        band = st.columns([sum(_vgrid[:7]), sum(_vgrid[7:])], gap="small")
+        band[0].markdown(f"<div style='color:{_MTG_C};border-bottom:2px solid {_MTG_C};"
+                         "font-size:0.72rem;letter-spacing:0.14em;font-weight:700;"
+                         "padding:0 0.1rem 2px' title='Everything in blue is the MARKET: "
+                         "what the futures strip prices right now'>MARKET — PRICED IN NOW"
+                         "</div>", unsafe_allow_html=True)
+        band[1].markdown(f"<div style='color:{_YOU_C};border-bottom:2px solid {_YOU_C};"
+                         "font-size:0.72rem;letter-spacing:0.14em;font-weight:700;"
+                         "padding:0 0.1rem 2px' title='Everything in gold is YOURS: "
+                         "editable, two-way'>YOUR CALL — EDITABLE</div>",
+                         unsafe_allow_html=True)
         hdr = st.columns(_vgrid, gap="small")
         for c_, (txt, col, tip) in zip(hdr, [
                 ("MEETING", _MTG_C, f"Scheduled {bank.meeting_name} decision dates"),
-                ("INTO", _FUT_C, "The futures contract whose settlement this decision "
+                ("INTO", _MTG_C, "The futures contract whose settlement this decision "
                                  "feeds into — codes match section 1"),
-                ("SETTLE", _MKT_C, "That contract's latest settlement from the morning "
+                ("SETTLE", _MTG_C, "That contract's latest settlement from the morning "
                                    f"snapshot store ({_s_asof or 'demo'}) — last night's "
                                    "mark, not the editable page price"),
-                ("%HIKE/CUT", _MKT_C, "The move the strip prices AT this meeting: "
+                ("%HIKE/CUT", _MTG_C, "The move the strip prices AT this meeting: "
                                       "+0.35 = 35% odds of one hike, −0.66 = 66% odds "
                                       "of a cut · ≈ = interpolated, no contract "
                                       "isolates this meeting"),
-                ("#H/C", _MKT_C, "Cumulative hikes/cuts priced THROUGH this meeting "
+                ("#H/C", _MTG_C, "Cumulative hikes/cuts priced THROUGH this meeting "
                                  "(in steps) — WIRP's #Hikes/Cuts column"),
-                ("CUM BP", _MKT_C, "Cumulative bp priced through this meeting — "
+                ("CUM BP", _MTG_C, "Cumulative bp priced through this meeting — "
                                    "WIRP's Imp. Rate Δ column"),
-                ("IMPLIED", _MKT_C, "The overnight-proxy level the strip implies "
+                ("IMPLIED", _MTG_C, "The overnight-proxy level the strip implies "
                                     "after this meeting — WIRP's Implied Rate column"),
                 ("YOUR CALL", _YOU_C, "Your odds per decision (type or ＋/－) — "
                                       "YOUR FUT, the Δbp row and the gold curve "
                                       "re-price from these"),
+                ("INTO", _YOU_C, "Same contract tag again so the price you're editing "
+                                 "is never ambiguous — gold shading groups match the "
+                                 "blue ones on the left"),
                 ("YOUR FUT", _YOU_C, "Where the INTO future lands under YOUR odds — "
                                      "two-way: type a target price here and the odds "
                                      "of the meetings inside that contract re-solve. "
@@ -8344,26 +8363,32 @@ def render_stir_bank(bank_key: str) -> None:
             row[0].markdown(f"<div class='sp-cell' style='color:{_MTG_C};font-weight:700' "
                             f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
                             f"{m:%d %b %y}</div>", unsafe_allow_html=True)
-            tag, tip, tint, settle_txt, settle_tip, wc_code, first = win_cells[i]
-            row[1].markdown(f"<div class='sp-cell' style='background:{tint};"
+            tag, tip, _gi, settle_txt, settle_tip, wc_code, first = win_cells[i]
+            _bt = ["rgba(127,179,245,0.10)", "rgba(127,179,245,0.24)"][_gi]
+            _gt = _gold_tints[_gi]
+            row[1].markdown(f"<div class='sp-cell' style='background:{_bt};"
                             f"font-size:0.75rem;font-weight:700' title='{tip}'>{tag}</div>",
                             unsafe_allow_html=True)
-            row[2].markdown(f"<div class='sp-cell' style='background:{tint};"
+            row[2].markdown(f"<div class='sp-cell' style='background:{_bt};"
                             f"font-size:0.8rem' title='{settle_tip}'>{settle_txt}</div>",
                             unsafe_allow_html=True)
             _pinned = _pin_of.get(lab, True)
             _tip = (f"{bank.meeting_name} {m:%a %d %b %Y} · "
                     + ("pinned by its own contract — trust it" if _pinned else
                        "no single contract isolates this meeting — interpolated, indicative"))
-            row[3].markdown(f"<div class='sp-cell' title='{_tip}'>"
+            row[3].markdown(f"<div class='sp-cell' style='background:{_mkt_wash}' "
+                            f"title='{_tip}'>"
                             f"{'' if _pinned else '≈ '}{_mkt_dec[lab]:+.2f} "
                             f"<span class='sp-sub'>({per_disp[lab]:+.1f}bp)</span></div>",
                             unsafe_allow_html=True)
-            row[4].markdown(f"<div class='sp-cell'>{cum_disp[i] / step_bp:+.2f}</div>",
+            row[4].markdown(f"<div class='sp-cell' style='background:{_mkt_wash}'>"
+                            f"{cum_disp[i] / step_bp:+.2f}</div>",
                             unsafe_allow_html=True)
-            row[5].markdown(f"<div class='sp-cell'>{cum_disp[i]:+.1f}</div>",
+            row[5].markdown(f"<div class='sp-cell' style='background:{_mkt_wash}'>"
+                            f"{cum_disp[i]:+.1f}</div>",
                             unsafe_allow_html=True)
-            row[6].markdown(f"<div class='sp-cell'>{r0 + cum_disp[i] / 100.0:.3f}</div>",
+            row[6].markdown(f"<div class='sp-cell' style='background:{_mkt_wash}'>"
+                            f"{r0 + cum_disp[i] / 100.0:.3f}</div>",
                             unsafe_allow_html=True)
             with row[7]:
                 with st.container(key=f"sp{bank_key}_oc_{i}"):
@@ -8379,7 +8404,10 @@ def render_stir_bank(bank_key: str) -> None:
                         st.button("－", key=f"sp{bank_key}_dn_{lab}",
                                   use_container_width=True,
                                   on_click=_stir_bump, args=(mv_key(lab), -0.05))
-            with row[8]:
+            row[8].markdown(f"<div class='sp-cell' style='background:{_gt};color:{_YOU_C};"
+                            f"font-size:0.75rem;font-weight:700' title='{tip}'>{tag}</div>",
+                            unsafe_allow_html=True)
+            with row[9]:
                 # YOUR FUT: two-way editor on the INTO contract — first row of
                 # each contract group only (one contract = one price; later rows
                 # of the group show it dimmed). Shares §1's sp_fpx keys, slaved
