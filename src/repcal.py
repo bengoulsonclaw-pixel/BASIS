@@ -212,6 +212,24 @@ DAY_CSS = """
   .dy-none { font-size:12.5px; opacity:.55; padding:10px 4px; }
   .dy-next { display:block; font-size:12px; color:var(--basis-cal-ink, #8a929c);
              padding:2px 4px 0; }
+  /* phones: two 50% panels left no room for a chip like "WTI Crude — options
+     expiry", so the chips spilled across the divider and printed on top of the
+     other panel's text. Stack the panels, let the chips wrap, and drop the
+     540px min-height (an empty EARNINGS panel was half a screen of nothing). */
+  @media (max-width:760px) {
+    .daycal { grid-template-columns:1fr; }
+    .dy-panel { min-height:0; border-right:0;
+                border-bottom:1px solid rgba(128,128,128,.28); }
+    .dy-panel:last-child { border-bottom:0; }
+    .dy-rows { padding:8px 10px 12px; }
+    .dy-row { align-items:flex-start; gap:8px; margin:7px 0; flex-wrap:wrap; }
+    .dy-t { min-width:64px; font-size:11px; padding-top:3px; }
+    .dy-tl { font-size:9.5px; }
+    .dy-row .rcal-ev { flex:0 1 auto; min-width:0; font-size:11.5px; padding:3px 9px;
+                       white-space:normal; }
+    .dy-sub { flex:1 1 100%; padding-left:72px; white-space:normal; }
+    .dy-head { font-size:11.5px; letter-spacing:.2em; padding:9px 0 8px; }
+  }
 </style>
 """
 

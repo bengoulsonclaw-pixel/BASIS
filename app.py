@@ -1234,8 +1234,12 @@ def _world_clocks() -> None:
         "<meta charset='utf-8'><style>"
         "*{box-sizing:border-box;margin:0;padding:0}"
         # top padding = the visible gap between the BASIS masthead and the clock strip
+        # text-size-adjust: mobile Chrome "font boosting" silently inflates small text
+        # inside narrow blocks — it was scaling the city labels ~25% past what the CSS
+        # asks for, which is half of why the rail overlapped itself on a phone.
+        "html{-webkit-text-size-adjust:100%;text-size-adjust:100%}"
         "body{background:transparent;font-family:" + mono + ";padding-top:8px}"
-        ".row{display:grid;grid-template-columns:repeat(6,1fr);"
+        ".row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));"
         "width:100%;"       # full-bleed strip: half-width fit-content read as clutter
         "background:" + pal["surface2"] + ";border:1px solid " + pal["border"] + "}"
         ".c{padding:7px 12px;min-width:0;border-right:1px solid " + pal["border"] + "}"
@@ -1250,6 +1254,22 @@ def _world_clocks() -> None:
         "font-variant-numeric:tabular-nums;color:" + faint + "}"
         ".time{font-size:17px;font-weight:500;color:" + pal["text"] +
         ";font-variant-numeric:tabular-nums}"
+        # phones: six cells across a ~320px rail left the times overlapping each other
+        # and the city names as "CHI…". Three columns over two rows fits, with the
+        # weather moved to the cell's top-right corner (beside a clock it no longer
+        # fits) — fit() below grows the frame to the wrapped rail. MUST stay last:
+        # these are same-specificity overrides of the rules above.
+        "@media (max-width:760px){"
+        ".row{grid-template-columns:repeat(3,minmax(0,1fr))}"
+        ".c{padding:5px 8px;position:relative;overflow:hidden;"
+        "border-bottom:1px solid " + pal["border"] + "}"
+        ".c:nth-child(3n){border-right:none}"
+        ".c:nth-child(n+4){border-bottom:none}"
+        # city set tight enough that SINGAPORE/SÃO PAULO print in full beside the temp
+        ".city{font-size:9.5px;letter-spacing:.02em;padding-right:31px}"
+        ".time{font-size:15px}"
+        ".wx{position:absolute;top:4px;right:5px;gap:2px}"
+        ".wi svg{width:11px;height:11px}.tmp{font-size:9px}}"
         "</style><div class='row'>" + cells + "</div>"
         "<script>function t(){document.querySelectorAll('.time').forEach(function(e){"
         "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
@@ -1263,10 +1283,49 @@ def _world_clocks() -> None:
         # expand arrow needs that corner visible/clickable either way
         "var w=s?Math.round(s.getBoundingClientRect().width):0;"
         "if(w<48)w=48;"
-        "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');}catch(e){}}"
-        "sb();setInterval(sb,500);</script>")
+        # on a phone the sidebar OVERLAYS the page (it is ~70% of the screen); shifting
+        # the bar by its width squeezed the clocks into a sliver whenever the nav was open
+        "if(d.documentElement.clientWidth<820)w=48;"
+        "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');"
+        # ...and the bar's live HEIGHT into --basis-topbar-h. The 62px iframe is
+        # right on a desktop, but on a phone the rail wraps to two rows and the
+        # bar's own rows stack — a hard-coded .block-container clearance then hid
+        # the top of the page under the bar. Measure, don't guess.
+        "var k=d.querySelector('.st-key-basis_topbar'),n=k,fx=null;"
+        "while(n){if(d.defaultView.getComputedStyle(n).position==='fixed'){fx=n;break;}"
+        "n=n.parentElement;}"
+        "if(fx)d.documentElement.style.setProperty('--basis-topbar-h',"
+        "Math.round(fx.getBoundingClientRect().height)+'px');}catch(e){}}"
+        # grow OUR iframe to the wrapped rail's real height (Streamlit stamps the
+        # fixed 62px; re-applied on every tick so a rerun can't clip the rail)
+        # (Streamlit sizes the iframe's WRAPPER blocks to the 62px it was told about,
+        # so the taller frame just overflowed the bar — the wrappers get the height too,
+        # up to the fixed bar itself, which is left to grow on its own)
+        "function fit(){try{var f=window.frameElement;if(!f)return;"
+        "var h=Math.ceil(document.querySelector('.row').getBoundingClientRect().height)+10;"
+        "if(Math.abs(f.getBoundingClientRect().height-h)>1){"
+        "f.style.height=h+'px';f.setAttribute('height',h);}"
+        "var n=f.parentElement,i=0,d=window.parent.document;"
+        "while(n&&i<6&&d.defaultView.getComputedStyle(n).position!=='fixed'){"
+        "if(n.style.minHeight!==h+'px')n.style.minHeight=h+'px';n=n.parentElement;i++;}"
+        "}catch(e){}}"
+        # phone only: tapping a module in the (overlaying, near-full-screen) sidebar
+        # left the nav sitting on top of the page you just opened — collapse it once
+        # the click has been handed to Streamlit. Bound once; desktop is untouched.
+        "function auto(){try{var d=window.parent.document;"
+        "if(d.documentElement.clientWidth>=820)return;"
+        "var u=d.querySelector('[data-testid=\"stSidebarUserContent\"]');"
+        "if(!u||u.dataset.basisAuto)return;u.dataset.basisAuto='1';"
+        "u.addEventListener('click',function(ev){"
+        "if(!ev.target.closest('button'))return;setTimeout(function(){"
+        "var c=d.querySelector('[data-testid=\"stSidebarCollapseButton\"] button')"
+        "||d.querySelector('[data-testid=\"stSidebarCollapseButton\"]');"
+        "if(c)c.click();},150);},true);}catch(e){}}"
+        "fit();sb();auto();setInterval(function(){fit();sb();auto();},500);"
+        "window.addEventListener('resize',function(){fit();sb();});</script>")
     # 62 = 8px masthead gap + the rail's real rendered height (53px content + 1px
-    # slack) — anything taller leaves a dead dark band under the clocks.
+    # slack) — anything taller leaves a dead dark band under the clocks. On narrow
+    # viewports fit() above grows the frame to the two-row rail.
     components.html(html, height=62)
 
 
@@ -2189,12 +2248,14 @@ def render_landing() -> None:
     # page, tight to the top (Ben's layout, 2026-08-15). The wordmark is the REAL
     # brand SVG — a CSS text-gradient stand-in read as the wrong colours.
     st.markdown(
-        f'<div style="position:relative;padding:.05rem 0 .4rem;min-height:112px">'
-        f'<div style="position:absolute;left:.3rem;top:50%;transform:translateY(-50%)">'
+        # classes carry the phone treatment (brand CSS): the absolutely-positioned
+        # mark is dropped below 820px, where it landed on top of the wordmark
+        f'<div class="land-hero" style="position:relative;padding:.05rem 0 .4rem;min-height:112px">'
+        f'<div class="land-mark" style="position:absolute;left:.3rem;top:50%;transform:translateY(-50%)">'
         f'{brand.mark_svg(pal, height=88)}</div>'
         f'<div style="display:flex;flex-direction:column;align-items:center">'
         f'{brand.word_svg(pal, height=68)}'
-        f'<div style="font-size:17px;font-weight:600;letter-spacing:.44em;'
+        f'<div class="land-tag" style="font-size:17px;font-weight:600;letter-spacing:.44em;'
         f'text-transform:uppercase;color:{pal["tagline"]};margin-top:3px">'
         f'Analysis · Strategies · Indicators</div>'
         f'</div></div>',
@@ -2212,15 +2273,18 @@ def render_landing() -> None:
         _title = f"{day:%a %d %b %Y} · next trading day"
     else:
         _title = f"{day:%A %d %b %Y}"
-    # centred nav cluster:  ‹  day  ›  (arrows hug the date; trading days only)
-    _sp1, n_prev, n_title, n_next, _sp2 = st.columns([2.4, 0.55, 3.1, 0.55, 2.4],
-                                                     vertical_alignment="center")
-    n_prev.button("‹", key="land_prev", on_click=_land_day_set, args=(off - 1,),
-                  use_container_width=True)
-    n_title.markdown(f"<div style='font-size:21px;font-weight:700;text-align:center'>"
-                     f"{_title}</div>", unsafe_allow_html=True)
-    n_next.button("›", key="land_next", on_click=_land_day_set, args=(off + 1,),
-                  use_container_width=True)
+    # centred nav cluster:  ‹  day  ›  (arrows hug the date; trading days only).
+    # Keyed container so the phone CSS can hold the five columns in ONE row —
+    # stacked, the arrows became two full-width empty bars around the date.
+    with st.container(key="land_nav"):
+        _sp1, n_prev, n_title, n_next, _sp2 = st.columns([2.4, 0.55, 3.1, 0.55, 2.4],
+                                                         vertical_alignment="center")
+        n_prev.button("‹", key="land_prev", on_click=_land_day_set, args=(off - 1,),
+                      use_container_width=True)
+        n_title.markdown(f"<div class='land-daytitle' style='font-size:21px;font-weight:700;"
+                         f"text-align:center'>{_title}</div>", unsafe_allow_html=True)
+        n_next.button("›", key="land_next", on_click=_land_day_set, args=(off + 1,),
+                      use_container_width=True)
     if off != 0:                       # only offer the way back once you've left
         _r1, _r2, _r3 = st.columns([4, 1.7, 4])
         _r2.button("↩ Today", key="land_today", on_click=_land_day_set, args=(0,),
@@ -12527,11 +12591,45 @@ def render_macro_radar() -> None:
               None if res.summary.median_gap_bp is None
               else f"{res.summary.median_gap_bp:+.0f}bp vs policy",
               delta_color="off")
+    # Dispersion context: percentile/z against the ALFRED vintage history (US only).
+    # Compared 4-rule vs 4-rule — the vintage store cannot evaluate first-difference,
+    # so today's spread is recomputed without it before standardising.
+    disp_ctx = disp4 = None
+    if bank == "FED":
+        try:
+            from src import macrobt as _mbt
+            _core = [r.prescribed for r in res.summary.results
+                     if r.ok and r.prescribed is not None and r.key != "firstdiff"]
+            if len(_core) >= 2:
+                disp4 = (max(_core) - min(_core)) * 100.0
+                disp_ctx = _mbt.dispersion_context(disp4)
+        except Exception:
+            disp_ctx = None
     m4.metric("Rule dispersion",
               "—" if res.summary.dispersion_bp is None else f"{res.summary.dispersion_bp:.0f}bp",
+              None if disp_ctx is None or disp_ctx.get("z") is None
+              else f"{disp_ctx['pct']:.0f}th %ile · z {disp_ctx['z']:+.1f}",
+              delta_color="off",
               help="Highest minus lowest prescription. Wide = the committee has genuine "
                    "latitude and the outcome distribution is fat — an options view more "
-                   "than a directional one.")
+                   "than a directional one."
+                   + ("" if disp_ctx is None else
+                      f"\n\n**Is that high?** Against the same four rules rebuilt from "
+                      f"US vintage data {disp_ctx['start'].year}–{disp_ctx['end'].year} "
+                      f"(first-difference excluded — no year-ago gap in the store): "
+                      f"roughly **under {disp_ctx['q1']:.0f}bp the rules speak with one "
+                      f"voice, over {disp_ctx['q3']:.0f}bp they genuinely disagree**; "
+                      f"the all-time median is {disp_ctx['median']:.0f}bp."
+                      + (("\n\nFor feel, the era medians: "
+                          + " · ".join(f"{lbl} ~{v:.0f}bp" for lbl, v in disp_ctx["eras"])
+                          + f". The COVID/inflation shock peaked at "
+                            f"{disp_ctx['hi']:,.0f}bp — that is what \"the formulas "
+                            f"have no idea\" looks like. The distribution is heavily "
+                            f"right-skewed, so trust the percentile over the z-score "
+                            f"on big readings.")
+                         if disp_ctx.get("eras") else "")
+                      + " Context is US-only — no free vintage archive exists for the "
+                        "ECB or BoE."))
 
     if prov.assumed:
         st.info(f"**Assumed, not measured:** {', '.join(prov.assumed)} — nobody publishes "
@@ -12591,8 +12689,15 @@ def render_macro_radar() -> None:
             cdf = pd.DataFrame(chart_rows)
             dom = ["Priced by the STIR Strip"] + list(paths)
             rng = ["#F5C518", "#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65", "#F06292"]
+            # ticks/grid on the meeting dates themselves — the axis is linear calendar
+            # time, and anchoring the labels to the meetings makes the uneven 6-7 week
+            # FOMC spacing readable instead of leaving arbitrary fortnightly ticks
+            _mticks = [m.meeting.isoformat() for m in res.meetings]
             base = alt.Chart(cdf).encode(
-                x=alt.X("meeting:T", title=None),
+                x=alt.X("meeting:T", title=None,
+                        axis=alt.Axis(values=_mticks, format="%d %b %y",
+                                      labelAngle=-40, grid=True,
+                                      gridOpacity=0.25, gridDash=[2, 3])),
                 y=alt.Y("rate:Q", title="Policy rate (%)", scale=alt.Scale(zero=False)),
                 color=alt.Color("series:N",
                                 scale=alt.Scale(domain=dom, range=rng[:len(dom)]),
@@ -12679,8 +12784,12 @@ def render_macro_radar() -> None:
             cdf = pd.DataFrame(chart_rows)
             dom = ["Priced by the STIR Strip", f"{res.rule_name} prescribes"]
             rng = ["#F5C518", "#64B5F6"]
+            _mticks = [m.meeting.isoformat() for m in res.meetings]
             base = alt.Chart(cdf).encode(
-                x=alt.X("meeting:T", title=None),
+                x=alt.X("meeting:T", title=None,
+                        axis=alt.Axis(values=_mticks, format="%d %b %y",
+                                      labelAngle=-40, grid=True,
+                                      gridOpacity=0.25, gridDash=[2, 3])),
                 y=alt.Y("rate:Q", title="Policy rate (%)",
                         scale=alt.Scale(zero=False)),
                 color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
@@ -12986,8 +13095,7 @@ with st.sidebar:
         _nav_button("Alert Settings", "Recipients")
         _nav_button("Data Health", "Data health")
         _nav_button("Universe", "Universe")
-        _nav_button("Colleague Accounts", "User Admin")
-        _nav_button("Colleague Activity", "User Activity")
+        _nav_button("Colleague Access", "Colleague Access")
     if auth.REQUIRE_LOGIN:
         st.caption(f"Logged in as **{CURRENT_USER['name']}**")
         auth.render_logout_button()
@@ -13149,14 +13257,14 @@ def render_universe():
 # Destinations shared across BOTH desks (Cross-asset / System sidebar sections) — reachable from
 # either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
 # chain below rather than being swallowed by its else-branch back into the Equities home page.
-_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "User Admin",
-                 "User Activity", "Landing"}
+_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "Colleague Access",
+                 "User Admin", "User Activity", "Landing"}
 
 # Defense-in-depth: even though colleague sessions never see the nav buttons/tabs that set `active`
 # to one of these admin-only destinations, refuse to render them for a non-admin session regardless
 # of how `active` got set. Redirects to Home rather than erroring, since this should never happen
 # in normal use.
-_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "User Admin", "User Activity"}
+_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "Colleague Access", "User Admin", "User Activity"}
 if active in _ADMIN_ONLY_DESTS and not IS_ADMIN:
     active = st.session_state.active = "Home"
 
@@ -13263,7 +13371,14 @@ if active == "Recipients":
     render_recipients(); st.stop()
 if active == "Universe":
     render_universe(); st.stop()
-if active == "User Admin":
+if active == "Colleague Access":
+    st.subheader("👥 Colleague Access")
+    _sec = st.segmented_control("Section", ["Accounts", "Activity"], default="Accounts",
+                                key="colleague_section", label_visibility="collapsed")
+    st.divider()
+    (auth.render_activity if _sec == "Activity" else auth.render_user_admin)()
+    st.stop()
+if active == "User Admin":            # kept for any deep links / saved state
     auth.render_user_admin(); st.stop()
 if active == "User Activity":
     auth.render_activity(); st.stop()

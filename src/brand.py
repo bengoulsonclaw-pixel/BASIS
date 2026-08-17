@@ -340,6 +340,13 @@ div.st-key-basis_scroll_top,
     position:sticky; top:0; z-index:20;
     background:$sidebar; padding-bottom:.3rem;
 }
+/* tighter nav list (Ben, 2026-08-15): Streamlit's default ~1rem block gap + tall
+   buttons made ~15 module rows sprawl past the fold. Sections keep their air via
+   the .bt-sect top margin below. */
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] { gap:.3rem; }
+/* padding, NOT margin: .bt-sect margins collapse out of the markdown container
+   (14px box around 17px text) and the air never materialises */
+[data-testid="stSidebar"] .bt-sect { padding-top:.55rem; padding-bottom:.25rem; }
 /* sidebar nav rows (handoff): flat text rows, not buttons. Normal case, left-aligned;
    hover = surface step; ACTIVE (Streamlit type=primary) = surface2 fill + inset 2px
    gold left rule. Overrides the global uppercase/bordered button treatment. */
@@ -347,6 +354,7 @@ div.st-key-basis_scroll_top,
     background:transparent !important; border:none !important; color:$text_dim !important;
     text-transform:none !important; letter-spacing:0 !important;
     font-weight:400; justify-content:flex-start; box-shadow:none !important;
+    min-height:2rem; padding-top:.2rem; padding-bottom:.2rem;
 }
 [data-testid="stSidebar"] .stButton>button p {
     font-size:.9rem !important; text-transform:none !important; letter-spacing:0 !important;
@@ -665,6 +673,73 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
                  letter-spacing:.02em; padding:.14rem 0; }
 .bt-sbfoot div span:last-child { color:$text_dim; }
 .bt-sbfoot .dot { display:inline-block; width:6px; height:6px; margin-right:6px; }
+
+/* ── phones / narrow windows (basisterminal.com on a handset) ──────────────
+   The terminal shell is built for a wide desktop window. Below ~820px the
+   fixed-size pieces collided: the masthead crumb ran under Streamlit's ⋮
+   button, every st.columns row stacked into its own full-width band (the
+   theme toggle alone ate ~40px of a phone screen), and the top bar grew
+   taller than the .block-container's fixed 127px clearance so the page
+   content sat UNDER it. --basis-topbar-h is measured live by the clock
+   script (see _world_clocks) — the clearance follows the real bar height
+   whatever the rows do. */
+@media (max-width: 820px) {
+    /* stop mobile Chrome "font boosting" resizing text the layout is measured on */
+    html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+    .block-container {
+        padding-left:.75rem !important; padding-right:.75rem !important;
+        padding-top:calc(var(--basis-topbar-h, 156px) + 14px);
+    }
+    .st-key-basis_masthead { padding:.45rem .7rem .4rem; }
+    .bt-mast { gap:10px; min-height:30px; min-width:0; overflow:hidden; }
+    /* the open sidebar overlays the page here — it must sit ABOVE the fixed bar */
+    [data-testid="stSidebar"] { z-index:999995 !important; }
+    .bt-word { font-size:1.5rem; letter-spacing:.07em; }
+    .bt-div { height:22px; }
+    /* right padding keeps the crumb clear of the floating ⋮ menu button */
+    .bt-crumb { font-size:.62rem; letter-spacing:.02em; padding-right:34px; }
+    /* the top bar's clocks | toggle row stays ONE row: the toggle is 34px wide,
+       it never deserved a band of its own */
+    div.st-key-basis_topbar [data-testid="stHorizontalBlock"] {
+        flex-wrap:nowrap !important; gap:.35rem !important;
+    }
+    div.st-key-basis_topbar [data-testid="stColumn"] { min-width:0 !important; }
+    div.st-key-basis_topbar [data-testid="stColumn"]:last-child {
+        flex:0 0 40px !important; width:40px !important; min-width:40px !important;
+    }
+    .st-key-basis_theme_toggle { padding-right:0; }
+    .st-key-basis_theme_toggle button {
+        width:32px !important; min-width:32px; height:32px !important; min-height:32px;
+    }
+    /* landing hero: the ❯ mark is absolutely positioned and, at phone width,
+       sat straight on top of the wordmark — drop it and let the lockup centre */
+    .land-hero { min-height:0 !important; }
+    .land-hero .land-mark { display:none !important; }
+    .land-hero svg { max-width:72vw; height:auto; }
+    .land-tag { font-size:clamp(8.5px,2.55vw,17px) !important;
+                letter-spacing:.2em !important; white-space:nowrap; }
+    /* day nav ‹ date › : keep it one row (stacked, it read as three empty bars) */
+    .st-key-land_nav [data-testid="stHorizontalBlock"] { flex-wrap:nowrap !important; gap:.4rem !important; }
+    .st-key-land_nav [data-testid="stColumn"]:first-child,
+    .st-key-land_nav [data-testid="stColumn"]:last-child { display:none !important; }
+    .st-key-land_nav [data-testid="stColumn"]:nth-child(2),
+    .st-key-land_nav [data-testid="stColumn"]:nth-child(4) {
+        flex:0 0 44px !important; width:44px !important; min-width:44px !important;
+    }
+    .st-key-land_nav [data-testid="stColumn"]:nth-child(3) { flex:1 1 auto !important; min-width:0 !important; }
+    .land-daytitle { font-size:17px !important; }
+    /* the roomy desktop caption size costs half a phone screen on the long
+       help lines — step it back down (the .95rem rule above is !important) */
+    .block-container [data-testid="stCaptionContainer"],
+    .block-container [data-testid="stCaptionContainer"] * {
+        font-size:.8rem !important; line-height:1.45 !important;
+    }
+    /* wide tables/charts scroll inside their frame instead of being cut off by the
+       screen edge (chart widths are set for a desk monitor) */
+    .bt-tablewrap, [data-testid="stDataFrame"] { max-width:100%; overflow-x:auto; }
+    [data-testid="stVegaLiteChart"], [data-testid="stArrowVegaLiteChart"],
+    [data-testid="stPlotlyChart"] { max-width:100%; overflow-x:auto; }
+}
 </style>
 """)
 
