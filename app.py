@@ -8265,6 +8265,12 @@ def render_stir_bank(bank_key: str) -> None:
       .st-key-{_wrap} button[data-testid="stNumberInputStepUp"],
       .st-key-{_wrap} button[data-testid="stNumberInputStepDown"] {{
           display: none !important; }}
+      /* Streamlit gives stMarkdownContainer margin-bottom:-14px, collapsing its
+         layout box to 13px while our 1.95rem sp-cell OVERFLOWS it — the row's
+         centre-alignment then aligns the 13px box, printing text cells 7px
+         lower than the widget cells (measured in the DOM). Restore true height. */
+      .st-key-{_wrap} [data-testid="stMarkdownContainer"] {{
+          margin-bottom: 0 !important; }}
     </style>""", unsafe_allow_html=True)
     pairs = list(zip(ip.meetings, labels))
     # WIRP-style VERTICAL table (Ben, 2026-08-15): one ROW per meeting, columns
