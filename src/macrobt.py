@@ -267,6 +267,12 @@ def stored_summary() -> dict | None:
 
 if __name__ == "__main__":
     import time
+
+    # The scheduled task pipes stdout to a log through cmd.exe, whose default cp1252
+    # stream can't encode this file's arrows/dashes — the run then dies at the final
+    # cosmetic print AFTER doing all its real work, leaving a traceback in the log and
+    # a 0x1 in Task Scheduler every month. Reconfigure once instead of chasing glyphs.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     t0 = time.time()
     n = [0]
 

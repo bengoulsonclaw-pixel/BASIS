@@ -72,7 +72,12 @@ def build_and_send(pdf_path, xlsx_path, month, year, dry_run, to_override):
     from opecreport import build_pdf
     from cot_scheduled_email import send_report_email
 
+    # Balance/revision data: prefer the Excel appendix (2-dp), but fall back to the same
+    # tables in the PDF when the Excel didn't download or is incomplete — so a flaky/absent
+    # appendix can never again strip the report down to a stub.
     ap = P.parse_appendix(Path(xlsx_path)) if xlsx_path else {}
+    if not ap.get("demand_by_year"):
+        ap = {**P.parse_balance_pdf(Path(pdf_path)), **ap}
     pf = P.parse_pdf(Path(pdf_path))
     d = P.build_synopsis(ap, pf, month, year)
 

@@ -225,8 +225,12 @@ def parse_balance_pdf(pdf: Path) -> dict:
             return {y: (None if r.get(y) is None or r.get(str(int(y) - 1)) is None
                         else round(r[y] - r[str(int(y) - 1)], 2)) for y in yrs}
         dg, og, ng, sg = grow(dem), grow(oecd), grow(noecd), grow(ndl)
-        out["demand_by_year"] = [{"year": y, "oecd": og[y], "nonoecd": ng[y], "total": dg[y]}
-                                 for y in yrs if dg[y] is not None]
+        # total = OECD + non-OECD so the stacked demand chart's total label is exact
+        # (the 1-dp PDF levels can round (a)'s own y/y a touch differently).
+        out["demand_by_year"] = [
+            {"year": y, "oecd": og[y], "nonoecd": ng[y],
+             "total": round(og[y] + ng[y], 1) if og[y] is not None and ng[y] is not None else dg[y]}
+            for y in yrs if dg[y] is not None]
         out["supply_by_year"] = [{"year": y, "nondoc": sg[y]} for y in yrs if sg[y] is not None]
         out["call"] = {c: call.get(c) for c in ("1Q26", "2Q26", "3Q26", "4Q26", "2026", "2027", "2025")}
         out["doc_prod"] = {c: docp.get(c) for c in ("2025", "1Q26")}
