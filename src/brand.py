@@ -461,12 +461,16 @@ input, textarea,
    to 0 device px at some zooms and vanishes); outset (not inset) because the
    opaque summary strip would paint over an inset ring's top edge. */
 [data-testid="stExpander"] { background:$surface; border:none; box-shadow:0 0 0 1px $border; }
+/* LABEL RECIPE E (Ben, 2026-08-16): labels are sentence case in the APP FONT —
+   readable word-shapes — sized ~.8-.85rem at $caption weight 600 with near-zero
+   tracking. The old mono-caps micro-label (tiny + UPPERCASE + wide tracking)
+   was hard to read everywhere. Mono stays for VALUES, tickers and clocks. */
 [data-testid="stExpander"] summary {
     background:$surface2 !important;
     font-weight:600; padding:.5rem .9rem !important;
-    letter-spacing:.14em; text-transform:uppercase; font-size:.8rem;
+    letter-spacing:.01em; text-transform:none; font-size:.85rem;
 }
-[data-testid="stExpander"] summary p { font-size:.8rem !important; letter-spacing:.14em; }
+[data-testid="stExpander"] summary p { font-size:.85rem !important; letter-spacing:.01em; }
 [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { color:$text; }
 [data-testid="stExpander"] summary:hover, [data-testid="stExpander"] summary:hover * { color:$gold !important; }
 [data-testid="stExpander"] summary svg,
@@ -479,8 +483,9 @@ input, textarea,
 [data-testid="stMetric"] { background:$surface; border:none; box-shadow:0 0 0 1px $border; padding:.6rem .9rem; }
 [data-testid="stMetricValue"] { color:$text; font-family:var(--basis-mono); font-size:1.15rem; }
 [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {
-    color:$faint !important; font-family:var(--basis-mono);
-    font-size:.70rem !important; letter-spacing:.14em; text-transform:uppercase;
+    color:$caption !important;
+    font-size:.85rem !important; letter-spacing:.01em; text-transform:none;
+    font-weight:600;
 }
 [data-testid="stMetricDelta"] { font-family:var(--basis-mono); }
 
@@ -491,8 +496,8 @@ input, textarea,
 /* markdown/html tables (report previews, small boards) follow the handoff table spec */
 [data-testid="stMarkdownContainer"] table { border-collapse:collapse; }
 [data-testid="stMarkdownContainer"] th {
-    background:$surface2; color:$faint; font-family:var(--basis-mono);
-    font-size:.70rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase;
+    background:$surface2; color:$caption;
+    font-size:.8rem; font-weight:600; letter-spacing:.02em; text-transform:none;
     border-bottom:1px solid $border; text-align:left;
 }
 [data-testid="stMarkdownContainer"] td { border-bottom:1px solid $border_soft; }
@@ -570,8 +575,8 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 }
 .bt-div { width:1px; height:30px; background:$btn_border; }
 .bt-crumb {
-    font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.24em;
-    text-transform:uppercase; color:$faint;
+    font-size:.78rem; letter-spacing:.05em;
+    text-transform:uppercase; color:$caption; font-weight:600;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;
 }
 .bt-clock { font-family:var(--basis-mono); font-size:.75rem; color:$faint; white-space:nowrap; }
@@ -591,8 +596,8 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 }
 .bt-cell { padding:8px 12px; min-width:0; border-right:1px solid $border_soft;
            border-bottom:1px solid $border_soft; }
-.bt-sym { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.14em;
-          color:$faint; text-transform:uppercase; white-space:nowrap;
+.bt-sym { font-family:var(--basis-mono); font-size:.72rem; letter-spacing:.05em;
+          color:$caption; text-transform:uppercase; white-space:nowrap;
           overflow:hidden; text-overflow:ellipsis; }
 .bt-px { font-family:var(--basis-mono); font-size:.93rem; font-weight:500; color:$text;
          display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
@@ -602,9 +607,9 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 .bt-pagebar { display:flex; align-items:baseline; gap:14px;
               border-bottom:1px solid $border; padding:.35rem 0 .5rem; margin-bottom:.9rem; }
 .bt-pb-title { font-size:1.07rem; font-weight:600; letter-spacing:.02em; color:$text; }
-.bt-pb-kicker { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.14em;
-                color:$faint; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bt-pb-right { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.14em; color:$text_dim; }
+.bt-pb-kicker { font-size:.78rem; letter-spacing:.02em; font-weight:600;
+                color:$caption; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bt-pb-right { font-size:.78rem; letter-spacing:.02em; color:$text_dim; }
 
 /* panel header strip — ring not border (expander note); the flush tablewrap
    below paints its background over this ring's bottom edge, so the junction
@@ -612,14 +617,14 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 .bt-panelhead { display:flex; justify-content:space-between; align-items:center;
                 background:$surface; border:none; box-shadow:0 0 0 1px $border;
                 padding:9px 14px; margin-top:.35rem; }
-.bt-panelhead > span:first-child { font-size:.8rem; font-weight:600; letter-spacing:.18em; color:$text; }
-.bt-ph-right { font-family:var(--basis-mono); font-size:.68rem; letter-spacing:.12em; color:$gold; }
+.bt-panelhead > span:first-child { font-size:.85rem; font-weight:600; letter-spacing:.02em; color:$text; }
+.bt-ph-right { font-size:.75rem; letter-spacing:.02em; font-weight:600; color:$gold; }
 
 /* terminal table */
 .bt-tablewrap { border:none; box-shadow:0 0 0 1px $border; background:$surface; overflow-x:auto; margin-bottom:.9rem; }
 .bt-table { width:100%; border-collapse:collapse; font-size:.89rem; }
-.bt-table th { background:$surface2; color:$faint; font-family:var(--basis-mono);
-               font-size:.68rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase;
+.bt-table th { background:$surface2; color:$caption;
+               font-size:.8rem; font-weight:600; letter-spacing:.02em; text-transform:none;
                text-align:left; padding:6px 10px; border-bottom:1px solid $border; white-space:nowrap; }
 .bt-table th.num { text-align:right; }
 .bt-table td { padding:7px 10px; border-bottom:1px solid $border_soft; color:$text_dim; }
@@ -641,7 +646,7 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 }
 [data-testid="stSidebar"] .st-key-side_ficc button p,
 [data-testid="stSidebar"] .st-key-side_equities button p {
-    font-size:.72rem !important; letter-spacing:.16em !important; text-transform:uppercase !important;
+    font-size:.78rem !important; letter-spacing:.05em !important; text-transform:uppercase !important;
 }
 [data-testid="stSidebar"] .st-key-side_ficc button[kind="primary"],
 [data-testid="stSidebar"] .st-key-side_equities button[kind="primary"] {
@@ -652,12 +657,12 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 [data-testid="stSidebar"] .st-key-side_equities button[kind="primary"] * { color:$gold !important; }
 
 /* sidebar micro section labels + footer */
-.bt-sect { font-family:var(--basis-mono); font-size:.66rem; letter-spacing:.16em;
-           text-transform:uppercase; color:$faint; margin:.9rem 0 .25rem .35rem; }
+.bt-sect { font-size:.74rem; letter-spacing:.04em; font-weight:600;
+           text-transform:uppercase; color:$caption; margin:.9rem 0 .25rem .35rem; }
 .bt-sbfoot { border-top:1px solid $border; margin-top:1rem; padding:.6rem .35rem 0; }
 .bt-sbfoot div { display:flex; justify-content:space-between; align-items:center;
-                 font-family:var(--basis-mono); font-size:.68rem; color:$faint;
-                 letter-spacing:.08em; padding:.14rem 0; }
+                 font-size:.74rem; color:$caption;
+                 letter-spacing:.02em; padding:.14rem 0; }
 .bt-sbfoot div span:last-child { color:$text_dim; }
 .bt-sbfoot .dot { display:inline-block; width:6px; height:6px; margin-right:6px; }
 </style>

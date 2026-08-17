@@ -8153,19 +8153,20 @@ def render_stir_bank(bank_key: str) -> None:
     _MKT_C, _YOU_C = "#E8EAED", "#F5C518"           # market/futures white · your gold
     _MTG_C, _FUT_C = "#7FB3F5", _MKT_C              # meetings blue · contracts = market white
     st.markdown("""<style>
-      .sp-hdr { font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase;
-                font-weight: 700; padding: 0 0.1rem; }
+      /* label recipe E (see brand.py): sentence case, app font, readable sizes */
+      .sp-hdr { font-size: 0.85rem; letter-spacing: 0.01em; text-transform: none;
+                font-weight: 600; padding: 0 0.1rem; }
       .sp-cell { background: rgba(128,128,128,0.08); border: 1px solid rgba(128,128,128,0.25);
                  border-radius: 6px; height: 1.95rem; line-height: 1.85rem; padding: 0 0.45rem;
                  font-size: 0.85rem; white-space: nowrap; overflow: hidden; }
-      .sp-sub { font-size: 0.7rem; color: #9AA4B0; }
-      .sp-lab { font-weight: 700; font-size: 0.8rem; padding-top: 0.35rem;
-                letter-spacing: 0.03em; }
+      .sp-sub { font-size: 0.72rem; color: #AEB7C2; }
+      .sp-lab { font-weight: 600; font-size: 0.85rem; padding-top: 0.35rem;
+                letter-spacing: 0.01em; }
     </style>""", unsafe_allow_html=True)
     _code_tip = {c.code: f"{p.short} {c.label}" for p, c in zip(owner, contracts)}
 
     def _rail(main, color, sub="", tip=""):
-        s = (f"<div style='font-weight:400;font-size:0.62rem;color:#9AA4B0;"
+        s = (f"<div style='font-weight:400;font-size:0.68rem;color:#AEB7C2;"
              f"letter-spacing:0;text-transform:none;line-height:1.2'>{sub}</div>") if sub else ""
         return (f"<div class='sp-lab' style='color:{color};padding-top:0.1rem' "
                 f"title='{tip}'>{main}{s}</div>")
@@ -8183,14 +8184,14 @@ def render_stir_bank(bank_key: str) -> None:
             c_.markdown(f"<div class='sp-cell'>{html}</div>", unsafe_allow_html=True)
 
     # ---- 1 · the futures: market price over your fair, gap beneath -----------
-    st.markdown(f"**1 · FUTURES — the market's prices over "
+    st.markdown(f"**1 · Futures — the market's prices over "
                 f"<span style='color:{_YOU_C}'>yours</span>** &nbsp;·&nbsp; Δ row = the gap "
                 "in bp (green = cheap vs your view / buy, red = rich / sell)",
                 unsafe_allow_html=True)
     gC = [1] + [1] * len(codes)
-    _grid_hdr(st.columns(gC, gap="small"), "FUTURES", codes, _FUT_C, _code_tip,
+    _grid_hdr(st.columns(gC, gap="small"), "Futures", codes, _FUT_C, _code_tip,
               sub="contract codes", tip="Each column is one listed futures contract")
-    _grid_row(st.columns(gC, gap="small"), "MARKET", _MKT_C,
+    _grid_row(st.columns(gC, gap="small"), "Market", _MKT_C,
               [f"{px_of_now[c]:.4f}" for c in codes],
               sub="price trading now", tip="The live market price of each contract")
     # editable BOTH ways: these price cells re-solve the §2 odds when typed into,
@@ -8248,7 +8249,7 @@ def render_stir_bank(bank_key: str) -> None:
         # one widget). Slaving the keys here keeps _fpx_edit's inversion seeing
         # odds-consistent values for every displayed contract.
         ycols = st.columns(gC, gap="small")
-        ycols[0].markdown(_rail("YOUR CALL", _YOU_C, "your fair — edit in §2 ▼",
+        ycols[0].markdown(_rail("Your call", _YOU_C, "your fair — edit in §2 ▼",
                                 "Your fair value per contract, re-priced from your odds. "
                                 "Editing is two-way in the meetings table below: type odds "
                                 "OR a YOUR FUT price and the other re-solves"),
@@ -8260,7 +8261,7 @@ def render_stir_bank(bank_key: str) -> None:
                         f"title='Your fair for {code} under your §2 odds'>"
                         f"{fair_of[code]:.4f}</div>", unsafe_allow_html=True)
     _d_cols = st.columns(gC, gap="small")
-    _d_cols[0].markdown(_rail("Δ BP", "#E8EAED", "your fair − market price",
+    _d_cols[0].markdown(_rail("Δ bp", "#E8EAED", "your fair − market price",
                               "The gap between your fair value and the live market, in "
                               "basis points — green = cheap vs your view, red = rich"),
                         unsafe_allow_html=True)
@@ -8390,14 +8391,14 @@ def render_stir_bank(bank_key: str) -> None:
         # group band: BLUE = the market's side, GOLD = yours — the split at a glance
         band = st.columns([sum(_vgrid[:7]), sum(_vgrid[7:])], gap="small")
         band[0].markdown(f"<div style='color:{_MTG_C};border-bottom:2px solid {_MTG_C};"
-                         "font-size:0.72rem;letter-spacing:0.14em;font-weight:700;"
+                         "font-size:0.82rem;letter-spacing:0.02em;font-weight:700;"
                          "padding:0 0.1rem 2px' title='Everything in blue is the MARKET: "
-                         "what the futures strip prices right now'>MARKET — PRICED IN NOW"
+                         "what the futures strip prices right now'>Market — priced in now"
                          "</div>", unsafe_allow_html=True)
         band[1].markdown(f"<div style='color:{_YOU_C};border-bottom:2px solid {_YOU_C};"
-                         "font-size:0.72rem;letter-spacing:0.14em;font-weight:700;"
+                         "font-size:0.82rem;letter-spacing:0.02em;font-weight:700;"
                          "padding:0 0.1rem 2px' title='Everything in gold is YOURS: "
-                         "editable, two-way'>YOUR CALL — EDITABLE</div>",
+                         "editable, two-way'>Your call — editable</div>",
                          unsafe_allow_html=True)
         # NB: tooltips render inside title='…' HTML attributes — an apostrophe
         # in the text TERMINATES the attribute and mangles the tag (a header
@@ -8405,30 +8406,30 @@ def render_stir_bank(bank_key: str) -> None:
         # apostrophe-free.
         hdr = st.columns(_vgrid, gap="small", vertical_alignment="bottom")
         for c_, (txt, col, tip) in zip(hdr, [
-                ("MEETING", _MTG_C, f"Scheduled {bank.meeting_name} decision dates"),
-                ("INTO", _MTG_C, "The futures contract whose settlement this decision "
+                ("Meeting", _MTG_C, f"Scheduled {bank.meeting_name} decision dates"),
+                ("Into", _MTG_C, "The futures contract whose settlement this decision "
                                  "feeds into — codes match section 1"),
-                ("SETTLE", _MTG_C, "The latest stored settlement of that contract "
+                ("Settle", _MTG_C, "The latest stored settlement of that contract "
                                    f"(morning snapshot store · {_s_asof or 'demo'}) — "
                                    "the overnight mark, not the editable page price"),
-                ("%HIKE/CUT", _MTG_C, "The move the strip prices AT this meeting: "
-                                      "+0.35 = 35% odds of one hike, −0.66 = 66% odds "
-                                      "of a cut · ≈ = interpolated, no contract "
-                                      "isolates this meeting"),
-                ("#H/C", _MTG_C, "Cumulative hikes/cuts priced THROUGH this meeting "
-                                 "(in steps) — the #Hikes/Cuts column on WIRP"),
-                ("CUM BP", _MTG_C, "Cumulative bp priced through this meeting — "
+                ("% hike/cut", _MTG_C, "The move the strip prices AT this meeting: "
+                                       "+0.35 = 35% odds of one hike, −0.66 = 66% odds "
+                                       "of a cut · ≈ = interpolated, no contract "
+                                       "isolates this meeting"),
+                ("# h/c", _MTG_C, "Cumulative hikes/cuts priced THROUGH this meeting "
+                                  "(in steps) — the #Hikes/Cuts column on WIRP"),
+                ("Cum bp", _MTG_C, "Cumulative bp priced through this meeting — "
                                    "the Imp Rate Δ column on WIRP"),
-                ("IMPLIED", _MTG_C, "The overnight-proxy level the strip implies "
+                ("Implied", _MTG_C, "The overnight-proxy level the strip implies "
                                     "after this meeting — the Implied Rate column "
                                     "on WIRP"),
-                ("YOUR CALL", _YOU_C, "Your odds per decision (type or ＋/－) — "
-                                      "YOUR FUT, the Δbp row and the gold curve "
+                ("Your call", _YOU_C, "Your odds per decision (type or ＋/－) — "
+                                      "Your fut, the Δ bp row and the gold curve "
                                       "re-price from these"),
-                ("INTO", _YOU_C, "The same contract tag again, so the price being "
+                ("Into", _YOU_C, "The same contract tag again, so the price being "
                                  "edited is never ambiguous — gold groups match "
                                  "the blue ones on the left"),
-                ("YOUR FUT", _YOU_C, "Where the INTO future lands under YOUR odds — "
+                ("Your fut", _YOU_C, "Where the Into future lands under YOUR odds — "
                                      "two-way: type a target price here and the odds "
                                      "of the meetings inside that contract re-solve. "
                                      "One editor per contract, on its first row")]):
