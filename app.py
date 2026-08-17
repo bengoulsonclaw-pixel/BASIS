@@ -8277,6 +8277,52 @@ def render_stir_bank(bank_key: str) -> None:
     def _sp_gap(h: float = 0.9) -> None:
         st.markdown(f"<div style='height:{h}rem'></div>", unsafe_allow_html=True)
 
+    _sp_gap(0.5)
+    with st.expander("💾 Named scenarios — save / load the desk's cases"):
+        sc_all = _stir_scen_all().get(bank_key, {})
+        cur_def = _stir_scen_default(bank_key)
+        s1, s2, s3, s4, s5 = st.columns([1.7, 0.8, 1.6, 0.8, 1.1],
+                                        vertical_alignment="bottom")
+        new_name = s1.text_input("Save current odds as", key=f"sp{bank_key}_scn_name",
+                                 placeholder="base / hawkish / dovish …")
+        if s2.button("Save", key=f"sp{bank_key}_scn_save", use_container_width=True):
+            if new_name.strip():
+                _stir_scen_save(bank_key, new_name.strip(), vals)
+                st.toast(f"Saved scenario '{new_name.strip()}'."); st.rerun()
+        pickn = s3.selectbox("Saved scenarios", ["—"] + sorted(sc_all),
+                             key=f"sp{bank_key}_scn_pick",
+                             format_func=lambda n: f"★ {n}" if n == cur_def else n)
+
+        def _scn_load(name):
+            # runs as a CALLBACK (before the next render), so writing the odds
+            # widgets' keys is always legal regardless of where this expander
+            # sits relative to the inputs
+            for lab_, v_ in _stir_scen_all().get(bank_key, {}).get(name, {}).items():
+                if lab_ in labels:
+                    # percent -> decimal, unconditionally (see the seed loop note:
+                    # an abs<=3 heuristic corrupts small-odds views 100x)
+                    st.session_state[mv_key(lab_)] = float(v_) / 100.0
+                    st.session_state.setdefault(f"sp{bank_key}_scn_seeded", set()).add(lab_)
+
+        s4.button("Load", key=f"sp{bank_key}_scn_load", use_container_width=True,
+                  disabled=(pickn == "—"), on_click=_scn_load, args=(pickn,))
+        is_def = pickn != "—" and pickn == cur_def
+        if s5.button("☆ Clear default" if is_def else "★ Set as default",
+                     key=f"sp{bank_key}_scn_def", use_container_width=True,
+                     disabled=(pickn == "—"),
+                     help="The default scenario seeds YOUR CALL automatically when "
+                          "this page opens (instead of the market's odds)."):
+            _stir_scen_set_default(bank_key, None if is_def else pickn)
+            st.toast("Default cleared." if is_def
+                     else f"'{pickn}' now loads on open."); st.rerun()
+        if pickn != "—" and st.button(f"🗑 Delete '{pickn}'", key=f"sp{bank_key}_scn_del"):
+            _stir_scen_delete(bank_key, pickn); st.rerun()
+        _tail = "Scenarios persist to data/stirpaths_scenarios.json."
+        st.caption((f"★ **{cur_def}** seeds YOUR CALL whenever this page opens — "
+                    f"meetings it doesn't cover seed from the market. {_tail}")
+                   if cur_def else
+                   f"★ Set as default makes a scenario load automatically on open. {_tail}")
+
     # ---- 2+3 · one table: the market's call, your call directly beneath ------
     _sp_gap()
     h1_, h2_, h3_ = st.columns([4.2, 0.9, 1.5])
@@ -8547,51 +8593,6 @@ def render_stir_bank(bank_key: str) -> None:
                           if _anchor_used else
                           "The fit is running on YOUR page setting, which disagrees with the "
                           "market's read — double-check the level before quoting these odds."))
-    with st.expander("💾 Named scenarios — save / load the desk's cases"):
-        sc_all = _stir_scen_all().get(bank_key, {})
-        cur_def = _stir_scen_default(bank_key)
-        s1, s2, s3, s4, s5 = st.columns([1.7, 0.8, 1.6, 0.8, 1.1],
-                                        vertical_alignment="bottom")
-        new_name = s1.text_input("Save current odds as", key=f"sp{bank_key}_scn_name",
-                                 placeholder="base / hawkish / dovish …")
-        if s2.button("Save", key=f"sp{bank_key}_scn_save", use_container_width=True):
-            if new_name.strip():
-                _stir_scen_save(bank_key, new_name.strip(), vals)
-                st.toast(f"Saved scenario '{new_name.strip()}'."); st.rerun()
-        pickn = s3.selectbox("Saved scenarios", ["—"] + sorted(sc_all),
-                             key=f"sp{bank_key}_scn_pick",
-                             format_func=lambda n: f"★ {n}" if n == cur_def else n)
-
-        def _scn_load(name):
-            # runs as a CALLBACK (before the next render), so writing the odds
-            # widgets' keys is legal — an inline write here would crash, because
-            # this button sits below the already-instantiated inputs
-            for lab_, v_ in _stir_scen_all().get(bank_key, {}).get(name, {}).items():
-                if lab_ in labels:
-                    # percent -> decimal, unconditionally (see the seed loop note:
-                    # an abs<=3 heuristic corrupts small-odds views 100x)
-                    st.session_state[mv_key(lab_)] = float(v_) / 100.0
-                    st.session_state.setdefault(f"sp{bank_key}_scn_seeded", set()).add(lab_)
-
-        s4.button("Load", key=f"sp{bank_key}_scn_load", use_container_width=True,
-                  disabled=(pickn == "—"), on_click=_scn_load, args=(pickn,))
-        is_def = pickn != "—" and pickn == cur_def
-        if s5.button("☆ Clear default" if is_def else "★ Set as default",
-                     key=f"sp{bank_key}_scn_def", use_container_width=True,
-                     disabled=(pickn == "—"),
-                     help="The default scenario seeds YOUR CALL automatically when "
-                          "this page opens (instead of the market's odds)."):
-            _stir_scen_set_default(bank_key, None if is_def else pickn)
-            st.toast("Default cleared." if is_def
-                     else f"'{pickn}' now loads on open."); st.rerun()
-        if pickn != "—" and st.button(f"🗑 Delete '{pickn}'", key=f"sp{bank_key}_scn_del"):
-            _stir_scen_delete(bank_key, pickn); st.rerun()
-        _tail = "Scenarios persist to data/stirpaths_scenarios.json."
-        st.caption((f"★ **{cur_def}** seeds YOUR CALL whenever this page opens — "
-                    f"meetings it doesn't cover seed from the market. {_tail}")
-                   if cur_def else
-                   f"★ Set as default makes a scenario load automatically on open. {_tail}")
-
     # ---- the term structure: market vs your view -----------------------------
     _sp_gap()
     st.markdown("#### Term structure — market vs your view")
