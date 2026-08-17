@@ -8152,6 +8152,10 @@ def render_stir_bank(bank_key: str) -> None:
 
     _MKT_C, _YOU_C = "#E8EAED", "#F5C518"           # market/futures white · your gold
     _MTG_C, _FUT_C = "#7FB3F5", _MKT_C              # meetings blue · contracts = market white
+    _MTG_TXT = "#BCD6F9"                            # meetings blue for TEXT — #7FB3F5 is a
+                                                    # chart-accent weight, too dark to read
+                                                    # at label size (Ben 2026-08-16); rules,
+                                                    # tints and borders keep the deeper blue
     st.markdown("""<style>
       /* label recipe E (see brand.py): sentence case, app font, readable sizes */
       .sp-hdr { font-size: 0.85rem; letter-spacing: 0.01em; text-transform: none;
@@ -8390,7 +8394,7 @@ def render_stir_bank(bank_key: str) -> None:
     with st.container(key=_wrap):
         # group band: BLUE = the market's side, GOLD = yours — the split at a glance
         band = st.columns([sum(_vgrid[:7]), sum(_vgrid[7:])], gap="small")
-        band[0].markdown(f"<div style='color:{_MTG_C};border-bottom:2px solid {_MTG_C};"
+        band[0].markdown(f"<div style='color:{_MTG_TXT};border-bottom:2px solid {_MTG_C};"
                          "font-size:0.82rem;letter-spacing:0.02em;font-weight:700;"
                          "padding:0 0.1rem 2px' title='Everything in blue is the MARKET: "
                          "what the futures strip prices right now'>Market — priced in now"
@@ -8406,21 +8410,21 @@ def render_stir_bank(bank_key: str) -> None:
         # apostrophe-free.
         hdr = st.columns(_vgrid, gap="small", vertical_alignment="bottom")
         for c_, (txt, col, tip) in zip(hdr, [
-                ("Meeting", _MTG_C, f"Scheduled {bank.meeting_name} decision dates"),
-                ("Into", _MTG_C, "The futures contract whose settlement this decision "
+                ("Meeting", _MTG_TXT, f"Scheduled {bank.meeting_name} decision dates"),
+                ("Into", _MTG_TXT, "The futures contract whose settlement this decision "
                                  "feeds into — codes match section 1"),
-                ("Settle", _MTG_C, "The latest stored settlement of that contract "
+                ("Settle", _MTG_TXT, "The latest stored settlement of that contract "
                                    f"(morning snapshot store · {_s_asof or 'demo'}) — "
                                    "the overnight mark, not the editable page price"),
-                ("% hike/cut", _MTG_C, "The move the strip prices AT this meeting: "
+                ("% hike/cut", _MTG_TXT, "The move the strip prices AT this meeting: "
                                        "+0.35 = 35% odds of one hike, −0.66 = 66% odds "
                                        "of a cut · ≈ = interpolated, no contract "
                                        "isolates this meeting"),
-                ("# h/c", _MTG_C, "Cumulative hikes/cuts priced THROUGH this meeting "
+                ("# h/c", _MTG_TXT, "Cumulative hikes/cuts priced THROUGH this meeting "
                                   "(in steps) — the #Hikes/Cuts column on WIRP"),
-                ("Cum bp", _MTG_C, "Cumulative bp priced through this meeting — "
+                ("Cum bp", _MTG_TXT, "Cumulative bp priced through this meeting — "
                                    "the Imp Rate Δ column on WIRP"),
-                ("Implied", _MTG_C, "The overnight-proxy level the strip implies "
+                ("Implied", _MTG_TXT, "The overnight-proxy level the strip implies "
                                     "after this meeting — the Implied Rate column "
                                     "on WIRP"),
                 ("Your call", _YOU_C, "Your odds per decision (type or ＋/－) — "
@@ -8437,7 +8441,7 @@ def render_stir_bank(bank_key: str) -> None:
                         unsafe_allow_html=True)
         for i, (m, lab) in enumerate(pairs):
             row = st.columns(_vgrid, gap="small", vertical_alignment="center")
-            row[0].markdown(f"<div class='sp-cell' style='color:{_MTG_C};font-weight:700' "
+            row[0].markdown(f"<div class='sp-cell' style='color:{_MTG_TXT};font-weight:700' "
                             f"title='{bank.meeting_name} decision · {m:%A %d %B %Y}'>"
                             f"{m:%d %b %y}</div>", unsafe_allow_html=True)
             tag, tip, _gi, settle_txt, settle_tip, wc_code, first = win_cells[i]
