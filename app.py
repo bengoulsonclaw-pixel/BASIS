@@ -12582,6 +12582,46 @@ def render_macro_radar() -> None:
         st.caption(f"⚠️ Recording gap: {g['from']} → {g['to']} ({g['days']} days) — the "
                    f"index understates that stretch.")
 
+    # ---- vintage backtest (stored result — a cold run is ~an hour of ALFRED calls) ----
+    st.markdown("#### Does the rule gap predict anything? — real-time backtest")
+    try:
+        from src import macrobt
+        bt = macrobt.stored_summary()
+    except Exception:
+        bt = None
+    if bt and bt.get("ok"):
+        st.caption(
+            f"US only (ALFRED is the only free vintage archive). {bt['n_obs']} monthly "
+            f"observations, {bt['first']} → {bt['last']}, each rebuilt from the data "
+            f"**as it stood on the day** — revisions and publication lags included. "
+            f"Last run {bt.get('ran', '—')}; refresh with `python -m src.macrobt`.")
+        _rule_names = {k: n for k, n, _f in _RADAR_RULES}
+        sel = st.selectbox("Rule tested", list(bt.get("analyses", {}).keys()) or ["balanced"],
+                           format_func=lambda k: _rule_names.get(k, k),
+                           key="radar_bt_rule")
+        a = bt.get("analyses", {}).get(sel) or bt.get("analysis", {})
+        rows = []
+        for h, s in sorted(a.get("horizons", {}).items(), key=lambda kv: int(kv[0])):
+            rows.append({
+                "Horizon": f"{h}m",
+                "Correlation (gap → move)": ("—" if s.get("corr") is None
+                                             else f"{s['corr']:+.2f}"),
+                "Direction hit rate": ("—" if s.get("hit_rate") is None
+                                       else f"{s['hit_rate']:.0%} of {s['n_moved']} moves"),
+                "Mean move": f"{s.get('mean_move_bp', 0):+.0f}bp",
+                "Mean move when |gap|>100bp": ("—" if s.get("mean_move_when_wide_bp") is None
+                                               else f"{s['mean_move_when_wide_bp']:+.0f}bp "
+                                                    f"(n={s.get('n_wide', 0)})"),
+            })
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.caption(macrobt.verdict(a) if a else "")
+    else:
+        st.info("No backtest stored yet — run `python -m src.macrobt` once (about an "
+                "hour cold; minutes thereafter). It measures, on point-in-time ALFRED "
+                "vintages, whether the rule gap predicted subsequent policy moves — the "
+                "check that decides how much weight this page deserves.", icon="🧪")
+
     # ---- provenance + validation ------------------------------------------------------
     with st.expander("🔍  Where every number came from, and the correctness check"):
         st.markdown("**Inputs**")

@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
@@ -221,9 +222,17 @@ def verdict(analysis: dict) -> str:
             f"rule on its own.")
 
 
+SUMMARY_FILE = _STORE / "summary.json"
+
+
 def run(start: date | None = None, end: date | None = None,
         step_months: int = 1, rule_key: str = "balanced", progress=None) -> dict:
-    """Full backtest. Defaults to 2000-onwards, monthly."""
+    """Full backtest. Defaults to 2000-onwards, monthly.
+
+    Persists its summary to data/macro_bt/summary.json — the page reads THAT, because a
+    cold run is thousands of ALFRED calls and takes the better part of an hour. Re-run
+    from the CLI (python -m src.macrobt) whenever fresh months have accrued; the per-date
+    cache makes an incremental re-run cheap."""
     if not macrodata.have_fred_key():
         return {"ok": False, "reason": macrodata.FRED_KEY_HELP}
     start = start or date(2000, 1, 1)
@@ -231,7 +240,49 @@ def run(start: date | None = None, end: date | None = None,
     obs = score(build(start, end, step_months, progress=progress))
     if not obs:
         return {"ok": False, "reason": "no usable vintage observations were assembled"}
-    a = analyse(obs, rule_key)
-    return {"ok": True, "analysis": a, "verdict": verdict(a),
-            "n_obs": len(obs), "first": obs[0].when.isoformat(),
-            "last": obs[-1].when.isoformat(), "observations": obs}
+    analyses = {k: analyse(obs, k) for k in ("balanced", "taylor93", "shortfalls",
+                                             "inertial", "firstdiff")}
+    a = analyses[rule_key]
+    out = {"ok": True, "analysis": a, "analyses": analyses, "verdict": verdict(a),
+           "n_obs": len(obs), "first": obs[0].when.isoformat(),
+           "last": obs[-1].when.isoformat(), "ran": date.today().isoformat()}
+    try:
+        _STORE.mkdir(parents=True, exist_ok=True)
+        SUMMARY_FILE.write_text(json.dumps(out, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+    out["observations"] = obs
+    return out
+
+
+def stored_summary() -> dict | None:
+    """The last persisted run, or None. This is what the page shows."""
+    try:
+        if SUMMARY_FILE.exists():
+            return json.loads(SUMMARY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return None
+
+
+if __name__ == "__main__":
+    import time
+    t0 = time.time()
+    n = [0]
+
+    def _prog(d, rec):
+        n[0] += 1
+        if n[0] % 25 == 0:
+            print(f"  … {n[0]} dates ({d}), {time.time() - t0:.0f}s", flush=True)
+
+    res = run(progress=_prog)
+    if not res["ok"]:
+        print("FAILED:", res["reason"])
+        sys.exit(1)
+    print(f"\n{res['n_obs']} observations, {res['first']} → {res['last']}")
+    for hk, s in sorted(res["analysis"]["horizons"].items(), key=lambda kv: int(kv[0])):
+        c = "—" if s["corr"] is None else f"{s['corr']:+.2f}"
+        hr = "—" if s["hit_rate"] is None else f"{s['hit_rate']:.0%}"
+        print(f"  {hk:>3}m  corr {c}  hit-rate {hr} (n_moved={s['n_moved']})  "
+              f"wide-gap mean move {s['mean_move_when_wide_bp']}bp (n={s['n_wide']})")
+    print("\nVERDICT:", res["verdict"])
