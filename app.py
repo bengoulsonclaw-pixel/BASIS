@@ -8593,17 +8593,6 @@ def render_stir_bank(bank_key: str) -> None:
                           if _anchor_used else
                           "The fit is running on YOUR page setting, which disagrees with the "
                           "market's read — double-check the level before quoting these odds."))
-    # ---- the term structure: market vs your view -----------------------------
-    _sp_gap()
-    st.markdown("#### Term structure — market vs your view")
-    fronts = []
-    for p in prods:
-        live = [c for c in strips[p.ticker] if stirpaths.fut_last_trade(p, c) >= asof]
-        if live and live[0].code in px_of_now:
-            fronts.append(f"{p.short} front {live[0].code} @ {px_of_now[live[0].code]:.4f}")
-    _stir_term_chart(prods, bank, strips, px_of_now, fair_of, asof,
-                     front_note="   ·   ".join(fronts))
-
     # ---- at a glance ---------------------------------------------------------
     st.markdown("#### At a glance")
     m1, m2, m3, m4 = st.columns(4)
@@ -8641,6 +8630,17 @@ def render_stir_bank(bank_key: str) -> None:
             ot, fmt={"Implied (bp)": "{:+.1f}".format, "Your call (%)": "{:+.0f}".format,
                      "E[move] (bp)": "{:+.1f}".format, "Cum (bp)": "{:+.1f}".format},
             height=min(430, 45 + 35 * len(ot)))
+
+    # ---- the term structure: market vs your view -----------------------------
+    _sp_gap()
+    st.markdown("#### Term structure — market vs your view")
+    fronts = []
+    for p in prods:
+        live = [c for c in strips[p.ticker] if stirpaths.fut_last_trade(p, c) >= asof]
+        if live and live[0].code in px_of_now:
+            fronts.append(f"{p.short} front {live[0].code} @ {px_of_now[live[0].code]:.4f}")
+    _stir_term_chart(prods, bank, strips, px_of_now, fair_of, asof,
+                     front_note="   ·   ".join(fronts))
 
     # ---- WIRP-style combined chart: rate lines over cumulative-steps bars ----
     # WIRP's bars and line are the SAME series in two units (rate = current +
@@ -8685,7 +8685,9 @@ def render_stir_bank(bank_key: str) -> None:
                      .properties(height=330))
     st.caption("The WIRP read: bars = cumulative hikes/cuts the market prices through "
                "each meeting (right axis) · solid line = the same thing as a rate level "
-               "(left axis) · dashed gold = where YOUR odds put the rate.")
+               "(left axis) · dashed gold = where YOUR odds put the rate. This chart is "
+               "the futures chart above turned upside-down — price = 100 − rate, so a "
+               "falling strip IS a rising path.")
 
     # ---- contract-windows timeline (the meeting-risk Gantt), now secondary ---
     with st.expander("🗓️ Contract windows & meeting-risk timeline"):
