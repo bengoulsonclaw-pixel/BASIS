@@ -42,6 +42,20 @@ CSS = """
                background:#F5C518; color:#111; border-radius:11px; opacity:1; font-weight:700; padding:0 5px; }
   .rcal-ev { display:block; font-size:10.5px; line-height:1.4; color:#fff; border-radius:5px; padding:1px 6px;
              margin:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* phones: seven 1fr tracks floor at the widest chip's min-content, so the month
+     grid laid itself out ~665px wide and the .rcal border-radius clip simply ATE
+     Thursday to Sunday. minmax(0,1fr) lets the tracks shrink; at ~55px a chip's
+     text is unreadable anyway, so each event becomes a colour bar in its day
+     (the label still reads on the day board, the week view and on tap-and-hold). */
+  @media (max-width:760px) {
+    .rcal { grid-template-columns:repeat(7,minmax(0,1fr)); }
+    .rcal-cell { min-width:0; min-height:62px; padding:3px 3px 5px; }
+    .rcal-dow { font-size:9px; letter-spacing:0; padding:5px 0 4px; }
+    .rcal-dnum { font-size:10.5px; padding:0 2px; }
+    .rcal-today .rcal-dnum { min-width:18px; height:18px; line-height:18px; }
+    .rcal-ev { font-size:0; height:5px; padding:0; margin:2px 1px; border-radius:2px; }
+    .rcal-ev span { display:none; }
+  }
 </style>
 """
 

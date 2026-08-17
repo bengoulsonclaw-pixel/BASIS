@@ -39,10 +39,13 @@ with sync_playwright() as p:
         ctx = b.new_context(viewport=vp, device_scale_factor=2, is_mobile=mob, has_touch=mob)
         pg = ctx.new_page()
         pg.goto(url, wait_until="load", timeout=180000)
-        for _ in range(60):
-            pg.wait_for_timeout(2000)
-            if pg.evaluate("()=>!!document.querySelector('.daycal')"):
-                break
+        for _ in range(60):                       # tolerate the one-time cookie reload
+            try:
+                pg.wait_for_timeout(2000)
+                if pg.evaluate("()=>!!document.querySelector('.daycal')"):
+                    break
+            except Exception:
+                pg.wait_for_load_state("load", timeout=60000)
         pg.wait_for_timeout(5000)
         pg.screenshot(path=f"logs/{tag}_{name}.png")
         pg.screenshot(path=f"logs/{tag}_{name}_full.png", full_page=True)

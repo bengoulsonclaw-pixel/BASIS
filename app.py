@@ -1285,7 +1285,19 @@ def _world_clocks() -> None:
         "if(w<48)w=48;"
         # on a phone the sidebar OVERLAYS the page (it is ~70% of the screen); shifting
         # the bar by its width squeezed the clocks into a sliver whenever the nav was open
-        "if(d.documentElement.clientWidth<820)w=48;"
+        "var vw=d.documentElement.clientWidth;if(vw<820)w=48;"
+        # hand the viewport width back to PYTHON (brand.viewport_width): charts are
+        # drawn server-side, and things CSS can't reach — a legend laid out in one
+        # 570px row, axis label sizes — have to be decided before the spec is built.
+        # st.context.cookies is read from the CONNECTING request, so a cookie set
+        # mid-session isn't visible until the next load: on the first ever visit in
+        # a browser (no cookie yet) reload once, guarded by sessionStorage so a
+        # blocked-cookie browser can never loop. Every later visit is a plain render.
+        "var had=/(^|;\\s*)basis_vw=/.test(d.cookie);"
+        "d.cookie='basis_vw='+vw+';path=/;max-age=31536000;SameSite=Lax';"
+        "var W=window.parent;"
+        "if(!had&&!W.sessionStorage.getItem('basis_vw_done')){"
+        "W.sessionStorage.setItem('basis_vw_done','1');W.location.reload();}"
         "d.documentElement.style.setProperty('--basis-topbar-left',w+'px');"
         # ...and the bar's live HEIGHT into --basis-topbar-h. The 62px iframe is
         # right on a desktop, but on a phone the rail wraps to two rows and the

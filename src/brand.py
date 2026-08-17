@@ -15,6 +15,7 @@ template covers both modes (and fully overrides the config.toml dark default).
 """
 from __future__ import annotations
 
+import html as _html
 import json
 from pathlib import Path
 from string import Template
@@ -664,6 +665,11 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 [data-testid="stSidebar"] .st-key-side_ficc button[kind="primary"] *,
 [data-testid="stSidebar"] .st-key-side_equities button[kind="primary"] * { color:$gold !important; }
 
+/* chart titles lifted out of the Vega spec by show_chart — matched to Vega's own
+   title (13px, bold, anchored left) but, being HTML, they wrap on a narrow screen */
+.bt-charttitle { font-size:.81rem; font-weight:700; color:$text; line-height:1.35;
+                 margin:.15rem 0 .3rem; }
+
 /* sidebar micro section labels + footer */
 .bt-sect { font-size:.74rem; letter-spacing:.04em; font-weight:600;
            text-transform:uppercase; color:$caption; margin:.9rem 0 .25rem .35rem; }
@@ -734,6 +740,7 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
     .block-container [data-testid="stCaptionContainer"] * {
         font-size:.8rem !important; line-height:1.45 !important;
     }
+    .bt-charttitle { font-size:.76rem; }
     /* wide tables/charts scroll inside their frame instead of being cut off by the
        screen edge (chart widths are set for a desk monitor) */
     .bt-tablewrap, [data-testid="stDataFrame"] { max-width:100%; overflow-x:auto; }
@@ -1066,7 +1073,67 @@ def _apply_altair_theme() -> None:
         pass
 
 
+# A chart title longer than this is rendered as HTML above the chart instead of
+# inside it. Vega NEVER wraps a title: the text sets a floor on the view width, and
+# on a phone everything past the screen edge was silently clipped — our descriptive
+# titles run to 130 characters, so the right-hand end of the plot simply vanished.
+# As HTML it wraps like any other text (one line on a desk monitor, as before).
+_TITLE_LIFT_CHARS = 60
+
+
+def viewport_width(default: int = 1400) -> int:
+    """The browser's viewport width in CSS px, or `default` when it isn't known yet.
+
+    The world-clock rail writes it into the `basis_vw` cookie on every render (see
+    _world_clocks in app.py). Streamlit renders charts server-side, so anything CSS
+    can't reach — legend layout, axis label sizes — needs this. Defaults to a desk
+    monitor, so a first-ever visit or a failed read renders exactly as it always did.
+    """
+    try:
+        return max(240, min(6000, int(st.context.cookies.get("basis_vw", default))))
+    except Exception:
+        return default
+
+
+def is_narrow() -> bool:
+    """True on a phone-sized viewport (same 820px breakpoint as the CSS)."""
+    return viewport_width() < 820
+
+
 def show_chart(chart, **kwargs) -> None:
     """st.altair_chart with the BASIS theme. theme=None lets our registered Altair
-    theme win instead of Streamlit's built-in (config-locked) one."""
+    theme win instead of Streamlit's built-in (config-locked) one. Long titles are
+    lifted out of the spec (see _TITLE_LIFT_CHARS) so narrow screens don't clip
+    the chart; short ones are left exactly where they were."""
+    lifted = None
+    try:
+        _t = getattr(chart, "title", None)
+        _txt = _t if isinstance(_t, str) else getattr(_t, "text", None)
+        if isinstance(_txt, str) and len(_txt) > _TITLE_LIFT_CHARS:
+            lifted = _txt
+            # .properties(title=Undefined) fails schema validation — clear it on a
+            # copy instead, so the caller's chart object is left untouched
+            chart = chart.copy()
+            chart.title = alt.Undefined
+    except Exception:
+        lifted = None                  # unusual spec — leave it alone
+    if lifted:
+        st.markdown(f'<div class="bt-charttitle">{_html.escape(lifted)}</div>',
+                    unsafe_allow_html=True)
+    if is_narrow():
+        # A phone can't fit a top-oriented legend: Vega lays those out as ONE
+        # un-wrapping row (five flag labels ≈ 570px), and since a view can't be
+        # narrower than its legend, the plot was drawn wider than the <svg> and
+        # the right-hand end of every bar was clipped away. Bottom + vertical
+        # wraps down the page instead, and the smaller axis type buys back the
+        # width the labels were eating.
+        try:
+            chart = (chart
+                     .configure_legend(orient="bottom", direction="vertical", columns=1,
+                                       labelFontSize=10, titleFontSize=10, labelLimit=200,
+                                       symbolSize=60)
+                     .configure_axis(labelFontSize=9, titleFontSize=10, labelLimit=110)
+                     .configure_title(fontSize=11))
+        except Exception:
+            pass                       # already-configured or unusual spec — as-is
     st.altair_chart(chart, use_container_width=True, theme=None, **kwargs)
