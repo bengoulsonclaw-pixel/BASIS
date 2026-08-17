@@ -7088,7 +7088,10 @@ _STIR_TAB_FLAG_CSS = "".join(
     "content:''; display:inline-block; width:19px; height:12.5px;"
     f"background:url(data:image/svg+xml;base64,{_STIR_FLAG_B64[bk]}) center/cover;"
     "margin-right:8px; border-radius:2px; vertical-align:-1.5px;"
-    "box-shadow:0 0 0 1px rgba(255,255,255,0.22);}}"
+    # NB this segment is NOT an f-string: a doubled }} here stays literal, the
+    # stray brace made the CSS parser drop the following rule (ECB/BoE flags
+    # vanished while Fed's — the first rule — survived)
+    "box-shadow:0 0 0 1px rgba(255,255,255,0.22);}"
     for dest, bk in (("Fed Path", "FED"), ("ECB Path", "ECB"), ("BoE Path", "BOE")))
 # Bank identity colours — Ben's explicit preference (2026-08-11): keep the
 # red/blue/green even though red/green mean direction elsewhere; a product-
