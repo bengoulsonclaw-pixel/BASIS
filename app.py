@@ -12296,6 +12296,19 @@ _RADAR_RULES = [("balanced", "Balanced approach", macrorules.balanced),
                 ("firstdiff", "First difference", macrorules.first_difference)]
 _RADAR_RULE_FN = {k: fn for k, _n, fn in _RADAR_RULES}
 
+# Flag chips for the bank buttons — same inline-SVG ::before trick as the STIR Paths
+# tabs (_STIR_TAB_FLAG_CSS), reusing its _STIR_FLAG_B64 assets. Emoji flags are not an
+# option: Windows ships no flag glyphs, so 🇺🇸 renders as the letters "US". Keep the
+# closing brace OUT of the f-string segments — a doubled }} inside one stays literal
+# and silently kills every rule after the first (see the note on _STIR_TAB_FLAG_CSS).
+_RADAR_TAB_FLAG_CSS = "".join(
+    f".st-key-radar_bk_{bk} button p::before {{"
+    "content:''; display:inline-block; width:19px; height:12.5px;"
+    f"background:url(data:image/svg+xml;base64,{_STIR_FLAG_B64[bk]}) center/cover;"
+    "margin-right:8px; border-radius:2px; vertical-align:-1.5px;"
+    "box-shadow:0 0 0 1px rgba(255,255,255,0.22);}"
+    for bk in ("FED", "ECB", "BOE"))
+
 
 def _radar_prefs() -> dict:
     try:
@@ -12331,7 +12344,10 @@ def render_macro_radar() -> None:
         "prescription, the **spread versus priced**, and the **dispersion** across rules — "
         "not the level.", icon="⚠️")
 
-    bank_lbl = {"FED": "🇺🇸 Fed", "ECB": "🇪🇺 ECB", "BOE": "🇬🇧 BoE"}
+    # Flags via the STIR Paths CSS trick, NOT emoji: Windows has no flag emoji font —
+    # 🇺🇸 degrades to the letters "US" on every Windows box (Ben hit this on day one).
+    bank_lbl = {"FED": "Fed", "ECB": "ECB", "BOE": "BoE"}
+    st.markdown(f"<style>{_RADAR_TAB_FLAG_CSS}</style>", unsafe_allow_html=True)
     bcols = st.columns(3)
     bank = st.session_state.setdefault("radar_bank", prefs.get("bank", "FED"))
     for col, bk in zip(bcols, ("FED", "ECB", "BOE")):
