@@ -285,15 +285,21 @@ class PathAssumption:
 
 
 def prescribed_path(x: RuleInputs, meeting_dates: list, rule=balanced,
-                    assume: PathAssumption | None = None) -> list[tuple]:
+                    assume: PathAssumption | None = None, start=None) -> list[tuple]:
     """The rule's prescribed policy level at each future meeting date, under `assume`.
 
     Returns [(date, prescribed_%), ...] aligned to `meeting_dates`, so it can be plotted
     straight on top of the market-implied step path from src/stirpaths.py.
 
-    Time is measured in quarters from the first meeting; the decay is applied to today's
-    inflation and gap. Deliberately simple and legible — a fancier forecast here would be
-    a forecast the user cannot audit."""
+    Time is measured in quarters from `start` (default: the first meeting); the decay is
+    applied to today's inflation and gap. Deliberately simple and legible — a fancier
+    forecast here would be a forecast the user cannot audit.
+
+    The two rules that chain off their own previous prescription are defined on QUARTERLY
+    data, but meetings are ~8/year, so each step must be scaled to the actual spacing:
+    the first-difference delta is a per-quarter change (chained raw it compounds ~2× too
+    fast and the path runs away), and INERTIA is a per-quarter smoothing weight (chained
+    raw it converges ~2× too fast)."""
     a = assume or PathAssumption()
     if not meeting_dates:
         return []
@@ -302,23 +308,45 @@ def prescribed_path(x: RuleInputs, meeting_dates: list, rule=balanced,
     if base_ug is None:
         return []
     base_ug += a.gap_shock / x.okun
-    t0 = meeting_dates[0]
+    t0 = start or meeting_dates[0]
     out = []
     prev_rate = x.prev_policy_rate if x.prev_policy_rate is not None else x.policy_rate
+    prev_q = 0.0
     for d in meeting_dates:
         q = max(0.0, (d - t0).days / 91.3)
         infl_t = x.target + (base_infl - x.target) * 0.5 ** (q / a.infl_half_life_q)
         ug_t = base_ug * 0.5 ** (q / a.gap_half_life_q)
+        # The year-ago gap the first-difference rule differences against must move WITH
+        # the path — frozen at today's value it leaves a permanent drift of −gap_lag4 per
+        # quarter after the gap closes. Four quarters out it is the path's own gap; inside
+        # the first year, blend from the measured lag-4 gap toward today's gap.
+        if x.gap_lag4 is None:
+            lag4_t = None
+        elif q >= 4.0:
+            lag4_t = base_ug * 0.5 ** ((q - 4.0) / a.gap_half_life_q)
+        else:
+            lag4_t = x.gap_lag4 + (base_ug - x.gap_lag4) * (q / 4.0)
         xi = RuleInputs(bank=x.bank, infl=infl_t, target=x.target,
                         rstar=x.rstar + a.rstar_shift,
                         output_gap=ug_t * x.okun, policy_rate=x.policy_rate,
-                        prev_policy_rate=prev_rate, gap_lag4=x.gap_lag4, okun=x.okun)
+                        prev_policy_rate=prev_rate, gap_lag4=lag4_t, okun=x.okun)
         r = rule(xi)
         if r.prescribed is None:
             continue
-        out.append((d, r.prescribed))
-        # the inertial rule chains off its own previous prescription along the path
-        prev_rate = r.prescribed
+        q_step = q - prev_q
+        p = r.prescribed
+        if r.key == "firstdiff":
+            # r.prescribed − prev_rate is the rule's per-quarter delta
+            p = prev_rate + (r.prescribed - prev_rate) * q_step
+        elif r.key == "inertial":
+            # recover the balanced-approach anchor and re-smooth at the true spacing
+            anchor = (r.prescribed - INERTIA * prev_rate) / (1.0 - INERTIA)
+            w = INERTIA ** q_step
+            p = w * prev_rate + (1.0 - w) * anchor
+        out.append((d, p))
+        # the inertial and first-difference rules chain off their previous prescription
+        prev_rate = p
+        prev_q = q
     return out
 
 

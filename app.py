@@ -6739,19 +6739,41 @@ def _run_opec(args: list[str], label: str, timeout: int = 240):
     st.rerun()
 
 
+def _opec_edition_from_pdf(path):
+    """(MonthName, Year) for an uploaded MOMR PDF, read from its cover text; None if unreadable."""
+    try:
+        import pypdfium2 as _pdf
+        doc = _pdf.PdfDocument(str(path))
+        txt = "\n".join(doc[i].get_textpage().get_text_range() for i in range(min(4, len(doc))))
+        months = ("January February March April May June July August September October "
+                  "November December").split()
+        m = re.search(r"Oil Market Report\s*[–—-]\s*(" + "|".join(months) + r")\s+(\d{4})", txt)
+        if m:
+            return m.group(1), m.group(2)
+        m = re.search(r"\b(" + "|".join(months) + r")\s+(\d{4})", txt)   # fallback: first Month Year
+        return (m.group(1), m.group(2)) if m else None
+    except Exception:
+        return None
+
+
 def render_opec() -> None:
+    from src import release_cal
     st.subheader("\U0001F6E2️ OPEC Monthly Oil Market Report")
-    st.caption("Every month, when OPEC publishes its Monthly Oil Market Report, the desk gets a "
-               "one-page synopsis + chart deck — fetched, built and emailed automatically. "
-               "Manage the recipient list and run it on demand here.")
+    st.caption("Each month the desk gets a one-page synopsis + chart deck of OPEC's Monthly Oil Market "
+               "Report. OPEC now gates the PDF behind a registration form and a bot-check, so the "
+               "**download is a quick manual step**; everything after — building the branded synopsis "
+               "and emailing the recipient list — is automatic once the PDF lands in the inbox.")
 
     last = OPEC_MARKER.read_text(encoding="utf-8").strip() if OPEC_MARKER.exists() else "—"
     pdfs = sorted(OPEC_DIR.glob("out/OPEC_MOMR_Synopsis_*.pdf"),
                   key=lambda p: p.stat().st_mtime, reverse=True)
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    nopec = next((r["opec"] for r in release_cal.next_12_months(today) if r["opec_upcoming"]), None)
     m1, m2 = st.columns(2)
     m1.metric("Last edition emailed", last)
-    m2.metric("Next 2026 release", "Mon 13 Jul")
-    st.caption(f"**2026 release calendar:** {OPEC_2026_DATES}  ·  ~04:00 ET (10:00 Vienna).")
+    m2.metric("Next OPEC release", f"{nopec:%a %d %b}" if nopec else "TBC")
+    st.caption(f"**2026 release calendar:** {OPEC_2026_DATES}  ·  ~04:00 ET (10:00 Vienna). Full "
+               "OPEC/EIA/IEA schedule on the Fundamental Reports Calendar page.")
     st.divider()
 
     if IS_ADMIN:
@@ -6781,20 +6803,43 @@ def render_opec() -> None:
                     addrs.append(e); data["opec"] = addrs; recipients.save_all(data); st.rerun()
         st.divider()
 
+        # --- upload this month's PDF --------------------------------------------------
+        st.markdown("#### This month's report")
+        st.caption("Download the latest MOMR from opec.org (fill OPEC's short form → **Download PDF**), "
+                   "then drop the file here. I detect the edition and save it to the inbox; then hit "
+                   "**Build & send** below. The scheduled job also picks it up on its next run.")
+        up = st.file_uploader("Upload the MOMR PDF", type=["pdf"], key="opec_upload",
+                              label_visibility="collapsed")
+        if up is not None:
+            try:
+                inbox = OPEC_DIR / "inbox"; inbox.mkdir(parents=True, exist_ok=True)
+                tmp = inbox / "_uploaded.pdf"; tmp.write_bytes(up.getvalue())
+                ed = _opec_edition_from_pdf(tmp)
+                if ed:
+                    mon, yr = ed
+                    dest = inbox / f"MOMR_{mon}{yr}.pdf"; tmp.replace(dest)
+                    st.success(f"Saved **{mon} {yr}** to the inbox ({dest.name}). Use **Build & send** below.")
+                else:
+                    tmp.unlink(missing_ok=True)
+                    st.warning("Couldn't read the edition month from that PDF — is it the MOMR report file?")
+            except Exception as e:
+                st.error(f"Upload failed: {e}")
+        st.divider()
+
         # --- actions ------------------------------------------------------------------
-        st.markdown("#### Run now")
-        st.caption("The scheduled job already does this automatically on release days; these are for "
-                   "an on-demand run or a test. Fetching opens a brief Chrome window.")
+        st.markdown("#### Build & send")
+        st.caption("Builds the synopsis from the newest MOMR PDF in the inbox and emails it — no fetch, "
+                   "no Chrome. The scheduled job does the same automatically once a new PDF is in the inbox.")
         a1, a2, a3 = st.columns(3)
-        if a1.button("📤 Fetch latest & send", type="primary", use_container_width=True,
-                     help="Fetch the latest MOMR, build the synopsis and email the recipient list now."):
-            _run_opec(["--force-send"], "Fetching the latest MOMR, building and sending…")
+        if a1.button("📤 Build & send latest", type="primary", use_container_width=True,
+                     help="Build from the newest inbox MOMR and email the recipient list now."):
+            _run_opec(["--force-send"], "Building the synopsis and sending…")
         if a2.button("👁️ Rebuild preview (no send)", use_container_width=True,
-                     help="Rebuild the PDF from the last downloaded report without emailing."):
-            _run_opec(["--from-inbox", "--dry-run"], "Rebuilding the synopsis from the last download…", timeout=120)
+                     help="Rebuild the PDF from the newest inbox report without emailing."):
+            _run_opec(["--from-inbox", "--dry-run"], "Rebuilding the synopsis…", timeout=120)
         desk1 = (recipients.get("opec") or ["benjamin.goulson@xpi.com.br"])[0]
         if a3.button("✉️ Send test to me", use_container_width=True,
-                     help=f"Fetch + build, then email only {desk1}."):
+                     help=f"Build from the inbox, then email only {desk1}."):
             _run_opec(["--force-send", "--to", desk1], f"Building and sending a test to {desk1}…")
         if st.session_state.get("opec_log"):
             with st.expander("Last run log", expanded=False):
@@ -12344,6 +12389,36 @@ def render_macro_radar() -> None:
         "prescription, the **spread versus priced**, and the **dispersion** across rules — "
         "not the level.", icon="⚠️")
 
+    with st.expander("📖  What the symbols mean", expanded=False):
+        st.markdown(
+            "| Symbol | Meaning | Where it comes from |\n"
+            "|---|---|---|\n"
+            "| **i** | The prescribed policy rate — what the rule says the central bank "
+            "should set | The rule's output |\n"
+            "| **r\\*** | The real neutral rate: the inflation-adjusted rate that neither "
+            "stimulates nor restrains the economy | Holston-Laubach-Williams estimate "
+            "(Fed/ECB); an editable assumption for the BoE |\n"
+            "| **π** | Inflation now — core, year-on-year | Core CPI/PCE, HICP ex energy "
+            "& food, or UK core CPI |\n"
+            "| **π\\*** | The inflation target | 2% at all three banks |\n"
+            "| **π − π\\*** | The inflation gap: how far inflation sits from target | "
+            "Computed |\n"
+            "| **u** | The unemployment rate now | Latest official print |\n"
+            "| **u\\*** | The natural rate of unemployment (NAIRU): the rate consistent "
+            "with stable inflation | CBO estimate (US); an editable assumption for the "
+            "ECB and BoE |\n"
+            "| **u gap** | u\\* − u, the labour-market gap. Positive = the labour market "
+            "is running hot; each point ≈ 2 points of output gap (Okun's law) | "
+            "Computed |\n"
+            "| **b·gap** | The real-economy term: the u gap times the rule's weight — "
+            "1.0 in Taylor (1993), 2.0 in the balanced approach, 2.0 but floored at "
+            "zero in the shortfalls variant | Computed |\n"
+            "| **i₋₁** | Last period's policy setting, which the inertial rule weights "
+            "at 85% and the first-difference rule steps from | Actual policy rate |\n"
+            "| **Δgap** | The change in the u gap versus four quarters ago — the "
+            "first-difference rule reacts to direction, and r\\* cancels out of it "
+            "entirely | Computed |")
+
     # Flags via the STIR Paths CSS trick, NOT emoji: Windows has no flag emoji font —
     # 🇺🇸 degrades to the letters "US" on every Windows box (Ben hit this on day one).
     bank_lbl = {"FED": "Fed", "ECB": "ECB", "BOE": "BoE"}
@@ -12357,13 +12432,17 @@ def render_macro_radar() -> None:
             st.rerun()
 
     rule_names = [n for _k, n, _f in _RADAR_RULES]
+    _ALL_PICK = "All rules — overview"
     default_rule = prefs.get("rule", "balanced")
-    pick = st.radio("Rule", rule_names, horizontal=True,
-                    index=max(0, [k for k, _n, _f in _RADAR_RULES].index(default_rule))
-                    if default_rule in [k for k, _n, _f in _RADAR_RULES] else 0,
-                    key="radar_rule_pick")
-    rule_key = [k for k, n, _f in _RADAR_RULES if n == pick][0]
-    rule_fn = _RADAR_RULE_FN[rule_key]
+    _rule_keys = [k for k, _n, _f in _RADAR_RULES]
+    _def_idx = (len(rule_names) if default_rule == "all"
+                else _rule_keys.index(default_rule) if default_rule in _rule_keys else 0)
+    pick = st.radio("Rule", rule_names + [_ALL_PICK], horizontal=True,
+                    index=_def_idx, key="radar_rule_pick")
+    all_mode = pick == _ALL_PICK
+    # all-mode still needs one rule for compare(); balanced is the house baseline
+    rule_key = "all" if all_mode else [k for k, n, _f in _RADAR_RULES if n == pick][0]
+    rule_fn = _RADAR_RULE_FN["balanced" if all_mode else rule_key]
 
     # ---- assumption inputs (r* / NAIRU) — editable because for some blocs nobody publishes them
     saved = prefs.get("overrides", {}).get(bank, {})
@@ -12432,11 +12511,17 @@ def render_macro_radar() -> None:
     # ---- headline row -------------------------------------------------------------------
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Policy rate now", f"{res.policy_now:.2f}%")
-    m2.metric(f"{res.rule_name}",
-              "—" if res.prescribed_now is None else f"{res.prescribed_now:.2f}%",
-              None if res.prescribed_now is None
-              else f"{(res.prescribed_now - res.policy_now) * 100:+.0f}bp vs policy",
-              delta_color="off")   # hawkish/dovish is a direction, not good/bad news
+    if all_mode:
+        m2.metric("Rule range",
+                  "—" if res.summary.lo is None
+                  else f"{res.summary.lo:.2f}–{res.summary.hi:.2f}%",
+                  help="Lowest to highest of the five prescriptions today.")
+    else:
+        m2.metric(f"{res.rule_name}",
+                  "—" if res.prescribed_now is None else f"{res.prescribed_now:.2f}%",
+                  None if res.prescribed_now is None
+                  else f"{(res.prescribed_now - res.policy_now) * 100:+.0f}bp vs policy",
+                  delta_color="off")   # hawkish/dovish is a direction, not good/bad news
     m3.metric("Median of 5 rules",
               "—" if res.summary.median is None else f"{res.summary.median:.2f}%",
               None if res.summary.median_gap_bp is None
@@ -12478,6 +12563,93 @@ def render_macro_radar() -> None:
     st.markdown("#### Prescribed vs priced")
     if not res.ok or not res.meetings:
         st.warning(f"No market-implied path available: {res.reason}", icon="⚠️")
+    elif all_mode:
+        st.caption(
+            f"All five rule paths against the market path from the STIR Paths fit of the "
+            f"live strip (store as-of **{res.strip_asof}**). Positive spread = the rule "
+            f"wants a **higher** policy rate than the curve has priced.")
+        meeting_ds = [m.meeting for m in res.meetings]
+        paths = {}
+        for _k, _n, _f in _RADAR_RULES:
+            try:
+                paths[_n] = dict(macrorules.prescribed_path(x, meeting_ds, rule=_f,
+                                                            assume=assume,
+                                                            start=res.asof))
+            except Exception:
+                paths[_n] = {}
+
+        try:
+            import altair as alt
+            chart_rows = [{"meeting": m.meeting.isoformat(), "rate": m.priced_policy,
+                           "series": "Priced by the STIR Strip"} for m in res.meetings]
+            for _n, pth in paths.items():
+                for m in res.meetings:
+                    p = pth.get(m.meeting)
+                    if p is not None:
+                        chart_rows.append({"meeting": m.meeting.isoformat(),
+                                           "rate": p, "series": _n})
+            cdf = pd.DataFrame(chart_rows)
+            dom = ["Priced by the STIR Strip"] + list(paths)
+            rng = ["#F5C518", "#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65", "#F06292"]
+            base = alt.Chart(cdf).encode(
+                x=alt.X("meeting:T", title=None),
+                y=alt.Y("rate:Q", title="Policy rate (%)", scale=alt.Scale(zero=False)),
+                color=alt.Color("series:N",
+                                scale=alt.Scale(domain=dom, range=rng[:len(dom)]),
+                                legend=alt.Legend(title=None, orient="top", labelLimit=0,
+                                                  columns=3)),
+                # the strip is the reference — draw it heavier than the rule paths
+                size=alt.condition(alt.datum.series == "Priced by the STIR Strip",
+                                   alt.value(3.5), alt.value(1.6)),
+                tooltip=[alt.Tooltip("meeting:T", title="Meeting"),
+                         alt.Tooltip("series:N", title=""),
+                         alt.Tooltip("rate:Q", title="Rate", format=".2f")])
+            lines = base.mark_line(interpolate="step-after")
+            today_rule = alt.Chart(pd.DataFrame([{"y": res.policy_now}])).mark_rule(
+                strokeDash=[4, 3], color="#9AA4B0").encode(y="y:Q")
+            st.altair_chart((lines + today_rule).properties(height=320),
+                            use_container_width=True)
+        except Exception:
+            pass
+
+        # per-meeting spread of every rule against the strip
+        sp_rows = []
+        for m in res.meetings:
+            row = {"Meeting": m.meeting.strftime("%d %b %Y"),
+                   "Priced policy": f"{m.priced_policy:.3f}%"}
+            for _n, pth in paths.items():
+                p = pth.get(m.meeting)
+                row[_n] = "—" if p is None else f"{(p - m.priced_policy) * 100:+.0f}bp"
+            sp_rows.append(row)
+        st.dataframe(pd.DataFrame(sp_rows), use_container_width=True, hide_index=True)
+
+        # opportunity read: meetings where every evaluable rule sits the same side of
+        # the strip by 25bp+ — dispersion collapsing onto one side is the interesting
+        # state; observation language only (house compliance rule)
+        agree = []
+        for m in res.meetings:
+            sps = [(pth[m.meeting] - m.priced_policy) * 100
+                   for pth in paths.values() if m.meeting in pth]
+            if len(sps) >= 4 and (all(s >= 25 for s in sps) or
+                                  all(s <= -25 for s in sps)):
+                agree.append((m, min(sps, key=abs), max(sps, key=abs)))
+        if agree:
+            m, lo_s, hi_s = max(agree, key=lambda t: abs(t[1]))
+            side = "above" if lo_s > 0 else "below"
+            st.info(
+                f"**All rules on one side at {len(agree)} "
+                f"meeting{'s' if len(agree) > 1 else ''}.** The strongest case is the "
+                f"{m.meeting:%d %b %Y} meeting, where every evaluable rule sits "
+                f"{abs(lo_s):.0f}–{abs(hi_s):.0f}bp {side} the strip — even the most "
+                f"conservative prescription disagrees with pricing there, which may be "
+                f"worth a closer look. Pick that rule above to price the trade in the "
+                f"contract-edge table.", icon="📌")
+        else:
+            st.caption(
+                "No meeting where all five rules sit on the same side of the strip by "
+                "25bp or more — the rule set does not make a unified case against "
+                "pricing here. Disagreement between the rules themselves is a "
+                "dispersion (options) observation, not a directional one.")
     else:
         st.caption(
             f"Market path from the STIR Paths fit of the live strip "
@@ -12499,20 +12671,21 @@ def render_macro_radar() -> None:
             chart_rows = []
             for m in res.meetings:
                 chart_rows.append({"meeting": m.meeting.isoformat(),
-                                   "rate": m.priced_policy, "series": "Priced by the strip"})
+                                   "rate": m.priced_policy, "series": "Priced by the STIR Strip"})
                 if m.prescribed is not None:
                     chart_rows.append({"meeting": m.meeting.isoformat(),
                                        "rate": m.prescribed,
                                        "series": f"{res.rule_name} prescribes"})
             cdf = pd.DataFrame(chart_rows)
-            dom = ["Priced by the strip", f"{res.rule_name} prescribes"]
+            dom = ["Priced by the STIR Strip", f"{res.rule_name} prescribes"]
             rng = ["#F5C518", "#64B5F6"]
             base = alt.Chart(cdf).encode(
                 x=alt.X("meeting:T", title=None),
                 y=alt.Y("rate:Q", title="Policy rate (%)",
                         scale=alt.Scale(zero=False)),
                 color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
-                                legend=alt.Legend(title=None, orient="top")),
+                                legend=alt.Legend(title=None, orient="top",
+                                                  labelLimit=0)),
                 tooltip=[alt.Tooltip("meeting:T", title="Meeting"),
                          alt.Tooltip("series:N", title=""),
                          alt.Tooltip("rate:Q", title="Rate", format=".2f")])
@@ -12534,17 +12707,25 @@ def render_macro_radar() -> None:
     # ---- contract edge -------------------------------------------------------------------
     with st.expander("💷  If the rule path is right — contract edge and P&L per lot",
                      expanded=False):
-        st.caption(
-            "Every contract in the bank's strip repriced off the rule path. **Signs are for "
-            "a long position:** a negative edge means the contract is rich to the rule (the "
-            "rule wants higher rates than the curve) so the future should fall. This is a "
-            "sizing aid, not a forecast — it inherits every assumption above.")
-        try:
-            edges = macroradar.contract_edges(bank, rule=rule_fn, nairu=ov_nairu,
-                                              rstar=ov_rstar, assume=assume, n=8)
-        except Exception as e:
+        if all_mode:
+            st.caption(
+                "The edge table prices the strip off ONE prescribed path — pick a single "
+                "rule above to see it. In the overview the spread table serves the same "
+                "purpose per rule.")
             edges = []
-            st.warning(f"Could not price the strip: {e}")
+        else:
+            st.caption(
+                "Every contract in the bank's strip repriced off the rule path. **Signs are "
+                "for a long position:** a negative edge means the contract is rich to the "
+                "rule (the rule wants higher rates than the curve) so the future should "
+                "fall. This is a sizing aid, not a forecast — it inherits every assumption "
+                "above.")
+            try:
+                edges = macroradar.contract_edges(bank, rule=rule_fn, nairu=ov_nairu,
+                                                  rstar=ov_rstar, assume=assume, n=8)
+            except Exception as e:
+                edges = []
+                st.warning(f"Could not price the strip: {e}")
         if edges:
             st.dataframe(pd.DataFrame([{
                 "Contract": e.code, "Product": e.short,

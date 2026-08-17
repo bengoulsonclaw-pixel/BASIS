@@ -105,7 +105,8 @@ def compare(bank: str, *, rule=macrorules.balanced, asof: date | None = None,
                            reason="no market-implied path available for this bank")
 
     meetings = list(fit.meetings)[:max_meetings]
-    path = dict(macrorules.prescribed_path(x, meetings, rule=rule, assume=assume))
+    path = dict(macrorules.prescribed_path(x, meetings, rule=rule, assume=assume,
+                                           start=asof))
 
     rows = []
     for i, m in enumerate(meetings):
@@ -168,7 +169,8 @@ def contract_edges(bank: str, *, rule=macrorules.balanced, asof: date | None = N
         fit = None
     meetings = list(fit.meetings) if fit is not None else list(bank_obj.meetings)
     meetings = [m for m in meetings if m > asof][:12]
-    path = dict(macrorules.prescribed_path(x, meetings, rule=rule, assume=assume))
+    path = dict(macrorules.prescribed_path(x, meetings, rule=rule, assume=assume,
+                                           start=asof))
     if not path:
         return []
 
