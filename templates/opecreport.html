@@ -129,13 +129,13 @@
     <div class="report-footer">
     <div class="foot-disclaimer">
     <hr class="rule">
-    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
       Synopsis of OPEC's Monthly Oil Market Report ({{ d.month }} edition){% if d.asof %}, published {{ d.asof }}{% endif %}.
       Figures &amp; the OPEC Reference Basket are OPEC's own (from the MOMR); "DoC" = OPEC + non-OPEC signatories to the
       Declaration of Cooperation; crude production is OPEC's secondary-sources assessment. Fair-use summary; full report
-      &copy; OPEC Secretariat (opec.org). Information only &mdash; not investment advice. {{ d.sources_note }}
+      &copy; OPEC Secretariat (opec.org). {{ d.sources_note }}
     </div>
+    {% include "_disclaimer.html" %}
   </div>
     </div>
   </div>

@@ -54,6 +54,28 @@ OUT_PDF = ROOT / "data" / "COT_Positioning_Report_email.pdf"
 MC_MAIN = Path(os.getenv("BASIS_MC_DIR", r"C:\Users\Ben\OneDrive\Personal\AI\Futures_Movements")) / "main.py"
 MAX_STALE_DAYS = 10            # don't email a report older than this (guards against stale cache)
 
+# Compliance disclaimer appended to every outgoing report email (the PDF reports carry the
+# same text via templates/_disclaimer.html — keep the two in sync if it ever changes).
+DISCLAIMER_TEXT = (
+    "This material was prepared by XP Investments US, LLC (“XP Investments”), a member of "
+    "FINRA, SIPC and NFA. XP Investments and its affiliates, parent, shareholders, directors, "
+    "officers, employees, and licensors will not be liable (individually, jointly, or severally) "
+    "to you or any other person as a result of your access, reception, or use of the information "
+    "contained in this communication. All opinions, projections, and estimates constitute the "
+    "judgment of the author as of the date of transmission and these, plus any other information "
+    "contained herein, are subject to change without notice. Nothing in this report constitutes a "
+    "representation that any investment strategy or recommendation contained herein is suitable "
+    "or appropriate to a recipient’s individual circumstances or otherwise constitutes a "
+    "personal recommendation. This report is published solely for information purposes, it does "
+    "not constitute an advertisement and is not to be construed as a solicitation or an offer to "
+    "buy or sell any securities or related financial instruments. This material (including any "
+    "attachments) is confidential, may contain proprietary or privileged information and is "
+    "intended for the named recipient(s) only."
+)
+DISCLAIMER_HTML = (
+    '<p style="color:#888;font-size:11px;line-height:1.4;">' + DISCLAIMER_TEXT + "</p>"
+)
+
 
 def load_email_cfg():
     """Read (_EMAIL_FROM, _EMAIL_APP_PW, _EMAIL_TO) from the Morning Coffee project
@@ -199,11 +221,10 @@ def send_email(pdf_path: Path, asof, dry_run: bool = False, to_override=None, su
         '<div style="font-family:Arial,Helvetica,sans-serif;color:#222;font-size:14px;">'
         f'{intro}{body_img}'
         '<p>Individual product details can be found within the attached PDF.</p>'
-        '<p style="color:#888;font-size:12px;"><b>THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</b>'
-        '</p></div>')
+        f'{DISCLAIMER_HTML}</div>')
     text = (f"The weekly CFTC Commitments of Traders positioning report, data as of Tuesday {asof_s}. "
             "Individual product details can be found within the attached PDF.\n\n"
-            "THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH.")
+            f"{DISCLAIMER_TEXT}")
 
     msg = MIMEMultipart("mixed")
     msg["From"], msg["To"], msg["Subject"] = sender, ", ".join(recipients), subject
@@ -245,10 +266,9 @@ def send_report_email(pdf_path, subject, intro_html, attachment_name,
         '<div style="font-family:Arial,Helvetica,sans-serif;color:#222;font-size:14px;">'
         f'{intro_html}'
         '<p>Full detail is in the attached PDF.</p>'
-        '<p style="color:#888;font-size:12px;">'
-        '<b>THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</b></p></div>')
+        f'{DISCLAIMER_HTML}</div>')
     text = ("Full detail is in the attached PDF.\n\n"
-            "THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH.")
+            f"{DISCLAIMER_TEXT}")
     msg = MIMEMultipart("mixed")
     msg["From"], msg["To"], msg["Subject"] = sender, ", ".join(recipients), subject
     alt = MIMEMultipart("alternative")

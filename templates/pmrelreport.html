@@ -63,13 +63,12 @@
     <div class="report-footer">
     <div class="foot-disclaimer">
     <hr class="rule">
-    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
       Synopsis of "{{ d.label }}" ({{ d.edition }} edition), published by {{ d.publisher }}{% if d.built %},
       prepared {{ d.built }}{% endif %}. All figures are the publisher's own, quoted with attribution;
       full report at {{ d.url }}. Fair-use summary &mdash; &copy; the publisher.
-      Information only &mdash; not investment advice.
     </div>
+    {% include "_disclaimer.html" %}
     </div>
   </div>
     </div>

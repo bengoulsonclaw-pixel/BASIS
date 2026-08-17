@@ -142,13 +142,12 @@
     <!-- Disclaimer in NORMAL FLOW, not .report-footer: this note is a single page by design, and
          .report-footer's break-before would push the disclaimer onto its own (near-blank) page. -->
     <hr class="rule">
-    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
       Source: USDA FAS PS&amp;D (carries the WASDE balance sheets, refreshed each monthly release). US in million
       bushels (corn 39.37, soybeans / wheat 36.74 bu per metric ton); world in MMT. Stocks-to-use = ending stocks
       ÷ total use (US = domestic use + exports; world = domestic consumption). Free U.S.-government data.
-      Information only &mdash; not investment advice or a solicitation.
     </div>
+    {% include "_disclaimer.html" %}
   </div>
 </body>
 </html>

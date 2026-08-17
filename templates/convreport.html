@@ -161,13 +161,11 @@
     {% macro disclaimer_block() %}
     <div class="foot-disclaimer">
     <hr class="rule">
-    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
-    <div class="fine">An internal technical screen — observational only, not investment advice, a
-      recommendation or a solicitation. "Conviction" is a cross-strategy confluence score (how many of
+    <div class="fine">"Conviction" is a cross-strategy confluence score (how many of
       the technical strategies agree &times; how strongly), not a probability or a price forecast;
       "objective"/"invalidation" levels are the measured-move and stop levels from the flagging
-      pattern, not price targets.{% if not equities %} Fixed income is screened on benchmark yields.{% endif %}
-      Source data is subject to your market-data licence terms; verify redistribution rights before external use.</div>
+      pattern, not price targets.{% if not equities %} Fixed income is screened on benchmark yields.{% endif %}</div>
+    {% include "_disclaimer.html" %}
     </div>
     {% endmacro %}
 

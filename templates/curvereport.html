@@ -94,7 +94,6 @@
     <div class="report-footer">
     <div class="foot-disclaimer">
     <hr class="rule">
-    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
       &starf; marks the curve pair each market's desk conventionally quotes (US 2s10s / 5s30s;
       Germany 2s10s / 10s30s). Rate-curve and cross-market spreads run on benchmark government yields (bp), STIR calendars
@@ -102,10 +101,9 @@
       settlement levels in native units &mdash; no back-adjusted continuation levels are used. The
       z-score measures today's level against the rolling {{ window }}-session mean and standard
       deviation; the percentile ranks it inside the full stored history. The rolling mean and
-      &plusmn;3&sigma; levels quoted are statistical references of each spread's own history, for
-      information only &mdash; not investment advice, a recommendation or a solicitation. Market
-      data is subject to your licence terms; verify redistribution rights before external use.
+      &plusmn;3&sigma; levels quoted are statistical references of each spread's own history.
     </div>
+    {% include "_disclaimer.html" %}
   </div>
     </div>
   </div>

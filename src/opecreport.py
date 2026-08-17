@@ -3,7 +3,7 @@
 Page 1 is a one-page synopsis of the latest MOMR (demand/supply balance lead +
 neutral price/futures observations); the following pages are a chart deck built
 from the same JSON. Mirrors the house style of cotreport — same inset
-black sidebar, banners, "SALES COMMENTARY" disclaimer — via _report_style.html.
+black sidebar, banners, compliance disclaimer (_disclaimer.html) — via _report_style.html.
 
 The monthly content is supplied as a JSON file (filled from the primary MOMR PDF
 each release); every chart guards on its data, so a sparse month still renders.

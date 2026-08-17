@@ -147,7 +147,6 @@
     <div class="report-footer">
     <div class="foot-disclaimer">
     <hr class="rule">
-    <div class="disclaimer">THIS IS A SALES COMMENTARY AND SHOULD BE READ AS SUCH</div>
     <div class="fine">
       Data as of {{ d.asof }}. Positioning: CFTC Commitments of Traders (managed money, futures &amp; options).
       Rates &amp; holdings: US 10y TIPS yield, dollar index and ETF holdings via Bloomberg. Inventories:
@@ -155,8 +154,9 @@
       London (daily closes, Bloomberg); US Mint.
       Official sector: IMF IFS / World Gold Council central-bank statistics. Market balances: WPIC Platinum
       Quarterly, Johnson Matthey PGM Market Report, The Silver Institute / Metals Focus World Silver Survey
-      (all figures cited with attribution to their publishers). Information only &mdash; not investment advice.
+      (all figures cited with attribution to their publishers).
     </div>
+    {% include "_disclaimer.html" %}
     </div>
   </div>
     </div>

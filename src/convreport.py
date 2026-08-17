@@ -412,7 +412,7 @@ def _panels_for(gathered):
 # Page-fit budget, in inches of the printed content column (A4 less the 0.3in @page margins,
 # with a little slack). Used to decide how many picks can share the closing page WITH the
 # sales-commentary disclaimer, so it never overflows onto a page of its own.
-_PAGE_IN, _DISCLAIMER_IN = 10.85, 1.15   # disclaimer grew with the 7 -> 8/7.5pt type bump
+_PAGE_IN, _DISCLAIMER_IN = 10.85, 2.45   # sized for the full XP compliance disclaimer (2026-08)
 
 
 def _est_section_in(pick, n_panels: int) -> float:
