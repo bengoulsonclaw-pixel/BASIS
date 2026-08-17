@@ -8395,12 +8395,12 @@ def render_stir_bank(bank_key: str) -> None:
         # group band: BLUE = the market's side, GOLD = yours — the split at a glance
         band = st.columns([sum(_vgrid[:7]), sum(_vgrid[7:])], gap="small")
         band[0].markdown(f"<div style='color:{_MTG_TXT};border-bottom:2px solid {_MTG_C};"
-                         "font-size:0.82rem;letter-spacing:0.02em;font-weight:700;"
+                         "font-size:1.0rem;letter-spacing:0.02em;font-weight:700;"
                          "padding:0 0.1rem 2px' title='Everything in blue is the MARKET: "
                          "what the futures strip prices right now'>Market — priced in now"
                          "</div>", unsafe_allow_html=True)
         band[1].markdown(f"<div style='color:{_YOU_C};border-bottom:2px solid {_YOU_C};"
-                         "font-size:0.82rem;letter-spacing:0.02em;font-weight:700;"
+                         "font-size:1.0rem;letter-spacing:0.02em;font-weight:700;"
                          "padding:0 0.1rem 2px' title='Everything in gold is YOURS: "
                          "editable, two-way'>Your call — editable</div>",
                          unsafe_allow_html=True)
