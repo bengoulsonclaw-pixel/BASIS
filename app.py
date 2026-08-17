@@ -12594,7 +12594,19 @@ def render_macro_radar() -> None:
             f"US only (ALFRED is the only free vintage archive). {bt['n_obs']} monthly "
             f"observations, {bt['first']} → {bt['last']}, each rebuilt from the data "
             f"**as it stood on the day** — revisions and publication lags included. "
-            f"Last run {bt.get('ran', '—')}; refresh with `python -m src.macrobt`.")
+            f"Last run {bt.get('ran', '—')} — refreshed monthly by the 'BASIS Macro "
+            f"Backtest Refresh' task (3rd, 08:00).")
+        # The refresh task is fire-and-forget, so its silent death would leave this
+        # section quietly presenting old results as current. Say so instead.
+        try:
+            _bt_age = (date.today() - date.fromisoformat(bt["ran"])).days
+            if _bt_age > 45:
+                st.warning(f"This backtest is {_bt_age} days old — the monthly refresh "
+                           f"task appears not to have run. Check 'BASIS Macro Backtest "
+                           f"Refresh' in Task Scheduler, or run `python -m src.macrobt`.",
+                           icon="⏳")
+        except Exception:
+            pass
         _rule_names = {k: n for k, n, _f in _RADAR_RULES}
         sel = st.selectbox("Rule tested", list(bt.get("analyses", {}).keys()) or ["balanced"],
                            format_func=lambda k: _rule_names.get(k, k),

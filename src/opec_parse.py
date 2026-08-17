@@ -162,6 +162,110 @@ def parse_appendix(xlsx: Path) -> dict:
     return out
 
 
+# -------------------------------------------------- appendix from the PDF (fallback)
+# The MOMR PDF carries the same Appendix tables 11-1 (balance) and 11-2 (revisions) as
+# the Excel, so the report never depends on the separate — and flakier — Excel download.
+# Columns are fixed: 2023 2024 2025 1Q26..4Q26 2026 1Q27..4Q27 2027 (13 values, 1-dp).
+_BAL_COLS = ["2023", "2024", "2025", "1Q26", "2Q26", "3Q26", "4Q26",
+             "2026", "1Q27", "2Q27", "3Q27", "4Q27", "2027"]
+
+
+def _trailing(line: str, dash_zero: bool = False) -> list:
+    """The run of numeric (or '-') cells at the END of a table line, left-to-right.
+    In the changes table '-' means 'no change' → 0.0 (dash_zero); elsewhere it stops the run."""
+    vals = []
+    for tok in reversed(line.split()):
+        t = tok.replace(",", "")
+        if t == "-":
+            if dash_zero:
+                vals.append(0.0)
+                continue
+            break
+        try:
+            vals.append(float(t))
+        except ValueError:
+            break
+    vals.reverse()
+    return vals
+
+
+def _cols(line: str, dash_zero: bool = False) -> dict:
+    v = _trailing(line, dash_zero)
+    return {_BAL_COLS[i]: v[i] for i in range(min(len(v), len(_BAL_COLS)))}
+
+
+def parse_balance_pdf(pdf: Path) -> dict:
+    """Same shape as parse_appendix (minus supply_contributors, which the PDF lays out
+    column-wise and can't be read reliably) — parsed from the PDF's Appendix tables."""
+    d = pdfium.PdfDocument(str(pdf))
+    pages = [d[i].get_textpage().get_text_range() for i in range(len(d))]
+    out = {}
+
+    bal = next((t for t in pages if "World oil demand and production balance" in t
+                and "(a) - (b)" in t and "changes from last month" not in t.lower()), None)
+    if bal:
+        lines = [ln.strip() for ln in bal.splitlines()]
+
+        def row(label, occurrence=0):
+            seen = 0
+            for ln in lines:
+                if ln.startswith(label):
+                    if seen == occurrence:
+                        return _cols(ln)
+                    seen += 1
+            return {}
+        dem = row("(a) Total world demand")
+        oecd, noecd = row("Total OECD"), row("Total Non-OECD")     # first = demand side
+        ndl = row("Total Non-DoC liquids production")
+        call = row("(a) - (b)")
+        docp = row("DoC crude oil production")
+        yrs = ["2024", "2025", "2026", "2027"]
+
+        def grow(r):
+            return {y: (None if r.get(y) is None or r.get(str(int(y) - 1)) is None
+                        else round(r[y] - r[str(int(y) - 1)], 2)) for y in yrs}
+        dg, og, ng, sg = grow(dem), grow(oecd), grow(noecd), grow(ndl)
+        out["demand_by_year"] = [{"year": y, "oecd": og[y], "nonoecd": ng[y], "total": dg[y]}
+                                 for y in yrs if dg[y] is not None]
+        out["supply_by_year"] = [{"year": y, "nondoc": sg[y]} for y in yrs if sg[y] is not None]
+        out["call"] = {c: call.get(c) for c in ("1Q26", "2Q26", "3Q26", "4Q26", "2026", "2027", "2025")}
+        out["doc_prod"] = {c: docp.get(c) for c in ("2025", "1Q26")}
+        out["levels"] = {"demand2026": dem.get("2026"), "demand2025": dem.get("2025"),
+                         "ndl2026": ndl.get("2026")}
+        bq = []
+        for q in ("1Q26", "2Q26", "3Q26", "4Q26", "2026", "2027"):
+            cv = call.get(q)
+            if cv is None:
+                continue
+            r = {"q": q, "call": round(cv, 2)}
+            if q == "1Q26" and docp.get("1Q26") is not None:
+                r["prod"] = round(docp["1Q26"], 2)
+            bq.append(r)
+        out["balance_quarters"] = bq
+
+    chg = next((t for t in pages if "changes from last month" in t.lower() and "(a) - (b)" in t), None)
+    if chg:
+        clines = [ln.strip() for ln in chg.splitlines()]
+
+        def yoy_after(marker):
+            seen = False
+            for ln in clines:
+                if ln.startswith(marker):
+                    seen = True
+                    continue
+                if seen and ln.startswith("Y-o-y change"):
+                    return _cols(ln, dash_zero=True)
+            return {}
+        dchg, schg = yoy_after("(a) Total world demand"), yoy_after("(b) Total Non-DoC liquids")
+        callchg = next((_cols(ln, dash_zero=True) for ln in clines if ln.startswith("(a) - (b)")), {})
+        out["rev"] = {
+            "demand_growth_2026": dchg.get("2026"), "demand_growth_2027": dchg.get("2027"),
+            "supply_growth_2026": schg.get("2026"), "supply_growth_2027": schg.get("2027"),
+            "call_2026": callchg.get("2026"), "call_2027": callchg.get("2027"),
+        }
+    return out
+
+
 # ------------------------------------------------------------------ pdf
 def _pdf_text(pdf: Path, pages=None) -> str:
     d = pdfium.PdfDocument(str(pdf))
