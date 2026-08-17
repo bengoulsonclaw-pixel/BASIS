@@ -1038,9 +1038,9 @@ _GROUP_TABS = {
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield")],
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
-                           ("🏛️ Fed", "Fed Path"),
-                           ("💶 ECB", "ECB Path"),
-                           ("💷 BoE", "BoE Path")],
+                           ("Fed", "Fed Path"),      # flags ride in via CSS ::before
+                           ("ECB", "ECB Path"),      # (_STIR_TAB_FLAG_CSS) — emoji here
+                           ("BoE", "BoE Path")],     # would double up with them
     # The old Trade Testing module dissolved (Ben 2026-08-15): TA Backtester + Signal
     # Ledger live under Technical Analysis, the Vol Backtester under Volatility.
     "Technical Analysis": [("📈 TA Hub", "Technical Analysis"),
@@ -1075,6 +1075,8 @@ def _render_group_tabs(active_page: str) -> None:
     for col, (label, dest) in zip(cols, members):
         col.button(label, key=f"gtab_{dest}", use_container_width=True, on_click=_go, args=(dest,),
                    type="primary" if dest == active_page else "secondary")
+    if any(dest in ("Fed Path", "ECB Path", "BoE Path") for _l, dest in members):
+        st.markdown(f"<style>{_STIR_TAB_FLAG_CSS}</style>", unsafe_allow_html=True)
 
 
 def _data_badge(snap, side: str = "FICC") -> None:
@@ -7028,7 +7030,66 @@ _STIR_HOUSE = {                                   # shipped defaults ("↺ Defau
     "ECB": ["ERA Comdty", "TKYA Comdty"],
     "BOE": ["SFIA Comdty"],
 }
-_STIR_ICON = {"FED": "🏛️", "ECB": "💶", "BOE": "💷"}
+# Real flags, not emoji: Windows renders flag emoji as bare letter pairs
+# ("US"), so the banks wear small self-contained SVG flags (base64 data URIs —
+# no assets, no network). Used in headers, cards, mover chips and (via CSS
+# ::before) the module tab row.
+def _stir_flag_svgs() -> dict:
+    import base64
+    import math
+    us = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 40">',
+          '<rect width="60" height="40" fill="#fff"/>']
+    for i in range(0, 13, 2):
+        us.append(f'<rect y="{i * 40 / 13:.2f}" width="60" height="{40 / 13:.2f}" '
+                  'fill="#B22234"/>')
+    us.append('<rect width="24" height="21.54" fill="#3C3B6E"/>')
+    for r_ in range(4):
+        for k_ in range(5):
+            us.append(f'<circle cx="{2.6 + k_ * 4.7:.1f}" cy="{2.8 + r_ * 5.3:.1f}" '
+                      'r="1.05" fill="#fff"/>')
+    us.append('</svg>')
+    eu = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 40">',
+          '<rect width="60" height="40" fill="#039"/>']
+    for j in range(12):
+        a0 = j * math.pi / 6
+        cx, cy = 30 + 12 * math.sin(a0), 20 - 12 * math.cos(a0)
+        pts = []
+        for kk in range(10):
+            rr = 2.4 if kk % 2 == 0 else 0.95
+            aa = kk * math.pi / 5
+            pts.append(f"{cx + rr * math.sin(aa):.2f},{cy - rr * math.cos(aa):.2f}")
+        eu.append(f'<polygon points="{" ".join(pts)}" fill="#FC0"/>')
+    eu.append('</svg>')
+    uk = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 40">'
+          '<rect width="60" height="40" fill="#012169"/>'
+          '<path d="M0 0L60 40M60 0L0 40" stroke="#fff" stroke-width="8"/>'
+          '<path d="M0 0L60 40M60 0L0 40" stroke="#C8102E" stroke-width="3.4"/>'
+          '<rect x="24" width="12" height="40" fill="#fff"/>'
+          '<rect y="14" width="60" height="12" fill="#fff"/>'
+          '<rect x="26.6" width="6.8" height="40" fill="#C8102E"/>'
+          '<rect y="16.6" width="60" height="6.8" fill="#C8102E"/></svg>')
+    enc = lambda s: base64.b64encode(s.encode()).decode()
+    return {"FED": enc("".join(us)), "ECB": enc("".join(eu)), "BOE": enc(uk)}
+
+
+_STIR_FLAG_B64 = _stir_flag_svgs()
+
+
+def _flag_img(bk: str, h: int = 13) -> str:
+    return (f"<img src='data:image/svg+xml;base64,{_STIR_FLAG_B64[bk]}' "
+            f"style='height:{h}px;width:auto;vertical-align:-1px;border-radius:2px;"
+            f"box-shadow:0 0 0 1px rgba(255,255,255,0.22)'/>")
+
+
+# flags on the module tab-row buttons (button labels cannot carry HTML — the
+# flag rides in as a CSS ::before on the button text, keyed per tab)
+_STIR_TAB_FLAG_CSS = "".join(
+    f".st-key-gtab_{dest.replace(' ', '-')} button p::before {{"
+    "content:''; display:inline-block; width:19px; height:12.5px;"
+    f"background:url(data:image/svg+xml;base64,{_STIR_FLAG_B64[bk]}) center/cover;"
+    "margin-right:8px; border-radius:2px; vertical-align:-1.5px;"
+    "box-shadow:0 0 0 1px rgba(255,255,255,0.22);}}"
+    for dest, bk in (("Fed Path", "FED"), ("ECB Path", "ECB"), ("BoE Path", "BOE")))
 # Bank identity colours — Ben's explicit preference (2026-08-11): keep the
 # red/blue/green even though red/green mean direction elsewhere; a product-
 # colour palette (SR3 gold / ER purple / SONIA orange) was tried and rejected.
@@ -7470,7 +7531,7 @@ def render_stir_overview() -> None:
                 f"<div style='border:1px solid rgba(128,128,128,0.28);border-left:4px solid "
                 f"{col_c};border-radius:8px;padding:0.7rem 0.9rem 0.55rem;min-height:10.6rem'>"
                 f"<div style='display:flex;justify-content:space-between;align-items:flex-start'>"
-                f"<div style='font-weight:700;font-size:0.95rem'>{_STIR_ICON[bk]} {bank.name}"
+                f"<div style='font-weight:700;font-size:0.95rem'>{_flag_img(bk)} {bank.name}"
                 f"</div>"
                 f"<div style='text-align:right;white-space:nowrap' title='{rate_tip}'>"
                 f"<span style='font-size:1.25rem;font-weight:700'>{rate_big}</span>"
@@ -7501,7 +7562,7 @@ def render_stir_overview() -> None:
         movers.sort(reverse=True)
         chips = " &nbsp;·&nbsp; ".join(
             f"<span style='color:{'#66BB6A' if d > 0 else '#EF5350'};font-weight:700'>"
-            f"{_STIR_ICON[bk]} {m:%b %y} {d:+.1f}bp</span>"
+            f"{_flag_img(bk, 11)} {m:%b %y} {d:+.1f}bp</span>"
             f"<span style='color:#9AA4B0;font-size:0.78rem'> (now {bp:+.1f})</span>"
             for _, bk, m, bp, d in movers[:5])
         st.markdown("**Repriced since the last snapshot:** &nbsp;" + chips,
@@ -7566,7 +7627,7 @@ def render_stir_overview() -> None:
     for bk, bank in stirpaths.BANKS.items():
         for m in bank.meetings:
             if asof <= m <= horizon14:
-                ev.append((m, f"{_STIR_ICON[bk]} {bank.meeting_name} rate decision",
+                ev.append((m, f"{bank.meeting_name} rate decision",
                            bank.name))
     for p in stirpaths.PRODUCTS.values():
         for c in stirpaths.strip(p, asof, 14):
@@ -7793,7 +7854,8 @@ def render_stir_bank(bank_key: str) -> None:
     import altair as alt
     bank = stirpaths.BANKS[bank_key]
     prods_all = stirpaths.bank_products(bank_key)
-    st.subheader(f"{_STIR_ICON[bank_key]}  {bank.name} — implied path & meeting scenarios")
+    st.markdown(f"<h3>{_flag_img(bank_key, 17)}&nbsp; {bank.name} — implied path "
+                "&amp; meeting scenarios</h3>", unsafe_allow_html=True)
     st.caption(
         "Top to bottom: where the futures trade now → what the market prices at each "
         f"**{bank.meeting_name}** decision → **your** odds (+% hike / −% cut) → where the futures "
