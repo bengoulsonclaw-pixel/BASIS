@@ -8642,30 +8642,50 @@ def render_stir_bank(bank_key: str) -> None:
                      "E[move] (bp)": "{:+.1f}".format, "Cum (bp)": "{:+.1f}".format},
             height=min(430, 45 + 35 * len(ot)))
 
-    # ---- policy path (rate space) --------------------------------------------
+    # ---- WIRP-style combined chart: rate lines over cumulative-steps bars ----
+    # WIRP's bars and line are the SAME series in two units (rate = current +
+    # cum steps x step size), so double-encoding the market this way adds no
+    # noise — and your view rides on top as ONE extra dashed gold line.
     cc = brand.chart_colors()
-    seg_dates = [asof] + [fedpath.effective_date(m) for m in ip.meetings]
-    mkt_seg = ip.seg_rates - basis_bp / 100.0
-    your_seg = np.concatenate([[policy], policy + np.cumsum(exp_moves) / 100.0])
-    path_df = pd.concat([
-        pd.DataFrame({"date": seg_dates, "rate": mkt_seg, "Path": "Market-implied"}),
-        pd.DataFrame({"date": seg_dates, "rate": your_seg, "Path": "Your scenario (expected)"}),
-    ])
-    path_df["date"] = pd.to_datetime(path_df["date"])
+    step_bp_ = float(hike_bp) or 25.0
+    lab_x = ["Current"] + [f"{m:%d %b %y}" for m in ip.meetings]
+    mkt_rate = np.concatenate([[policy], policy + cum_disp / 100.0])
+    your_rate = np.concatenate([[policy], policy + np.cumsum(exp_moves) / 100.0])
+    bars_df = pd.DataFrame({"Meeting": lab_x,
+                            "Steps": np.concatenate([[0.0], cum_disp / step_bp_])})
     dom = ["Market-implied", "Your scenario (expected)"]
     rng = [cc["series"], cc["accent"]]
-    line = alt.Chart(path_df).mark_line(interpolate="step-after", strokeWidth=3).encode(
-        x=alt.X("date:T", title=None),
+    lines_df = pd.concat([
+        pd.DataFrame({"Meeting": lab_x, "rate": mkt_rate, "Path": dom[0]}),
+        pd.DataFrame({"Meeting": lab_x, "rate": your_rate, "Path": dom[1]}),
+    ])
+    x_enc = alt.X("Meeting:N", sort=lab_x, title=None,
+                  axis=alt.Axis(labelAngle=-35))
+    bars = alt.Chart(bars_df).mark_bar(size=24, opacity=0.35, color=_MTG_C).encode(
+        x=x_enc,
+        y=alt.Y("Steps:Q", title="# hikes/cuts priced (cum)",
+                axis=alt.Axis(orient="right")),
+        tooltip=[alt.Tooltip("Meeting:N"),
+                 alt.Tooltip("Steps:Q", title="Cum steps (market)", format="+.2f")])
+    lines = alt.Chart(lines_df).mark_line(strokeWidth=3).encode(
+        x=x_enc,
         y=alt.Y("rate:Q", title=f"{bank.rate_name} (%)", scale=alt.Scale(zero=False)),
         color=alt.Color("Path:N", scale=alt.Scale(domain=dom, range=rng),
                         legend=alt.Legend(title=None, orient="top")),
-        tooltip=[alt.Tooltip("date:T", title="From"), alt.Tooltip("Path:N"),
+        strokeDash=alt.StrokeDash("Path:N", scale=alt.Scale(
+            domain=dom, range=[[1, 0], [6, 4]]), legend=None),
+        tooltip=[alt.Tooltip("Meeting:N"), alt.Tooltip("Path:N"),
                  alt.Tooltip("rate:Q", title="Rate", format=".3f")])
-    pts = alt.Chart(path_df).mark_point(filled=True, size=45).encode(
-        x="date:T", y="rate:Q",
+    pts = alt.Chart(lines_df).mark_point(filled=True, size=45).encode(
+        x=x_enc, y=alt.Y("rate:Q", scale=alt.Scale(zero=False)),
         color=alt.Color("Path:N", scale=alt.Scale(domain=dom, range=rng), legend=None))
-    st.markdown(f"**Implied policy path — where the {bank.rate_name.lower()} lands at each meeting**")
-    brand.show_chart((line + pts).properties(height=320))
+    st.markdown(f"**Implied {bank.rate_name.lower()} & hikes/cuts priced — "
+                "market vs your view**")
+    brand.show_chart(alt.layer(bars, lines + pts).resolve_scale(y="independent")
+                     .properties(height=330))
+    st.caption("The WIRP read: bars = cumulative hikes/cuts the market prices through "
+               "each meeting (right axis) · solid line = the same thing as a rate level "
+               "(left axis) · dashed gold = where YOUR odds put the rate.")
 
     # ---- contract-windows timeline (the meeting-risk Gantt), now secondary ---
     with st.expander("🗓️ Contract windows & meeting-risk timeline"):
