@@ -381,6 +381,19 @@ def _fetch_phase() -> dict | None:
     except Exception as e:
         print(f"  (STIR strip store skipped: {e})")
 
+    # Macro surprise ledger (Macro Rate Radar): append this week's newly-settled
+    # actual-vs-consensus surprises from the free calendar feed. Zero Bloomberg. This
+    # store CANNOT be backfilled (the feed only carries the current week), so the daily
+    # append here is the only thing building its history — keep it early in the morning
+    # run and never behind a Terminal-dependent step.
+    try:
+        from src import macrosurprise
+        r = macrosurprise.refresh()
+        print(f"  Macro surprises: +{r['added']} new "
+              f"({r['total_stored']} stored, {r['not_yet_printed']} awaiting print)")
+    except Exception as e:
+        print(f"  (macro surprises skipped: {e})")
+
     # Own-curve option MARKS (batched Bloomberg) — the raw ATM/wing settles, expiries and
     # OI for the whole book, cached to disk. The FITTING happens in the compute phase off
     # this cache, so the Terminal is NOT needed once this line completes.

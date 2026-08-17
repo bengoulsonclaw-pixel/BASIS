@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 8pt; }
+  .kpis { display: flex; gap: 3mm; margin: 3mm 0 1mm; }
+  .kpi { flex: 1; border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+         padding: 2mm 3mm; background: #FafafA; }
+  .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .val { font-size: 13pt; font-weight: 700; color: #111; }
+  .kpi .note { font-size: 6.5pt; color: #888; }
+  .working { font-size: 6.8pt; color: #777; font-family: Consolas, monospace; }
+  .disclaimer { font-size: 6.5pt; color: #999; margin-top: 3mm; }
+  .inputs td { font-size: 6.8pt; color: #666; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Macro Rate Radar &mdash; {{ bank_title }}</h1>
+      <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      Simple monetary-policy rules &mdash; the Taylor-rule family relating the policy rate to
+      inflation and the output gap &mdash; evaluated on current public data (inflation
+      {{ infl }}% vs a {{ target }}% objective, r* {{ rstar }}%, output gap {{ gap }}pp), and set
+      against the meeting path the futures strip currently prices. {{ summary_prose }}
+    </p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Policy rate</div>
+        <div class="val">{{ policy_now }}%</div><div class="note">current setting</div></div>
+      <div class="kpi"><div class="lab">Median rule</div>
+        <div class="val">{{ median }}%</div><div class="note">{{ median_gap }} bp vs policy</div></div>
+      <div class="kpi"><div class="lab">Rule dispersion</div>
+        <div class="val">{{ dispersion }} bp</div><div class="note">highest minus lowest</div></div>
+      <div class="kpi"><div class="lab">Vs the strip</div>
+        <div class="val">{{ headline }} bp</div><div class="note">prescribed &minus; priced, furthest meeting</div></div>
+    </div>
+
+    <div class="section">
+      <div class="banner">The Five Rules &mdash; prescription vs the current setting</div>
+      <div class="chart"><img src="{{ rules_chart }}" alt="Rule prescriptions"></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Rule</th><th class="center">Prescribes</th><th class="center">vs policy (bp)</th><th>Working</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rule_rows %}
+        <tr class="{% if r.dir > 0 %}short{% elif r.dir < 0 %}long{% endif %}">
+          <td class="market">{{ r.name }}</td>
+          <td class="center">{{ r.value }}</td>
+          <td class="center sig">{{ r.vs }}</td>
+          <td class="working">{{ r.working }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if have_path %}
+    <div class="section">
+      <div class="banner">Prescribed vs Priced &mdash; rule path against the futures strip</div>
+      <div class="chart"><img src="{{ path_chart }}" alt="Prescribed vs priced path"></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Meeting</th><th class="center">Priced policy (%)</th><th class="center">Priced cum (bp)</th>
+            <th class="center">Rule prescribes (%)</th><th class="center">Spread (bp)</th></tr>
+      </thead>
+      <tbody>
+        {% for m in meet_rows %}
+        <tr class="{% if m.dir > 0 %}short{% elif m.dir < 0 %}long{% endif %}">
+          <td class="market">{{ m.meeting }}</td>
+          <td class="center">{{ m.priced }}</td>
+          <td class="center">{{ m.cum }}</td>
+          <td class="center">{{ m.presc }}</td>
+          <td class="center sig">{{ m.spread }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="note">Market path from the exchange settlement strip ({{ strip_asof }}), inverted into a
+      per-meeting step path. A positive spread means the rules point to a higher policy rate than the
+      curve has priced at that meeting; a negative spread the reverse.</p>
+    {% else %}
+    <p class="note">No market-implied path was available for this run ({{ path_reason }});
+      the rule prescriptions above stand alone.</p>
+    {% endif %}
+
+    <div class="banner">Data Sources</div>
+    <table class="inputs">
+      <tbody>
+        {% for r in inputs_rows %}
+        <tr><td class="market">{{ r.k }}</td><td>{{ r.v }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p class="disclaimer">
+      Policy rules are illustrative benchmarks, not forecasts: no central bank follows one
+      mechanically, and prescriptions are sensitive to unobservable inputs (the neutral rate,
+      the output gap) that are estimated or assumed. All data from public sources &mdash;
+      FRED/ALFRED, Eurostat, the ECB Data Portal, the Bank of England, the ONS, and Federal
+      Reserve banks. For information purposes only; not investment advice or a recommendation
+      to transact.
+    </p>
+  </div>
+</body>
+</html>

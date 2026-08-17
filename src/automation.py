@@ -63,6 +63,10 @@ REPORTS = {
                     "schedule": "Daily 08:30 check — sends only on a new release",
                     "tasks": ["PM Release Synopses (daily)"],
                     "recipients": "pm_releases"},
+    "macroradar": {"label": "Macro Rate Radar — policy rules vs market pricing",
+                   "schedule": "Mondays 07:35 — Fed/ECB/BoE rule prescriptions vs the strip",
+                   "tasks": ["BASIS Macro Rate Radar"],
+                   "recipients": "macroradar"},
 }
 
 

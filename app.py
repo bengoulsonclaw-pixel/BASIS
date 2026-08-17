@@ -39,6 +39,10 @@ from src import econ
 from src import gitbackup
 from src import fedpath
 from src import stirpaths
+from src import macrorules
+from src import macroradar
+from src import macrosurprise
+from src import macrodata
 from src import volbt
 from src import tabt
 from src import sectorcorr
@@ -12278,6 +12282,362 @@ section[data-testid="stSidebar"] div[data-testid="stElementContainer"][data-stal
 }
 </style>"""
 
+# ══════════════════════════════════════════════════════════════════════════════════════
+# Macro Rate Radar — policy rules vs what the curve prices
+#   (engines: src/macrodata.py · src/macrorules.py · src/macroradar.py ·
+#             src/macrosurprise.py · src/macrobt.py — all free data, no Bloomberg)
+# ══════════════════════════════════════════════════════════════════════════════════════
+_RADAR_PREFS = ROOT / "data" / "macroradar.json"
+
+_RADAR_RULES = [("balanced", "Balanced approach", macrorules.balanced),
+                ("taylor93", "Taylor (1993)", macrorules.taylor93),
+                ("shortfalls", "Shortfalls", macrorules.shortfalls),
+                ("inertial", "Inertial", macrorules.inertial),
+                ("firstdiff", "First difference", macrorules.first_difference)]
+_RADAR_RULE_FN = {k: fn for k, _n, fn in _RADAR_RULES}
+
+
+def _radar_prefs() -> dict:
+    try:
+        return json.loads(_RADAR_PREFS.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _radar_save_prefs(blob: dict) -> None:
+    try:
+        _RADAR_PREFS.write_text(json.dumps(blob, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def render_macro_radar() -> None:
+    """Policy-rule dashboard: what the macro says the policy rate should be, against what
+    the strip has already priced. Every input here is free public data — no Bloomberg."""
+    prefs = _radar_prefs()
+
+    st.subheader("🏛️  Macro Rate Radar — policy rules vs what's priced")
+    st.caption(
+        "The formula rates desks argue about: **i = r\\* + π + 0.5(π − π\\*) + b·gap**. "
+        "Five rules, three central banks, run on public data only — FRED/ALFRED, Eurostat, "
+        "the ECB, the BoE, the ONS and the regional Feds. The number that matters is the "
+        "**spread against what the curve already prices** (from the STIR Paths fit), not "
+        "the rule level on its own.")
+
+    st.warning(
+        "**Policy rules are prescriptive, not predictive.** No central bank follows one "
+        "mechanically, and the gap between prescription and actual policy routinely runs "
+        "100bp+ for years. What tends to carry information is the **change** in the "
+        "prescription, the **spread versus priced**, and the **dispersion** across rules — "
+        "not the level.", icon="⚠️")
+
+    bank_lbl = {"FED": "🇺🇸 Fed", "ECB": "🇪🇺 ECB", "BOE": "🇬🇧 BoE"}
+    bcols = st.columns(3)
+    bank = st.session_state.setdefault("radar_bank", prefs.get("bank", "FED"))
+    for col, bk in zip(bcols, ("FED", "ECB", "BOE")):
+        if col.button(bank_lbl[bk], use_container_width=True, key=f"radar_bk_{bk}",
+                      type="primary" if bank == bk else "secondary"):
+            st.session_state["radar_bank"] = bank = bk
+            st.rerun()
+
+    rule_names = [n for _k, n, _f in _RADAR_RULES]
+    default_rule = prefs.get("rule", "balanced")
+    pick = st.radio("Rule", rule_names, horizontal=True,
+                    index=max(0, [k for k, _n, _f in _RADAR_RULES].index(default_rule))
+                    if default_rule in [k for k, _n, _f in _RADAR_RULES] else 0,
+                    key="radar_rule_pick")
+    rule_key = [k for k, n, _f in _RADAR_RULES if n == pick][0]
+    rule_fn = _RADAR_RULE_FN[rule_key]
+
+    # ---- assumption inputs (r* / NAIRU) — editable because for some blocs nobody publishes them
+    saved = prefs.get("overrides", {}).get(bank, {})
+    with st.expander("⚙️  Assumptions — r\\* and the natural rate of unemployment", expanded=False):
+        st.caption(
+            "Where a bloc publishes these, the published value is used and these boxes stay "
+            "empty. **The BoE leg has neither**: there is no UK estimate in Holston-Laubach-"
+            "Williams and the ONS publishes no potential output, so both numbers below are "
+            "assumptions, and the BoE prescription moves roughly one-for-one with r\\*.")
+        ac1, ac2, ac3 = st.columns([1, 1, 1])
+        use_override = ac1.checkbox("Override", value=bool(saved),
+                                    key=f"radar_ovr_{bank}")
+        rstar_in = ac2.number_input("r\\* (real neutral, %)", value=float(saved.get("rstar", 0.75)),
+                                    step=0.05, format="%.2f", key=f"radar_rs_{bank}",
+                                    disabled=not use_override)
+        nairu_in = ac3.number_input("NAIRU / u\\* (%)", value=float(saved.get("nairu", 4.25)),
+                                    step=0.05, format="%.2f", key=f"radar_nu_{bank}",
+                                    disabled=not use_override)
+        if st.button("💾 Save as this bank's default", key=f"radar_save_{bank}"):
+            blob = _radar_prefs()
+            blob.setdefault("overrides", {})[bank] = (
+                {"rstar": rstar_in, "nairu": nairu_in} if use_override else {})
+            blob["bank"], blob["rule"] = bank, rule_key
+            _radar_save_prefs(blob)
+            st.success("Saved.")
+
+    ov_rstar = rstar_in if use_override else None
+    ov_nairu = nairu_in if use_override else None
+
+    # ---- scenario sliders --------------------------------------------------------------
+    with st.expander("🎛️  Scenario — shift the macro and watch the prescribed path move",
+                     expanded=False):
+        st.caption(
+            "The forward path assumes bland mean reversion — inflation decays toward target, "
+            "the gap closes — rather than a house forecast, so what you see is a transparent "
+            "baseline you can inspect, not a view smuggled in. Shocks below are added to "
+            "today's readings.")
+        s1, s2, s3 = st.columns(3)
+        infl_shock = s1.slider("Inflation shock (pp)", -2.0, 2.0, 0.0, 0.1, key="radar_sh_i")
+        gap_shock = s2.slider("Output-gap shock (pp)", -4.0, 4.0, 0.0, 0.1, key="radar_sh_g")
+        rstar_shift = s3.slider("r\\* shift (pp)", -1.0, 1.0, 0.0, 0.05, key="radar_sh_r")
+        h1, h2 = st.columns(2)
+        infl_hl = h1.slider("Inflation half-life (quarters)", 1.0, 16.0, 6.0, 0.5,
+                            key="radar_hl_i")
+        gap_hl = h2.slider("Gap half-life (quarters)", 1.0, 16.0, 8.0, 0.5, key="radar_hl_g")
+    assume = macrorules.PathAssumption(infl_half_life_q=infl_hl, gap_half_life_q=gap_hl,
+                                       infl_shock=infl_shock, gap_shock=gap_shock,
+                                       rstar_shift=rstar_shift)
+
+    # ---- compute ------------------------------------------------------------------------
+    with st.spinner("Pulling free macro data…"):
+        try:
+            res = macroradar.compare(bank, rule=rule_fn, nairu=ov_nairu, rstar=ov_rstar,
+                                     assume=assume)
+        except Exception as e:
+            st.error(f"Could not build the Radar for {bank}: {e}")
+            return
+
+    if res.summary is None:
+        st.error("No rule could be evaluated — the macro inputs are unavailable. "
+                 "Check the Data health board.")
+        return
+
+    x, prov = macrorules.inputs_from_data(bank, nairu=ov_nairu, rstar=ov_rstar)
+
+    # ---- headline row -------------------------------------------------------------------
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Policy rate now", f"{res.policy_now:.2f}%")
+    m2.metric(f"{res.rule_name}",
+              "—" if res.prescribed_now is None else f"{res.prescribed_now:.2f}%",
+              None if res.prescribed_now is None
+              else f"{(res.prescribed_now - res.policy_now) * 100:+.0f}bp vs policy",
+              delta_color="off")   # hawkish/dovish is a direction, not good/bad news
+    m3.metric("Median of 5 rules",
+              "—" if res.summary.median is None else f"{res.summary.median:.2f}%",
+              None if res.summary.median_gap_bp is None
+              else f"{res.summary.median_gap_bp:+.0f}bp vs policy",
+              delta_color="off")
+    m4.metric("Rule dispersion",
+              "—" if res.summary.dispersion_bp is None else f"{res.summary.dispersion_bp:.0f}bp",
+              help="Highest minus lowest prescription. Wide = the committee has genuine "
+                   "latitude and the outcome distribution is fat — an options view more "
+                   "than a directional one.")
+
+    if prov.assumed:
+        st.info(f"**Assumed, not measured:** {', '.join(prov.assumed)} — nobody publishes "
+                f"{'these' if len(prov.assumed) > 1 else 'this'} for the "
+                f"{bank_lbl[bank].split()[-1]}. Set them under *Assumptions* above; the "
+                f"prescription moves with them.", icon="✏️")
+    if prov.stale:
+        st.caption(f"⏳ Stale source: {', '.join(prov.stale)} — r\\* comes from "
+                   f"Holston-Laubach-Williams, which publishes about two quarters behind.")
+    if prov.missing:
+        st.warning(f"Missing inputs: {', '.join(prov.missing)}", icon="⚠️")
+
+    # ---- the five rules -----------------------------------------------------------------
+    st.markdown("#### The five rules")
+    rule_rows = []
+    for r in res.summary.results:
+        rule_rows.append({
+            "Rule": r.name,
+            "Prescribed": "—" if r.prescribed is None else f"{r.prescribed:.2f}%",
+            "vs policy": ("—" if r.prescribed is None
+                          else f"{r.vs_actual(res.policy_now):+.0f}bp"),
+            "Working": r.formula or r.reason,
+            "Note": r.note,
+        })
+    st.dataframe(pd.DataFrame(rule_rows), use_container_width=True, hide_index=True)
+    st.caption(res.summary.verdict)
+
+    # ---- prescribed vs priced -----------------------------------------------------------
+    st.markdown("#### Prescribed vs priced")
+    if not res.ok or not res.meetings:
+        st.warning(f"No market-implied path available: {res.reason}", icon="⚠️")
+    else:
+        st.caption(
+            f"Market path from the STIR Paths fit of the live strip "
+            f"(store as-of **{res.strip_asof}**). Positive spread = the rules want a "
+            f"**higher** policy rate than the curve has priced.")
+        rows = []
+        for m in res.meetings:
+            rows.append({
+                "Meeting": m.meeting.strftime("%d %b %Y"),
+                "Priced policy": f"{m.priced_policy:.3f}%",
+                "Priced cumulative": f"{m.priced_cum_bp:+.1f}bp",
+                "Rule prescribes": "—" if m.prescribed is None else f"{m.prescribed:.2f}%",
+                "Spread": "—" if m.spread_bp is None else f"{m.spread_bp:+.0f}bp",
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+        try:
+            import altair as alt
+            chart_rows = []
+            for m in res.meetings:
+                chart_rows.append({"meeting": m.meeting.isoformat(),
+                                   "rate": m.priced_policy, "series": "Priced by the strip"})
+                if m.prescribed is not None:
+                    chart_rows.append({"meeting": m.meeting.isoformat(),
+                                       "rate": m.prescribed,
+                                       "series": f"{res.rule_name} prescribes"})
+            cdf = pd.DataFrame(chart_rows)
+            dom = ["Priced by the strip", f"{res.rule_name} prescribes"]
+            rng = ["#F5C518", "#64B5F6"]
+            base = alt.Chart(cdf).encode(
+                x=alt.X("meeting:T", title=None),
+                y=alt.Y("rate:Q", title="Policy rate (%)",
+                        scale=alt.Scale(zero=False)),
+                color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
+                                legend=alt.Legend(title=None, orient="top")),
+                tooltip=[alt.Tooltip("meeting:T", title="Meeting"),
+                         alt.Tooltip("series:N", title=""),
+                         alt.Tooltip("rate:Q", title="Rate", format=".2f")])
+            lines = base.mark_line(interpolate="step-after", point=True)
+            today_rule = alt.Chart(pd.DataFrame([{"y": res.policy_now}])).mark_rule(
+                strokeDash=[4, 3], color="#9AA4B0").encode(y="y:Q")
+            st.altair_chart((lines + today_rule).properties(height=280),
+                            use_container_width=True)
+        except Exception:
+            pass
+
+        md = res.max_divergence
+        if md is not None:
+            st.info(f"**Widest disagreement: {md.spread_bp:+.0f}bp at the "
+                    f"{md.meeting:%d %b %Y} meeting** — the curve prices "
+                    f"{md.priced_policy:.2f}% there against a rule prescription of "
+                    f"{md.prescribed:.2f}%.", icon="📌")
+
+    # ---- contract edge -------------------------------------------------------------------
+    with st.expander("💷  If the rule path is right — contract edge and P&L per lot",
+                     expanded=False):
+        st.caption(
+            "Every contract in the bank's strip repriced off the rule path. **Signs are for "
+            "a long position:** a negative edge means the contract is rich to the rule (the "
+            "rule wants higher rates than the curve) so the future should fall. This is a "
+            "sizing aid, not a forecast — it inherits every assumption above.")
+        try:
+            edges = macroradar.contract_edges(bank, rule=rule_fn, nairu=ov_nairu,
+                                              rstar=ov_rstar, assume=assume, n=8)
+        except Exception as e:
+            edges = []
+            st.warning(f"Could not price the strip: {e}")
+        if edges:
+            st.dataframe(pd.DataFrame([{
+                "Contract": e.code, "Product": e.short,
+                "Market": f"{e.market_price:.3f}", "Rule fair": f"{e.rule_fair:.3f}",
+                "Edge": f"{e.edge_bp:+.1f}bp",
+                "P&L / lot (long)": f"{e.ccy}{e.pnl_per_lot:,.0f}",
+            } for e in edges]), use_container_width=True, hide_index=True)
+            if st.button("🧰 Model in Strategy Builder", key="radar_to_sb"):
+                _go("Strategy Builder")
+
+    # ---- surprise index -------------------------------------------------------------------
+    st.markdown("#### Economic surprise index")
+    # Opportunistic top-up (once per day per session): the ledger cannot be backfilled, so
+    # if the morning snapshot ever dies before its macrosurprise block (e.g. a wedged
+    # Bloomberg pull upstream), merely opening this page still captures the week's prints.
+    _sk = f"radar_surprise_refreshed_{date.today().isoformat()}"
+    if not st.session_state.get(_sk):
+        try:
+            macrosurprise.refresh()
+        except Exception:
+            pass
+        st.session_state[_sk] = True
+    ready = macrosurprise.readiness()
+    idx = macrosurprise.index(bank)
+    if idx.get("ok"):
+        s1, s2, s3 = st.columns(3)
+        s1.metric("Surprise index", f"{idx['value']:+.2f}",
+                  help="Exponentially decayed sum of standardised (actual − consensus) "
+                       "surprises. Positive = data beating expectations.")
+        gi = macrosurprise.index(bank, "growth")
+        ii = macrosurprise.index(bank, "inflation")
+        s2.metric("Growth", "—" if not gi.get("ok") else f"{gi['value']:+.2f}")
+        s3.metric("Inflation", "—" if not ii.get("ok") else f"{ii['value']:+.2f}")
+        rec = macrosurprise.recent(bank, 12)
+        if rec:
+            st.dataframe(pd.DataFrame([{
+                "Date": r["when"], "Release": r["title"],
+                "Actual": r["actual"], "Consensus": r["forecast"],
+                "Surprise (σ)": "—" if r["z"] is None else f"{r['z']:+.2f}",
+            } for r in rec]), use_container_width=True, hide_index=True)
+    else:
+        st.info(
+            f"**Still accruing** — {ready['total']} releases recorded so far"
+            + (f" since {ready['first_event']}" if ready["first_event"] else "")
+            + f". {idx.get('reason', '')}\n\n"
+            "This index cannot be backfilled: the free calendar feed carries the current "
+            "week only, and no free source has a history of consensus forecasts. It fills "
+            "as the daily refresh runs, and stays silent rather than showing a confident "
+            "number built on a handful of points.", icon="⏳")
+    for g in macrosurprise.gaps():
+        st.caption(f"⚠️ Recording gap: {g['from']} → {g['to']} ({g['days']} days) — the "
+                   f"index understates that stretch.")
+
+    # ---- provenance + validation ------------------------------------------------------
+    with st.expander("🔍  Where every number came from, and the correctness check"):
+        st.markdown("**Inputs**")
+        st.dataframe(pd.DataFrame(
+            [{"Input": k, "Source": v} for k, v in (prov.sources or {}).items()]),
+            use_container_width=True, hide_index=True)
+        st.markdown("**Cross-check against the Cleveland Fed**")
+        st.caption(
+            "The Cleveland Fed publishes its own seven-rule calculation. We feed our engine "
+            "their inputs and compare with their published prescriptions — an independent "
+            "test that fails loudly if a coefficient ever drifts.")
+        try:
+            v = macrorules.validate_against_cleveland()
+            if v["checks"]:
+                n_ok = sum(1 for c in v["checks"] if c["ok"])
+                worst = max(abs(c["diff_bp"]) for c in v["checks"])
+                (st.success if v["ok"] else st.error)(
+                    f"{n_ok}/{len(v['checks'])} checks pass — largest difference "
+                    f"{worst:.2f}bp. {v['asof']}")
+                if not v["ok"]:
+                    st.dataframe(pd.DataFrame(
+                        [c for c in v["checks"] if not c["ok"]]),
+                        use_container_width=True, hide_index=True)
+            else:
+                st.warning(f"Cross-check unavailable: {v.get('reason', '')}")
+        except Exception as e:
+            st.warning(f"Cross-check unavailable: {e}")
+
+        st.markdown("**Free-data sources**")
+        try:
+            st.dataframe(pd.DataFrame(macrodata.source_status()),
+                         use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.caption(f"(source status unavailable: {e})")
+
+    # ---- report ---------------------------------------------------------------------------
+    st.divider()
+    rc1, rc2 = st.columns([1, 3])
+    if rc1.button("📄 Build PDF report", key="radar_pdf", use_container_width=True):
+        with st.spinner("Rendering the Macro Rate Radar report…"):
+            try:
+                # Lazy import: reportkit pulls matplotlib in, which the server process
+                # deliberately doesn't carry — only the report path pays for it.
+                from src import macroradarreport
+                out = macroradarreport.build(bank=bank, rule_key=rule_key,
+                                             nairu=ov_nairu, rstar=ov_rstar)
+                st.session_state["radar_pdf_path"] = str(out)
+            except Exception as e:
+                st.error(f"Report failed: {e}")
+    p = st.session_state.get("radar_pdf_path")
+    if p and Path(p).exists():
+        with open(p, "rb") as fh:
+            rc2.download_button("⬇️ Download the report", fh.read(),
+                                file_name=Path(p).name, mime="application/pdf",
+                                use_container_width=True, key="radar_dl")
+
 # ----- sidebar: navigation -------------------------------------------------
 with st.sidebar:
     st.markdown(_LOGO_HOME_CSS, unsafe_allow_html=True)
@@ -12355,6 +12715,8 @@ with st.sidebar:
         _nav_button(f"{_n_mod:02d} · Seasonality", "Seasonality")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · STIR Paths", "STIR Timeline")
+        _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Macro Rate Radar", "Macro Radar")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
@@ -12634,6 +12996,8 @@ if active == "Product Correlations":
     render_sector_correlations(); st.stop()
 if active == "Curve Monitor":
     render_curve_monitor(); st.stop()
+if active == "Macro Radar":
+    render_macro_radar(); st.stop()
 if active == "Seasonality":
     render_seasonality(); st.stop()
 if active == "Seasonality Spreads":
