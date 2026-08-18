@@ -67,6 +67,34 @@ _STYLE = """
 """
 
 
+# Tile-label fitter. Server-side sizing has to assume a width (_W_NOM); the browser
+# knows the real one. Each value line is tried in full, then as the σ alone, then
+# hidden — so a narrow tile shows less rather than a cut-off number. Re-runs on
+# resize/rotate; the name line needs nothing (CSS already ellipsises it).
+_FIT_JS = """
+<script>
+(function(){
+  function fit(){
+    document.querySelectorAll('.bx-t').forEach(function(t){
+      var v=t.querySelector('.bx-v'); if(!v) return;
+      var w=t.clientWidth-3;
+      v.style.display=''; v.textContent=v.dataset.full||'';
+      if(v.scrollWidth>w){
+        v.textContent=v.dataset.short||'';
+        if(!v.textContent||v.scrollWidth>w) v.style.display='none';
+      }
+      if(v.style.display!=='none'&&t.scrollHeight>t.clientHeight+1) v.style.display='none';
+    });
+  }
+  fit();
+  window.addEventListener('resize',fit);
+  if(window.ResizeObserver){var o=new ResizeObserver(fit);
+    var m=document.querySelector('.bx-tm'); if(m)o.observe(m);}
+})();
+</script>
+"""
+
+
 def _psize(sig) -> float:
     if sig is None or sig != sig:
         return _FALLBACK
@@ -140,7 +168,13 @@ def render_html(sections_in, height_px, sub_headers: bool = True) -> str:
             body = f'<div class="bx-nm" style="font-size:{npx:.0f}px">{_esc(nm)}</div>'
             if rh >= 30 and rw >= 46:                              # + the %/σ value line
                 vp = _clamp(8, round(npx * 0.82), 12)
-                body += f'<div class="bx-v" style="font-size:{vp:.0f}px">{_esc(vlab)}</div>'
+                # data-full/data-short feed the client-side fitter below: _W_NOM is an
+                # ASSUMED width, so on a phone (~390px, not 1120) a tile that passes this
+                # gate is a third of the size and the label was cut mid-character
+                # ("-0.13% · -0.7c"). The fitter drops to the σ alone, then hides it.
+                short = f"{sig:+.1f}σ" if has else ""
+                body += (f'<div class="bx-v" style="font-size:{vp:.0f}px" '
+                         f'data-full="{_esc(vlab)}" data-short="{_esc(short)}">{_esc(vlab)}</div>')
         out.append(f'<div class="bx-t" style="{_pos(x, y, w, h)};background:{_rgb(col)}" '
                    f'title="{_esc(nm)} — {_esc(vlab)}">{body}</div>')
 
@@ -167,4 +201,5 @@ def render_html(sections_in, height_px, sub_headers: bool = True) -> str:
                     data, _grid_slices(sizes, ax, ay + sub_head, aw, ah - sub_head)):
                 tile(bx, by, bw, bh, nm, pct, sig)
 
-    return _STYLE.replace("__H__", str(int(H))) + '<div class="bx-tm">' + "".join(out) + "</div>"
+    return (_STYLE.replace("__H__", str(int(H))) + '<div class="bx-tm">' + "".join(out)
+            + "</div>" + _FIT_JS)

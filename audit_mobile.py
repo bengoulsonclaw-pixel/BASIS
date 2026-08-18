@@ -1,6 +1,6 @@
 """Phone-width audit: walk the modules and report what is GENUINELY too wide.
 
-Usage:  .venv\\Scripts\\python.exe audit_mobile.py [url] [width]
+Usage:  .venv\\Scripts\\python.exe audit_mobile.py [url] [width] [ficc|equities]
 
 Companion to shot_mobile.py — that one shows a page, this one finds what still
 overflows on it. Note the classification: st.dataframe (glide-data-grid) and the
@@ -14,10 +14,14 @@ from playwright.sync_api import sync_playwright
 
 url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8501"
 W = int(sys.argv[2]) if len(sys.argv) > 2 else 412
+DESK = (sys.argv[3] if len(sys.argv) > 3 else "ficc").lower()
 
-PAGES = ["01 · Market Information", "02 · Confluence", "03 · Technical Analysis",
-         "04 · Volatility", "05 · Positioning & Flow", "07 · Correlations",
-         "08 · Curve / RV", "09 · Seasonality", "10 · STIR Paths"]
+FICC_PAGES = ["01 · Market Information", "02 · Confluence", "03 · Technical Analysis",
+              "04 · Volatility", "05 · Positioning & Flow", "07 · Correlations",
+              "08 · Curve / RV", "09 · Seasonality", "10 · STIR Paths"]
+EQ_PAGES = ["01 · Technical Analysis", "02 · Company Fundamentals", "03 · Earnings Calendar",
+            "04 · Single Stock Correlations", "05 · Index Dispersion", "06 · Client ETFs"]
+PAGES = EQ_PAGES if DESK.startswith("eq") else FICC_PAGES
 
 PROBE = """() => {
   const VW = window.innerWidth, out = [];
@@ -85,6 +89,12 @@ with sync_playwright() as p:
     pg = ctx.new_page()
     pg.goto(url, wait_until="load", timeout=180000)
     wait_ready(pg)
+    if DESK.startswith("eq"):                     # the desk switch at the top of the nav
+        pg.eval_on_selector_all('[data-testid="stExpandSidebarButton"] button, [data-testid="stExpandSidebarButton"]',
+                                "els=>els[0]&&els[0].click()")
+        pg.wait_for_timeout(1200)
+        pg.click('.st-key-side_equities button', timeout=25000)   # label is CSS-uppercased
+        pg.wait_for_timeout(6000)
     for label in PAGES:
         try:
             open_page(pg, label)
