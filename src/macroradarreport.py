@@ -49,7 +49,7 @@ def _path_png(res: "macroradar.RadarResult") -> str:
     fig, ax = plt.subplots(figsize=(6.1, 2.9))
     xs = [m.meeting for m in res.meetings]
     ax.step(xs, [m.priced_policy for m in res.meetings], where="post", color=BLUE,
-            lw=2.2, label="Priced by the strip")
+            lw=2.2, label="Priced by the STIR Strip")
     ax.scatter(xs, [m.priced_policy for m in res.meetings], s=14, color=BLUE, zorder=3)
     if ms:
         ax.plot([m.meeting for m in ms], [m.prescribed for m in ms], color="#C8901A",

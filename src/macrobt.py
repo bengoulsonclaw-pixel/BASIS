@@ -159,6 +159,66 @@ def score(obs: list[Observation], rstar: float = 0.75) -> list[Observation]:
     return obs
 
 
+def dispersion_history(rstar: float = 0.75,
+                       rule_keys=("taylor93", "balanced", "shortfalls",
+                                  "inertial")) -> list[tuple[date, float]]:
+    """Monthly rule dispersion (max − min prescription, bp) rebuilt from the cached
+    vintage observations — no network. US only, like everything in this module.
+
+    First-difference is excluded: the store carries no year-ago gap, so that rule
+    cannot be evaluated historically, and comparing a 5-rule spread today against a
+    4-rule spread in history would overstate the present. Callers must compare a
+    4-rule dispersion computed the same way."""
+    out = []
+    for f in sorted(_STORE.glob("obs_*.json")):
+        try:
+            rec = json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if any(rec.get(k) is None for k in ("infl", "unemp", "nairu", "policy")):
+            continue
+        x = macrorules.RuleInputs(bank="FED", infl=rec["infl"], rstar=rstar,
+                                  unemp=rec["unemp"], nairu=rec["nairu"],
+                                  policy_rate=rec["policy"],
+                                  prev_policy_rate=rec["policy"])
+        vals = [r.prescribed for r in macrorules.evaluate(x)
+                if r.ok and r.prescribed is not None and r.key in rule_keys]
+        if len(vals) == len(rule_keys):
+            out.append((date.fromisoformat(rec["when"]),
+                        (max(vals) - min(vals)) * 100.0))
+    return out
+
+
+def dispersion_context(current_bp: float) -> dict | None:
+    """Where a 4-rule dispersion reading sits against the vintage history.
+
+    Returns percentile, z-score and summary stats, or None when the store holds too
+    little history for the standardisation to mean anything."""
+    hist = dispersion_history()
+    if len(hist) < 24:
+        return None
+    vals = [v for _d, v in hist]
+    mean = statistics.fmean(vals)
+    sd = statistics.stdev(vals)
+    n_le = sum(1 for v in vals if v <= current_bp)
+    # Era medians for narrative feel — what "calm" and "blown out" actually looked like.
+    eras = []
+    for lbl, lo_y, hi_y in (("2011–15 post-GFC", 2011, 2015),
+                            ("2016–19 calm hiking cycle", 2016, 2019),
+                            ("2020–22 COVID/inflation shock", 2020, 2022),
+                            ("2023– normalisation", 2023, 2100)):
+        sub = [v for d, v in hist if lo_y <= d.year <= hi_y]
+        if len(sub) >= 12:
+            eras.append((lbl, statistics.median(sub)))
+    q1, _q2, q3 = statistics.quantiles(vals, n=4)
+    return {"n": len(vals), "start": hist[0][0], "end": hist[-1][0],
+            "mean": mean, "sd": sd, "median": statistics.median(vals),
+            "lo": min(vals), "hi": max(vals), "q1": q1, "q3": q3,
+            "eras": eras,
+            "pct": 100.0 * n_le / len(vals),
+            "z": None if sd == 0 else (current_bp - mean) / sd}
+
+
 def _corr(xs, ys) -> float | None:
     if len(xs) < 8:
         return None

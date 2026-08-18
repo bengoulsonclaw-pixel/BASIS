@@ -2539,7 +2539,7 @@
  "F US Equity": {
   "ticker": "F US Equity",
   "symbol": "F",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Ford Motor Company",
   "consensus": {
    "mean": 2.5,
@@ -2549,12 +2549,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 14.37,
+   "spot": 14.05,
    "mean": 15.776,
    "high": 20.0,
    "low": 11.0,
    "median": 15.46,
-   "upside_pct": 9.78427279053584
+   "upside_pct": 12.28469750889678
   },
   "trend": [
    {
@@ -2874,7 +2874,7 @@
  "AVGO US Equity": {
   "ticker": "AVGO US Equity",
   "symbol": "AVGO",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Broadcom Inc.",
   "consensus": {
    "mean": 1.3125,
@@ -2884,12 +2884,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 392.99,
+   "spot": 392.43,
    "mean": 527.88446,
    "high": 675.0,
    "low": 215.88,
    "median": 530.0,
-   "upside_pct": 34.325163490165146
+   "upside_pct": 34.51684631654053
   },
   "trend": [
    {
@@ -3209,7 +3209,7 @@
  "FOX US Equity": {
   "ticker": "FOX US Equity",
   "symbol": "FOX",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Fox Corporation",
   "consensus": {
    "mean": null,
@@ -3219,7 +3219,7 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 61.41,
+   "spot": 61.49,
    "mean": null,
    "high": null,
    "low": null,
@@ -3260,7 +3260,7 @@
  "ALB US Equity": {
   "ticker": "ALB US Equity",
   "symbol": "ALB",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Albemarle Corporation",
   "consensus": {
    "mean": 1.95455,
@@ -3270,12 +3270,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 136.15,
+   "spot": 133.99,
    "mean": 173.564,
    "high": 225.0,
    "low": 83.28,
    "median": 172.5,
-   "upside_pct": 27.4799853103195
+   "upside_pct": 29.535039928352845
   },
   "trend": [
    {
@@ -3595,7 +3595,7 @@
  "CPRT US Equity": {
   "ticker": "CPRT US Equity",
   "symbol": "CPRT",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Copart, Inc.",
   "consensus": {
    "mean": 2.15385,
@@ -3605,12 +3605,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 31.61,
+   "spot": 31.7,
    "mean": 40.3,
    "high": 55.0,
    "low": 26.0,
    "median": 41.0,
-   "upside_pct": 27.4913002214489
+   "upside_pct": 27.129337539432164
   },
   "trend": [
    {
@@ -3813,7 +3813,7 @@
  "FOXA US Equity": {
   "ticker": "FOXA US Equity",
   "symbol": "FOXA",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Fox Corporation",
   "consensus": {
    "mean": 2.0,
@@ -3823,12 +3823,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 69.04,
+   "spot": 69.19,
    "mean": 73.38824,
    "high": 112.0,
    "low": 52.6,
    "median": 73.0,
-   "upside_pct": 6.298146002317484
+   "upside_pct": 6.067697644168235
   },
   "trend": [
    {
@@ -4148,7 +4148,7 @@
  "HAL US Equity": {
   "ticker": "HAL US Equity",
   "symbol": "HAL",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Halliburton Company",
   "consensus": {
    "mean": 1.75,
@@ -4158,12 +4158,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 34.42,
+   "spot": 34.73,
    "mean": 43.36,
    "high": 53.0,
    "low": 29.0,
    "median": 43.0,
-   "upside_pct": 25.973271353864025
+   "upside_pct": 24.848833861215102
   },
   "trend": [
    {
@@ -4483,7 +4483,7 @@
  "KMI US Equity": {
   "ticker": "KMI US Equity",
   "symbol": "KMI",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Kinder Morgan, Inc.",
   "consensus": {
    "mean": 2.13043,
@@ -4493,12 +4493,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 32.82,
+   "spot": 32.33,
    "mean": 35.80952,
    "high": 43.0,
    "low": 31.0,
    "median": 36.0,
-   "upside_pct": 9.108836075563676
+   "upside_pct": 10.762511599133928
   },
   "trend": [
    {
@@ -4818,7 +4818,7 @@
  "GEN US Equity": {
   "ticker": "GEN US Equity",
   "symbol": "GEN",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Gen Digital Inc.",
   "consensus": {
    "mean": 2.09091,
@@ -4828,12 +4828,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 28.48,
+   "spot": 27.41,
    "mean": 32.107,
    "high": 46.0,
    "low": 24.07,
    "median": 31.0,
-   "upside_pct": 12.73525280898875
+   "upside_pct": 17.136081721999275
   },
   "trend": [
    {
@@ -5098,7 +5098,7 @@
  "WMB US Equity": {
   "ticker": "WMB US Equity",
   "symbol": "WMB",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Williams Companies, Inc. (The)",
   "consensus": {
    "mean": 1.5,
@@ -5108,12 +5108,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 75.2,
+   "spot": 73.45,
    "mean": 84.9,
    "high": 99.0,
    "low": 69.0,
    "median": 85.5,
-   "upside_pct": 12.89893617021276
+   "upside_pct": 15.588835942818257
   },
   "trend": [
    {
@@ -5433,7 +5433,7 @@
  "IDXX US Equity": {
   "ticker": "IDXX US Equity",
   "symbol": "IDXX",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "IDEXX Laboratories, Inc.",
   "consensus": {
    "mean": 2.21429,
@@ -5443,12 +5443,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 550.96,
+   "spot": 546.09,
    "mean": 698.9231,
    "high": 805.0,
    "low": 470.0,
    "median": 700.0,
-   "upside_pct": 26.85550675185131
+   "upside_pct": 27.986797048105604
   },
   "trend": [
    {
@@ -5768,7 +5768,7 @@
  "NOC US Equity": {
   "ticker": "NOC US Equity",
   "symbol": "NOC",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Northrop Grumman Corporation",
   "consensus": {
    "mean": 1.95652,
@@ -5778,12 +5778,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 585.87,
+   "spot": 570.2,
    "mean": 645.6657,
    "high": 815.0,
    "low": 538.0,
    "median": 640.0,
-   "upside_pct": 10.206308566746891
+   "upside_pct": 13.234952648193609
   },
   "trend": [
    {
@@ -6103,7 +6103,7 @@
  "TRGP US Equity": {
   "ticker": "TRGP US Equity",
   "symbol": "TRGP",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Targa Resources, Inc.",
   "consensus": {
    "mean": 1.52174,
@@ -6113,12 +6113,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 275.79,
+   "spot": 277.94,
    "mean": 300.0476,
    "high": 335.0,
    "low": 257.0,
    "median": 303.0,
-   "upside_pct": 8.795677870843743
+   "upside_pct": 7.9540908109663855
   },
   "trend": [
    {
@@ -6438,7 +6438,7 @@
  "TSN US Equity": {
   "ticker": "TSN US Equity",
   "symbol": "TSN",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Tyson Foods, Inc.",
   "consensus": {
    "mean": 2.61538,
@@ -6448,12 +6448,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 58.17,
+   "spot": 58.61,
    "mean": 68.75,
    "high": 78.0,
    "low": 56.0,
    "median": 67.5,
-   "upside_pct": 18.188069451607358
+   "upside_pct": 17.300801910936702
   },
   "trend": [
    {
@@ -6773,7 +6773,7 @@
  "FTNT US Equity": {
   "ticker": "FTNT US Equity",
   "symbol": "FTNT",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Fortinet, Inc.",
   "consensus": {
    "mean": 2.68182,
@@ -6783,12 +6783,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 160.01,
+   "spot": 155.85,
    "mean": 160.86485,
    "high": 220.0,
    "low": 86.0,
    "median": 165.0,
-   "upside_pct": 0.5342478595087741
+   "upside_pct": 3.217741418030151
   },
   "trend": [
    {
@@ -7108,7 +7108,7 @@
  "BX US Equity": {
   "ticker": "BX US Equity",
   "symbol": "BX",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Blackstone Inc.",
   "consensus": {
    "mean": 2.08696,
@@ -7118,12 +7118,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 143.93,
+   "spot": 140.57,
    "mean": 142.38095,
    "high": 184.0,
    "low": 119.0,
    "median": 140.0,
-   "upside_pct": -1.076252344889872
+   "upside_pct": 1.288290531407843
   },
   "trend": [
    {
@@ -7443,7 +7443,7 @@
  "STZ US Equity": {
   "ticker": "STZ US Equity",
   "symbol": "STZ",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Constellation Brands, Inc.",
   "consensus": {
    "mean": 2.04167,
@@ -7453,12 +7453,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 139.18,
+   "spot": 130.56,
    "mean": 170.8261,
    "high": 209.0,
    "low": 115.0,
    "median": 173.0,
-   "upside_pct": 22.73753412846673
+   "upside_pct": 30.841069240196074
   },
   "trend": [
    {
@@ -7778,7 +7778,7 @@
  "OKE US Equity": {
   "ticker": "OKE US Equity",
   "symbol": "OKE",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "ONEOK, Inc.",
   "consensus": {
    "mean": 2.17391,
@@ -7788,12 +7788,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 94.99,
+   "spot": 95.32,
    "mean": 96.38095,
    "high": 108.0,
    "low": 88.0,
    "median": 95.0,
-   "upside_pct": 1.4643120328455606
+   "upside_pct": 1.113040285354594
   },
   "trend": [
    {
@@ -8113,7 +8113,7 @@
  "FFIV US Equity": {
   "ticker": "FFIV US Equity",
   "symbol": "FFIV",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "F5, Inc.",
   "consensus": {
    "mean": null,
@@ -8123,12 +8123,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 403.2,
+   "spot": 395.54,
    "mean": 436.1,
    "high": 515.0,
    "low": 300.0,
    "median": 438.0,
-   "upside_pct": 8.159722222222232
+   "upside_pct": 10.254335844668038
   },
   "trend": [
    {
@@ -8438,7 +8438,7 @@
  "DVN US Equity": {
   "ticker": "DVN US Equity",
   "symbol": "DVN",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Devon Energy Corporation",
   "consensus": {
    "mean": 1.2963,
@@ -8448,12 +8448,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 45.85,
+   "spot": 47.57,
    "mean": 59.57692,
    "high": 68.0,
    "low": 44.0,
    "median": 60.0,
-   "upside_pct": 29.93875681570337
+   "upside_pct": 25.240529745638018
   },
   "trend": [
    {
@@ -8498,6 +8498,24 @@
    }
   ],
   "actions": [
+   {
+    "date": "2026-08-17",
+    "firm": "Argus Research",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "reit",
+    "target": 45.85,
+    "prior": 45.85
+   },
+   {
+    "date": "2026-08-17",
+    "firm": "Barclays",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 58.0,
+    "prior": 62.0
+   },
    {
     "date": "2026-08-13",
     "firm": "Wells Fargo",
@@ -8749,31 +8767,13 @@
     "action": "main",
     "target": 55.0,
     "prior": 50.0
-   },
-   {
-    "date": "2026-02-23",
-    "firm": "Scotiabank",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 41.0,
-    "prior": 45.0
-   },
-   {
-    "date": "2026-02-23",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 52.0,
-    "prior": 50.0
    }
   ]
  },
  "FE US Equity": {
   "ticker": "FE US Equity",
   "symbol": "FE",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "FirstEnergy Corp.",
   "consensus": {
    "mean": 2.23529,
@@ -8783,12 +8783,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 47.41,
+   "spot": 47.42,
    "mean": 53.33333,
    "high": 56.0,
    "low": 48.0,
    "median": 53.0,
-   "upside_pct": 12.4938409618224
+   "upside_pct": 12.470118093631367
   },
   "trend": [
    {
@@ -9108,7 +9108,7 @@
  "HWM US Equity": {
   "ticker": "HWM US Equity",
   "symbol": "HWM",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Howmet Aerospace Inc.",
   "consensus": {
    "mean": 1.45455,
@@ -9118,12 +9118,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 289.18,
+   "spot": 289.12,
    "mean": 335.328,
    "high": 375.0,
    "low": 256.56,
    "median": 340.0,
-   "upside_pct": 15.958226710007594
+   "upside_pct": 15.982291090204747
   },
   "trend": [
    {
@@ -9778,7 +9778,7 @@
  "PAYX US Equity": {
   "ticker": "PAYX US Equity",
   "symbol": "PAYX",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Paychex, Inc.",
   "consensus": {
    "mean": 3.22222,
@@ -9788,12 +9788,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 122.02,
+   "spot": 118.54,
    "mean": 111.0,
    "high": 150.0,
    "low": 95.0,
    "median": 108.0,
-   "upside_pct": -9.031306343222422
+   "upside_pct": -6.360722119115914
   },
   "trend": [
    {
@@ -10113,7 +10113,7 @@
  "CRWD US Equity": {
   "ticker": "CRWD US Equity",
   "symbol": "CRWD",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "CrowdStrike Holdings, Inc.",
   "consensus": {
    "mean": 1.69811,
@@ -10123,12 +10123,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 216.95,
+   "spot": 213.9,
    "mean": 198.35,
    "high": 256.0,
    "low": 103.25,
    "median": 198.125,
-   "upside_pct": -8.573404010140584
+   "upside_pct": -7.269752220663872
   },
   "trend": [
    {
@@ -10173,6 +10173,24 @@
    }
   ],
   "actions": [
+   {
+    "date": "2026-08-17",
+    "firm": "TD Cowen",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 235.0,
+    "prior": 175.0
+   },
+   {
+    "date": "2026-08-17",
+    "firm": "Wells Fargo",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 230.0,
+    "prior": 181.25
+   },
    {
     "date": "2026-08-14",
     "firm": "RBC Capital",
@@ -10424,24 +10442,6 @@
     "action": "main",
     "target": 765.0,
     "prior": 455.0
-   },
-   {
-    "date": "2026-06-04",
-    "firm": "Stifel",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 790.0,
-    "prior": 660.0
-   },
-   {
-    "date": "2026-06-04",
-    "firm": "Piper Sandler",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "reit",
-    "target": 750.0,
-    "prior": 520.0
    }
   ]
  },
@@ -10512,7 +10512,7 @@
  "ALGN US Equity": {
   "ticker": "ALGN US Equity",
   "symbol": "ALGN",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Align Technology, Inc.",
   "consensus": {
    "mean": 2.0,
@@ -10522,12 +10522,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 181.31,
+   "spot": 171.16,
    "mean": 208.6,
    "high": 240.0,
    "low": 170.0,
    "median": 209.0,
-   "upside_pct": 15.051569135734377
+   "upside_pct": 21.874269689179716
   },
   "trend": [
    {
@@ -10847,7 +10847,7 @@
  "VEEV US Equity": {
   "ticker": "VEEV US Equity",
   "symbol": "VEEV",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Veeva Systems Inc.",
   "consensus": {
    "mean": 1.93333,
@@ -10857,12 +10857,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 243.75,
+   "spot": 238.34,
    "mean": 244.14285,
    "high": 350.0,
    "low": 165.0,
    "median": 235.0,
-   "upside_pct": 0.1611692307692314
+   "upside_pct": 2.4346941344298045
   },
   "trend": [
    {
@@ -10907,6 +10907,24 @@
    }
   ],
   "actions": [
+   {
+    "date": "2026-08-17",
+    "firm": "Oppenheimer",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 300.0,
+    "prior": 225.0
+   },
+   {
+    "date": "2026-08-17",
+    "firm": "Stifel",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 275.0,
+    "prior": 230.0
+   },
    {
     "date": "2026-07-23",
     "firm": "Guggenheim",
@@ -11158,31 +11176,13 @@
     "action": "main",
     "target": 240.0,
     "prior": 295.0
-   },
-   {
-    "date": "2026-03-05",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 215.0,
-    "prior": 205.0
-   },
-   {
-    "date": "2026-03-05",
-    "firm": "Needham",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 270.0,
-    "prior": 355.0
    }
   ]
  },
  "PCG US Equity": {
   "ticker": "PCG US Equity",
   "symbol": "PCG",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Pacific Gas & Electric Co.",
   "consensus": {
    "mean": 1.52941,
@@ -11192,12 +11192,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 17.84,
+   "spot": 17.5,
    "mean": 22.78125,
    "high": 28.0,
    "low": 19.0,
    "median": 22.5,
-   "upside_pct": 27.697589686098656
+   "upside_pct": 30.17857142857143
   },
   "trend": [
    {
@@ -11517,22 +11517,22 @@
  "GE US Equity": {
   "ticker": "GE US Equity",
   "symbol": "GE",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "GE Aerospace",
   "consensus": {
-   "mean": 1.45455,
-   "score5": 4.54545,
-   "label": "Strong buy",
+   "mean": null,
+   "score5": null,
+   "label": "—",
    "n": 21
   },
   "targets": {
    "ccy": "USD",
-   "spot": 368.38,
+   "spot": 369.43,
    "mean": 404.90475,
    "high": 455.0,
    "low": 347.0,
    "median": 400.0,
-   "upside_pct": 9.914965524729901
+   "upside_pct": 9.60256340849417
   },
   "trend": [
    {
@@ -12177,7 +12177,7 @@
  "AMD US Equity": {
   "ticker": "AMD US Equity",
   "symbol": "AMD",
-  "pulled": "2026-08-15",
+  "pulled": "2026-08-17",
   "name": "Advanced Micro Devices, Inc.",
   "consensus": {
    "mean": 1.48077,
@@ -12187,12 +12187,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 514.39,
+   "spot": 506.0,
    "mean": 612.8383,
    "high": 1250.0,
    "low": 365.0,
    "median": 610.0,
-   "upside_pct": 19.13884406773072
+   "upside_pct": 21.1142885375494
   },
   "trend": [
    {
@@ -13641,5 +13641,340 @@
    }
   ],
   "actions": []
+ },
+ "KEY US Equity": {
+  "ticker": "KEY US Equity",
+  "symbol": "KEY",
+  "pulled": "2026-08-17",
+  "name": "KeyCorp",
+  "consensus": {
+   "mean": 2.05263,
+   "score5": 3.94737,
+   "label": "Buy",
+   "n": 19
+  },
+  "targets": {
+   "ccy": "USD",
+   "spot": 23.04,
+   "mean": 26.02105,
+   "high": 43.0,
+   "low": 22.0,
+   "median": 25.0,
+   "upside_pct": 12.938585069444454
+  },
+  "trend": [
+   {
+    "period": "0m",
+    "strongBuy": 2,
+    "buy": 8,
+    "hold": 9,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 19,
+    "pos_pct": 52.63157894736842
+   },
+   {
+    "period": "-1m",
+    "strongBuy": 2,
+    "buy": 8,
+    "hold": 9,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 19,
+    "pos_pct": 52.63157894736842
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 2,
+    "buy": 8,
+    "hold": 9,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 19,
+    "pos_pct": 52.63157894736842
+   },
+   {
+    "period": "-3m",
+    "strongBuy": 2,
+    "buy": 7,
+    "hold": 9,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 18,
+    "pos_pct": 50.0
+   }
+  ],
+  "actions": [
+   {
+    "date": "2026-07-22",
+    "firm": "Keefe, Bruyette & Woods",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 26.0,
+    "prior": 25.0
+   },
+   {
+    "date": "2026-07-22",
+    "firm": "DA Davidson",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 28.0,
+    "prior": 28.0
+   },
+   {
+    "date": "2026-07-22",
+    "firm": "RBC Capital",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 25.0,
+    "prior": 24.0
+   },
+   {
+    "date": "2026-07-22",
+    "firm": "Baird",
+    "from": "Neutral",
+    "to": "Neutral",
+    "action": "main",
+    "target": 23.0,
+    "prior": 22.0
+   },
+   {
+    "date": "2026-07-07",
+    "firm": "UBS",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 27.0,
+    "prior": 25.0
+   },
+   {
+    "date": "2026-07-06",
+    "firm": "JP Morgan",
+    "from": "Neutral",
+    "to": "Neutral",
+    "action": "main",
+    "target": 24.5,
+    "prior": 22.5
+   },
+   {
+    "date": "2026-07-06",
+    "firm": "Wells Fargo",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 27.0,
+    "prior": 24.0
+   },
+   {
+    "date": "2026-06-29",
+    "firm": "Morgan Stanley",
+    "from": "Equal-Weight",
+    "to": "Equal-Weight",
+    "action": "main",
+    "target": 25.0,
+    "prior": 24.0
+   },
+   {
+    "date": "2026-06-24",
+    "firm": "Truist Securities",
+    "from": "Hold",
+    "to": "Hold",
+    "action": "main",
+    "target": 24.0,
+    "prior": 23.0
+   },
+   {
+    "date": "2026-06-23",
+    "firm": "TD Cowen",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "reit",
+    "target": 68.0,
+    "prior": 68.0
+   },
+   {
+    "date": "2026-05-04",
+    "firm": "DA Davidson",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 27.0,
+    "prior": 26.0
+   },
+   {
+    "date": "2026-04-21",
+    "firm": "Evercore ISI Group",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 26.0,
+    "prior": 24.0
+   },
+   {
+    "date": "2026-04-17",
+    "firm": "DA Davidson",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 26.0,
+    "prior": 26.0
+   },
+   {
+    "date": "2026-04-17",
+    "firm": "Piper Sandler",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 24.0,
+    "prior": 23.0
+   },
+   {
+    "date": "2026-04-17",
+    "firm": "RBC Capital",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 24.0,
+    "prior": 22.0
+   },
+   {
+    "date": "2026-04-07",
+    "firm": "JP Morgan",
+    "from": "Neutral",
+    "to": "Neutral",
+    "action": "main",
+    "target": 22.5,
+    "prior": 24.5
+   },
+   {
+    "date": "2026-04-06",
+    "firm": "Evercore ISI Group",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 24.0,
+    "prior": 26.0
+   },
+   {
+    "date": "2026-03-31",
+    "firm": "Morgan Stanley",
+    "from": "Equal-Weight",
+    "to": "Equal-Weight",
+    "action": "main",
+    "target": 24.0,
+    "prior": 26.0
+   },
+   {
+    "date": "2026-03-26",
+    "firm": "RBC Capital",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "reit",
+    "target": 22.0,
+    "prior": 22.0
+   },
+   {
+    "date": "2026-03-23",
+    "firm": "Truist Securities",
+    "from": "Hold",
+    "to": "Hold",
+    "action": "main",
+    "target": 22.0,
+    "prior": 23.0
+   },
+   {
+    "date": "2026-03-02",
+    "firm": "Morgan Stanley",
+    "from": "Equal-Weight",
+    "to": "Equal-Weight",
+    "action": "main",
+    "target": 26.0,
+    "prior": 24.0
+   },
+   {
+    "date": "2026-02-24",
+    "firm": "Baird",
+    "from": "Underperform",
+    "to": "Neutral",
+    "action": "up",
+    "target": 19.0,
+    "prior": 19.0
+   },
+   {
+    "date": "2026-02-09",
+    "firm": "JP Morgan",
+    "from": "Neutral",
+    "to": "Neutral",
+    "action": "main",
+    "target": 24.5,
+    "prior": 22.0
+   },
+   {
+    "date": "2026-02-05",
+    "firm": "Evercore ISI Group",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 26.0,
+    "prior": 25.0
+   },
+   {
+    "date": "2026-01-26",
+    "firm": "Truist Securities",
+    "from": "Hold",
+    "to": "Hold",
+    "action": "main",
+    "target": 23.0,
+    "prior": 22.0
+   },
+   {
+    "date": "2026-01-07",
+    "firm": "TD Cowen",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 25.0,
+    "prior": 24.0
+   },
+   {
+    "date": "2026-01-06",
+    "firm": "Baird",
+    "from": "Neutral",
+    "to": "Underperform",
+    "action": "down",
+    "target": 18.0,
+    "prior": 18.0
+   },
+   {
+    "date": "2026-01-05",
+    "firm": "Barclays",
+    "from": "Equal-Weight",
+    "to": "Equal-Weight",
+    "action": "main",
+    "target": 24.0,
+    "prior": 20.0
+   },
+   {
+    "date": "2025-12-22",
+    "firm": "Truist Securities",
+    "from": "Hold",
+    "to": "Hold",
+    "action": "main",
+    "target": 22.0,
+    "prior": 19.0
+   },
+   {
+    "date": "2025-12-17",
+    "firm": "Keefe, Bruyette & Woods",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 24.0,
+    "prior": 21.0
+   }
+  ]
  }
 }

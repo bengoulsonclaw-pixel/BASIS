@@ -99,66 +99,54 @@ def build_and_send(pdf_path, xlsx_path, month, year, dry_run, to_override):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--force-send", action="store_true")
-    ap.add_argument("--seed", action="store_true")
-    ap.add_argument("--detect-only", action="store_true")
-    ap.add_argument("--from-inbox", action="store_true", help="use files already in opec/inbox (skip fetch)")
-    ap.add_argument("--to", nargs="+", default=None)
+    ap.add_argument("--dry-run", action="store_true", help="build from the newest inbox PDF but do NOT send")
+    ap.add_argument("--force-send", action="store_true", help="rebuild + send the newest inbox edition now, bypassing the 'already sent' gate")
+    ap.add_argument("--seed", action="store_true", help="record the newest inbox edition as already sent (no email)")
+    ap.add_argument("--from-inbox", action="store_true", help="(default) build from the newest PDF in opec/inbox")
+    ap.add_argument("--fetch", action="store_true", help="attempt the OPEC browser download first — interactive/unreliable: OPEC gates it behind a registration form + a Cloudflare bot-check")
+    ap.add_argument("--detect-only", action="store_true", help="browser-detect the latest edition label and exit")
+    ap.add_argument("--to", nargs="+", default=None, help="override recipients (e.g. a test to yourself)")
     args = ap.parse_args()
 
-    if not (args.force_send or args.dry_run or args.seed or args.detect_only):   # scheduled auto-send
+    # The scheduled auto-send is the plain no-flag run — honour the on/off toggle.
+    scheduled = not (args.force_send or args.dry_run or args.seed or args.detect_only or args.fetch or args.from_inbox)
+    if scheduled:
         from src import automation
         if not automation.report_enabled("opec"):
-            print("OPEC automatic sending is OFF (turn it on: dashboard -> Recipients -> Scheduled reports). Skipping.")
+            print("OPEC automatic sending is OFF (Recipients -> Scheduled reports). Nothing to do.")
             return
-
-    from opec_fetch import fetch
 
     marker = read_marker()
 
-    # Cheap guards for the daily scheduled run (no Chrome): only act inside the release
-    # window, and skip once this month's edition has already been emailed. Bypassed by the
-    # manual flags (force/from-inbox/seed/detect-only).
-    if not (args.force_send or args.from_inbox or args.seed or args.detect_only):
-        now = datetime.now()
-        if now.day not in WINDOW_DAYS:
-            print(f"Outside the release window (day {now.day}); nothing to do.")
-            return
-        month_tag = f"{calendar.month_name[now.month]} {now.year}"   # e.g. "July 2026"
-        if month_tag in marker:
-            print(f"This month's edition already emailed ('{marker}'); nothing to do.")
-            return
-
-    if args.from_inbox:
-        got = _newest_inbox()
-        if not got:
-            print("No MOMR files in opec/inbox.")
-            sys.exit(1)
-        pdf, xlsx, month, year = got
-        label = f"MOMR {month} {year}"
-    else:
-        det = fetch(detect_only=True)
-        if not det.get("ok"):
-            print(f"Detect failed: {det}")
-            sys.exit(1)
-        label, month, year = det["edition"], det["month"], det["year"]
-        print(f"Latest edition: {label} (last emailed: {marker or 'none'})")
+    # Optional interactive browser fetch. OPEC now requires filling a registration form AND
+    # passes the download through a Cloudflare bot challenge that blocks automation (and
+    # bypassing a bot-check is off-limits) — so the reliable path is a manual monthly download
+    # into opec/inbox, which the default run below picks up. --fetch is a best-effort attempt.
+    if args.detect_only or args.fetch:
+        from opec_fetch import fetch
+        res = fetch(detect_only=args.detect_only)
+        print(json.dumps(res, indent=2))
         if args.detect_only:
-            print(json.dumps(det, indent=2))
             return
-        if not args.force_send and label == marker:
-            print("Already emailed this edition. Nothing to do.")
-            return
-        res = fetch(detect_only=False)
         if not res.get("ok"):
-            print(f"Fetch failed: {res}")
+            print("Browser fetch failed (OPEC form / Cloudflare) — download the PDF manually into "
+                  "opec/inbox and re-run.")
             sys.exit(1)
-        pdf, xlsx = res["pdf"], res.get("xlsx")
+
+    # Default path: build + email from the newest MOMR PDF already in opec/inbox.
+    got = _newest_inbox()
+    if not got:
+        print("No MOMR PDF in opec/inbox yet — waiting for this month's manual download. Nothing to do.")
+        return
+    pdf, xlsx, month, year = got
+    label = f"MOMR {month} {year}"
 
     if args.seed:
         write_marker(label)
         print(f"Seeded marker to '{label}' (no email).")
+        return
+    if not args.force_send and label == marker:
+        print(f"Edition '{label}' already emailed; nothing to do.")
         return
 
     print(f"Building + {'(dry-run) ' if args.dry_run else ''}sending {label}…")
