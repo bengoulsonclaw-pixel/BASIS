@@ -6103,7 +6103,7 @@
  "TRGP US Equity": {
   "ticker": "TRGP US Equity",
   "symbol": "TRGP",
-  "pulled": "2026-08-17",
+  "pulled": "2026-08-18",
   "name": "Targa Resources, Inc.",
   "consensus": {
    "mean": 1.52174,
@@ -6114,326 +6114,14 @@
   "targets": {
    "ccy": "USD",
    "spot": 277.94,
-   "mean": 300.0476,
-   "high": 335.0,
+   "mean": 301.8095,
+   "high": 343.0,
    "low": 257.0,
    "median": 303.0,
-   "upside_pct": 7.9540908109663855
+   "upside_pct": 8.588004605310505
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 6,
-    "buy": 14,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 86.95652173913044
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 6,
-    "buy": 14,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 86.95652173913044
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 6,
-    "buy": 14,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 86.95652173913044
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 6,
-    "buy": 13,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 86.36363636363636
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-08-11",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 312.0,
-    "prior": 310.0
-   },
-   {
-    "date": "2026-08-07",
-    "firm": "TD Cowen",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 275.0,
-    "prior": 270.0
-   },
-   {
-    "date": "2026-08-07",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 284.0,
-    "prior": 282.0
-   },
-   {
-    "date": "2026-08-07",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 282.0,
-    "prior": 270.0
-   },
-   {
-    "date": "2026-07-16",
-    "firm": "TD Cowen",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 270.0,
-    "prior": 245.0
-   },
-   {
-    "date": "2026-07-15",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 312.0,
-    "prior": 289.0
-   },
-   {
-    "date": "2026-07-13",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 282.0,
-    "prior": 270.0
-   },
-   {
-    "date": "2026-07-09",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 315.0,
-    "prior": 291.0
-   },
-   {
-    "date": "2026-06-23",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 270.0,
-    "prior": 262.0
-   },
-   {
-    "date": "2026-06-18",
-    "firm": "Jefferies",
-    "from": "",
-    "to": "Buy",
-    "action": "init",
-    "target": 314.0,
-    "prior": null
-   },
-   {
-    "date": "2026-05-27",
-    "firm": "Mizuho",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 300.0,
-    "prior": 260.0
-   },
-   {
-    "date": "2026-05-14",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 262.0,
-    "prior": 255.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "Morgan Stanley",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 331.0,
-    "prior": 327.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "Scotiabank",
-    "from": "Sector Outperform",
-    "to": "Sector Outperform",
-    "action": "main",
-    "target": 257.0,
-    "prior": 249.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 289.0,
-    "prior": 285.0
-   },
-   {
-    "date": "2026-05-11",
-    "firm": "TD Cowen",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 245.0,
-    "prior": 236.0
-   },
-   {
-    "date": "2026-05-08",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 270.0,
-    "prior": 264.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "Seaport Global",
-    "from": "Buy",
-    "to": "Neutral",
-    "action": "down",
-    "target": null,
-    "prior": null
-   },
-   {
-    "date": "2026-04-20",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 268.0,
-    "prior": 242.0
-   },
-   {
-    "date": "2026-04-13",
-    "firm": "Scotiabank",
-    "from": "Sector Outperform",
-    "to": "Sector Outperform",
-    "action": "main",
-    "target": 249.0,
-    "prior": 246.0
-   },
-   {
-    "date": "2026-04-13",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 270.0,
-    "prior": 260.0
-   },
-   {
-    "date": "2026-04-13",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 285.0,
-    "prior": 279.0
-   },
-   {
-    "date": "2026-04-07",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 255.0,
-    "prior": 226.0
-   },
-   {
-    "date": "2026-04-07",
-    "firm": "Morgan Stanley",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 327.0,
-    "prior": 298.0
-   },
-   {
-    "date": "2026-03-24",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "init",
-    "target": 279.0,
-    "prior": null
-   },
-   {
-    "date": "2026-03-24",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 280.0,
-    "prior": 228.0
-   },
-   {
-    "date": "2026-03-19",
-    "firm": "Mizuho",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 260.0,
-    "prior": 207.0
-   },
-   {
-    "date": "2026-03-13",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 264.0,
-    "prior": 248.0
-   },
-   {
-    "date": "2026-03-03",
-    "firm": "Morgan Stanley",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 298.0,
-    "prior": 266.0
-   },
-   {
-    "date": "2026-02-27",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 260.0,
-    "prior": 218.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "TSN US Equity": {
   "ticker": "TSN US Equity",
@@ -7443,22 +7131,22 @@
  "STZ US Equity": {
   "ticker": "STZ US Equity",
   "symbol": "STZ",
-  "pulled": "2026-08-17",
+  "pulled": "2026-08-18",
   "name": "Constellation Brands, Inc.",
   "consensus": {
-   "mean": 2.04167,
-   "score5": 3.95833,
-   "label": "Buy",
-   "n": 23
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
    "ccy": "USD",
    "spot": 130.56,
-   "mean": 170.8261,
-   "high": 209.0,
-   "low": 115.0,
-   "median": 173.0,
-   "upside_pct": 30.841069240196074
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -7502,278 +7190,7 @@
     "pos_pct": 60.869565217391305
    }
   ],
-  "actions": [
-   {
-    "date": "2026-07-21",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 132.0,
-    "prior": 139.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "BMO Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "reit",
-    "target": 190.0,
-    "prior": 190.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "Roth Capital",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 209.0,
-    "prior": 209.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "B of A Securities",
-    "from": "Underperform",
-    "to": "Underperform",
-    "action": "main",
-    "target": 145.0,
-    "prior": 152.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 165.0,
-    "prior": 169.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "Deutsche Bank",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 150.0,
-    "prior": 155.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "reit",
-    "target": 185.0,
-    "prior": 185.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "Needham",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 185.0,
-    "prior": 185.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 158.0,
-    "prior": 183.0
-   },
-   {
-    "date": "2026-07-02",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 139.0,
-    "prior": 170.0
-   },
-   {
-    "date": "2026-07-01",
-    "firm": "Piper Sandler",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "reit",
-    "target": 160.0,
-    "prior": 160.0
-   },
-   {
-    "date": "2026-06-29",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 170.0,
-    "prior": 185.0
-   },
-   {
-    "date": "2026-06-26",
-    "firm": "Needham",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 185.0,
-    "prior": 185.0
-   },
-   {
-    "date": "2026-06-25",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 169.0,
-    "prior": 168.0
-   },
-   {
-    "date": "2026-06-24",
-    "firm": "Jefferies",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 157.0,
-    "prior": 158.0
-   },
-   {
-    "date": "2026-06-17",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 175.0,
-    "prior": 186.0
-   },
-   {
-    "date": "2026-05-28",
-    "firm": "B of A Securities",
-    "from": "Underperform",
-    "to": "Underperform",
-    "action": "main",
-    "target": 152.0,
-    "prior": 154.0
-   },
-   {
-    "date": "2026-04-13",
-    "firm": "TD Cowen",
-    "from": "Hold",
-    "to": "Buy",
-    "action": "up",
-    "target": 190.0,
-    "prior": 142.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 170.0,
-    "prior": 151.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "B of A Securities",
-    "from": "Underperform",
-    "to": "Underperform",
-    "action": "main",
-    "target": 154.0,
-    "prior": 142.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "Deutsche Bank",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 155.0,
-    "prior": 154.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 186.0,
-    "prior": 176.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 183.0,
-    "prior": 160.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "reit",
-    "target": 185.0,
-    "prior": 185.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 185.0,
-    "prior": 180.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "Evercore ISI Group",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 175.0,
-    "prior": 170.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "Piper Sandler",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 160.0,
-    "prior": 146.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "Needham",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 185.0,
-    "prior": 180.0
-   },
-   {
-    "date": "2026-04-08",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 180.0,
-    "prior": 165.0
-   },
-   {
-    "date": "2026-04-02",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 151.0,
-    "prior": 148.0
-   }
-  ]
+  "actions": []
  },
  "OKE US Equity": {
   "ticker": "OKE US Equity",
@@ -11182,22 +10599,22 @@
  "PCG US Equity": {
   "ticker": "PCG US Equity",
   "symbol": "PCG",
-  "pulled": "2026-08-17",
-  "name": "Pacific Gas & Electric Co.",
+  "pulled": "2026-08-18",
+  "name": null,
   "consensus": {
-   "mean": 1.52941,
-   "score5": 4.47059,
-   "label": "Buy",
-   "n": 16
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 17.5,
-   "mean": 22.78125,
-   "high": 28.0,
-   "low": 19.0,
-   "median": 22.5,
-   "upside_pct": 30.17857142857143
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -12911,22 +12328,22 @@
  "RF US Equity": {
   "ticker": "RF US Equity",
   "symbol": "RF",
-  "pulled": "2026-08-15",
-  "name": "Regions Financial Corporation",
+  "pulled": "2026-08-18",
+  "name": null,
   "consensus": {
-   "mean": 2.81818,
-   "score5": 3.18182,
-   "label": "Hold",
-   "n": 20
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 31.9,
-   "mean": 32.93,
-   "high": 36.0,
-   "low": 28.0,
-   "median": 33.05,
-   "upside_pct": 3.228840125391863
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -13581,22 +12998,22 @@
  "PRU LN Equity": {
   "ticker": "PRU LN Equity",
   "symbol": "PRU.L",
-  "pulled": "2026-08-15",
-  "name": "PRUDENTIAL PLC ORD 5P",
+  "pulled": "2026-08-18",
+  "name": null,
   "consensus": {
-   "mean": 1.46154,
-   "score5": 4.53846,
-   "label": "Strong buy",
-   "n": 13
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "GBp",
-   "spot": 1025.0,
-   "mean": 1417.291,
-   "high": 1610.0,
-   "low": 1200.0,
-   "median": 1425.0,
-   "upside_pct": 38.272292682926825
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
