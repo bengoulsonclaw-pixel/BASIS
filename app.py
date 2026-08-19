@@ -63,6 +63,7 @@ from src import curvemon
 from src import seasmon
 from src import auth
 from src import health
+from src import compliance
 from src.universe import INSTRUMENTS
 
 ROOT = Path(__file__).parent
@@ -13108,6 +13109,7 @@ with st.sidebar:
         _nav_button("Data Health", "Data health")
         _nav_button("Universe", "Universe")
         _nav_button("Colleague Access", "Colleague Access")
+        _nav_button("Compliance", "Compliance")
     if auth.REQUIRE_LOGIN:
         st.caption(f"Logged in as **{CURRENT_USER['name']}**")
         auth.render_logout_button()
@@ -13270,13 +13272,14 @@ def render_universe():
 # either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
 # chain below rather than being swallowed by its else-branch back into the Equities home page.
 _SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "Colleague Access",
-                 "User Admin", "User Activity", "Landing"}
+                 "Compliance", "User Admin", "User Activity", "Landing"}
 
 # Defense-in-depth: even though colleague sessions never see the nav buttons/tabs that set `active`
 # to one of these admin-only destinations, refuse to render them for a non-admin session regardless
 # of how `active` got set. Redirects to Home rather than erroring, since this should never happen
 # in normal use.
-_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "Colleague Access", "User Admin", "User Activity"}
+_ADMIN_ONLY_DESTS = {"Recipients", "Data health", "Universe", "Colleague Access", "Compliance",
+                     "User Admin", "User Activity"}
 if active in _ADMIN_ONLY_DESTS and not IS_ADMIN:
     active = st.session_state.active = "Home"
 
@@ -13383,6 +13386,8 @@ if active == "Recipients":
     render_recipients(); st.stop()
 if active == "Universe":
     render_universe(); st.stop()
+if active == "Compliance":
+    compliance.render_page(); st.stop()
 if active == "Colleague Access":
     st.subheader("👥 Colleague Access")
     _sec = st.segmented_control("Section", ["Accounts", "Activity"], default="Accounts",

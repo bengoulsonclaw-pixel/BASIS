@@ -54,24 +54,11 @@ OUT_PDF = ROOT / "data" / "COT_Positioning_Report_email.pdf"
 MC_MAIN = Path(os.getenv("BASIS_MC_DIR", r"C:\Users\Ben\OneDrive\Personal\AI\Futures_Movements")) / "main.py"
 MAX_STALE_DAYS = 10            # don't email a report older than this (guards against stale cache)
 
-# Compliance disclaimer appended to every outgoing report email (the PDF reports carry the
-# same text via templates/_disclaimer.html — keep the two in sync if it ever changes).
-DISCLAIMER_TEXT = (
-    "This material was prepared by XP Investments US, LLC (“XP Investments”), a member of "
-    "FINRA, SIPC and NFA. XP Investments and its affiliates, parent, shareholders, directors, "
-    "officers, employees, and licensors will not be liable (individually, jointly, or severally) "
-    "to you or any other person as a result of your access, reception, or use of the information "
-    "contained in this communication. All opinions, projections, and estimates constitute the "
-    "judgment of the author as of the date of transmission and these, plus any other information "
-    "contained herein, are subject to change without notice. Nothing in this report constitutes a "
-    "representation that any investment strategy or recommendation contained herein is suitable "
-    "or appropriate to a recipient’s individual circumstances or otherwise constitutes a "
-    "personal recommendation. This report is published solely for information purposes, it does "
-    "not constitute an advertisement and is not to be construed as a solicitation or an offer to "
-    "buy or sell any securities or related financial instruments. This material (including any "
-    "attachments) is confidential, may contain proprietary or privileged information and is "
-    "intended for the named recipient(s) only."
-)
+# Compliance disclaimer appended to every outgoing report email — the same editable text the
+# PDF footers carry, from the Compliance page's store (data/disclaimer.txt, standard XP text
+# when no edit is stored). Read at import time; these scripts are short-lived so it's fresh.
+from src import compliance                                                # noqa: E402
+DISCLAIMER_TEXT = compliance.get_text()
 DISCLAIMER_HTML = (
     '<p style="color:#888;font-size:11px;line-height:1.4;">' + DISCLAIMER_TEXT + "</p>"
 )
