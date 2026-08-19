@@ -115,7 +115,7 @@ def scatter_frame(ticker: str, window: int = 126):
              "c110": w.get("call"), "c120": w.get("call120")}
     iv_at, sp = fit_smile(marks)
     if iv_at is not None:
-        grid = np.linspace(0.78, 1.22, 45)
+        grid = np.linspace(0.75, 1.25, 51)               # incl. short rising-tail extensions
         fit["smile"] = pd.DataFrame({"px": s_now * grid, "iv": [iv_at(m) for m in grid]})
         fit["smile_params"] = sp
         far = [(k, marks[k]) for k in ("p80", "c120")

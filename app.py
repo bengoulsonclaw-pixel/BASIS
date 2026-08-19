@@ -930,10 +930,14 @@ def _skewreal_section():
                 x="px:Q", y="iv:Q",
                 tooltip=["kind:N", alt.Tooltip("iv:Q", format=".1f")])
             ch = ch + farp
-        smile_note = (" **Solid gold curve = today's fitted smile** (quadratic through the "
-                      f"{fit['smile_params']['n_marks']}-point 80–120% marks; small diamonds = "
-                      "the far wings) — where it sits below the dashed line, options at that "
-                      "strike are cheap against the realized path; above = rich.")
+        _sm = fit["smile_params"]
+        _kind = ("a quartic drawn exactly through all five marks" if _sm.get("method") == "quartic"
+                 else f"an exact fit through the {_sm['n_marks']} available marks"
+                 + (" (shape-guarded: a quartic here would roll a tail over, so a monotone "
+                    "exact fit is used)" if _sm.get("method") == "monotone" else ""))
+        smile_note = (f" **Solid gold curve = today's smile** — {_kind}; tails only ever rise; "
+                      "small diamonds = the 80/120% marks. Where the smile sits below the dashed "
+                      "line, options at that strike are cheap against the realized path; above = rich.")
     st.markdown(f"**{pick}** — dots = the last {_wl} of (underlying, ATM vol); dashed = best fit "
                 "(the realized skew); **red cross = today's ATM strike** (spot, our ATM vol); "
                 "**gold diamonds = our wing marks at ±10%**; hollow circles = where the line says "

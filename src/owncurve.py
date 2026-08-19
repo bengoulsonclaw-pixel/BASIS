@@ -291,27 +291,89 @@ SMILE_MARKERS = {"p80": (0.80, False, FAR_TOL), "p90": (0.90, False, WING_TOL),
 SMILE_MNY = {"p80": 0.80, "p90": 0.90, "atm": 1.00, "c110": 1.10, "c120": 1.20}
 
 
+def _monotone_slopes(xs, ys):
+    """Fritsch–Carlson shape-preserving slopes for a cubic Hermite through the
+    points — no overshoot between marks, each segment keeps its data's direction."""
+    n = len(xs)
+    d = [(ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]) for i in range(n - 1)]
+    m = [0.0] * n
+    m[0], m[-1] = d[0], d[-1]
+    for i in range(1, n - 1):
+        if d[i - 1] * d[i] <= 0:
+            m[i] = 0.0
+        else:
+            w1 = 2 * (xs[i + 1] - xs[i]) + (xs[i] - xs[i - 1])
+            w2 = (xs[i + 1] - xs[i]) + 2 * (xs[i] - xs[i - 1])
+            m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i])
+    return m
+
+
+def _hermite(xs, ys, m, t):
+    for i in range(len(xs) - 1):
+        if xs[i] <= t <= xs[i + 1]:
+            h = xs[i + 1] - xs[i]
+            s = (t - xs[i]) / h
+            return ((2 * s**3 - 3 * s**2 + 1) * ys[i] + (s**3 - 2 * s**2 + s) * h * m[i]
+                    + (-2 * s**3 + 3 * s**2) * ys[i + 1] + (s**3 - s**2) * h * m[i + 1])
+    return ys[-1]
+
+
 def fit_smile(points: dict):
-    """The curve of best fit through the five smile marks (Ben's 2026-08-18 spec,
-    second half): a quadratic in LOG-moneyness — the standard smile shape, whose
-    linear term is the tilt (risk-reversal) and curvature term the butterfly.
+    """The SMILE through the five marks (Ben's spec, finalised 2026-08-19): the
+    curve passes EXACTLY through every available mark — a quartic (degree n−1
+    polynomial in log-moneyness) — and must LOOK like a volatility smile: the
+    tails only ever rise going out-of-the-money.
+
+    A raw quartic can't guarantee that second property (a negative leading
+    coefficient dives on one side), so the polynomial is shape-GUARDED: if either
+    boundary slope points downward-outward, the fit falls back to shape-preserving
+    exact interpolation (Fritsch–Carlson monotone cubic — still through every
+    mark, no overshoot between them). Beyond the outer marks both methods extend
+    linearly with the boundary slope clamped to rise-or-flat, so the tails can
+    never roll over.
 
     `points` maps any of p80/p90/atm/c110/c120 -> vol (NaN/missing tolerated —
     far wings are sparse by construction). Needs >=3 marks including the ATM.
-    Returns (iv_at(moneyness_ratio) callable floored at 0.5 vol, params dict)
-    or (None, {}) when underdetermined."""
-    xs, ys = [], []
-    for key, m in SMILE_MNY.items():
+    Returns (iv_at(moneyness_ratio) floored at 0.5 vol, params) or (None, {})."""
+    pts = []
+    for key, mny in SMILE_MNY.items():
         v = points.get(key)
         if v is not None and pd.notna(v) and float(v) > 0:
-            xs.append(math.log(m))
-            ys.append(float(v))
-    if len(xs) < 3 or not any(abs(x) < 1e-9 for x in xs):
+            pts.append((math.log(mny), float(v)))
+    pts.sort()
+    if len(pts) < 3 or not any(abs(x) < 1e-9 for x, _ in pts):
         return None, {}
-    co = np.polyfit(xs, ys, min(2, len(xs) - 1))
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    x0, xn, y0, yn = xs[0], xs[-1], ys[0], ys[-1]
+
+    co = np.polyfit(xs, ys, len(xs) - 1)                 # exact: degree n−1 (quartic at 5)
+    dco = np.polyder(co)
+    dl, dr = float(np.polyval(dco, x0)), float(np.polyval(dco, xn))
+    if dl <= 1e-9 and dr >= -1e-9:                       # tails rise outward on both sides
+        method = "quartic" if len(xs) == 5 else f"poly{len(xs) - 1}"
+        base = lambda k: float(np.polyval(co, k))
+        sl, sr = dl, dr
+    else:                                                # shape guard tripped
+        method = "monotone"
+        m = _monotone_slopes(xs, ys)
+        base = lambda k: float(_hermite(xs, ys, m, k))
+        sl, sr = m[0], m[-1]
+    slope_l = min(sl, 0.0)                               # left tail: rise-or-flat going OTM
+    slope_r = max(sr, 0.0)                               # right tail: rise-or-flat going OTM
+
     def iv_at(mny: float) -> float:
-        return float(max(np.polyval(co, math.log(mny)), 0.5))
-    return iv_at, {"coeffs": [round(float(c), 4) for c in co], "n_marks": len(xs)}
+        k = math.log(mny)
+        if k < x0:
+            v = y0 + slope_l * (k - x0)
+        elif k > xn:
+            v = yn + slope_r * (k - xn)
+        else:
+            v = base(k)
+        return float(max(v, 0.5))
+
+    return iv_at, {"method": method, "n_marks": len(xs),
+                   "coeffs": [round(float(c), 4) for c in co]}
 
 
 def _bdp_many(tickers, fields) -> dict:
