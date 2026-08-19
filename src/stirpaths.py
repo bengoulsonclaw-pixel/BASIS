@@ -708,19 +708,20 @@ def refresh_fixings(asof: date, lookback_days: int = 130) -> dict[str, int]:
         return {}
     out = {}
     try:
-        from xbbg import blp
+        from . import bbg as blp
         try:
             store = json.loads(_FIX_STORE.read_text(encoding="utf-8"))
         except Exception:
             store = {}
-        from . import pullguard
         start = (asof - timedelta(days=lookback_days)).isoformat()
         for bk, tk in FIXING_TICKERS.items():
-            pullguard.add_hits(1)                   # usage ledger
-            df = blp.bdh(tk, "PX_LAST", start, asof.isoformat())
-            if df is None or df.empty:
+            # xbbg's Rust binding returns narwhals LONG frames since ~2026-08 —
+            # datafeed's adapter normalises to wide (index=date), old or new shape
+            from . import datafeed as _dfeed
+            w = _dfeed._bdh_to_wide(blp.bdh(tk, "PX_LAST", start, asof.isoformat()))
+            if w is None or w.empty:
                 continue
-            ser = df.iloc[:, 0].dropna()
+            ser = w.iloc[:, 0].dropna()
             cur = store.get(bk, {})
             cur.update({ts.date().isoformat(): float(v) for ts, v in ser.items()})
             store[bk] = cur
@@ -821,34 +822,43 @@ def refresh_strip_store(asof: date) -> int:
     if MODE != "bloomberg":
         return 0
     try:
-        from xbbg import blp
-        from . import pullguard
+        from . import bbg as blp
         contracts = [c for _, c in pull_universe(asof)]
         tickers = [f"{c.code} Comdty" for c in contracts]
-        pullguard.add_hits(len(tickers) * 2)        # usage ledger: spend on request
-        df = blp.bdp(tickers, ["PX_LAST", "PX_SETTLE"])
-        if df is None or df.empty:
+        # datafeed._bdp_rows handles both the binding's shapes (narwhals LONG
+        # ticker/field/value since ~2026-08, legacy wide index=ticker before)
+        from . import datafeed as _dfeed
+        rows = _dfeed._bdp_rows(_dfeed._coerce_pd(blp.bdp(tickers, ["PX_LAST", "PX_SETTLE"])))
+        if not rows:
             _strip_error_write("reference pull", f"empty response for {len(tickers)} tickers "
                                "with the Terminal expected up — this is Bloomberg's -4002 "
                                "WORKFLOW_REVIEW_NEEDED signature (a raw blpapi probe shows the "
                                "code + nid; ring the Help Desk with them).")
             return 0
-        prices, settles = {}, {}
+        prices, settles, rejected = {}, {}, {}
         for c in contracts:
-            t = f"{c.code} Comdty"
-            if t in df.index:
-                row = df.loc[t]
-                if "px_last" in df.columns and row.get("px_last") == row.get("px_last"):
-                    prices[c.code] = float(row["px_last"])
-                if "px_settle" in df.columns and row.get("px_settle") == row.get("px_settle"):
-                    settles[c.code] = float(row["px_settle"])
+            r = rows.get(f"{c.code} Comdty") or {}
+            for fld, out in (("PX_LAST", prices), ("PX_SETTLE", settles)):
+                v = r.get(fld)
+                if v is not None and v == v:
+                    v = float(v)
+                    # Plausibility gate: a STIR future lives between ~90 and
+                    # ~100.5. The first real morning (2026-08-19) returned
+                    # ERJ7=201.0 / ERK7=397.0 for barely-listed far serials —
+                    # not prices at all — and the fit printed thousands of
+                    # phantom bp honouring them. Reject and RECORD, never store.
+                    if 90.0 < v < 100.5:
+                        out[c.code] = v
+                    else:
+                        rejected[c.code] = v
         if not prices and not settles:
             _strip_error_write("parse", "response carried no PX_LAST/PX_SETTLE values "
                                f"for any of {len(tickers)} tickers.")
             return 0
         STRIP_STORE.parent.mkdir(parents=True, exist_ok=True)
         STRIP_STORE.write_text(json.dumps(
-            {"asof": asof.isoformat(), "prices": prices, "settles": settles},
+            {"asof": asof.isoformat(), "prices": prices, "settles": settles,
+             "rejected": rejected},
             indent=1), encoding="utf-8")
         try:
             STRIP_ERROR.unlink(missing_ok=True)     # clean run — clear the flag
@@ -872,16 +882,17 @@ def live_strip_prices(contracts: list[Contract]) -> dict[str, float] | None:
     if MODE != "bloomberg":
         return None
     try:
-        from xbbg import blp
+        from . import bbg as blp
+        from . import datafeed as _dfeed
         tickers = [f"{c.code} Comdty" for c in contracts]
-        df = blp.bdp(tickers, "PX_LAST")
-        if df is None or df.empty:
+        rows = _dfeed._bdp_rows(_dfeed._coerce_pd(blp.bdp(tickers, "PX_LAST")))
+        if not rows:
             return None
         out = {}
         for c in contracts:
-            t = f"{c.code} Comdty"
-            if t in df.index and df.loc[t, "px_last"] == df.loc[t, "px_last"]:
-                out[c.code] = float(df.loc[t, "px_last"])
+            v = (rows.get(f"{c.code} Comdty") or {}).get("PX_LAST")
+            if v is not None and v == v:
+                out[c.code] = float(v)
         return out or None
     except Exception:
         return None
@@ -962,6 +973,8 @@ def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
         px = ov.get(c.code)
         if px is None:
             px = strip_prices(p, bank, [c], asof, r0)[0]
+        if not 90.0 < float(px) < 100.5:            # defense-in-depth vs a poisoned
+            continue                                # store or a fat-fingered edit
         owners.append(p)
         contracts.append(c)
         spreads.append(p.spread_bp)

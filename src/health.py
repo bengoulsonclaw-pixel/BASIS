@@ -312,6 +312,18 @@ def cache_health() -> pd.DataFrame:
     except Exception:
         rows.append({"store": "signal cache (sigcache)", "last_date": None,
                      "items": None, "age_h": float("nan")})
+    # Duplicate-request check from the bbg gateway (src/bbg.py): the last pull's
+    # count of security×field pairs requested by more than one leg. Anything but 0
+    # means two modules are pulling the same data — the 2026-08-18 error class.
+    try:
+        import json as _json
+        _dup = _json.loads((ROOT / "data" / "pull_duplicates.json").read_text(encoding="utf-8"))
+        rows.append({"store": "duplicate Bloomberg requests (last pull)",
+                     "last_date": pd.to_datetime(_dup.get("asof")).date(),
+                     "items": int(_dup.get("n_duplicate_pairs", 0)),
+                     "age_h": float("nan")})
+    except Exception:
+        pass                                   # no gateway report yet — nothing to show
     rows.append(_long_store_row("own vol curve (30/90d)", SNAP / "own30_history.parquet"))
     rows.append(_long_store_row("own term structure", SNAP / "own_term_history.parquet"))
     rows.append(_long_store_row("own skew (recording)", SNAP / "own_skew_history.parquet"))
@@ -498,10 +510,18 @@ def checks(*, frames: pd.DataFrame | None = None, deep: dict | None = None,
             _st = json.loads(_sp.STRIP_STORE.read_text(encoding="utf-8"))
             _age = (pd.Timestamp.now().normalize()
                     - pd.Timestamp(_st.get("asof", "1970-01-01"))).days
+            _rej = _st.get("rejected", {})
             if _age > 5:
                 add("warn", "STIR strip store", f"Store is {_age} days old (asof "
                     f"{_st.get('asof')}) — the morning leg hasn't refreshed it; the "
                     "cockpit odds are priced off stale strips.")
+            elif _rej:
+                add("warn", "STIR strip store", f"Strip store fresh (asof {_st.get('asof')}) "
+                    f"but the pull returned IMPLAUSIBLE prices for {len(_rej)} contract(s), "
+                    "rejected by the 90–100.5 gate: "
+                    + ", ".join(f"{k}={v}" for k, v in list(_rej.items())[:6])
+                    + ". Those contracts are absent from the fits (usually fine — dead "
+                    "far serials); if a LIQUID contract appears here, investigate the pull.")
             else:
                 add("ok", "STIR strip store", f"Strip store fresh (asof {_st.get('asof')}, "
                     f"{len(_st.get('prices', {}) or _st.get('settles', {}))} contracts).")

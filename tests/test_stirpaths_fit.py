@@ -181,3 +181,13 @@ def test_solve_stub_groups_absorb_move_between_window_starts():
     ip = sp.implied_path(bank, contracts, prices, ASOF, r_now,
                          solve_stub=True, lam=2e-2)
     assert max(abs(float(b)) for b in ip.per_meeting_bp) < 1.0
+
+
+def test_fit_instruments_rejects_implausible_prices(fake_store):
+    """First live morning (2026-08-19): the pull returned ERJ7=201.0 for a
+    barely-listed far serial — not a price — and the fit printed thousands of
+    phantom bp. Implausible store values must never reach a fit."""
+    fake_store({"SFIU6": 96.155, "SFIZ6": 95.945, "SFIH7": 201.0})
+    _, contracts, _, _ = sp.fit_instruments("BOE", ASOF)
+    assert "SFIH7" not in [c.code for c in contracts]
+    assert {"SFIU6", "SFIZ6"} <= {c.code for c in contracts}
