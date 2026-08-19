@@ -8342,8 +8342,18 @@ def render_stir_bank(bank_key: str) -> None:
                 "in bp (green = cheap vs your view / buy, red = rich / sell)",
                 unsafe_allow_html=True)
     gC = [1] + [1] * len(codes)
-    _grid_hdr(st.columns(gC, gap="small"), "Futures", codes, _FUT_C, _code_tip,
-              sub="contract codes", tip="Each column is one listed futures contract")
+    # code + its last-trade (expiry) date on a small second line
+    _hdr_items, _hdr_tips = [], {}
+    for p_, c_ in zip(owner, contracts):
+        _lt = stirpaths.fut_last_trade(p_, c_)
+        _it = (f"{c_.code}<div style='font-weight:400;font-size:0.68rem;"
+               f"color:#AEB7C2;letter-spacing:0'>exp {_lt:%d %b %y}</div>")
+        _hdr_items.append(_it)
+        _hdr_tips[_it] = (f"{p_.short} {c_.label} · last trading day "
+                          f"{_lt:%a %d %b %Y}")
+    _grid_hdr(st.columns(gC, gap="small"), "Futures", _hdr_items, _FUT_C, _hdr_tips,
+              sub="code · expiry", tip="Each column is one listed futures contract; "
+                                       "the small date is its last trading day")
     _grid_row(st.columns(gC, gap="small"), "Market", _MKT_C,
               [f"{px_of_now[c]:.4f}" for c in codes],
               sub="price trading now", tip="The live market price of each contract")
