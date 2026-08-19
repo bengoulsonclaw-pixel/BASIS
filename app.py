@@ -8628,7 +8628,7 @@ def render_stir_bank(bank_key: str) -> None:
                 ("Into", _YOU_C, "The same contract tag again, so the price being "
                                  "edited is never ambiguous — gold groups match "
                                  "the blue ones on the left"),
-                ("Your fut", _YOU_C, "Where the Into future lands under YOUR odds — "
+                ("Your fut settle", _YOU_C, "Where the Into future lands under YOUR odds — "
                                      "two-way: type a target price here and the odds "
                                      "of the meetings inside that contract re-solve. "
                                      "One editor per contract, on its first row")]):
