@@ -133,11 +133,13 @@ def _pull_field(src_map: dict, field_for: dict, start, end) -> pd.DataFrame | No
     if not src_map:
         return None
     from xbbg import blp
+    from . import pullguard
     by_field: dict = {}
     for s, t in src_map.items():
         by_field.setdefault(field_for[t], []).append(s)
     cols = {}
     for fld, grp in by_field.items():
+        pullguard.add_hits(len(grp))                   # usage ledger
         try:
             wide = _bdh_to_wide(blp.bdh(tickers=grp, flds=fld, start_date=start, end_date=end))
         except Exception:
@@ -150,28 +152,70 @@ def _pull_field(src_map: dict, field_for: dict, start, end) -> pd.DataFrame | No
     return pd.DataFrame(cols) if cols else None
 
 
-def _pull_group(tickers: list, start, end) -> dict:
-    """All five deep frames for `tickers` over [start, end], keyed by app ticker."""
+def _pull_group(tickers: list, start, end, names=None) -> dict:
+    """Deep frames for `tickers` over [start, end], keyed by app ticker. `names`
+    restricts which frames are PULLED (default: all five) — the daily tail sources
+    volume/yields from the snapshot parquets instead (see _tails_from_snapshot)."""
+    names = set(_FRAMES if names is None else names)
     px_field = {t: PRICE_FIELD_OVERRIDE.get(t, DEFAULT_FIELD) for t in tickers}
     chained = [t for t in tickers if _has_chain(t)]
-    out = {
-        "prices": _pull_field({_src(t, "1"): t for t in tickers}, px_field, start, end),
-        "front2": _pull_field({_src(t, "2"): t for t in chained}, px_field, start, end),
-        "contract": _pull_field({_src(t, "1"): t for t in chained},
-                                {t: CONTRACT_FIELD for t in chained}, start, end),
-        "volume": _pull_field({_src(t, "1"): t for t in tickers},
-                              {t: VOLUME_FIELD for t in tickers}, start, end),
-    }
-    bonds = [t for t in tickers if universe.yield_source(t)]
-    ysrcs: dict = {}
-    for t in bonds:
-        ysrcs.setdefault(universe.yield_source(t), []).append(t)
-    yw = _pull_field({s: s for s in ysrcs}, {s: "PX_LAST" for s in ysrcs}, start, end)
-    if yw is not None:
-        out["yields"] = pd.DataFrame({t: yw[s] for s, futs in ysrcs.items()
-                                      for t in futs if s in yw.columns})
-    else:
-        out["yields"] = None
+    out = {}
+    if "prices" in names:
+        out["prices"] = _pull_field({_src(t, "1"): t for t in tickers}, px_field, start, end)
+    if "front2" in names:
+        out["front2"] = _pull_field({_src(t, "2"): t for t in chained}, px_field, start, end)
+    if "contract" in names:
+        out["contract"] = _pull_field({_src(t, "1"): t for t in chained},
+                                      {t: CONTRACT_FIELD for t in chained}, start, end)
+    if "volume" in names:
+        out["volume"] = _pull_field({_src(t, "1"): t for t in tickers},
+                                    {t: VOLUME_FIELD for t in tickers}, start, end)
+    if "yields" in names:
+        bonds = [t for t in tickers if universe.yield_source(t)]
+        ysrcs: dict = {}
+        for t in bonds:
+            ysrcs.setdefault(universe.yield_source(t), []).append(t)
+        yw = _pull_field({s: s for s in ysrcs}, {s: "PX_LAST" for s in ysrcs}, start, end)
+        if yw is not None:
+            out["yields"] = pd.DataFrame({t: yw[s] for s, futs in ysrcs.items()
+                                          for t in futs if s in yw.columns})
+        else:
+            out["yields"] = None
+    return out
+
+
+def _tails_from_snapshot(tickers: list, start) -> dict:
+    """The VOLUME daily tail read from the snapshot parquet the morning pull wrote
+    MOMENTS earlier in the same fetch phase — identical data to what this module
+    re-pulled until 2026-08-18 (FUT_AGGTE_VOL returns the chain-wide aggregate on
+    ANY generic, and the raw=True snapshot never ffills volume). ~89 hits/day
+    saved. YIELDS deliberately stay a Bloomberg pull (review 2026-08-18):
+    yields.parquet is the get_yield_history frame, which is .ffill()ed — holiday
+    cells filled, a dead source frozen forward daily — and this store's raw-print
+    semantics are load-bearing (curvemon drops cross-calendar holiday rows via
+    dropna; an ffilled cell would fake a spread observation into 10y z history).
+    Returns {} unless the snapshot is ACTUALLY fresh — covering the tail window
+    AND written within ~4 days — so a standalone bloomberg-mode run days later
+    (backfill_deep.py) falls back to Bloomberg for everything instead of silently
+    desynchronizing the frames."""
+    out = {}
+    for name, fname in (("volume", "volume.parquet"),):
+        try:
+            df = pd.read_parquet(DATA / "snapshot" / fname)
+            if "date" in df.columns:
+                df = df.set_index("date")
+            df.index = pd.to_datetime(df.index)
+            df = df.sort_index()
+        except Exception:
+            return {}
+        if df.empty or df.index.max() < pd.Timestamp(start).normalize() \
+                or df.index.max() < pd.Timestamp.now().normalize() - pd.Timedelta(days=4):
+            return {}
+        # the snapshot frames are column-reindexed to the WHOLE book (all-NaN columns
+        # for products without the series) — drop those so the deep store only ever
+        # holds columns that carry data, same as a real pull returns
+        tail = df.loc[df.index >= pd.Timestamp(start).normalize()].dropna(axis=1, how="all")
+        out[name] = tail[[t for t in tickers if t in tail.columns]]
     return out
 
 
@@ -196,15 +240,18 @@ def update(tickers=None, years: int = STORE_YEARS,
     groups: list = []
     if have:
         inc_start = max(px.index.max() - pd.Timedelta(days=buffer_days), full_start)
-        groups.append((have, inc_start))
-    groups += [(need_full[i:i + STORE_CHUNK], full_start)
+        groups.append((have, inc_start, True))         # tail: reuse snapshot frames
+    groups += [(need_full[i:i + STORE_CHUNK], full_start, False)
                for i in range(0, len(need_full), STORE_CHUNK)]
     if need_full:
         log(f"  Deep store: backfilling {len(need_full)} tickers ~{years}y "
             f"(~{len(need_full) * 4} hits), tailing {len(have)}")
     pulled = {n: [] for n in _FRAMES}
-    for grp, start in groups:
-        frames = _pull_group(grp, start, today)
+    for grp, start, tail in groups:
+        snap_frames = _tails_from_snapshot(grp, start) if tail else {}
+        frames = _pull_group(grp, start, today,
+                             names=[n for n in _FRAMES if n not in snap_frames])
+        frames.update(snap_frames)
         for n in _FRAMES:
             if frames.get(n) is not None:
                 pulled[n].append(frames[n])

@@ -120,15 +120,18 @@ def _bdh(tickers, fld, start, end):
 def _bdh_safe(tickers, fld, start, end, chunk: int = 20):
     """Chunked bdh with single-ticker fallback — one bad constructed ticker must not
     sink the batch. Returns a wide frame (possibly missing some columns)."""
+    from . import pullguard
     frames = []
     tickers = list(tickers)
     for i in range(0, len(tickers), chunk):
         grp = tickers[i:i + chunk]
+        pullguard.add_hits(len(grp))                   # usage ledger: hits spend on request
         w = _bdh(grp, fld, start, end)
         if w is not None:
             frames.append(w)
             continue
         for t in grp:                                  # fall back one by one
+            pullguard.add_hits(1)
             w1 = _bdh([t], fld, start, end)
             if w1 is not None:
                 frames.append(w1)
@@ -140,6 +143,8 @@ def _bdh_safe(tickers, fld, start, end, chunk: int = 20):
 def _bdp_one(ticker, fld):
     from xbbg import blp
     from .datafeed import _coerce_pd
+    from . import pullguard
+    pullguard.add_hits(1)
     try:
         pdf = _coerce_pd(blp.bdp(ticker, fld))
         if pdf is None or len(pdf) == 0:
@@ -271,11 +276,23 @@ def load_history() -> "pd.DataFrame | None":
         return None
 
 
-def update_history(lookback_days: int = 12, log=print) -> None:
-    """Daily top-up (called from the snapshot pull): recompute the last ~2 weeks with
-    the same construction and upsert — settles finalise, expiries roll, gaps heal."""
+def update_history(lookback_days: int = 5, log=print) -> None:
+    """Daily top-up (called from the snapshot pull): recompute the recent sessions
+    with the same construction and upsert — settles finalise, expiries roll, gaps
+    heal. 12 → 5 days on 2026-08-18 (Bloomberg budget): exchange settle revisions
+    land within a session or two, so a 5-day window catches them at ~40% of the
+    strike-ladder request cost. Self-heal is PER PRODUCT (review 2026-08-18): the
+    window stretches back to the stalest product's own last stored date (capped at
+    45 days), and the upsert only replaces rows for products that actually produced
+    fresh rows — so a single product stalling (e.g. its expiry probes failing for a
+    week) neither gaps its history nor gets its stored rows deleted by the others'
+    recompute window."""
     old = load_history()
     start = (pd.Timestamp.today() - pd.Timedelta(days=lookback_days)).normalize()
+    if old is not None and not old.empty:              # per-product outage self-heal
+        stalest = pd.Timestamp(old.groupby("ticker")["date"].max().min())
+        start = max(min(start, stalest - pd.Timedelta(days=1)),
+                    pd.Timestamp.today().normalize() - pd.Timedelta(days=45))
     fresh = build_history(start, log=log)
     if fresh.empty:
         return
@@ -283,5 +300,7 @@ def update_history(lookback_days: int = 12, log=print) -> None:
         save_history(fresh)
         return
     cutoff = fresh["date"].min()
-    merged = pd.concat([old[old["date"] < cutoff], fresh], ignore_index=True)
+    refreshed = old["ticker"].isin(set(fresh["ticker"]))
+    merged = pd.concat([old[(old["date"] < cutoff) | ~refreshed], fresh],
+                       ignore_index=True)
     save_history(merged)

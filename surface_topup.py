@@ -96,11 +96,11 @@ def main() -> int:
     if iv is None or iv.empty:
         log("pull returned nothing — kept existing files"); return 0
     snapshot._save(iv, "implied_vol")
-    skew = get_skew_components(tickers)
-    snapshot._save(skew["put"], "skew_put")
+    skew = get_skew_components(tickers, atm=iv)     # share the ATM frame — same dedupe
+    snapshot._save(skew["put"], "skew_put")         # as the morning snapshot (2026-08-18)
     snapshot._save(skew["call"], "skew_call")
     snapshot._save(skew["atm"], "skew_atm")
-    ts = get_term_structure(tickers)
+    ts = get_term_structure(tickers, atm=iv)
     for lab in snapshot.TENOR_LABELS:
         snapshot._save(ts[lab], f"term_{lab.lower()}")
     cov = int(iv.tail(2).notna().sum(axis=1).iloc[0])

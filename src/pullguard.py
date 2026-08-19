@@ -18,9 +18,13 @@ What it flags (each an observed or strongly suspected review trigger):
   • SAME-DAY RE-PULLS — re-spends the day's allowance on near-identical data and makes
     the cadence look erratic.
 
-Deliberately OUT of scope: option-chain contracts (own-curve marks, the weekly OI job)
-— individual contracts churn by design, that pattern is long-established, and neither
-review followed it. The guard watches the futures/index/cash universe.
+The NEW-SECURITY assessment deliberately excludes option-chain contracts (own-curve
+marks, the weekly OI job) — individual contracts churn by design, that pattern is
+long-established, and neither review followed it. The guard watches the futures/
+index/cash universe. Their REQUEST VOLUME does count, though: since 2026-08-18 the
+runtime hit tally (add_hits / get_hits below) is fed by every variable-size pull
+site, so the ledger's est_hits matches what Bloomberg actually saw — the old
+len(tickers)*20 estimate under-counted the morning by ~4-5x.
 
 data/pull_known.json  — every ticker ever pulled through guarded paths (auto-seeded).
 data/pull_log.csv     — one line per fetch: when, label, tickers, est hits, new count.
@@ -104,6 +108,33 @@ def assess(tickers=None, same_day: bool = False, now=None) -> list:
                      "hits on near-identical data and makes the cadence look erratic. Worth "
                      "it only if the first pull was bad or markets have moved a lot.")
     return warns
+
+
+# ---------------------------------------------------------------------------
+# Runtime hit tally — a per-pull security×field counter. The fetch phase resets
+# it; modules whose request sizes are only known at runtime (option chains,
+# strike ladders, deep-store backfill groups) call add_hits() at each request
+# site. In-process and advisory: it can never raise, and a missed count just
+# means the ledger under-reports slightly instead of by multiples.
+# ---------------------------------------------------------------------------
+_HITS = 0
+
+
+def reset_hits() -> None:
+    global _HITS
+    _HITS = 0
+
+
+def add_hits(n) -> None:
+    global _HITS
+    try:
+        _HITS += max(int(n), 0)
+    except Exception:
+        pass
+
+
+def get_hits() -> int:
+    return _HITS
 
 
 def record(label: str, tickers, est_hits: int | None = None) -> None:

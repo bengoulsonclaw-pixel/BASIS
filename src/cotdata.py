@@ -233,29 +233,31 @@ def _pull_history(cot_tickers, start, end):
 
 
 def update_price_store(tickers, years: int = STORE_YEARS, buffer_days: int = STORE_BUFFER_DAYS) -> pd.DataFrame:
-    """Return the price DB, extending it first when on Bloomberg: backfill the full
-    `years` for any ticker not yet stored, pull only the recent dates for the rest, then
-    merge + persist. A no-op read off-Bloomberg (snapshot / mock)."""
+    """Return the price DB, extending it first when on Bloomberg. Since 2026-08-18
+    this NO LONGER pulls Bloomberg itself: the deep store (src/deepstore.py) holds
+    the identical raw '1'-generic settle series for every COT market (same source
+    generics via the same 'A'→'1' rule, same price fields, same 10y depth), so the
+    Bloomberg-connected moment just MIRRORS the deep store's raw frame into this
+    DB — deepstore.update must run first in the fetch phase. Any COT ticker the
+    deep store doesn't carry falls back to the legacy direct pull (none today —
+    the 47 COT markets are a subset of the book). A no-op read off-Bloomberg."""
     store = read_price_store()
     if MODE != "bloomberg":
         return store
     tickers = list(tickers)
     today = pd.Timestamp.now().normalize()
     full_start = today - pd.DateOffset(years=years)
-
-    def _held(t):                                                    # daily prices currently stored
-        return int(store[t].notna().sum()) if (not store.empty and t in store.columns) else 0
-
-    have = [t for t in tickers if _held(t) >= HEAL_MIN_DAYS]         # already deep → incremental tail
-    need_full = [t for t in tickers if _held(t) < HEAL_MIN_DAYS]     # missing/truncated → (re)backfill
     frames = []
-    if have:
-        inc_start = max(store.index.max() - pd.Timedelta(days=buffer_days), full_start)
-        f = _pull_history(have, inc_start, today)                        # only the new tail
-        if f is not None:
-            frames.append(f)
-    for i in range(0, len(need_full), STORE_CHUNK):                      # chunked first-time backfill
-        f = _pull_history(need_full[i:i + STORE_CHUNK], full_start, today)
+    try:
+        from . import deepstore
+        deep = deepstore.get_raw(tickers, start=full_start)
+        if deep is not None and not deep.empty:
+            frames.append(deep)                        # full depth; merge handles revisions
+    except Exception:
+        deep = pd.DataFrame()
+    missing = [t for t in tickers if not len(frames) or t not in frames[0].columns]
+    for i in range(0, len(missing), STORE_CHUNK):      # legacy pull, only off-book tickers
+        f = _pull_history(missing[i:i + STORE_CHUNK], full_start, today)
         if f is not None:
             frames.append(f)
     new = pd.concat(frames, axis=1) if frames else pd.DataFrame()

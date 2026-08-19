@@ -685,14 +685,19 @@ def _frame3(put: dict, call: dict, atm: dict, tickers) -> dict:
     return {"put": _df(put), "call": _df(call), "atm": _df(atm)}
 
 
-def get_skew_components(tickers, start=None, end=None) -> dict:
+def get_skew_components(tickers, start=None, end=None, atm=None) -> dict:
     """Per-ticker {'put','call','atm'} 1M implied-vol histories (vol points,
     date-indexed); the skew metric is (90% put − 110% call)/atm. Listed markets
     read the 90/110/100% moneyness pillars off the surface; FX uses the native OTC
-    25Δ risk reversal (it has no moneyness surface). Mode-agnostic seam."""
+    25Δ risk reversal (it has no moneyness surface). Mode-agnostic seam.
+
+    atm: an already-pulled get_implied_vol_history frame. The 100% pillar IS the
+    implied-vol field (and FX's V1M), so passing the morning's frame saves the
+    third identical bdh per surface pull (2026-08-18 dedupe); None pulls it as
+    before, so ad-hoc callers stay correct."""
     tickers = list(tickers)
     if MODE == "bloomberg":
-        return _bloomberg_skew(tickers, start, end)
+        return _bloomberg_skew(tickers, start, end, atm_frame=atm)
     if MODE == "snapshot":
         put = _read_snapshot("skew_put.parquet")
         call = _read_snapshot("skew_call.parquet")
@@ -722,37 +727,66 @@ def _mock_skew(tickers, start, end) -> dict:
     return _frame3(put, call, {c: atm[c] for c in atm.columns}, tickers)
 
 
-def _bloomberg_skew(tickers, start, end) -> dict:
+def _bloomberg_skew(tickers, start, end, atm_frame=None) -> dict:
     from xbbg import blp
     start, end = _span(start, end)
     fx = _fx_override_tickers(tickers)                  # OTC 25Δ risk reversal
     listed = [t for t in tickers if t not in set(fx)]   # 90/110% moneyness wings
     put, call, atm = {}, {}, {}
 
+    def _shared(t):
+        """The ticker's column from the shared implied-vol frame — only where that
+        frame's source is the same 100%-mny surface pillar / FX V1M this function
+        would pull itself (Euribor's composite field ≠ the surface: stays out,
+        exactly as its empty surface pull kept it out before)."""
+        if atm_frame is None or t not in getattr(atm_frame, "columns", []):
+            return None
+        if t not in fx and IMPLIED_VOL_OVERRIDE.get(t, (t, IMPLIED_VOL_FIELD))[1] != IMPLIED_VOL_FIELD:
+            return None
+        s = atm_frame[t]
+        return s if s.notna().any() else None
+
     if listed:
-        # 90/110/100% moneyness wings — one batched bdh per field (3 calls total).
+        # 90/110% moneyness wings — one batched bdh per field; the 100% ATM pillar
+        # comes from the shared implied-vol frame when given (it is the SAME field),
+        # else its own bdh as before.
         w_put = _bdh_to_wide(blp.bdh(tickers=listed, flds=SKEW_PUT_FIELD, start_date=start, end_date=end))
         w_call = _bdh_to_wide(blp.bdh(tickers=listed, flds=SKEW_CALL_FIELD, start_date=start, end_date=end))
-        w_atm = _bdh_to_wide(blp.bdh(tickers=listed, flds=SKEW_ATM_FIELD, start_date=start, end_date=end))
+        w_atm = (None if atm_frame is not None else
+                 _bdh_to_wide(blp.bdh(tickers=listed, flds=SKEW_ATM_FIELD, start_date=start, end_date=end)))
         for t in listed:
-            if all(w is not None and t in w.columns and w[t].notna().any()
-                   for w in (w_put, w_call, w_atm)):
-                put[t], call[t], atm[t] = w_put[t], w_call[t], w_atm[t]
+            a = _shared(t) if atm_frame is not None else (
+                w_atm[t] if w_atm is not None and t in w_atm.columns and w_atm[t].notna().any() else None)
+            if a is not None and all(w is not None and t in w.columns and w[t].notna().any()
+                                     for w in (w_put, w_call)):
+                put[t], call[t], atm[t] = w_put[t], w_call[t], a
 
     if fx:
         atm_src = {t: IMPLIED_VOL_OVERRIDE[t][0] for t in fx}               # xxxV1M Curncy
         rr_src = {t: atm_src[t].replace("V1M", "25R1M") for t in fx}        # 25Δ risk reversal
         bf_src = {t: atm_src[t].replace("V1M", "25B1M") for t in fx}        # 25Δ butterfly
-        w_atm = _bdh_to_wide(blp.bdh(tickers=sorted(set(atm_src.values())), flds="PX_LAST", start_date=start, end_date=end))
+        w_atm = (None if atm_frame is not None else
+                 _bdh_to_wide(blp.bdh(tickers=sorted(set(atm_src.values())), flds="PX_LAST", start_date=start, end_date=end)))
         w_rr = _bdh_to_wide(blp.bdh(tickers=sorted(set(rr_src.values())), flds="PX_LAST", start_date=start, end_date=end))
         w_bf = _bdh_to_wide(blp.bdh(tickers=sorted(set(bf_src.values())), flds="PX_LAST", start_date=start, end_date=end))
         for t in fx:
             a, r, b = atm_src[t], rr_src[t], bf_src[t]
-            if w_atm is None or a not in w_atm.columns or not w_atm[a].notna().any():
+            if atm_frame is not None:
+                # KNOWN, ACCEPTED divergence from the old triple-pull (review
+                # 2026-08-18): the shared frame is _ffill_internal'ed, so on a
+                # vendor-gap date where V1M is missing but the RR still prints, the
+                # wing = carried ATM + TODAY's RR/BF (old path carried the WHOLE
+                # previous wing). More truthful on those rare dates; identical on
+                # every date where V1M prints.
+                A = _shared(t)
+            else:
+                A = (w_atm[a] if w_atm is not None and a in w_atm.columns
+                     and w_atm[a].notna().any() else None)
+            if A is None:
                 continue
             if w_rr is None or r not in w_rr.columns or not w_rr[r].notna().any():
                 continue
-            A, RR = w_atm[a], w_rr[r]
+            RR = w_rr[r]
             BF = w_bf[b] if (w_bf is not None and b in w_bf.columns) else 0.0
             # 25Δ wings (RR = call − put): call = ATM + BF + RR/2; put = ATM + BF − RR/2.
             # (put − call)/ATM = −RR/ATM is exact regardless of the butterfly.
@@ -782,12 +816,16 @@ TENORS = [
 TENOR_LABELS = [lab for lab, *_ in TENORS]
 
 
-def get_term_structure(tickers, start=None, end=None) -> dict:
+def get_term_structure(tickers, start=None, end=None, atm=None) -> dict:
     """Per-tenor ATM implied-vol histories {'1M','3M','6M','12M'} (vol points,
-    date-indexed, one column per ticker). Mode-agnostic seam like the others."""
+    date-indexed, one column per ticker). Mode-agnostic seam like the others.
+
+    atm: an already-pulled get_implied_vol_history frame — the 1M tenor IS that
+    field (and FX's V1M), so passing the morning's frame skips the identical bdh
+    (2026-08-18 dedupe); None pulls it as before."""
     tickers = list(tickers)
     if MODE == "bloomberg":
-        return _bloomberg_term_structure(tickers, start, end)
+        return _bloomberg_term_structure(tickers, start, end, atm_frame=atm)
     if MODE == "snapshot":
         frames = {lab: _read_snapshot(f"term_{lab.lower()}.parquet") for lab in TENOR_LABELS}
         if all(f is not None for f in frames.values()):
@@ -818,7 +856,7 @@ def _mock_term_structure(tickers, start, end) -> dict:
     return out
 
 
-def _bloomberg_term_structure(tickers, start, end) -> dict:
+def _bloomberg_term_structure(tickers, start, end, atm_frame=None) -> dict:
     from xbbg import blp
     start, end = _span(start, end)
     fx = _fx_override_tickers(tickers)
@@ -826,6 +864,22 @@ def _bloomberg_term_structure(tickers, start, end) -> dict:
     out = {}
     for lab, fld, tok, _win in TENORS:
         cols = {}
+        # The 1M tenor is the implied-vol field itself (listed: the 30DAY 100%-mny
+        # pillar; FX: V1M) — reuse the shared frame instead of re-pulling it. Only
+        # products whose implied-vol source IS that pillar qualify (Euribor's
+        # composite stays out, matching its empty surface pull before).
+        if lab == "1M" and atm_frame is not None:
+            for t in tickers:
+                if t not in getattr(atm_frame, "columns", []):
+                    continue
+                if t not in set(fx) and \
+                        IMPLIED_VOL_OVERRIDE.get(t, (t, IMPLIED_VOL_FIELD))[1] != IMPLIED_VOL_FIELD:
+                    continue
+                if atm_frame[t].notna().any():
+                    cols[t] = atm_frame[t]
+            out[lab] = (_ffill_internal(pd.DataFrame(cols).sort_index().reindex(columns=list(tickers)))
+                        if cols else pd.DataFrame(columns=list(tickers)))
+            continue
         if listed:                                  # surface ATM at this maturity
             w = _bdh_to_wide(blp.bdh(tickers=listed, flds=fld, start_date=start, end_date=end))
             if w is not None:
@@ -1023,8 +1077,10 @@ OI_LIVE_MAX_CONTRACTS = 28     # walk the option chain across the nearest N DATE
 
 # The OI snapshot captures option chains for these 11 FIXED-INCOME products ONLY (the Fixed
 # Income book) — pulling more, or more often, would burn reference-data limits, and this is a
-# rates tool. MUST stay in sync with FI_OI_PAGES in app.py. Every other product pulls its chain
-# LIVE on demand (bloomberg mode, one at a time, when you open it).
+# rates tool. MUST stay in sync with FI_OI_PAGES in app.py. Products outside this list serve
+# ONLY what the weekly capture holds — on-demand live chain pulls were removed 2026-08-18
+# (they were the app's one unbounded Bloomberg spend); get_oi_chain(live=True) is the weekly
+# job's sanctioned pull.
 OI_SNAPSHOT_TICKERS = (
     "ERA Comdty", "SFIA Comdty", "SFRA Comdty",                   # 3M Euribor · SONIA · SOFR
     "TUA Comdty", "FVA Comdty", "TYA Comdty", "USA Comdty",       # US 2Y · 5Y · 10Y · Long Bond
@@ -1037,7 +1093,7 @@ _MONTH_CODE = {"F": 1, "G": 2, "H": 3, "J": 4, "K": 5, "M": 6,
 
 def get_oi_chain(ticker: str, n_expiries: int = OI_CHAIN_EXPIRIES,
                  n_strikes: int | None = None, step: float | None = None,
-                 width: float | None = None) -> pd.DataFrame:
+                 width: float | None = None, live: bool = False) -> pd.DataFrame:
     """One product's listed-option OPEN INTEREST as a tidy strike×expiry grid:
     columns ['expiry','expiry_label','strike','call_oi','put_oi'] (one row per strike
     per expiry). The heatmap sums call+put per cell. Mode-agnostic seam: bloomberg
@@ -1051,9 +1107,18 @@ def get_oi_chain(ticker: str, n_expiries: int = OI_CHAIN_EXPIRIES,
 
     `step` / `width` are MOCK-only hints (ignored live): the strike increment and the
     open-interest concentration half-width, both in PRICE units. Omitted → asset-class
-    defaults (fixed income needs a far finer grid than equities — see _asset_chain_defaults)."""
-    if MODE == "bloomberg":
+    defaults (fixed income needs a far finer grid than equities — see _asset_chain_defaults).
+
+    `live=True` is the ONLY path that pulls a chain from Bloomberg (the weekly --oi
+    capture). Since 2026-08-18 bloomberg mode otherwise serves the cached weekly
+    grid like snapshot mode: a chain pull is up to ~29 bds + a ~1,900-security bdp
+    PER PRODUCT, and the on-demand page path was the one unbounded Bloomberg spend
+    in the app. In bloomberg mode a product missing from the capture returns EMPTY
+    (never mock — synthetic OI must not render as real data)."""
+    if MODE == "bloomberg" and live:
         chain = _bloomberg_oi_chain(ticker)
+    elif MODE == "bloomberg":
+        chain = _read_oi_snapshot(ticker)              # cached weekly capture only
     elif MODE == "snapshot":
         chain = _read_oi_snapshot(ticker)
         if chain is None:

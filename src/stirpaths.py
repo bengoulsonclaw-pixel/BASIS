@@ -713,8 +713,10 @@ def refresh_fixings(asof: date, lookback_days: int = 130) -> dict[str, int]:
             store = json.loads(_FIX_STORE.read_text(encoding="utf-8"))
         except Exception:
             store = {}
+        from . import pullguard
         start = (asof - timedelta(days=lookback_days)).isoformat()
         for bk, tk in FIXING_TICKERS.items():
+            pullguard.add_hits(1)                   # usage ledger
             df = blp.bdh(tk, "PX_LAST", start, asof.isoformat())
             if df is None or df.empty:
                 continue
@@ -820,8 +822,10 @@ def refresh_strip_store(asof: date) -> int:
         return 0
     try:
         from xbbg import blp
+        from . import pullguard
         contracts = [c for _, c in pull_universe(asof)]
         tickers = [f"{c.code} Comdty" for c in contracts]
+        pullguard.add_hits(len(tickers) * 2)        # usage ledger: spend on request
         df = blp.bdp(tickers, ["PX_LAST", "PX_SETTLE"])
         if df is None or df.empty:
             _strip_error_write("reference pull", f"empty response for {len(tickers)} tickers "

@@ -38,7 +38,27 @@ EQ_SOURCE = os.getenv("BASIS_EQ_SOURCE", "yfinance").strip().lower()
 
 
 def _use_yf() -> bool:
-    return EQ_SOURCE == "yfinance" and yfin.available()
+    """True = serve equities from Yahoo. Bloomberg equities paths run ONLY on an
+    explicit BASIS_EQ_SOURCE=bloomberg. A yfinance import failure used to return
+    False here and silently re-arm every Bloomberg path — including the ~70k-hit
+    fundamentals pull that triggered the July 2026 workflow-review block — so
+    since 2026-08-18 it FAILS LOUD instead."""
+    if EQ_SOURCE != "yfinance":
+        return False
+    if not yfin.available():
+        # Off-Bloomberg (snapshot/mock — e.g. the view-only VPS) every _bloomberg_*
+        # branch is MODE-gated and unreachable, so a broken yfinance costs nothing:
+        # return False and let the pages serve their cached parquets. The raise is
+        # reserved for bloomberg mode, where False WOULD re-arm the Terminal pulls.
+        if datafeed.MODE != "bloomberg":
+            return False
+        raise RuntimeError(
+            "yfinance is unavailable (import failed) — the Equities side runs on Yahoo, and "
+            "falling back to Bloomberg is disabled (a silent fallback here once re-armed the "
+            "~70k-hit fundamentals pull that tripped Bloomberg's workflow review). "
+            "Fix: `pip install yfinance` in the .venv — or set BASIS_EQ_SOURCE=bloomberg "
+            "ONLY if you explicitly want Terminal-first equities pulls.")
+    return True
 
 _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "equities"
 _CONSTITUENTS_FILE = _DATA_DIR / "constituents.json"   # bloomberg-refreshed cache (snapshot mode reads it)

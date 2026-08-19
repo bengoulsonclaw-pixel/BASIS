@@ -15077,8 +15077,9 @@ if active == "Open Interest":
     st.markdown("##### Explore a single product")
     _all_products = st.checkbox(
         "Include all products (ad-hoc)", value=False, key="oi_all",
-        help="Off = the 11 fixed-income products this page focuses on. On = every product — those "
-             "aren't in the weekly snapshot, so they pull live on demand (run in Bloomberg mode).")
+        help="Off = the 11 fixed-income products this page focuses on. On = every product — but only "
+             "the weekly capture is served: products outside it show no chain. (On-demand live chain "
+             "pulls were removed 2026-08-18 — they were the app's one unbounded Bloomberg spend.)")
     _fi_order = [tk for grp in FI_OI_PAGES for (tk, _s, _w) in grp["items"] if tk in INSTRUMENTS]
     _pick = _oi_order if _all_products else _fi_order
     if _pick and st.session_state.get("oi_sel") not in _pick:   # keep the selection valid as the list flips
@@ -15094,10 +15095,14 @@ if active == "Open Interest":
 
     chain = get_oi_chain(sel, n_expiries=n_exp, n_strikes=n_k)
     if chain is None or chain.empty:
-        if MODE == "snapshot" and sel not in OI_SNAPSHOT_TICKERS:
+        if sel not in OI_SNAPSHOT_TICKERS:
             st.info(f"**{INSTRUMENTS[sel][0]}** isn't in the weekly fixed-income OI capture (the 11 core "
-                    "rates products). Its chain pulls live on demand: run in **Bloomberg mode** (Terminal "
-                    "open) to view it.")
+                    "rates products), and on-demand live chain pulls are disabled (Bloomberg budget, "
+                    "2026-08-18). Ask to add it to the weekly capture if it's needed regularly.")
+        elif _oi_asof == "never":
+            st.warning("The weekly OI capture hasn't run yet, so there's no chain data to show for ANY "
+                       "product — this is not a data problem with this product. Click **↻ Refresh OI "
+                       "data** above with the Terminal logged in (Mondays) to build it.")
         else:
             st.info("No listed-option open interest is available for this product (its options may be thin or "
                     "trade OTC). Pick another product.")
@@ -15153,11 +15158,18 @@ if active == "Open Interest":
         _safe = INSTRUMENTS[sel][0].replace(" ", "_").replace("/", "-")
         _oi_render_pdf(_oi_input_frame([sel], n_exp, n_k), "single",
                        f"Open_Interest_{_safe}.pdf", f"Rendering open-interest heatmap… ({INSTRUMENTS[sel][0]})")
-    # Whole-book (every product) is an AD-HOC cross-asset export — only when "all products" is on,
-    # since it pulls every chain live (heavy). The page's default deliverable is the FI book above.
-    if IS_ADMIN and _all_products and st.button("📚 Whole-book PDF (all products · ad-hoc · pulls every chain live)"):
-        _oi_render_pdf(_oi_input_frame(_oi_order, 6, 13), "book",
+    # Whole-book is an AD-HOC cross-asset export — only when "all products" is on. Since
+    # 2026-08-18 it renders ONLY products present in the weekly capture (live chain pulls
+    # removed); products outside it are listed as skipped rather than silently dropped.
+    if IS_ADMIN and _all_products and st.button("📚 Whole-book PDF (all captured products · ad-hoc)"):
+        _book_frame = _oi_input_frame(_oi_order, 6, 13)
+        _oi_render_pdf(_book_frame, "book",
                        "Open_Interest_Whole_Book.pdf", "Rendering open-interest heatmaps… (whole book)")
+        _in_book = set(_book_frame["ticker"]) if not _book_frame.empty else set()
+        _book_missing = [INSTRUMENTS[t][0] for t in _oi_order if t not in _in_book]
+        if _book_missing:
+            st.caption(f"Skipped (not in the weekly OI capture): {len(_book_missing)} products — "
+                       + ", ".join(_book_missing[:12]) + (" …" if len(_book_missing) > 12 else "."))
 
     if st.session_state.get("oi_pdf"):
         st.download_button(

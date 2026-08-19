@@ -49,13 +49,16 @@ def _oi_chain_frame(tickers) -> pd.DataFrame:
     """The 11 fixed-income products' listed-option chains (full strike grid, the strip of
     expiries) as one tidy LONG frame with a `ticker` column — the shape _read_oi_snapshot
     expects. Only OI_SNAPSHOT_TICKERS are captured (the Fixed Income book): this is a rates
-    tool and pulling more / more often would burn data limits — other products pull their chain
-    LIVE on demand. This seam lets the Open Interest report show REAL numbers in snapshot mode."""
+    tool and pulling more / more often would burn data limits — products outside the capture
+    show no chain (on-demand live pulls removed 2026-08-18). This seam lets the Open Interest
+    report show REAL numbers in snapshot mode."""
     fi = [t for t in tickers if t in OI_SNAPSHOT_TICKERS]
     frames = []
     for t in fi:
         try:
-            c = get_oi_chain(t, n_expiries=OI_CHAIN_CAPTURE_EXPIRIES, n_strikes=None)
+            # live=True: the weekly capture is THE one sanctioned chain pull —
+            # every other get_oi_chain caller serves this job's cached output
+            c = get_oi_chain(t, n_expiries=OI_CHAIN_CAPTURE_EXPIRIES, n_strikes=None, live=True)
         except Exception:
             c = None
         if c is not None and not c.empty:
@@ -219,7 +222,12 @@ def run_equities() -> dict:
         # On the Yahoo source the quotes/history/fundamentals legs cost ZERO Bloomberg hits —
         # only the membership meta pull (name/sector per constituent) touches the Terminal.
         from src import equities as _eq
-        if _eq._use_yf():
+        try:
+            _yf = _eq._use_yf()
+        except Exception as _e:      # fail-loud guard — a cosmetic print must never abort
+            _yf = False              # the job after every pull leg degraded gracefully
+            print(f"  (equities source check: {_e})")
+        if _yf:
             print("  Bloomberg hits this pull: ZERO — membership from the free ETF holdings "
                   "files, quotes/history/fundamentals from Yahoo Finance.")
         else:
@@ -287,13 +295,15 @@ def _fetch_phase() -> dict | None:
     """Everything that TOUCHES BLOOMBERG, and nothing else — once this returns, the
     Terminal can be closed. Returns None when the guard bails (no price data)."""
     tickers = list(INSTRUMENTS)
-    # Rough hit budget (a "hit" = security x field, Bloomberg's daily-capacity unit): the FICC
-    # pull touches ~20 fields per contract across prices/yields/vols/skew/term/put-call/live.
-    print(f"  Estimated Bloomberg hits this pull: ~{len(tickers) * 20:,} (security x field, rough)")
     # Pull guard: surface review-risk flags (new securities / off-hours / weekend) in the
-    # log too, so CLI + scheduled runs see the same warnings the app button shows.
+    # log too, so CLI + scheduled runs see the same warnings the app button shows. Also
+    # reset the runtime hit tally — every variable-size pull site (option chains, strike
+    # ladders, deep-store groups) reports into it, and the FIXED datafeed legs are counted
+    # analytically below, so the ledger records what Bloomberg actually saw (the old
+    # len(tickers)*20 print under-counted the morning ~4-5x).
     try:
         from src import pullguard
+        pullguard.reset_hits()
         for w in pullguard.assess():
             print(f"  PULL GUARD: {w}")
     except Exception:
@@ -318,8 +328,11 @@ def _fetch_phase() -> dict | None:
     ylds = get_yield_history(tickers)                 # benchmark yields for bond futures (FI TA)
     volume = get_volume_history(tickers, raw=True)    # daily contract volume (flag confirmation)
     iv = get_implied_vol_history(tickers)
-    skew = get_skew_components(tickers)
-    ts = get_term_structure(tickers)
+    # atm=iv: the 100%-mny pillar / FX V1M is the SAME series the implied-vol pull just
+    # fetched — sharing the frame cuts two identical ~89-name bdh calls per morning
+    # (it was pulled three times daily until 2026-08-18).
+    skew = get_skew_components(tickers, atm=iv)
+    ts = get_term_structure(tickers, atm=iv)
     pc = get_putcall(tickers)                         # options OI & volume, puts vs calls
     live = get_live_quote(tickers)                    # current px vs prior settle (CHG_*_1D)
     live_as_of = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -340,8 +353,20 @@ def _fetch_phase() -> dict | None:
     # last capture in place — the compute phase's manifest carries its count + date forward.
     live.rename_axis("ticker").reset_index().to_parquet(SNAP / "live.parquet", index=False)  # ticker-indexed
 
-    # Extend the persistent ~10y COT price DB (incremental: only the new dates). This is
-    # the Bloomberg-connected moment, so it's where the DB grows; the signal REBUILD off
+    # Extend the deep '1'-generic price store (TA Backtester's ~10y roll-adjusted
+    # history, src/deepstore.py). Self-healing: the first run (or any truncated
+    # ticker) backfills the full depth, after that it's a ~10-day tail. MUST run
+    # before the COT DB below, which mirrors from it since 2026-08-18.
+    try:
+        from src import deepstore
+        dstore = deepstore.update(log=print)
+        print(f"  Deep price store: {dstore.shape[0]} dates x {dstore.shape[1]} markets")
+    except Exception as e:
+        print(f"  (deep price store update skipped: {e})")
+
+    # Extend the persistent ~10y COT price DB. Since 2026-08-18 this is a MIRROR of
+    # the deep store's raw '1'-generic frame (identical series — the 47 COT markets
+    # are a subset of the book), not a second Bloomberg pull; the signal REBUILD off
     # it is pure math and runs in the compute phase.
     try:
         from src import cotdata
@@ -349,16 +374,6 @@ def _fetch_phase() -> dict | None:
         print(f"  COT price DB: {store.shape[0]} dates x {store.shape[1]} markets")
     except Exception as e:
         print(f"  (COT price DB update skipped: {e})")
-
-    # Extend the deep '1'-generic price store (TA Backtester's ~10y roll-adjusted
-    # history, src/deepstore.py). Self-healing like the COT DB: the first run (or any
-    # truncated ticker) backfills the full depth, after that it's a ~10-day tail.
-    try:
-        from src import deepstore
-        dstore = deepstore.update(log=print)
-        print(f"  Deep price store: {dstore.shape[0]} dates x {dstore.shape[1]} markets")
-    except Exception as e:
-        print(f"  (deep price store update skipped: {e})")
 
     # Our own constant-90d STIR ATM curve (settlement-inverted, src/stircurve.py) — top up
     # the last ~2 weeks so settles finalise and expiries roll. Backfilled 13 months 2026-07-22.
@@ -373,6 +388,7 @@ def _fetch_phase() -> dict | None:
     # meeting-risk cockpit runs on. The pages themselves NEVER pull Bloomberg — this
     # morning leg (one batched bdp, ~72 tickers, + 3 index bdh) is their only feed
     # apart from each page's explicit "⚡ Live pull" button.
+    n_stir = 0
     try:
         from src import stirpaths
         n_stir = stirpaths.refresh_strip_store(pd.Timestamp.now().date())
@@ -424,10 +440,32 @@ def _fetch_phase() -> dict | None:
         {"source": MODE, "fetched_at": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}))
 
     # Our own usage ledger (data/pull_log.csv) + absorb any new tickers into the known
-    # set — the record we'd hand Bloomberg if a workflow review ever asks again.
+    # set — the record we'd hand Bloomberg if a workflow review ever asks again. The
+    # fixed datafeed legs are counted from their actual request structure; the runtime
+    # tally (get_hits) adds everything the instrumented modules spent (own-curve chains,
+    # STIR strike ladders, deep-store groups, skew drip).
     try:
         from src import pullguard
-        pullguard.record("morning snapshot", tickers, est_hits=len(tickers) * 20)
+        from src import universe as _uni
+        from src.datafeed import _fx_override_tickers
+        n, n_fx = len(tickers), len(_fx_override_tickers(tickers))
+        n_listed = n - n_fx
+        n_ysrc = len({_uni.yield_source(t) for t in tickers if _uni.yield_source(t)})
+        fixed = (n                    # prices (PX_SETTLE / PX_LAST)
+                 + n_ysrc             # yields (11 distinct benchmark sources)
+                 + n                  # volume (FUT_AGGTE_VOL)
+                 + n + 1              # implied vol (Euribor composite = 2 legs)
+                 + n_listed * 2 + n_fx * 2   # skew put+call wings (ATM shared since 2026-08-18)
+                 + n_listed * 3 + n_fx * 3   # term 3M/6M/12M (1M shared since 2026-08-18)
+                 + n * 4              # put/call OI + volume
+                 + n * 3)             # live quote bdp
+        # (STIR strips + fixings count themselves through the runtime tally — the
+        #  analytic term booked phantom fixings on failed pulls and missed the
+        #  ~144-hit failed batch entirely; review 2026-08-18.)
+        est = fixed + pullguard.get_hits()
+        print(f"  Bloomberg hits this pull: ~{est:,} "
+              f"({fixed:,} fixed legs + {pullguard.get_hits():,} chains/ladders/stores)")
+        pullguard.record("morning snapshot", tickers, est_hits=est)
     except Exception:
         pass
 

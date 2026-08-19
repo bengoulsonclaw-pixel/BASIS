@@ -4,11 +4,13 @@ construction (src/stircurve.py) generalised to every product with listed options
 Per product, per day:
   1. Walk the futures chain; for each front contract pull the live option chain and
      group it into option SERIES (quarterlies + serials each carry their own expiry).
-  2. Per series: the ATM strike nearest the underlying future's settle, the ATM call
-     and put settlement premiums inverted through Black-76 on the FUTURES PRICE
-     (lognormal, ACT/365, no discounting — the same convention family as the STIR
-     inversion, which works on the implied rate instead), the two vols MID-ed, and
-     the pair's open interest kept as the pillar's weight.
+  2. Per series: the two listed options BRACKETING each smile marker (ATM plus
+     80/90/110/120% moneyness — puts below the money, calls above), settlement
+     premiums inverted through Black-76 on the FUTURES PRICE (lognormal, ACT/365,
+     no discounting — the same convention family as the STIR inversion, which
+     works on the implied rate instead), then interpolated IN STRIKE to the exact
+     marker level, so every point is true constant-moneyness rather than the
+     nearest listed strike. The ATM pair's open interest is the pillar's weight.
   3. Across ~5 expiries: fit the 3-parameter decaying term structure
         sigma(T) = sigma_L + (sigma_S - sigma_L) * exp(-T / tau)
      by WEIGHTED least squares (tau on a log grid -> the rest is closed-form linear
@@ -38,7 +40,14 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT_FILE = ROOT / "data" / "snapshot" / "own30_curve.parquet"
 
 MIN_DTE = 7                  # a dying front option prints noise, not vol
-MAX_FUTS = 6                 # futures contracts to walk per product
+MAX_FUTS = 6                 # ceiling: futures contracts to walk per product
+LEAN_FUTS = 5                # the normal walk since 2026-08-18. The 6th chain is NOT
+                             # always waste: in front-expiry weeks the front series dies
+                             # on MIN_DTE and the 6th future's series becomes the 5th
+                             # pillar (review proof: CL/DF marks of 2026-08-13). So the
+                             # walk is 6 only when yesterday's marks show a series
+                             # expiring within MIN_DTE+3 days (or no prior marks exist),
+                             # else 5 — the buffer exactly when it's load-bearing.
 N_EXPIRIES = 5               # option expiries (pillars) to collect
 MIN_PREMIUM = 1e-4           # relative to the future's price scale, see _min_prem
 
@@ -163,6 +172,8 @@ def _first(r):
 
 def _bds(ticker, fld, **kw):
     from xbbg import blp
+    from . import pullguard
+    pullguard.add_hits(1)                              # usage ledger: 1 bulk request
     try:
         return _rows(blp.bds(ticker, fld, **kw))
     except Exception:
@@ -172,6 +183,8 @@ def _bds(ticker, fld, **kw):
 def _bdp(ticker, fld):
     from xbbg import blp
     from .datafeed import _coerce_pd
+    from . import pullguard
+    pullguard.add_hits(1)
     try:
         pdf = _coerce_pd(blp.bdp(ticker, fld))
         if pdf is None or len(pdf) == 0:
@@ -206,6 +219,54 @@ def _parse_chain(fut: str):
     return series
 
 
+CHAIN_CACHE_FILE = ROOT / "data" / "snapshot" / "opt_chain_cache.json"
+CHAIN_CACHE_DAYS = 7           # strike ladders change on listing cycles, not daily
+
+
+def _chain_for(fut: str, force: bool = False):
+    """_parse_chain behind a 7-day disk cache — the bds OPT_CHAIN discovery was
+    ~250 requests every morning for strike lists that barely change. Returns
+    (series, from_cache); the caller force-refreshes when the future's settle has
+    walked off the cached ladder. A failed live pull falls back to a stale cached
+    copy rather than dropping the product for the day."""
+    import json as _json
+    try:
+        cache = _json.loads(CHAIN_CACHE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        cache = {}
+
+    def _load(ent):
+        return {r: {float(k): tuple(v) for k, v in s.items()}
+                for r, s in ent["series"].items()}
+
+    ent = cache.get(fut)
+    if ent and not force:
+        try:
+            age = (pd.Timestamp.today().normalize() - pd.Timestamp(ent["asof"])).days
+            series = _load(ent)
+            if age <= CHAIN_CACHE_DAYS and series:
+                return series, True
+        except Exception:
+            pass
+    series = _parse_chain(fut)
+    if series:
+        cache[fut] = {"asof": str(pd.Timestamp.today().date()),
+                      "series": {r: {str(k): list(v) for k, v in s.items()}
+                                 for r, s in series.items()}}
+        try:
+            CHAIN_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            CHAIN_CACHE_FILE.write_text(_json.dumps(cache), encoding="utf-8")
+        except Exception:
+            pass
+        return series, False
+    if ent:
+        try:
+            return _load(ent), True
+        except Exception:
+            pass
+    return {}, False
+
+
 def _strike_scale(strikes, F: float) -> float:
     """Strike/price UNIT reconciliation (RBOB futures print 2.38 while its strikes
     list in cents, etc.): pick the decimal scaling that puts the strike grid's
@@ -216,8 +277,17 @@ def _strike_scale(strikes, F: float) -> float:
     return min((1.0, 0.1, 0.01, 10.0, 100.0), key=lambda s: abs(math.log((med * s) / F)))
 
 
-SKEW_WINGS = (0.90, 1.10)      # vendor-matching moneyness: put wing / call wing
-WING_TOL = 0.03                # nearest listed strike must sit within 3 moneyness pts
+SKEW_WINGS = (0.90, 1.10)      # vendor-matching moneyness: the headline skew pair
+WING_TOL = 0.03                # near markers: a bracketing strike within 3 mny pts
+FAR_TOL = 0.05                 # far wings: strike grids coarsen away from the money
+ATM_TOL = 0.05                 # ATM bracketing gate before the straddle fallback
+
+# The five-point smile (Ben's 2026-08-18 spec): each marker's vol comes from the
+# TWO listed options bracketing the exact level — puts below the money, calls
+# above — inverted separately and interpolated in strike, replacing the single
+# nearest-strike pick.   key -> (moneyness, is_call, tolerance)
+SMILE_MARKERS = {"p80": (0.80, False, FAR_TOL), "p90": (0.90, False, WING_TOL),
+                 "c110": (1.10, True, WING_TOL), "c120": (1.20, True, FAR_TOL)}
 
 
 def _bdp_many(tickers, fields) -> dict:
@@ -225,9 +295,11 @@ def _bdp_many(tickers, fields) -> dict:
     reason the Terminal-connected window shrank: the serial one-security _bdp calls
     were thousands of round-trips (10-20 min); batches take seconds."""
     from xbbg import blp
+    from . import pullguard
     from .datafeed import _bdp_rows, _coerce_pd
     if not tickers:
         return {}
+    pullguard.add_hits(len(list(tickers)) * len(list(fields)))   # usage ledger
     try:
         return _bdp_rows(_coerce_pd(blp.bdp(list(tickers), list(fields)))) or {}
     except Exception:
@@ -239,50 +311,86 @@ def _field(rowmap: dict, ticker: str, field: str):
     return None if v is None or (isinstance(v, float) and pd.isna(v)) else v
 
 
-def fetch_product_marks(generic: str, log=print) -> dict:
-    """The BLOOMBERG HALF of the pillar build for one product: walk the chains,
-    choose the ATM + wing candidate tickers locally, and pull their fields in TWO
-    batched requests. Returns a JSON-able marks record — everything the (pure-math)
-    assembly needs, so the Terminal can be closed before any curve is fitted.
-    Series are stored in the legacy traversal order (futures-chain order, series
-    roots sorted) so assembly reproduces the serial path's output exactly."""
+def fetch_product_marks(generic: str, log=print, max_futs: int | None = None) -> dict:
+    """The BLOOMBERG HALF of the pillar build for one product: walk the chains
+    (option-chain lists via the 7-day disk cache), choose the BRACKETING option
+    pair at every smile marker locally, and pull their fields in TWO batched
+    requests. Per series: ATM = the OTM put just below the future's settle + the
+    OTM call just above (one straddle when the settle lands exactly on a strike);
+    each smile marker (80/90/110/120% moneyness) = the two listed strikes around
+    the exact level. Assembly interpolates the inverted vols in strike, so every
+    mark is true constant-moneyness. Returns a JSON-able marks record —
+    everything the (pure-math) assembly needs, so the Terminal can be closed
+    before any curve is fitted."""
+    n_futs = MAX_FUTS if max_futs is None else max(1, min(int(max_futs), MAX_FUTS))
     futs = []
     for r in _bds(generic, "FUT_CHAIN"):
         tk = _first(r)
         if tk:
             futs.append(tk if tk.split()[-1] in ("Comdty", "Index") else tk + " Comdty")
-        if len(futs) >= MAX_FUTS:
+        if len(futs) >= n_futs:
             break
     fmap = _bdp_many(futs, ["PX_SETTLE", "PX_LAST"])
-    series_recs, atm_tks, wing_tks = [], [], []
+
+    def _series_recs(F: float, chain: dict) -> tuple:
+        recs, bracketed = [], False
+        for root, strikes in sorted(chain.items()):
+            scale = _strike_scale(strikes.keys(), F)   # strike + premium quote units
+            calls = {k: v[0] for k, v in strikes.items() if v[0]}
+            puts = {k: v[1] for k, v in strikes.items() if v[1]}
+            atm_pts = []
+            k_lo = max((k for k in puts if k * scale <= F), default=None)
+            k_hi = min((k for k in calls if k * scale >= F), default=None)
+            if k_lo is not None and (F - k_lo * scale) / F <= ATM_TOL:
+                atm_pts.append({"k": float(k_lo), "tk": puts[k_lo], "cp": "P"})
+            if k_hi is not None and (k_hi * scale - F) / F <= ATM_TOL:
+                atm_pts.append({"k": float(k_hi), "tk": calls[k_hi], "cp": "C"})
+            if atm_pts:
+                bracketed = True           # a real near-money bracket on this chain
+            else:                          # coarse grid: legacy nearest-straddle fallback
+                both = {k: v for k, v in strikes.items() if v[0] and v[1]}
+                if not both:
+                    continue
+                k0 = sorted(both, key=lambda k: abs(k * scale - F))[0]
+                if abs(k0 * scale - F) / F > 0.25:     # nothing near the money — skip
+                    continue
+                atm_pts = [{"k": float(k0), "tk": both[k0][1], "cp": "P"},
+                           {"k": float(k0), "tk": both[k0][0], "cp": "C"}]
+            smile = {}
+            for key, (m, is_call, tol) in SMILE_MARKERS.items():
+                cands = calls if is_call else puts
+                target = m * F
+                k_lo = max((k for k in cands if k * scale <= target), default=None)
+                k_hi = min((k for k in cands if k * scale >= target), default=None)
+                pts = [{"k": float(k), "tk": cands[k], "cp": "C" if is_call else "P"}
+                       for k in dict.fromkeys(k for k in (k_lo, k_hi) if k is not None)
+                       if abs(k * scale - target) / F <= tol]
+                if pts:
+                    smile[key] = pts
+            recs.append({"root": root, "F": F, "scale": scale,
+                         "atm": atm_pts, "smile": smile})
+        return recs, bracketed
+
+    series_recs = []
     for fut in futs:
         F = _field(fmap, fut, "PX_SETTLE")
         F = _field(fmap, fut, "PX_LAST") if F is None else F
         if F is None:
             continue
         F = float(F)
-        for root, strikes in sorted(_parse_chain(fut).items()):
-            both = {k: v for k, v in strikes.items() if v[0] and v[1]}
-            if not both:
-                continue
-            scale = _strike_scale(both.keys(), F)      # strike + premium quote units
-            atm = sorted(both, key=lambda k: abs(k * scale - F))[0]
-            if abs(atm * scale - F) / F > 0.25:        # nothing near the money — skip series
-                continue
-            call_tk, put_tk = both[atm]
-            rec = {"root": root, "F": F, "scale": scale, "atm_k": float(atm),
-                   "call_tk": call_tk, "put_tk": put_tk}
-            for target, leg, kk, tt in ((SKEW_WINGS[0], "put", "wp_k", "wp_tk"),
-                                        (SKEW_WINGS[1], "call", "wc_k", "wc_tk")):
-                side = 0 if leg == "call" else 1
-                cands = {k: v[side] for k, v in strikes.items() if v[side]}
-                if cands:
-                    k = sorted(cands, key=lambda x: abs(x * scale - target * F))[0]
-                    if abs(k * scale / F - target) <= WING_TOL:
-                        rec[kk], rec[tt] = float(k), cands[k]
-            series_recs.append(rec)
-            atm_tks += [call_tk, put_tk]
-            wing_tks += [t for t in (rec.get("wp_tk"), rec.get("wc_tk")) if t]
+        chain, cached = _chain_for(fut)
+        recs, ok = _series_recs(F, chain)
+        # Force-refresh the cached ladder when the settle has walked off it — either
+        # completely (no records) or into fallback territory (no series bracketed
+        # within ATM_TOL: the 25%-gate straddle fallback keeping recs alive must not
+        # mask newly listed near-money strikes for a week; review 2026-08-18).
+        if cached and (not recs or not ok):
+            chain, _ = _chain_for(fut, force=True)
+            recs, ok = _series_recs(F, chain)
+        series_recs.extend(recs)
+    atm_tks = [p["tk"] for r in series_recs for p in r["atm"]]
+    wing_tks = [p["tk"] for r in series_recs
+                for pts in r["smile"].values() for p in pts]
     amap = _bdp_many(atm_tks, ["PX_SETTLE", "OPT_EXPIRE_DT", "OPEN_INT"])
     wmap = _bdp_many(wing_tks, ["PX_SETTLE"])
     if atm_tks and not amap:                           # batch failed -> serial fallback
@@ -291,38 +399,91 @@ def fetch_product_marks(generic: str, log=print) -> dict:
                     "OPEN_INT": _bdp(t, "OPEN_INT")} for t in atm_tks}
         wmap = {t: {"PX_SETTLE": _bdp(t, "PX_SETTLE")} for t in wing_tks}
     for rec in series_recs:                            # resolve fields into pure data
-        exp = _field(amap, rec["call_tk"], "OPT_EXPIRE_DT")
+        exp = next((_field(amap, p["tk"], "OPT_EXPIRE_DT") for p in rec["atm"]
+                    if _field(amap, p["tk"], "OPT_EXPIRE_DT") is not None), None)
         rec["exp"] = str(pd.Timestamp(exp).date()) if exp is not None else None
-        for key, tk_key, mp in (("c_px", "call_tk", amap), ("p_px", "put_tk", amap),
-                                ("wp_px", "wp_tk", wmap), ("wc_px", "wc_tk", wmap)):
-            tk = rec.get(tk_key)
-            v = _field(mp, tk, "PX_SETTLE") if tk else None
-            rec[key] = float(v) if v is not None else None
-        oi = [(_field(amap, rec[k], "OPEN_INT")) for k in ("call_tk", "put_tk")]
-        rec["oi"] = float(sum(float(x) for x in oi if x is not None))
+        oi = 0.0
+        for p in rec["atm"]:
+            v = _field(amap, p["tk"], "PX_SETTLE")
+            p["px"] = float(v) if v is not None else None
+            o = _field(amap, p["tk"], "OPEN_INT")
+            oi += float(o) if o is not None else 0.0
+        rec["oi"] = oi
+        for pts in rec["smile"].values():
+            for p in pts:
+                v = _field(wmap, p["tk"], "PX_SETTLE")
+                p["px"] = float(v) if v is not None else None
     return {"asof": str(pd.Timestamp.today().date()), "series": series_recs}
 
 
-def assemble_pillars(marks: dict):
-    """The PURE-MATH half: marks record -> (atm_pillars, skew_pillars), replicating
-    the legacy serial path's gating (MIN_DTE, expiry de-dup, N_EXPIRIES cap, dead-mark
-    floors, wing tolerance) exactly. No Bloomberg — runs Terminal-closed.
+def _interp_marker(pts, target_px: float, F: float, scale: float, dte: float):
+    """Bracketing option points -> ONE vol at the exact target strike: each settle
+    inverted separately (dead-mark floor 0.5 vol), then LINEAR IN STRIKE between
+    the two. A single usable point returns its own vol (the old nearest-strike
+    behaviour, kept as the fallback); a straddle at one strike returns the mid.
+    Interpolation is clamped to the bracket — never extrapolated."""
+    vals = []
+    for p in pts or []:
+        if p.get("px") is None:
+            continue
+        iv = implied_vol_price(p["px"] * scale, F, p["k"] * scale, dte, p["cp"] == "C")
+        if iv is not None and iv > 0.5:
+            vals.append((p["k"] * scale, iv))
+    if not vals:
+        return None
+    if len(vals) == 1:
+        return vals[0][1]
+    (k1, v1), (k2, v2) = sorted(vals)[:2]
+    if k2 - k1 < 1e-12:
+        return 0.5 * (v1 + v2)
+    t = min(max((target_px - k1) / (k2 - k1), 0.0), 1.0)
+    return v1 + (v2 - v1) * t
 
-    atm_pillars: [(dte, atm_mid_vol%, oi_weight, series_root)] — the vol/term book.
-    skew_pillars: [(dte, put90_vol, call110_vol, atm_mid_vol%)] — the OTM put settle
-    inverted at the strike nearest 0.90×F and the OTM call at 1.10×F (the vendor
-    surface's moneyness convention; metric downstream = (put−call)/atm)."""
+
+def assemble_pillars(marks: dict):
+    """The PURE-MATH half: marks record -> (atm_pillars, skew_pillars,
+    smile_pillars), keeping the legacy gating (MIN_DTE, expiry de-dup, N_EXPIRIES
+    cap, dead-mark floors, tolerances). No Bloomberg — runs Terminal-closed.
+
+    atm_pillars: [(dte, atm_vol%, oi_weight, series_root)] — ATM interpolated to
+    the future's exact level from the bracketing OTM put/call (straddle mid when
+    the settle sits on a strike — the legacy convention's degenerate case).
+    skew_pillars: [(dte, put90, call110, atm)] — the headline vendor-convention
+    pair; metric downstream = (put−call)/atm.
+    smile_pillars: [(dte, {p80/p90/atm/c110/c120: vol})] — the five-point smile;
+    markers whose far-OTM settles are dead marks simply drop out of the dict.
+    Legacy marks records (pre-smile cache format) still assemble via the old
+    nearest-strike fields, so a cached marks file from before the changeover
+    keeps working."""
     today = pd.Timestamp.today().normalize()
-    pillars, skews, seen_exp = [], [], set()
+    pillars, skews, smiles, seen_exp = [], [], [], set()
     for rec in (marks or {}).get("series", []):
         if len(pillars) >= N_EXPIRIES:
             break
         if not rec.get("exp"):
             continue
-        F, scale, atm = rec["F"], rec["scale"], rec["atm_k"]
+        F, scale = rec["F"], rec["scale"]
         dte = (pd.Timestamp(rec["exp"]) - today).days
         if dte < MIN_DTE or dte in seen_exp:
             continue
+        if "atm" in rec:                               # new bracketing-format record
+            atm_v = _interp_marker(rec["atm"], F, F, scale, dte)
+            if atm_v is None:
+                continue
+            seen_exp.add(dte)
+            atm_v = float(atm_v)
+            pillars.append((dte, atm_v, rec.get("oi", 0.0), rec["root"]))
+            sm = {"atm": atm_v}
+            for key, (m, _c, _t) in SMILE_MARKERS.items():
+                v = _interp_marker(rec.get("smile", {}).get(key), m * F, F, scale, dte)
+                if v is not None:
+                    sm[key] = float(v)
+            smiles.append((dte, sm))
+            if "p90" in sm and "c110" in sm:
+                skews.append((dte, sm["p90"], sm["c110"], atm_v))
+            continue
+        # legacy record: nearest-strike straddle + single-strike wings
+        atm = rec["atm_k"]
         ivs = [v for v in (
             implied_vol_price(rec["c_px"] * scale, F, atm * scale, dte, True)
             if rec.get("c_px") is not None else None,
@@ -340,9 +501,15 @@ def assemble_pillars(marks: dict):
                 iv = implied_vol_price(rec[pk] * scale, F, rec[kk] * scale, dte, leg == "call")
                 if iv is not None and iv > 0.5:
                     wings[leg] = iv
+        sm = {"atm": atm_mid}
+        if "put" in wings:
+            sm["p90"] = wings["put"]
+        if "call" in wings:
+            sm["c110"] = wings["call"]
+        smiles.append((dte, sm))
         if "put" in wings and "call" in wings:
             skews.append((dte, wings["put"], wings["call"], atm_mid))
-    return sorted(pillars), sorted(skews)
+    return sorted(pillars), sorted(skews), sorted(smiles, key=lambda s: s[0])
 
 
 def product_pillars(generic: str, log=print):
@@ -375,10 +542,27 @@ def fetch_marks(tickers=None, log=print) -> dict:
     the cache without any Bloomberg."""
     import json as _json
     from .universe import name
+
+    def _walk_depth(prior: dict | None) -> int:
+        """LEAN_FUTS normally; MAX_FUTS in front-expiry week (a prior series expires
+        within MIN_DTE+3 days) or when there are no prior marks to judge by — the
+        6th future's series is exactly the buffer pillar in those weeks."""
+        try:
+            today = pd.Timestamp.today().normalize()
+            dtes = [(pd.Timestamp(s["exp"]) - today).days
+                    for s in (prior or {}).get("series", []) if s.get("exp")]
+            return LEAN_FUTS if dtes and min(dtes) >= MIN_DTE + 3 else MAX_FUTS
+        except Exception:
+            return MAX_FUTS
+    try:                                   # yesterday's marks, ANY age — depth hint only
+        prior_products = _json.loads(MARKS_FILE.read_text(encoding="utf-8"))["products"]
+    except Exception:
+        prior_products = {}
+
     out = {}
     for t in (tickers or _book_tickers()):
         try:
-            m = fetch_product_marks(t, log=log)
+            m = fetch_product_marks(t, log=log, max_futs=_walk_depth(prior_products.get(t)))
             if m.get("series"):
                 out[t] = m
                 log(f"  {name(t):24s} marks: {len(m['series'])} series fetched")
@@ -434,9 +618,9 @@ def build_book(tickers=None, log=print, use_marks: bool = False) -> pd.DataFrame
                 if not m:
                     log(f"  {name(t):24s} no marks in cache")
                     continue
-                pil, skw = assemble_pillars(m)
+                pil, skw, sml = assemble_pillars(m)
             else:
-                pil, skw = product_pillars(t, log=log)
+                pil, skw, sml = product_pillars(t, log=log)
         except Exception as e:
             log(f"  {name(t):24s} ERROR {type(e).__name__}: {e}")
             continue
@@ -475,11 +659,20 @@ def build_book(tickers=None, log=print, use_marks: bool = False) -> pd.DataFrame
             if p_v is not None and c_v is not None and ours30 > 0:
                 put30, call30 = round(p_v, 2), round(c_v, 2)
                 skew30 = round((p_v - c_v) / ours30, 4)
+        # far wings (80/120% mny) at constant 30d — sparse by nature: a marker only
+        # exists on expiries whose far-OTM settles carry real premium, so quiet
+        # products legitimately NaN out here while NG etc. populate.
+        far = {}
+        for key in ("p80", "c120"):
+            trip = [(d, s[key], 1.0) for d, s in sml if key in s]
+            v = interp_variance(trip, 30.0) if len(trip) >= 2 else None
+            far[key] = round(v, 2) if v is not None else np.nan
         rec = {"ticker": t, "market": name(t), "n_pillars": len(pil), "method": method,
                "ours30": round(ours30, 2), "ours90": round(ours90, 2),
                "bbg30": round(bbg30[t], 2) if t in bbg30 else np.nan,
                "pillars": detail,
                "own_put30": put30, "own_call30": call30, "own_skew30": skew30,
+               "own_put80": far["p80"], "own_call120": far["c120"],
                "n_skew_pillars": len(skw)}
         rec.update({f"own_{lab.lower()}": tenors[lab] for lab, _ in OWN_TENORS})
         recs.append(rec)
@@ -998,10 +1191,13 @@ def append_today(log=print, use_marks: bool = False) -> None:
     # own skew — RECORDING ONLY for now (the Skew page stays on the vendor surface
     # until this history is backfilled or deep enough to z-score; app carries a note)
     if "own_skew30" in df.columns:
-        sk = df[["ticker", "own_put30", "own_call30", "own_skew30"]].dropna(subset=["own_skew30"])
+        cols = ["ticker", "own_put30", "own_call30", "own_skew30"] + \
+               [c for c in ("own_put80", "own_call120") if c in df.columns]
+        sk = df[cols].dropna(subset=["own_skew30"])
         if len(sk):
             sk = sk.rename(columns={"own_put30": "put", "own_call30": "call",
-                                    "own_skew30": "skew"}).assign(
+                                    "own_skew30": "skew", "own_put80": "put80",
+                                    "own_call120": "call120"}).assign(
                 atm=df.set_index("ticker").loc[sk["ticker"], "ours30"].values, date=stamp)
             try:
                 old = pd.read_parquet(SKEW_HISTORY_FILE)
