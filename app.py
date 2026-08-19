@@ -10905,6 +10905,13 @@ def render_signal_ledger(scope: str = "ficc") -> None:
                    + "Hit = the signal-space move went the signal's way by the horizon. "
                      "σ-move = the mean signed move in trailing-21-session σ units — the "
                      "honest size of the edge, not just its frequency.")
+        if not vote_mode:
+            _cs = tascore.confluence_set(scope)
+            st.caption("🧭 The **Confluence** row is the composite scored on the saved "
+                       f"confluence set — currently **{' · '.join(_cs)}** "
+                       f"({len(_cs)} method{'s' if len(_cs) != 1 else ''}). Change it from "
+                       "the TA hub's Confluence-set picker — **Save as default** re-scores "
+                       "the row's whole history under the new set.")
 
         # ---- product drill-down: which strategies/axes drive that product's record ----
         if by == "Product":
