@@ -886,9 +886,11 @@ def _skewreal_section():
     st.caption("**Gap > 0 = the wing looks cheap against the realized path** (the line predicts "
                "MORE vol at that strike than the wing charges); < 0 = rich. Wings are our own "
                "settlement-built 90/110% marks; the line is fitted on our own ATM history — "
-               "no vendor surface anywhere in this table. ✓ = the daily-changes beta agrees "
-               "with the line's gradient (sign and within 2×); ≈ = one trending regime "
-               "dominated the window — read the gap with care.")
+               "no vendor surface anywhere in this table. **r²** = how much of the vol's "
+               "variation the price level explains (1 = dots on the line, 0 = no relationship — "
+               "the gradient is noise there; ≥0.5 solid, <0.2 ignore the row). ✓ = the "
+               "daily-changes beta agrees with the line's gradient (sign and within 2×); "
+               "≈ = one trending regime dominated the window — read the gap with care.")
 
     pick = st.selectbox("Chart a market (largest wing gap first)", df["market"].tolist(), key="skr_pick")
     tk = df.set_index("market").loc[pick, "ticker"]
