@@ -106,7 +106,28 @@ def scatter_frame(ticker: str, window: int = 126):
             "kind": ["line at put strike", "line at call strike"],
         }),
         "now": pd.DataFrame({"px": [s_now], "iv": [iv_now], "kind": ["today — ATM strike"]}),
+    }
+    # today's fitted SMILE (Ben's five-point spec): quadratic in log-moneyness
+    # through p80/p90/atm/c110/c120, drawn in strike space over the same axes —
+    # implied smile vs the realized-path line, gap visible at EVERY strike
+    from .owncurve import fit_smile, SMILE_MNY
+    marks = {"p80": w.get("put80"), "p90": w.get("put"), "atm": w.get("atm"),
+             "c110": w.get("call"), "c120": w.get("call120")}
+    iv_at, sp = fit_smile(marks)
+    if iv_at is not None:
+        grid = np.linspace(0.78, 1.22, 45)
+        fit["smile"] = pd.DataFrame({"px": s_now * grid, "iv": [iv_at(m) for m in grid]})
+        fit["smile_params"] = sp
+        far = [(k, marks[k]) for k in ("p80", "c120")
+               if marks.get(k) is not None and pd.notna(marks.get(k))]
+        if far:
+            fit["farpts"] = pd.DataFrame({
+                "px": [s_now * SMILE_MNY[k] for k, _ in far],
+                "iv": [float(v) for _, v in far],
+                "kind": [f"{'80% put' if k == 'p80' else '120% call'} mark" for k, _ in far],
+            })
+    fit.update({
         "g_lvl": g_lvl, "r2": r2, "g_chg": change_beta(j),
         "s_now": s_now, "iv_now": iv_now,
-    }
+    })
     return j, fit

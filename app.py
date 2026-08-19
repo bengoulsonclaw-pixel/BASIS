@@ -917,11 +917,28 @@ def _skewreal_section():
                                            strokeWidth=0.8).encode(
         x="px:Q", y="iv:Q",
         tooltip=["kind:N", alt.Tooltip("px:Q", format=".2f"), alt.Tooltip("iv:Q", format=".1f")])
+    ch = pts + line + wings + preds + now
+    smile_note = ""
+    if "smile" in fit:
+        smile = alt.Chart(fit["smile"]).mark_line(color=cc["accent"], strokeWidth=2.2,
+                                                  opacity=0.95).encode(x="px:Q", y="iv:Q")
+        ch = ch + smile
+        if "farpts" in fit:
+            farp = alt.Chart(fit["farpts"]).mark_point(shape="diamond", size=110, filled=True,
+                                                       color=cc["accent"], stroke="white",
+                                                       strokeWidth=0.6, opacity=0.8).encode(
+                x="px:Q", y="iv:Q",
+                tooltip=["kind:N", alt.Tooltip("iv:Q", format=".1f")])
+            ch = ch + farp
+        smile_note = (" **Solid gold curve = today's fitted smile** (quadratic through the "
+                      f"{fit['smile_params']['n_marks']}-point 80–120% marks; small diamonds = "
+                      "the far wings) — where it sits below the dashed line, options at that "
+                      "strike are cheap against the realized path; above = rich.")
     st.markdown(f"**{pick}** — dots = the last {_wl} of (underlying, ATM vol); dashed = best fit "
                 "(the realized skew); **red cross = today's ATM strike** (spot, our ATM vol); "
                 "**gold diamonds = our wing marks at ±10%**; hollow circles = where the line says "
-                "ATM vol trades at those strikes.")
-    brand.show_chart((pts + line + wings + preds + now).properties(height=380))
+                "ATM vol trades at those strikes." + smile_note)
+    brand.show_chart(ch.properties(height=380))
     r = df[df["ticker"] == tk].iloc[0]
     side = "call" if abs(r["call_gap"]) >= abs(r["put_gap"]) else "put"
     gap = r[f"{side}_gap"]

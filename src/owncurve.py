@@ -288,18 +288,40 @@ ATM_TOL = 0.05                 # ATM bracketing gate before the straddle fallbac
 # nearest-strike pick.   key -> (moneyness, is_call, tolerance)
 SMILE_MARKERS = {"p80": (0.80, False, FAR_TOL), "p90": (0.90, False, WING_TOL),
                  "c110": (1.10, True, WING_TOL), "c120": (1.20, True, FAR_TOL)}
+SMILE_MNY = {"p80": 0.80, "p90": 0.90, "atm": 1.00, "c110": 1.10, "c120": 1.20}
+
+
+def fit_smile(points: dict):
+    """The curve of best fit through the five smile marks (Ben's 2026-08-18 spec,
+    second half): a quadratic in LOG-moneyness — the standard smile shape, whose
+    linear term is the tilt (risk-reversal) and curvature term the butterfly.
+
+    `points` maps any of p80/p90/atm/c110/c120 -> vol (NaN/missing tolerated —
+    far wings are sparse by construction). Needs >=3 marks including the ATM.
+    Returns (iv_at(moneyness_ratio) callable floored at 0.5 vol, params dict)
+    or (None, {}) when underdetermined."""
+    xs, ys = [], []
+    for key, m in SMILE_MNY.items():
+        v = points.get(key)
+        if v is not None and pd.notna(v) and float(v) > 0:
+            xs.append(math.log(m))
+            ys.append(float(v))
+    if len(xs) < 3 or not any(abs(x) < 1e-9 for x in xs):
+        return None, {}
+    co = np.polyfit(xs, ys, min(2, len(xs) - 1))
+    def iv_at(mny: float) -> float:
+        return float(max(np.polyval(co, math.log(mny)), 0.5))
+    return iv_at, {"coeffs": [round(float(c), 4) for c in co], "n_marks": len(xs)}
 
 
 def _bdp_many(tickers, fields) -> dict:
     """ONE batched bdp over many securities -> {ticker: {FIELD: value}}. The whole
     reason the Terminal-connected window shrank: the serial one-security _bdp calls
     were thousands of round-trips (10-20 min); batches take seconds."""
-    from xbbg import blp
-    from . import pullguard
+    from . import bbg as blp
     from .datafeed import _bdp_rows, _coerce_pd
     if not tickers:
         return {}
-    pullguard.add_hits(len(list(tickers)) * len(list(fields)))   # usage ledger
     try:
         return _bdp_rows(_coerce_pd(blp.bdp(list(tickers), list(fields)))) or {}
     except Exception:
