@@ -117,32 +117,58 @@ def render_page() -> None:
     )
     current = get_text()
     drifted = partial_text() != current
-    edited = st.text_area("Disclaimer text", value=current, height=320,
+    if st.session_state.pop("compliance_saved", False):
+        st.success("Saved — the partial and all future reports/emails now carry it.")
+
+    # Edit lock: the box opens read-only every visit; 🔓 Unlock arms editing, and Save /
+    # Cancel / Revert all re-lock it — so the legal text can never be changed by a stray
+    # click or keystroke.
+    locked = not st.session_state.get("compliance_unlocked", False)
+    if locked and "compliance_disclaimer" in st.session_state:
+        # Re-locking discards any un-saved edit left in the widget from the last unlock.
+        st.session_state["compliance_disclaimer"] = current
+    edited = st.text_area("Disclaimer text", value=current, height=320, disabled=locked,
                           key="compliance_disclaimer", label_visibility="collapsed")
 
-    c_save, c_revert, c_status = st.columns([0.14, 0.24, 0.62], vertical_alignment="center")
-    with c_save:
-        if st.button("Save", type="primary", use_container_width=True,
-                     disabled=(_normalise(edited) == current and not drifted)):
-            try:
-                save_text(edited)
-                st.success("Saved — the partial and all future reports/emails now carry it.")
+    if locked:
+        c_lock, c_status = st.columns([0.20, 0.80], vertical_alignment="center")
+        with c_lock:
+            if st.button("🔒 Unlock to edit", use_container_width=True):
+                st.session_state["compliance_unlocked"] = True
                 st.rerun()
-            except ValueError as e:
-                st.error(str(e))
-    with c_revert:
-        if st.button("Revert to standard XP text", use_container_width=True,
-                     disabled=not is_custom()):
-            save_text(DEFAULT_TEXT)
-            st.rerun()
+    else:
+        c_save, c_cancel, c_revert, c_status = st.columns(
+            [0.14, 0.14, 0.24, 0.48], vertical_alignment="center")
+        with c_save:
+            if st.button("Save", type="primary", use_container_width=True,
+                         disabled=(_normalise(edited) == current and not drifted)):
+                try:
+                    save_text(edited)
+                    st.session_state["compliance_unlocked"] = False
+                    st.session_state["compliance_saved"] = True
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+        with c_cancel:
+            if st.button("🔓 Cancel", use_container_width=True,
+                         help="Discard the edit and lock the box again"):
+                st.session_state["compliance_unlocked"] = False
+                st.rerun()
+        with c_revert:
+            if st.button("Revert to standard XP text", use_container_width=True,
+                         disabled=not is_custom()):
+                save_text(DEFAULT_TEXT)
+                st.session_state["compliance_unlocked"] = False
+                st.rerun()
     with c_status:
         st.caption(("**Custom** text in force (differs from the standard XP disclaimer)."
-                    if is_custom() else "Standard XP Investments disclaimer in force."))
+                    if is_custom() else "Standard XP Investments disclaimer in force.")
+                   + ("" if not locked else "  ·  🔒 locked — unlock to edit"))
 
     # Drift guard: the partial is generated, but flag it if it ever disagrees (hand edit,
     # partial checkout, failed write) so a stale footer never goes unnoticed.
     if drifted:
         st.warning(
             "The report partial (`templates/_disclaimer.html`) does not match the stored "
-            "text — press **Save** (or Revert) to regenerate it."
+            "text — unlock and press **Save** (or Revert) to regenerate it."
         )
