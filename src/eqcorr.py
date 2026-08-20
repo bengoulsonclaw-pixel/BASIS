@@ -89,7 +89,7 @@ def _mock_history(tickers: list, sectors: dict, sessions: int) -> pd.DataFrame:
 
 # ── Bloomberg (live via xbbg) + the long-history cache ────────────────────────
 def _bloomberg_history(tickers: list, sessions: int) -> pd.DataFrame:
-    from xbbg import blp
+    from . import bbg as blp
     end = pd.Timestamp.today().normalize()
     start = end - pd.Timedelta(days=int(sessions * 7 / 5) + 40)   # sessions -> calendar + slack
     wide = datafeed._bdh_to_wide(blp.bdh(tickers=list(tickers), flds="px_last",

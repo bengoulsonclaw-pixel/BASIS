@@ -275,10 +275,11 @@ def strip_prices(contracts: list[Contract], asof: date, asof_rate: float) -> lis
 
 def _bloomberg_strip(contracts: list[Contract]) -> list[float]:
     """PX_LAST for each contract's generic quarterly ticker (e.g. 'SFRU6 Comdty')."""
-    from xbbg import blp                             # imported lazily; only on the Terminal
+    from . import bbg as blp                             # imported lazily; only on the Terminal
+    from .datafeed import _bdp_rows, _coerce_pd      # handles the binding's narwhals LONG shape
     tickers = [c.bbg for c in contracts]
-    px = blp.bdp(tickers, "PX_LAST")
-    return [float(px.loc[t, "px_last"]) for t in tickers]
+    rows = _bdp_rows(_coerce_pd(blp.bdp(tickers, "PX_LAST")))
+    return [float(rows[t]["PX_LAST"]) for t in tickers]
 
 
 def _mock_strip(contracts: list[Contract], asof: date, asof_rate: float) -> list[float]:

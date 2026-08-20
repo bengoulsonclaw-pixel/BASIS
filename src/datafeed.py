@@ -307,7 +307,7 @@ def _mock_yield(tickers, start, end) -> pd.DataFrame:
 def _bloomberg_yield(tickers, start, end) -> pd.DataFrame:
     """LIVE benchmark yields — one batched bdh (PX_LAST) on the distinct yield-source
     tickers, mapped back onto each bond future ticker."""
-    from xbbg import blp
+    from . import bbg as blp
     start, end = _span(start, end)
     srcs: dict = {}
     for t in tickers:
@@ -375,7 +375,7 @@ def _mock_volume(tickers, start, end) -> pd.DataFrame:
 def _bloomberg_volume(tickers, start, end) -> pd.DataFrame:
     """LIVE daily volume — one batched bdh on VOLUME_FIELD. Left un-ffilled (a flow);
     markets with no volume series simply come back NaN (e.g. cash indices)."""
-    from xbbg import blp
+    from . import bbg as blp
     start, end = _span(start, end)
     wide = _bdh_to_wide(blp.bdh(tickers=tickers, flds=VOLUME_FIELD, start_date=start, end_date=end))
     if wide is None:
@@ -389,7 +389,7 @@ def _bloomberg_volume(tickers, start, end) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 def _bloomberg_history(tickers, start, end, field) -> pd.DataFrame:
     # Requires the Terminal running + logged in, and `pip install xbbg blpapi`.
-    from xbbg import blp
+    from . import bbg as blp
     start, end = _span(start, end)
 
     # Most tickers use `field` (PX_SETTLE); cash indices have no settle, so they
@@ -619,7 +619,7 @@ def price_decimals(prices, asset: str = "") -> int:
 def _bloomberg_implied_vol(tickers, start, end) -> pd.DataFrame:
     # Group markets by their implied-vol field so each field is ONE batched bdh
     # call (≈2-3 calls total) instead of ~80 per-ticker round trips.
-    from xbbg import blp
+    from . import bbg as blp
     start, end = _span(start, end)
     plans = {t: IMPLIED_VOL_OVERRIDE.get(t, (t, IMPLIED_VOL_FIELD)) for t in tickers}
     by_field = {}
@@ -728,7 +728,7 @@ def _mock_skew(tickers, start, end) -> dict:
 
 
 def _bloomberg_skew(tickers, start, end, atm_frame=None) -> dict:
-    from xbbg import blp
+    from . import bbg as blp
     start, end = _span(start, end)
     fx = _fx_override_tickers(tickers)                  # OTC 25Δ risk reversal
     listed = [t for t in tickers if t not in set(fx)]   # 90/110% moneyness wings
@@ -857,7 +857,7 @@ def _mock_term_structure(tickers, start, end) -> dict:
 
 
 def _bloomberg_term_structure(tickers, start, end, atm_frame=None) -> dict:
-    from xbbg import blp
+    from . import bbg as blp
     start, end = _span(start, end)
     fx = _fx_override_tickers(tickers)
     listed = [t for t in tickers if t not in set(fx)]
@@ -1018,7 +1018,7 @@ def _bloomberg_putcall(tickers, start, end) -> dict:
     cash-index OMON) or its own ticker; the result is stored under the PRODUCT ticker.
     Any market whose source returns nothing is simply left out (it then shows no
     put/call — expected for thin FX listed options)."""
-    from xbbg import blp
+    from . import bbg as blp
     start, end = _span(start, end)
     src_of = {t: _putcall_src(t) for t in tickers}              # product ticker -> deepest put/call source
     sources = sorted(set(src_of.values()))
@@ -1339,7 +1339,7 @@ def _option_securities(ticker: str) -> list:
     so we ALSO walk the dated contracts (FUT_CHAIN → OPT_CHAIN on the nearest OI_LIVE_MAX_CONTRACTS)
     and union everything — that's what surfaces the full strip of quarterlies. Members live in the
     bulk 'Security Description' column, not the 'ticker'/'field' metadata columns xbbg prepends."""
-    from xbbg import blp
+    from . import bbg as blp
 
     def _chain(sec):
         try:
@@ -1371,7 +1371,7 @@ def _bloomberg_oi_chain(ticker: str) -> pd.DataFrame:
     bounds), then pulls per-option strike / expiry / put-call / OPEN_INT in one batched bdp and
     pivots puts vs calls. Grouping is by the OPTION's expiry (OPT_EXPIRE_DT), which differs from
     the underlying contract month. A thin / absent chain (much of FX) returns empty."""
-    from xbbg import blp
+    from . import bbg as blp
     secs_raw = _option_securities(ticker)
     if not secs_raw:
         return pd.DataFrame(columns=_OI_COLS)
@@ -1472,7 +1472,7 @@ def get_live_quote(tickers) -> pd.DataFrame:
 
 
 def _bloomberg_live_quote(tickers) -> pd.DataFrame:
-    from xbbg import blp
+    from . import bbg as blp
     pdf = _coerce_pd(blp.bdp(tickers=list(tickers), flds=LIVE_FIELDS))
     if pdf is None or len(pdf) == 0:
         return pd.DataFrame(columns=_LIVE_COLS)

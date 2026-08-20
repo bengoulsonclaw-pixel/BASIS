@@ -117,7 +117,7 @@ def _cap_proxy_weights(members: list) -> dict:
     """Free-float-agnostic cap-weight proxy: CRNCY_ADJ_MKT_CAP (millions, local
     currency — every index this runs for is single-currency) normalised to 100.
     The fallback when INDX_MWEIGHT is zeroed out (see index_weights)."""
-    from xbbg import blp
+    from . import bbg as blp
     rows = datafeed._bdp_rows(datafeed._coerce_pd(blp.bdp(members, ["crncy_adj_mkt_cap"])))
     caps = {}
     for t in members:
@@ -156,7 +156,7 @@ def index_weights(index_key: str, fallback_tickers: list) -> tuple:
     seeded mock weights."""
     if datafeed.MODE == "bloomberg":
         try:
-            from xbbg import blp
+            from . import bbg as blp
             idx = equities.INDICES[index_key][1]
             w = _fmt_weights(datafeed._coerce_pd(blp.bds(idx, "INDX_MWEIGHT")))
             label = "live Bloomberg weights"
@@ -212,7 +212,7 @@ def iv_history(tickers: list, sessions: int) -> tuple:
     None means 'no implied source here' — compute() then synthesizes demo IVs."""
     if datafeed.MODE == "bloomberg":
         try:
-            from xbbg import blp
+            from . import bbg as blp
             end = pd.Timestamp.today().normalize()
             start = end - pd.Timedelta(days=int(sessions * 7 / 5) + 40)
             wide = datafeed._bdh_to_wide(blp.bdh(

@@ -343,13 +343,20 @@ def spread_chart_data(key: str, window: int = WINDOW, threshold: float = Z_THRES
 
 # ── Hot Sheet provider ──────────────────────────────────────────────────────
 RADAR_MAX = 4         # editorial cap — the book's four most stretched flags make the sheet
+# The 1y z-flag misses slow grinds: a spread that drifts to a decade extreme over
+# months carries its 1y band with it (OAT−Bund hit its ~100th percentile in Aug 2026
+# on a z of +1.6 and never made the sheet). The full-history percentile is the
+# module's other first-class read, so decade extremes get their own item kind.
+RADAR_PCTL_HI = 95.0
+RADAR_PCTL_LO = 5.0
 
 
 def radar_items() -> list:
-    """The book's own flags (|z| ≥ Z_THRESHOLD) for the Hot Sheet — the same
-    selection and prose as weekreview.collect_curve: stretched spreads only,
-    ranked by |z|, full-history percentile quoted where the store holds one.
-    Reads the deep store via monitor(); nothing here can trigger a pull."""
+    """The book's reads for the Hot Sheet, two kinds: its own z-flags (|z| ≥
+    Z_THRESHOLD, the weekreview.collect_curve selection and prose), plus spreads at
+    a full-history percentile extreme (≥95th / ≤5th) that the 1y band hasn't
+    flagged — ranked by |z| and percentile stretch respectively. Reads the deep
+    store via monitor(); nothing here can trigger a pull."""
     from src import hotsheet
     from .reportkit import ordinal
 
@@ -366,10 +373,33 @@ def radar_items() -> list:
             tag="CURVE", key=f"{r.key}:{r.signal}", section="Curve / RV",
             text=f"**{r.name}** screens **{r.signal.lower()}** at {r.level:,.{r.dp}f} "
                  f"{r.unit}{pct}.",
-            heat=hotsheet.heat_from_z(r.z),
+            # heat = the more extreme of the module's two reads, so a z-flag sitting
+            # AT a decade extreme never ranks below an unflagged decade extreme
+            heat=max(hotsheet.heat_from_z(r.z),
+                     hotsheet.heat_from_pctl(r.pctl) if r.pctl == r.pctl else 0.0),
             metric=f"z {r.z:+.1f}", sub="vs its 1y band",
             value=float(r.level),        # the spread level — a meaningful week-on-week Δ
             ticker="",                   # multi-leg — no single ticker for the sector filter
             page="Curve Monitor", book="ficc",
+        ))
+    # decade extremes the z-flag hasn't caught (direction == 0 ⇒ no double line when
+    # a spread trips both bars — the z item above already quotes its percentile)
+    px = m[(m["direction"] == 0) & m["pctl"].notna()
+           & ((m["pctl"] >= RADAR_PCTL_HI) | (m["pctl"] <= RADAR_PCTL_LO))].copy()
+    px = px.reindex((px["pctl"] - 50.0).abs().sort_values(ascending=False).index)
+    for r in px.itertuples(index=False):
+        if len(out) >= RADAR_MAX + 2:    # extremes may add at most two lines
+            break
+        side = "high" if r.pctl >= RADAR_PCTL_HI else "low"
+        z_note = f" (1y z {r.z:+.1f}, inside the monitor's band)" if r.z == r.z else ""
+        out.append(hotsheet.item(
+            tag="CURVE", key=f"{r.key}:10y-{side}", section="Curve / RV",
+            text=f"**{r.name}** sits at {r.level:,.{r.dp}f} {r.unit} — the "
+                 f"{ordinal(int(round(r.pctl)))} percentile of the stored history, a "
+                 f"decade **{side}**{z_note}.",
+            heat=hotsheet.heat_from_pctl(r.pctl),
+            metric=f"{r.pctl:.0f}th pctl", sub="of stored history",
+            value=float(r.level),
+            ticker="", page="Curve Monitor", book="ficc",
         ))
     return out

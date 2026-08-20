@@ -384,7 +384,7 @@ def _clean_field(v, default):
 
 
 def _bloomberg_constituents() -> dict:
-    from xbbg import blp
+    from . import bbg as blp
     uni = {}
     for key, (_disp, idx, region) in INDICES.items():
         members = _fmt_members(datafeed._coerce_pd(blp.bds(idx, "INDX_MEMBERS")))
@@ -401,7 +401,7 @@ def _bloomberg_constituents() -> dict:
 
 
 def _bloomberg_quotes(tickers) -> pd.DataFrame:
-    from xbbg import blp
+    from . import bbg as blp
     rows = datafeed._bdp_rows(datafeed._coerce_pd(blp.bdp(list(tickers), ["px_last", "chg_pct_1d"])))
     out = pd.DataFrame(index=list(tickers), columns=["last", "pct"], dtype=float)
     for t in tickers:
@@ -412,7 +412,7 @@ def _bloomberg_quotes(tickers) -> pd.DataFrame:
 
 
 def _bloomberg_history(tickers) -> pd.DataFrame:
-    from xbbg import blp
+    from . import bbg as blp
     end = pd.Timestamp.today().normalize()
     start = end - pd.Timedelta(days=45)     # ~31 trading days — enough for the trailing-21 σ, lighter pull
     wide = datafeed._bdh_to_wide(blp.bdh(tickers=list(tickers), flds="px_last",

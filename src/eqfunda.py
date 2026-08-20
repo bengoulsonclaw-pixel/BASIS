@@ -296,7 +296,7 @@ def _mock_long(tickers, asof: str) -> pd.DataFrame:
 
 # ── Bloomberg (live via xbbg, through datafeed's normalisers) ─────────────────
 def _bloomberg_long(tickers, asof: str) -> pd.DataFrame:
-    from xbbg import blp
+    from . import bbg as blp
     info = {}
     flds = [f.lower() for f in _PULL_FIELDS]
     for i in range(0, len(tickers), _BDP_CHUNK):

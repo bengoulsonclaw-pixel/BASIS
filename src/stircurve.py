@@ -109,7 +109,7 @@ def const_maturity(pillars, target: float = TARGET_DAYS):
 # Bloomberg plumbing (lazy imports so snapshot-mode readers never need blpapi).
 # ---------------------------------------------------------------------------
 def _bdh(tickers, fld, start, end):
-    from xbbg import blp
+    from . import bbg as blp
     from .datafeed import _bdh_to_wide
     try:
         return _bdh_to_wide(blp.bdh(tickers=tickers, flds=fld, start_date=start, end_date=end))
@@ -120,18 +120,15 @@ def _bdh(tickers, fld, start, end):
 def _bdh_safe(tickers, fld, start, end, chunk: int = 20):
     """Chunked bdh with single-ticker fallback — one bad constructed ticker must not
     sink the batch. Returns a wide frame (possibly missing some columns)."""
-    from . import pullguard
     frames = []
     tickers = list(tickers)
     for i in range(0, len(tickers), chunk):
         grp = tickers[i:i + chunk]
-        pullguard.add_hits(len(grp))                   # usage ledger: hits spend on request
         w = _bdh(grp, fld, start, end)
         if w is not None:
             frames.append(w)
             continue
         for t in grp:                                  # fall back one by one
-            pullguard.add_hits(1)
             w1 = _bdh([t], fld, start, end)
             if w1 is not None:
                 frames.append(w1)
@@ -141,10 +138,8 @@ def _bdh_safe(tickers, fld, start, end, chunk: int = 20):
 
 
 def _bdp_one(ticker, fld):
-    from xbbg import blp
+    from . import bbg as blp
     from .datafeed import _coerce_pd
-    from . import pullguard
-    pullguard.add_hits(1)
     try:
         pdf = _coerce_pd(blp.bdp(ticker, fld))
         if pdf is None or len(pdf) == 0:

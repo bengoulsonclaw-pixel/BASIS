@@ -51,7 +51,7 @@ def _is_fresh(path: Path, max_age_hours: float) -> bool:
 
 
 def _wide(tickers: list[str], years: int) -> pd.DataFrame:
-    from xbbg import blp
+    from . import bbg as blp
     from src.datafeed import _bdh_to_wide
     end = pd.Timestamp.today().normalize()
     start = end - pd.DateOffset(years=years)

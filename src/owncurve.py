@@ -171,9 +171,7 @@ def _first(r):
 
 
 def _bds(ticker, fld, **kw):
-    from xbbg import blp
-    from . import pullguard
-    pullguard.add_hits(1)                              # usage ledger: 1 bulk request
+    from . import bbg as blp
     try:
         return _rows(blp.bds(ticker, fld, **kw))
     except Exception:
@@ -181,10 +179,8 @@ def _bds(ticker, fld, **kw):
 
 
 def _bdp(ticker, fld):
-    from xbbg import blp
+    from . import bbg as blp
     from .datafeed import _coerce_pd
-    from . import pullguard
-    pullguard.add_hits(1)
     try:
         pdf = _coerce_pd(blp.bdp(ticker, fld))
         if pdf is None or len(pdf) == 0:

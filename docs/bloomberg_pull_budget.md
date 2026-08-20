@@ -17,6 +17,22 @@ bracketing-strike interpolation at 80/90/100/110/120% moneyness (was: single
 nearest strike at 90/110 only), 5 futures walked (was 6), option-chain lists
 cached 7 days. First live morning will verify the realized hit count.
 
+**GUARD (added same day, Ben's ask): the src/bbg.py gateway.** Every xbbg request
+now passes one chokepoint that (a) counts hits at the request site — the ledger is
+metered, not estimated; (b) registers every (security, field) pair with its calling
+leg and reports any pair pulled by TWO different legs in one session, in the
+morning log, `data/pull_duplicates.json`, and a 🩺 Data health row; (c) is enforced
+by `tests/test_bbg_gateway.py` (pre-push gated): direct xbbg imports outside the
+gateway fail the suite. Same-site re-requests (serial fallbacks, forced refreshes)
+are retries, not duplicates; deliberate cross-leg overlaps live in
+`bbg.ACCEPTED_OVERLAPS` with reasons.
+
+**OWNERSHIP RULE**: every security×field family has exactly ONE owning module —
+prices / vol surface / put-call / OI chains = datafeed · deep history = deepstore ·
+own-curve option marks = owncurve · STIR ladders = stircurve · strips/fixings =
+stirpaths · precious metals = pm_bbg. Anything else that needs the data reads the
+STORE. New features ask "who already owns this?" before adding any pull.
+
 ---
 
 ## 1. What we actually pull today (measured, not estimated)

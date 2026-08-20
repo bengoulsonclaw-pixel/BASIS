@@ -302,8 +302,9 @@ def _fetch_phase() -> dict | None:
     # analytically below, so the ledger records what Bloomberg actually saw (the old
     # len(tickers)*20 print under-counted the morning ~4-5x).
     try:
-        from src import pullguard
+        from src import bbg, pullguard
         pullguard.reset_hits()
+        bbg.reset_session()                # duplicate-request registry, same scope
         for w in pullguard.assess():
             print(f"  PULL GUARD: {w}")
     except Exception:
@@ -440,31 +441,28 @@ def _fetch_phase() -> dict | None:
         {"source": MODE, "fetched_at": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}))
 
     # Our own usage ledger (data/pull_log.csv) + absorb any new tickers into the known
-    # set — the record we'd hand Bloomberg if a workflow review ever asks again. The
-    # fixed datafeed legs are counted from their actual request structure; the runtime
-    # tally (get_hits) adds everything the instrumented modules spent (own-curve chains,
-    # STIR strike ladders, deep-store groups, skew drip).
+    # set — the record we'd hand Bloomberg if a workflow review ever asks again. Every
+    # request goes through the src/bbg.py gateway, which counts hits at the request
+    # site and registers each (security, field) pair — so the number below is what
+    # Bloomberg actually metered, not an estimate, and any leg re-pulling another
+    # leg's data announces itself the SAME morning instead of in an audit later.
     try:
-        from src import pullguard
-        from src import universe as _uni
-        from src.datafeed import _fx_override_tickers
-        n, n_fx = len(tickers), len(_fx_override_tickers(tickers))
-        n_listed = n - n_fx
-        n_ysrc = len({_uni.yield_source(t) for t in tickers if _uni.yield_source(t)})
-        fixed = (n                    # prices (PX_SETTLE / PX_LAST)
-                 + n_ysrc             # yields (11 distinct benchmark sources)
-                 + n                  # volume (FUT_AGGTE_VOL)
-                 + n + 1              # implied vol (Euribor composite = 2 legs)
-                 + n_listed * 2 + n_fx * 2   # skew put+call wings (ATM shared since 2026-08-18)
-                 + n_listed * 3 + n_fx * 3   # term 3M/6M/12M (1M shared since 2026-08-18)
-                 + n * 4              # put/call OI + volume
-                 + n * 3)             # live quote bdp
-        # (STIR strips + fixings count themselves through the runtime tally — the
-        #  analytic term booked phantom fixings on failed pulls and missed the
-        #  ~144-hit failed batch entirely; review 2026-08-18.)
-        est = fixed + pullguard.get_hits()
-        print(f"  Bloomberg hits this pull: ~{est:,} "
-              f"({fixed:,} fixed legs + {pullguard.get_hits():,} chains/ladders/stores)")
+        from src import bbg, pullguard
+        est = pullguard.get_hits()
+        print(f"  Bloomberg hits this pull: {est:,} (counted at the gateway)")
+        dup_line = bbg.report()
+        print(f"  {dup_line}")
+        try:
+            (SNAP.parent / "pull_duplicates.json").write_text(json.dumps({
+                "asof": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "est_hits": est,
+                "n_duplicate_pairs": len(bbg.duplicates()),
+                "duplicates": {f"{t} | {f}": sites for (t, f), sites in bbg.duplicates().items()},
+                "accepted_overlaps": {f"{t} | {f}": sites
+                                      for (t, f), sites in bbg.accepted_overlaps().items()},
+            }, indent=1), encoding="utf-8")
+        except Exception:
+            pass
         pullguard.record("morning snapshot", tickers, est_hits=est)
     except Exception:
         pass

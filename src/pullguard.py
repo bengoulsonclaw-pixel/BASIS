@@ -22,9 +22,11 @@ The NEW-SECURITY assessment deliberately excludes option-chain contracts (own-cu
 marks, the weekly OI job) — individual contracts churn by design, that pattern is
 long-established, and neither review followed it. The guard watches the futures/
 index/cash universe. Their REQUEST VOLUME does count, though: since 2026-08-18 the
-runtime hit tally (add_hits / get_hits below) is fed by every variable-size pull
-site, so the ledger's est_hits matches what Bloomberg actually saw — the old
-len(tickers)*20 estimate under-counted the morning by ~4-5x.
+runtime hit tally (add_hits / get_hits below) is fed by the src/bbg.py gateway —
+the single chokepoint every xbbg request passes through — so the ledger's est_hits
+matches what Bloomberg actually saw (the old len(tickers)*20 estimate under-counted
+the morning by ~4-5x). The gateway also detects same-morning duplicate requests
+across legs; see bbg.report().
 
 data/pull_known.json  — every ticker ever pulled through guarded paths (auto-seeded).
 data/pull_log.csv     — one line per fetch: when, label, tickers, est hits, new count.

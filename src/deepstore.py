@@ -132,14 +132,12 @@ def _pull_field(src_map: dict, field_for: dict, start, end) -> pd.DataFrame | No
     keyed by the APP ticker. `field_for` maps app ticker -> Bloomberg field."""
     if not src_map:
         return None
-    from xbbg import blp
-    from . import pullguard
+    from . import bbg as blp
     by_field: dict = {}
     for s, t in src_map.items():
         by_field.setdefault(field_for[t], []).append(s)
     cols = {}
     for fld, grp in by_field.items():
-        pullguard.add_hits(len(grp))                   # usage ledger
         try:
             wide = _bdh_to_wide(blp.bdh(tickers=grp, flds=fld, start_date=start, end_date=end))
         except Exception:
