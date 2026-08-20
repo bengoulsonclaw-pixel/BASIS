@@ -50,36 +50,38 @@ _MONO = "'IBM Plex Mono', Consolas, 'SF Mono', Menlo, monospace"
 # handoff tokens: border=--line, border_soft=--hair, btn_border/faint=--line2/--faint,
 # gold_soft=--goldWash, label_ring=--goldLine. On LIGHT, gold text/borders darken to
 # #A87A0C (raw #F5C518 fails contrast on white); washes keep the raw gold.
+# 2026-08-20 redesign: the Claude Design tokens — a LIGHTER dark (canvas #1C2026,
+# surfaces #272D36/#303743, bright #414957 borders) that Ben judged far easier to
+# read than the old near-black (#0F1216). Matches .streamlit/config.toml.
 DARK = dict(
     name="dark",
-    canvas="#0F1216", glass="rgba(22,26,32,.85)", surface="#161A20", surface2="#1C212A",
-    border="#232935", border_soft="rgba(255,255,255,.05)",
-    btn="transparent", btn_border="#333B49", btn_hover="#1C212A",
-    btn_gold="rgba(245,197,24,.10)", btn_gold_hover="rgba(245,197,24,.16)",
-    label_ring="rgba(245,197,24,.34)",
-    # Secondary-text floors RAISED 2026-08-15 (Ben: "barely readable... across the
-    # entire app") — was text_dim/caption #C3CAD3, faint #9AA4B0, tagline #8A94A1.
-    # Never re-dim below these.
-    text="#E7EAEE", text_dim="#CDD3DB", caption="#CDD3DB", faint="#AEB7C2",
-    sidebar="#0A0C10",
-    gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.10)",
-    bracket="#9FA9B5", tagline="#9FA9B5",
-    cal_ink="#B6BFC9", cal_ink_strong="#E7EAEE",
+    canvas="#1C2026", glass="rgba(39,45,54,.85)", surface="#272D36", surface2="#303743",
+    border="#414957", border_soft="rgba(255,255,255,.07)",
+    btn="transparent", btn_border="#414957", btn_hover="#303743",
+    btn_gold="rgba(245,197,24,.14)", btn_gold_hover="rgba(245,197,24,.22)",
+    label_ring="rgba(245,197,24,.40)",
+    text="#ECEEF1", text_dim="#CBD0D7", caption="#CBD0D7", faint="#9BA1A9",
+    sidebar="#14171C",
+    gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.14)",
+    bracket="#9BA1A9", tagline="#9BA1A9",
+    blue="#5B9BF0", green="#46C58A", red="#EC6A57",
+    cal_ink="#9BA1A9", cal_ink_strong="#ECEEF1",
     word=(("0", "#EEF0F3"), ("0.46", "#C0C5CC"), ("0.70", "#CBA53C"), ("1", "#F4CC3A")),
 )
 LIGHT = dict(
     name="light",
-    canvas="#EDF0F3", glass="rgba(255,255,255,.85)", surface="#FFFFFF", surface2="#F4F6F9",
-    border="#D2D7DE", border_soft="rgba(0,0,0,.07)",
-    btn="transparent", btn_border="#BEC5CE", btn_hover="#F4F6F9",
-    btn_gold="rgba(245,197,24,.16)", btn_gold_hover="rgba(245,197,24,.24)",
+    canvas="#E3E6EB", glass="rgba(255,255,255,.85)", surface="#FFFFFF", surface2="#EFF1F5",
+    border="#C3C9D2", border_soft="rgba(0,0,0,.09)",
+    btn="transparent", btn_border="#C3C9D2", btn_hover="#EFF1F5",
+    btn_gold="rgba(200,144,26,.13)", btn_gold_hover="rgba(200,144,26,.22)",
     label_ring="rgba(168,122,12,.38)",
-    text="#12161B", text_dim="#3F4854", caption="#3F4854", faint="#5B6570",
-    sidebar="#E4E8EC",
-    gold="#A87A0C", gold_deep="#8A6208", gold_soft="rgba(245,197,24,.16)",
-    bracket="#6A737E", tagline="#6A737E",
-    cal_ink="#4A545F", cal_ink_strong="#12161B",
-    word=(("0", "#12161B"), ("0.58", "#12161B"), ("0.73", "#8A6208"), ("1", "#A87A0C")),
+    text="#1A1A1A", text_dim="#3A3D42", caption="#3A3D42", faint="#5A6069",
+    sidebar="#D7DBE2",
+    gold="#C8901A", gold_deep="#8A6208", gold_soft="rgba(200,144,26,.13)",
+    bracket="#5A6069", tagline="#5A6069",
+    blue="#1F5FA8", green="#1F7A44", red="#C62828",
+    cal_ink="#5A6069", cal_ink_strong="#1A1A1A",
+    word=(("0", "#1A1A1A"), ("0.58", "#3A3D42"), ("0.73", "#8A6208"), ("1", "#C8901A")),
 )
 PALETTES = {"dark": DARK, "light": LIGHT}
 
@@ -527,8 +529,8 @@ code, pre, kbd { background:$surface2; color:$text; }
 
 /* masthead */
 .basis-masthead { display:flex; align-items:center; gap:1rem; }
-.basis-tag { color:$tagline; font-size:.66rem; letter-spacing:.34em; font-weight:600;
-             text-transform:uppercase; white-space:nowrap; }
+.basis-tag { color:$blue; font-size:.66rem; letter-spacing:.34em; font-weight:600;
+             text-transform:uppercase; white-space:nowrap; }   /* design: strapline in blue */
 /* the stacked BASIS+tagline lockup is rendered inline in header_svg(tagline=True) */
 .basis-rule { height:1px; border:0; margin:.5rem 0 1.05rem; background:$border; }
 
