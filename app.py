@@ -4503,12 +4503,21 @@ def _norm_mkt(m) -> str:
 from src import hotsheet
 
 
-@st.cache_data(ttl=300, show_spinner="Collecting the desk's screens…")
+@st.cache_data(show_spinner="Collecting the desk's screens…")
+def _hs_cached(cache_mtime: float):
+    """Session-shared view of the PERSISTED sheet (hotsheet.cached_collection):
+    the morning stamp writes data/signals/hotsheet_cache.json and page opens just
+    read it back — keyed on the file's mtime so a new stamp or an on-page ↻
+    invalidates this, and an ordinary click never runs a provider."""
+    return hotsheet.cached_collection()
+
+
 def _hs_collect():
-    """Run every discovered Hot Sheet provider (src/hotsheet.py). All providers read
-    precomputed stores, so this is seconds of parquet reads; a 5-min TTL keeps page
-    flips instant while staying fresher than the stores underneath it change."""
-    return hotsheet.collect()
+    try:
+        _mt = hotsheet.CACHE_FILE.stat().st_mtime
+    except OSError:
+        _mt = 0.0
+    return _hs_cached(_mt)
 
 
 def _hs_go(dest: str) -> None:
@@ -4572,6 +4581,18 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
                     on_click=_hs_go, args=(it["page"],))
 
 
+def _hs_refresh_button(host) -> None:
+    """↻ — re-run every provider now and re-persist the sheet. Ordinary opens read
+    the morning stamp's file; this is for intraday freshness after an ad-hoc pull."""
+    if host.button("↻", key="hs_refresh",
+                   help="Re-run every provider now (10–30s). The sheet otherwise "
+                        "refreshes itself with the morning snapshot."):
+        with st.spinner("Re-collecting the desk's screens…"):
+            hotsheet.refresh_collection()
+        _hs_cached.clear()
+        st.rerun()
+
+
 def _hs_footer(report: dict) -> None:
     """Provider roll-call — a newly built module (anything in src/ defining
     radar_items()) visibly plugs itself in here, and a broken one visibly falls off
@@ -4601,7 +4622,8 @@ def render_hotsheet(book: str = "ficc") -> None:
     st.caption(f"Everything the {_desk} modules are flagging **today**, ranked on one heat "
                "scale — the morning 30-second read. Each line jumps into the module that owns "
                "it; the sheet is exception-based, so quiet modules simply don't appear.")
-    items, report = _hs_collect()
+    items, report, _collected, _from_cache = _hs_collect()
+    _col_ts = pd.Timestamp(_collected, unit="s", tz="UTC").tz_convert("America/New_York")
     hotsheet.apply_badges(items)
     if universe.filter_active():                 # the Home sector filter applies here too
         _en = set(universe.enabled_tickers())
@@ -4622,18 +4644,21 @@ def render_hotsheet(book: str = "ficc") -> None:
         st.info(f"No {_desk} module is clearing its bar right now — either genuinely quiet "
                 "markets, or the morning snapshot hasn't run yet (see the provider roll-call "
                 "below).")
+        _hs_refresh_button(st)
         _hs_footer(report)
         return
 
-    c1, _sp = st.columns([3, 9])
+    c1, c_r, _sp = st.columns([3, 1, 8])
     _order = c1.radio("Order", ["By heat", "New first"], horizontal=True, key="hs_order",
                       label_visibility="collapsed")
+    _hs_refresh_button(c_r)
     if _order == "New first":
         items.sort(key=lambda it: (it.get("badge") != "NEW", -it["heat"]))
 
     n_new = sum(1 for it in items if it.get("badge") == "NEW")
     st.caption(f"**{len(items)}** items across **{len({it['provider'] for it in items})}** "
-               f"{_desk} modules" + (f" — **{n_new}** new today." if n_new else "."))
+               f"{_desk} modules" + (f" — **{n_new}** new today." if n_new else ".")
+               + f" Screens collected **{_col_ts:%H:%M} ET**.")
     # Top strip: at most 2 lines per module, so one module's ties (COT crowding and
     # perfect seasonal records both pin heat at 100) can't crowd the cross-desk read —
     # everything skipped here still shows in its module's expander below.

@@ -25,6 +25,7 @@ def _it(key, heat=50.0, tag="TST", value=None, book="ficc", **kw):
 def tmp_store(tmp_path, monkeypatch):
     monkeypatch.setattr(hotsheet, "HISTORY_FILE", tmp_path / "hist.parquet")
     monkeypatch.setattr(hotsheet, "META_FILE", tmp_path / "meta.json")
+    monkeypatch.setattr(hotsheet, "CACHE_FILE", tmp_path / "cache.json")
     monkeypatch.setattr(hotsheet, "SIG_DIR", tmp_path)
     return tmp_path
 
@@ -141,6 +142,52 @@ def test_apply_badges_day_one_is_quiet(tmp_store):
     today = [_it("a")]
     hotsheet.apply_badges(today, asof=date(2026, 8, 18))
     assert today[0]["badge"] == ""               # no history — everything NEW would be noise
+
+
+# --- the persisted sheet: page opens read a file, never run providers -------
+_OK_REP = {"p": {"status": "ok", "n": 1, "ms": 1, "err": "", "over_cap": 0}}
+_BAD_REP = {"p": {"status": "failed", "n": 0, "ms": 1, "err": "boom", "over_cap": 0}}
+
+
+def test_cached_collection_serves_fresh_file(tmp_store, monkeypatch):
+    hotsheet._persist_collection([_it("a")], _OK_REP)
+    monkeypatch.setattr(hotsheet, "collect",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran providers")))
+    items, report, _, from_cache = hotsheet.cached_collection()
+    assert from_cache and [i["key"] for i in items] == ["TST:a"] and "p" in report
+
+
+def test_cached_collection_stale_recollects(tmp_store, monkeypatch):
+    import json, time
+    hotsheet._persist_collection([_it("old")], _OK_REP)
+    c = json.loads(hotsheet.CACHE_FILE.read_text(encoding="utf-8"))
+    c["collected"] = time.time() - (hotsheet.CACHE_STALE_H + 1) * 3600
+    hotsheet.CACHE_FILE.write_text(json.dumps(c), encoding="utf-8")
+    monkeypatch.setattr(hotsheet, "collect", lambda *a, **k: ([_it("new")], dict(_OK_REP)))
+    items, _, _, from_cache = hotsheet.cached_collection()
+    assert not from_cache and [i["key"] for i in items] == ["TST:new"]
+    refreshed = json.loads(hotsheet.CACHE_FILE.read_text(encoding="utf-8"))
+    assert refreshed["items"][0]["key"] == "TST:new"        # the file was re-filled
+
+
+def test_refresh_all_failed_keeps_cache(tmp_store, monkeypatch):
+    import json
+    hotsheet._persist_collection([_it("good")], _OK_REP)
+    monkeypatch.setattr(hotsheet, "collect", lambda *a, **k: ([], dict(_BAD_REP)))
+    items, _, _, from_cache = hotsheet.refresh_collection()
+    assert from_cache and [i["key"] for i in items] == ["TST:good"]
+    kept = json.loads(hotsheet.CACHE_FILE.read_text(encoding="utf-8"))
+    assert kept["items"][0]["key"] == "TST:good"            # never blanked by a wedged run
+
+
+def test_stamp_today_persists_sheet(tmp_store, monkeypatch):
+    monkeypatch.setattr(hotsheet, "collect", lambda *a, **k: ([_it("a")], dict(_OK_REP)))
+    hotsheet.stamp_today(log=lambda *a: None)
+    assert hotsheet.CACHE_FILE.exists()
+    monkeypatch.setattr(hotsheet, "collect", lambda *a, **k: ([], dict(_BAD_REP)))
+    hotsheet.stamp_today(log=lambda *a: None)               # wedged morning: file untouched
+    import json
+    assert json.loads(hotsheet.CACHE_FILE.read_text(encoding="utf-8"))["items"][0]["key"] == "TST:a"
 
 
 # --- week_view: what the Weekly Review's front page reads -------------------

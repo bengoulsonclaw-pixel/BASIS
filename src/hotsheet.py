@@ -222,14 +222,64 @@ def stamp(items: list[dict], report: dict, asof: date | None = None,
 
 
 def stamp_today(log=print) -> int:
-    """The snapshot compute phase's one-liner: collect everything and stamp it."""
+    """The snapshot compute phase's one-liner: collect everything, stamp the history,
+    and persist the finished sheet so every page open until the next stamp is a
+    millisecond file read instead of a live provider run."""
     items, report = collect()
     n = stamp(items, report, log=log)
     bad = [k for k, v in report.items() if v["status"] == "failed"]
+    if items or len(bad) < len(report):         # the stamp's wedged-morning guard, mirrored
+        _persist_collection(items, report)
     log(f"  Hot Sheet stamped: {n} items from "
         f"{sum(1 for v in report.values() if v['n'])} providers"
         + (f" ({len(bad)} failed: {', '.join(bad)})" if bad else ""))
     return n
+
+
+# ---------------------------------------------------------------------------
+# the persisted sheet — the seasonality-cache pattern applied whole-sheet, so the
+# page never pays a provider run on an ordinary click
+# ---------------------------------------------------------------------------
+CACHE_FILE = SIG_DIR / "hotsheet_cache.json"
+CACHE_STALE_H = 20.0        # beyond this the file is a missed morning, not a cache
+
+
+def _persist_collection(items: list, report: dict) -> None:
+    SIG_DIR.mkdir(parents=True, exist_ok=True)
+    CACHE_FILE.write_text(json.dumps(
+        {"collected": time.time(), "items": items, "report": report},
+        ensure_ascii=False), encoding="utf-8")
+
+
+def cached_collection() -> tuple[list, dict, float, bool]:
+    """The page's entry point: (items, report, collected_epoch, from_cache).
+    Serves the persisted sheet while it's fresh (the morning stamp writes it);
+    missing/stale falls through to a live collect that re-fills the file."""
+    try:
+        c = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+        age_h = (time.time() - float(c["collected"])) / 3600.0
+        if 0.0 <= age_h < CACHE_STALE_H:
+            return list(c["items"]), dict(c["report"]), float(c["collected"]), True
+    except Exception:
+        pass
+    return refresh_collection()
+
+
+def refresh_collection() -> tuple[list, dict, float, bool]:
+    """Live provider run + persist — the page's ↻ and the stale-cache path. An
+    all-failed collect never overwrites a usable sheet with an empty one; it serves
+    the old file (however stale) so a wedged run can't blank the page."""
+    items, report = collect()
+    failed = [k for k, v in report.items() if v["status"] == "failed"]
+    if not items and failed and len(failed) == len(report):
+        try:
+            c = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+            return list(c["items"]), dict(c["report"]), float(c["collected"]), True
+        except Exception:
+            pass
+        return items, report, time.time(), False
+    _persist_collection(items, report)
+    return items, report, time.time(), False
 
 
 # ---------------------------------------------------------------------------
