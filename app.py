@@ -32,6 +32,7 @@ from src.specs import (SPECS, reflag_rows, trigger_default, save_trigger_default
                        tabt_defaults, save_tabt_defaults)
 from src import universe
 from src import brand
+from src import repcal
 from src import recipients
 from src import automation
 from src import alerts
@@ -2394,27 +2395,220 @@ def render_landing() -> None:
               on_click=_land_desk_go, args=("Equities", "eq:Earnings"))
 
 
-def render_home() -> None:
-    render_report_banner()
-    _render_skew_backfill_banner()
-    _render_cb_calendar_banner()
-    snap = _load_snap()
+def _home_day_set(off: int) -> None:
+    st.session_state["home_day"] = off
 
-    # (world clocks moved to the fixed top bar — rendered on every page)
-    render_sector_filter()
-    # The whole Data row is ADMIN-ONLY (Ben, 2026-08-11): pulls, recomputes, exports
-    # and the report builders all act on shared state or reach external services —
-    # colleague sessions are strictly view-only and see no Data section at all.
-    if IS_ADMIN:
-        st.subheader("Data")
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c4.button("☕  Morning Coffee", use_container_width=True, key="home_mc",
-                  on_click=_go, args=("Morning Coffee",),
-                  help="The morning report — overnight moves, levels and the day ahead.")
-        c5.button("🗞️  Weekly Review", use_container_width=True, key="home_wr",
-                  on_click=_go, args=("Weekly Review",),
-                  help="The Monday wrap — what every module's own thresholds flagged this week, "
-                       "with the technical scorecard folded in.")
+
+def _md_add_cb(seat: str) -> None:
+    """My Day 'Add' — a callback so the title box can legally be cleared."""
+    from src import myday
+    _d = st.session_state.get("md_date")
+    _t = st.session_state.get("md_time")
+    myday.add(seat, st.session_state.get("md_title", ""),
+              _d.isoformat() if _d else "",
+              _t.strftime("%H:%M") if _t else "")
+    st.session_state["md_title"] = ""
+
+
+def _myday_card() -> None:
+    """The per-seat private task list (redesign 2026-08-20). One JSON per seat on
+    disk (src/myday.py); the header seat selector decides whose list shows."""
+    from src import myday
+    seat = st.session_state.get("seat", "admin")
+    meta = next((s for s in myday.seats() if s["id"] == seat),
+                {"name": str(seat), "desk": ""})
+    items = myday.load(seat)
+    today_s = date.today().isoformat()
+    open_n = sum(1 for i in items if not i.get("done") and i.get("date") == today_s)
+    with st.container(key="dkcard_myday"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">My Day</span>'
+                    f'<span class="dk-s">{meta["name"]} · {open_n} open</span></div>',
+                    unsafe_allow_html=True)
+        a1, a2, a3, a4 = st.columns([2.9, 1.7, 1.25, 1.0], vertical_alignment="center")
+        a1.text_input("Task", key="md_title", label_visibility="collapsed",
+                      placeholder="Add a task…")
+        a2.date_input("Date", key="md_date", label_visibility="collapsed",
+                      value=date.today())
+        a3.time_input("Time", key="md_time", label_visibility="collapsed", value=None)
+        a4.button("Add", key="md_add", use_container_width=True,
+                  on_click=_md_add_cb, args=(seat,))
+        _f = st.session_state.setdefault("md_filter", "today")
+        show = [i for i in items if _f == "all" or i.get("date") == today_s]
+        show.sort(key=lambda i: (i.get("date", ""), i.get("time") or "99:99"))
+        for i in show[:12]:
+            r1, r2, r3 = st.columns([1.15, 4.5, 0.5], vertical_alignment="center")
+            _dl = "Today" if i.get("date") == today_s else (i.get("date") or "—")
+            r1.markdown(f'<div class="dkl-t">{i.get("time") or "—"}'
+                        f'<span class="loc">{_dl}</span></div>', unsafe_allow_html=True)
+            _lbl = f'~~{i.get("title", "")}~~' if i.get("done") else i.get("title", "")
+            if r2.button(_lbl or "—", key=f'md_t_{i.get("id")}', use_container_width=True,
+                         help="Click to mark done / not done"):
+                myday.toggle(seat, i.get("id")); st.rerun()
+            if r3.button("×", key=f'md_x_{i.get("id")}', help="Remove"):
+                myday.remove(seat, i.get("id")); st.rerun()
+        if not show:
+            st.caption("Nothing here yet — add your first task above.")
+        f1, f2, f3 = st.columns([1.0, 1.25, 3.2], vertical_alignment="center")
+        if f1.button("Today", key="md_f_today",
+                     type="primary" if _f == "today" else "secondary"):
+            st.session_state["md_filter"] = "today"; st.rerun()
+        if f2.button("All dates", key="md_f_all",
+                     type="primary" if _f == "all" else "secondary"):
+            st.session_state["md_filter"] = "all"; st.rerun()
+        f3.markdown('<div class="dk-s" style="text-align:right;padding:6px 4px 0 0">'
+                    'Private to this seat</div>', unsafe_allow_html=True)
+
+
+def _hotsheet_top10_card() -> None:
+    """Top 10 by conviction (tascore composite) as the design's Hot Sheet table."""
+    try:
+        df, meta = load_signals()
+        _fkey = tuple(sorted(universe.enabled_tickers())) if universe.filter_active() else ()
+        flagged, scored = _ta_scored(meta.get("as_of", ""), _fkey,
+                                     tuple(tascore.CONFLUENCE_DEFAULT))
+    except Exception:
+        flagged, scored = None, None
+    st.markdown('<div class="dk-card"><div class="dk-h"><span class="dk-t">Hot Sheet'
+                '</span><span class="dk-s">Top 10 by conviction · tascore composite'
+                '</span></div>', unsafe_allow_html=True)
+    if scored is None or scored.empty:
+        st.markdown('<div class="dkl-none">No scored signals yet — pull a snapshot '
+                    'first.</div></div>', unsafe_allow_html=True)
+        return
+    lvl = {}
+    if flagged is not None and not flagged.empty:
+        for _, r in flagged.iterrows():
+            lvl.setdefault((r["market"], r["strategy"]), r.get("level"))
+    rows = []
+    for n, (_, r) in enumerate(scored.sort_values("conviction", ascending=False)
+                               .head(10).iterrows(), start=1):
+        tags = r.get("tags") or []
+        top = tags[0] if len(tags) else ("—", 0, 0)
+        strat = str(top[0]) if isinstance(top, (list, tuple)) else str(top)
+        sig = "Long" if r.get("net_dir", 0) > 0 else "Short"
+        pill = ("background:rgba(70,197,138,.14);color:#46C58A;border:1px solid #46C58A"
+                if sig == "Long" else
+                "background:rgba(236,106,87,.14);color:#EC6A57;border:1px solid #EC6A57")
+        v = lvl.get((r["market"], strat))
+        lvl_s = f"{v:,.4g}" if isinstance(v, (int, float)) and v == v else "—"
+        conf = " ⚠" if r.get("conflict") else ""
+        rows.append(
+            f'<tr><td class="hs-n">{n:02d}</td>'
+            f'<td class="hs-m">{repcal._esc(str(r["market"]))}</td>'
+            f'<td class="hs-mod">Technical Analysis</td>'
+            f'<td class="hs-st">{repcal._esc(strat)}</td>'
+            f'<td><span class="hs-pill" style="{pill}">{sig}</span>{conf}</td>'
+            f'<td class="hs-num">{lvl_s}</td>'
+            f'<td class="hs-num">{int(r.get("n", 0))} signals</td>'
+            f'<td class="hs-num hs-conv">{r["conviction"]:.0f}</td></tr>')
+    st.markdown(
+        '<style>.hs-tbl{width:100%;border-collapse:collapse;font-size:13px}'
+        '.hs-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;'
+        'font-weight:600;padding:8px 12px;border-bottom:1px solid rgba(128,128,128,.28);'
+        'color:var(--basis-cal-ink,#8a929c);text-align:left}'
+        '.hs-tbl td{padding:9px 12px;border-bottom:1px solid rgba(128,128,128,.14)}'
+        '.hs-n,.hs-num{font-family:var(--basis-mono,monospace);font-variant-numeric:tabular-nums}'
+        '.hs-num{text-align:right}.hs-tbl th.r{text-align:right}'
+        '.hs-m{font-weight:600}.hs-mod{font-size:12px;color:var(--basis-cal-ink,#8a929c)}'
+        '.hs-conv{font-weight:700}'
+        '.hs-pill{display:inline-block;font-size:11px;font-weight:650;border-radius:20px;'
+        'padding:2px 10px;white-space:nowrap}</style>'
+        '<div style="overflow-x:auto"><table class="hs-tbl"><thead><tr>'
+        '<th>#</th><th>Market</th><th>Module</th><th>Strategy</th><th>Signal</th>'
+        '<th class="r">Level</th><th class="r">Breadth</th><th class="r">Conviction</th>'
+        '</tr></thead><tbody>' + "".join(rows) + '</tbody></table></div></div>',
+        unsafe_allow_html=True)
+    st.button("Open Hot Sheet →", key="home_open_hs", on_click=_go, args=("Hot Sheet",))
+
+
+_MC_HOME_FILE = ROOT / "data" / "morning_coffee_home.json"
+
+
+def _mc_card() -> None:
+    """Headlines + synopsis from the last Morning Coffee run — reads the export the
+    MC pipeline writes (morning_coffee_home.json); graceful before the first run."""
+    try:
+        mc = json.loads(_MC_HOME_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        mc = {}
+    heads = mc.get("headlines") or []
+    syn = (mc.get("synopsis") or "").strip()
+    stamp = mc.get("generated_at", "")
+    with st.container(key="dkcard_mc"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Headlines · Morning Coffee'
+                    f'</span><span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
+                    f'</span></div>', unsafe_allow_html=True)
+        if syn:
+            st.markdown(f'<div style="padding:9px 16px;font-size:13px;line-height:1.5;'
+                        f'border-bottom:1px solid rgba(128,128,128,.14)">'
+                        f'{repcal._esc(syn)}</div>', unsafe_allow_html=True)
+        if heads:
+            _rows = "".join(
+                f'<div style="display:grid;grid-template-columns:70px 1fr;gap:10px;'
+                f'padding:8px 16px;border-bottom:1px solid rgba(128,128,128,.1)">'
+                f'<div style="font-family:var(--basis-mono,monospace);font-size:10px;'
+                f'letter-spacing:.06em;text-transform:uppercase;color:#F5C518;'
+                f'padding-top:2px">{repcal._esc(str(h.get("source", "")))}</div>'
+                f'<div><div style="font-size:13px;line-height:1.4">'
+                f'{repcal._esc(str(h.get("title", "")))}</div>'
+                f'<div class="dk-s" style="margin-top:2px">'
+                f'{repcal._esc(str(h.get("time", "")))}'
+                f'{" · " + repcal._esc(str(h.get("tag", ""))) if h.get("tag") else ""}'
+                f'</div></div></div>'
+                for h in heads[:6])
+            st.markdown(_rows, unsafe_allow_html=True)
+        else:
+            st.caption("No headlines exported yet — the next Morning Coffee run will "
+                       "fill this card.")
+        st.button("Open Morning Coffee →", key="home_open_mc", on_click=_go,
+                  args=("Morning Coffee",))
+
+
+def render_home() -> None:
+    """FICC desk overview — the 2026-08-20 Claude Design redesign: a date bar with
+    live event counts + the two data actions, My Day (per-seat tasks) beside the
+    FICC day timeline, the Hot Sheet top-10, overnight moves + Morning Coffee,
+    and the sector filter demoted to a bottom card. The old banners and the
+    Excel / Weekly Review buttons were removed per Ben."""
+    snap = _load_snap()
+    _today = datetime.now(ZoneInfo("America/New_York")).date()
+    _base = _today if _today.weekday() < 5 else _add_weekdays(_today, 1)
+    st.session_state.setdefault("home_day", 0)
+    _off = st.session_state["home_day"]
+    _day = _add_weekdays(_base, _off)
+
+    ficc_ev = repcal.calendar_events()
+    try:
+        ficc_ev = ficc_ev + _landing_macro(_day.isoformat())
+    except Exception:
+        pass
+    try:
+        ficc_ev = ficc_ev + _landing_expiries(_day.isoformat())
+    except Exception:
+        pass
+    dk = repcal.desk_day(ficc_ev, _day)
+
+    # ── date bar: ‹ Today · date › + live counts + the two data actions ──
+    p1, p2, p3, pc, c1, c2 = st.columns([0.42, 1.85, 0.42, 2.35, 1.4, 1.05],
+                                        vertical_alignment="center")
+    p1.button("‹", key="home_prev", on_click=_home_day_set, args=(_off - 1,),
+              use_container_width=True)
+    _tag = ('<span style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;'
+            'color:#F5C518;font-weight:700;margin-right:8px">Today</span>'
+            if _day == _today else "")
+    p2.markdown(f'<div style="text-align:center;font-family:var(--basis-mono,monospace);'
+                f'font-size:14px;font-weight:600">{_tag}{_day:%a %d %b %Y}</div>',
+                unsafe_allow_html=True)
+    p3.button("›", key="home_next", on_click=_home_day_set, args=(_off + 1,),
+              use_container_width=True)
+    _bits = [f"{dk['total']} events" + (" today" if _day == _today else "")]
+    if _day == _today:
+        _bits.append(f"{dk['ahead']} still ahead")
+        if dk.get("next_txt"):
+            _bits.append(dk["next_txt"])
+    pc.markdown('<div class="dk-s" style="text-align:right;letter-spacing:.06em;'
+                'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
+                unsafe_allow_html=True)
     def _run_ficc_pull():
         # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through
         # run_pull.py — pre-flight probe (a block / logged-out Terminal refuses in
@@ -2535,26 +2729,38 @@ def render_home() -> None:
         with st.spinner("Recomputing all signals…"):
             run_daily.run()
         load_signals.clear(); st.rerun()
-    if IS_ADMIN and c3.button("⬇️  Export snapshot to Excel", use_container_width=True,
-                              key="home_excel",
-                              disabled=not (SNAPSHOT_DIR / "prices.parquet").exists()):
-        with st.spinner("Building workbook…"):
-            with tempfile.TemporaryDirectory() as tmp:
-                xlsx = Path(tmp) / "snapshot.xlsx"
-                res = subprocess.run([sys.executable, str(SNAPSHOT_CLI), "--excel", str(xlsx)],
-                                     cwd=str(ROOT), capture_output=True, text=True)
-                ok = res.returncode == 0 and xlsx.exists()
-                st.session_state["snap_xlsx"] = xlsx.read_bytes() if ok else None
-        if not st.session_state.get("snap_xlsx"):
-            st.error("Excel export failed:\n\n" + (res.stderr or res.stdout or "no output"))
-    if IS_ADMIN and st.session_state.get("snap_xlsx"):
-        st.download_button("Download snapshot.xlsx", data=st.session_state["snap_xlsx"],
-                           file_name="bloomberg_snapshot.xlsx", use_container_width=True,
-                           key="home_xlsx_dl",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    st.divider()
-    _overnight_moves(snap)
-    _econ_figures()
+    # (Excel export + Weekly Review buttons and the old banners removed in the
+    #  2026-08-20 redesign per Ben — Excel lives on via `snapshot.py --excel`.)
+
+    # ── My Day beside the FICC day timeline ──
+    _cl, _cr = st.columns([0.82, 1])
+    with _cl:
+        _myday_card()
+    with _cr:
+        st.markdown('<div class="dk-card"><div class="dk-h"><span class="dk-t">FICC'
+                    '</span><span class="dk-s">Prints, decisions &amp; expiries</span>'
+                    '</div>' + dk["html"] + '</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dk-legend">'
+                '<span><span class="bar" style="background:#F5C518"></span>Expiry</span>'
+                '<span><span class="bar" style="background:#7FB3F5"></span>Print · decision</span>'
+                '<span>Past events dimmed · gold line = now</span>'
+                '<span>My Day tasks are per-seat · click a task to mark done</span>'
+                '<span>Times in ET, local beneath</span></div>', unsafe_allow_html=True)
+
+    # ── Hot Sheet top-10 ──
+    _hotsheet_top10_card()
+
+    # ── overnight moves + Morning Coffee ──
+    _bl, _br = st.columns(2)
+    with _bl:
+        with st.container(key="dkcard_moves"):
+            _overnight_moves(snap)
+    with _br:
+        _mc_card()
+
+    # ── sectors & products (demoted to the bottom card) ──
+    with st.container(key="dkcard_sectors"):
+        render_sector_filter()
     _home_heatmap()
 
 
@@ -13304,7 +13510,24 @@ if _active_dest in ("Home", "eq:Home", "Landing"):
 else:
     _crumb = f"{_side} desk · {_active_dest.removeprefix('eq:')}"
 with st.container(key="basis_topbar"):
-    brand.masthead(_crumb, toggle=False)          # BASIS on top, clocks underneath
+    # Masthead row: BASIS + crumb left, the SEAT selector right (redesign 2026-08-20:
+    # a "seat" is a person — locally the admin can flip seats to view/assign another
+    # colleague's My Day list; a logged-in VPS session is pinned to its own seat).
+    _mh_l, _mh_r = st.columns([0.78, 0.22], vertical_alignment="center")
+    with _mh_l:
+        brand.masthead(_crumb, toggle=False)      # BASIS on top, clocks underneath
+    with _mh_r:
+        from src import myday as _myday
+        _seats = _myday.seats()
+        if auth.REQUIRE_LOGIN and not IS_ADMIN:
+            _uid = str(CURRENT_USER.get("email") or CURRENT_USER.get("name") or "admin")
+            st.session_state["seat"] = _uid
+        else:
+            with st.container(key="basis_seat"):
+                _opts = {f'{s["name"]} · {s["desk"]}': s["id"] for s in _seats}
+                _pick = st.selectbox("Seat", list(_opts), key="basis_seat_pick",
+                                     label_visibility="collapsed")
+                st.session_state["seat"] = _opts.get(_pick, "admin")
     _tb_cl, _tb_tg = st.columns([0.94, 0.06], vertical_alignment="center")
     with _tb_cl:
         _world_clocks()

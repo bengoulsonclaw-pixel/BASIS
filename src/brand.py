@@ -598,6 +598,28 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
     display:flex; align-items:center; justify-content:center;   /* sharp corners: matches the app's other buttons */
 }
 
+/* ── desk-home cards (2026-08-20 redesign): rounded surfaces, hairline headers ── */
+div[class*="st-key-dkcard"] {
+    background:$surface; border:1px solid $border; border-radius:12px;
+    padding:0 0 .5rem; overflow:hidden;
+}
+div[class*="st-key-dkcard"] > div[data-testid="stVerticalBlock"] { gap:.3rem; }
+.dk-card { background:$surface; border:1px solid $border; border-radius:12px; overflow:hidden; }
+.dk-h { display:flex; align-items:baseline; justify-content:space-between;
+        padding:11px 16px; border-bottom:1px solid $border; }
+.dk-t { font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+        color:$text; font-weight:700; }
+.dk-s { font-size:11px; color:$faint; }
+.dk-legend { display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+             margin:9px 2px 4px; font-size:11px; color:$faint; }
+.dk-legend .bar { width:2px; height:12px; display:inline-block; margin-right:6px;
+                  vertical-align:-2px; }
+/* seat selector chip on the masthead */
+div.st-key-basis_seat [data-testid="stSelectbox"] > div > div {
+    background:$surface2; border:1px solid $btn_border; min-height:2rem;
+}
+div.st-key-basis_seat { max-width:230px; margin-left:auto; }
+
 /* ticker rail */
 .bt-rail {
     display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr));
