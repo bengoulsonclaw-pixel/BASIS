@@ -2519,35 +2519,16 @@ def _hotsheet_top10_card() -> None:
                     f"modules · collected {_ts:%H:%M} ET")
         except Exception:
             pass
-    st.markdown('<div class="dk-card"><div class="dk-h"><span class="dk-t">Hot Sheet'
-                f'</span><span class="dk-s">{_sub}</span></div>', unsafe_allow_html=True)
-    if not top:
-        st.markdown('<div class="dkl-none">No module is clearing its bar — quiet '
-                    'markets, or the morning snapshot hasn&#8217;t run yet.</div></div>',
-                    unsafe_allow_html=True)
-        return
-    rows = []
-    for n, it in enumerate(top, start=1):
-        story = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", it["text"])
-        badge = '<span class="hs-newb">NEW</span>' if it.get("badge") == "NEW" else ""
-        met = it["metric"] or f"{it['heat']:.0f}"
-        sub = f'<span class="hs-subi"> · {it["sub"]}</span>' if it.get("sub") else ""
-        bar = f'<div class="hs-heat"><div style="width:{it["heat"]:.0f}%"></div></div>'
-        rows.append(
-            f'<tr><td class="hs-n">{n:02d}</td>'
-            f'<td class="hs-tag"><span class="hs-chip">{it["tag"]}</span>{badge}</td>'
-            f'<td class="hs-story">{story}</td>'
-            f'<td class="hs-num">{met}{sub}{bar}</td></tr>')
     st.markdown(
-        '<style>.hs-tbl{width:100%;border-collapse:collapse;font-size:13px}'
-        '.hs-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;'
-        'font-weight:600;padding:8px 12px;border-bottom:1px solid rgba(128,128,128,.28);'
-        'color:var(--basis-cal-ink,#8a929c);text-align:left}'
-        '.hs-tbl td{padding:6px 12px;border-bottom:1px solid rgba(128,128,128,.14);'
-        'vertical-align:middle}'
+        '<style>'
+        '.hsr{display:grid;grid-template-columns:34px 118px 1fr 225px;gap:10px;'
+        'align-items:center;padding:5px 2px;border-bottom:1px solid rgba(128,128,128,.14);'
+        'font-size:13px}'
+        '.hsr-head{padding:7px 2px;border-bottom:1px solid rgba(128,128,128,.28)}'
+        '.hsr-head div{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;'
+        'font-weight:600;color:var(--basis-cal-ink,#8a929c)}'
         '.hs-n,.hs-num{font-family:var(--basis-mono,monospace);font-variant-numeric:tabular-nums}'
         '.hs-num{text-align:right;white-space:nowrap;font-weight:600}'
-        '.hs-tbl th.r{text-align:right}'
         '.hs-tag{white-space:nowrap}'
         '.hs-chip{display:inline-block;font:600 10px/1.7 var(--basis-mono,monospace);'
         'color:var(--basis-gold,#F5C518);border:1px solid rgba(245,197,24,.45);'
@@ -2558,12 +2539,39 @@ def _hotsheet_top10_card() -> None:
         '.hs-subi{font:400 10.5px var(--basis-mono,monospace);'
         'color:var(--basis-cal-ink,#8a929c);font-weight:400}'
         '.hs-heat{height:3px;background:rgba(128,128,128,.22);margin-top:4px}'
-        '.hs-heat div{height:3px;background:var(--basis-gold,#F5C518)}</style>'
-        '<div style="overflow-x:auto"><table class="hs-tbl"><thead><tr>'
-        '<th>#</th><th>Tag</th><th>Story</th><th class="r">Metric · heat</th>'
-        '</tr></thead><tbody>' + "".join(rows) + '</tbody></table></div></div>',
-        unsafe_allow_html=True)
-    st.button("Open Hot Sheet →", key="home_open_hs", on_click=_go, args=("Hot Sheet",))
+        '.hs-heat div{height:3px;background:var(--basis-gold,#F5C518)}'
+        '</style>', unsafe_allow_html=True)
+    # a KEYED container (not one HTML blob) so each row can carry the module's
+    # jump button — the same _hs_go navigation as the Hot Sheet page (Ben)
+    with st.container(key="dkcard_hotsheet"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Hot Sheet'
+                    f'</span><span class="dk-s">{_sub}</span></div>', unsafe_allow_html=True)
+        if not top:
+            st.markdown('<div class="dkl-none">No module is clearing its bar — quiet '
+                        'markets, or the morning snapshot hasn&#8217;t run yet.</div>',
+                        unsafe_allow_html=True)
+            return
+        _hh, _hg = st.columns([12, 0.8], vertical_alignment="center")
+        _hh.markdown('<div class="hsr hsr-head"><div>#</div><div>Tag</div><div>Story</div>'
+                     '<div style="text-align:right">Metric · heat</div></div>',
+                     unsafe_allow_html=True)
+        for n, it in enumerate(top, start=1):
+            story = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", it["text"])
+            badge = '<span class="hs-newb">NEW</span>' if it.get("badge") == "NEW" else ""
+            met = it["metric"] or f"{it['heat']:.0f}"
+            sub = f'<span class="hs-subi"> · {it["sub"]}</span>' if it.get("sub") else ""
+            bar = f'<div class="hs-heat"><div style="width:{it["heat"]:.0f}%"></div></div>'
+            _rm, _rg = st.columns([12, 0.8], vertical_alignment="center")
+            _rm.markdown(
+                f'<div class="hsr"><div class="hs-n">{n:02d}</div>'
+                f'<div class="hs-tag"><span class="hs-chip">{it["tag"]}</span>{badge}</div>'
+                f'<div class="hs-story">{story}</div>'
+                f'<div class="hs-num">{met}{sub}{bar}</div></div>', unsafe_allow_html=True)
+            if it.get("page"):
+                _rg.button("→", key=f"hs_go_{n}",
+                           help=f"Open {it['page'].removeprefix('eq:')}",
+                           on_click=_hs_go, args=(it["page"],))
+        st.button("Open Hot Sheet →", key="home_open_hs", on_click=_go, args=("Hot Sheet",))
 
 
 _MC_HOME_FILE = ROOT / "data" / "morning_coffee_home.json"

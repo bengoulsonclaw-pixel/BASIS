@@ -376,6 +376,7 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] { gap:.3rem;
    row below (the DESK-on-FICC overlap). Cancel the cancel for bare-div markup. */
 [data-testid="stMarkdownContainer"]:has(> .bt-sect),
 [data-testid="stMarkdownContainer"]:has(> .seat-chip),
+[data-testid="stMarkdownContainer"]:has(> .hsr),
 [data-testid="stMarkdownContainer"]:has(> .dk-vc) { margin-bottom:0 !important; }
 /* sidebar nav rows (handoff): flat text rows, not buttons. Normal case, left-aligned;
    hover = surface step; ACTIVE (Streamlit type=primary) = surface2 fill + inset 2px
@@ -697,6 +698,13 @@ div[class*="st-key-mc_footer"] {
 .mc-foot { font-size:11.5px; color:$caption; line-height:1.5;
            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 div[class*="st-key-mc_footer"] button p { white-space:nowrap; }
+/* Hot Sheet card rows (keyed container so each row carries its jump button):
+   tight vertical rhythm, compact square → buttons like the module page */
+div[class*="st-key-dkcard_hotsheet"] { gap:.05rem !important; }
+div[class*="st-key-dkcard_hotsheet"] [data-testid="stHorizontalBlock"] { gap:.45rem; }
+div[class*="st-key-dkcard_hotsheet"] .stButton button {
+    min-height:1.7rem !important; padding:2px 9px !important; }
+div.st-key-home_open_hs button { min-height:2rem !important; }
 /* My Day rows: coloured left rule — gold = dated (shows only that day),
    blue = undated standing task (recurs every day until done) */
 div[class*="st-key-mdrowd_"], div[class*="st-key-mdrowu_"] {
