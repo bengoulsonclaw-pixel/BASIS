@@ -67,6 +67,8 @@ META_FILE = SIG_DIR / "hotsheet_meta.json"
 
 PROVIDER_CAP = 5            # hard per-provider cap — the sheet is a screen, not an inventory
 BOOKS = ("ficc", "equities", "meta")
+SPARK_MAX = 120             # sparkline points kept per item (longer series are strided down)
+SPARK_MIN = 8               # fewer points than this isn't a shape — the spark is dropped
 
 # columns persisted per item per day — the history store's schema
 COLUMNS = ["date", "key", "tag", "section", "book", "text", "metric", "sub",
@@ -79,19 +81,37 @@ COLUMNS = ["date", "key", "tag", "section", "book", "text", "metric", "sub",
 def item(tag: str, key: str, section: str, text: str, heat: float,
          metric: str = "", sub: str = "", value: float | None = None,
          ticker: str = "", page: str = "", book: str = "ficc",
-         weekly: bool = True, internal_only: bool = False) -> dict:
+         weekly: bool = True, internal_only: bool = False,
+         spark: list | None = None) -> dict:
     """Build one validated Hot Sheet item. ``key`` gets the tag prefixed
-    (weekreview's convention) so story ids can't collide across modules."""
+    (weekreview's convention) so story ids can't collide across modules.
+
+    ``spark`` (optional) is the story's own recent daily series, oldest→newest —
+    the page draws it as an inline sparkline so a slow grind and a sudden snap
+    read differently at a glance. Pass the series in the SAME space the prose
+    speaks (FI stories in yield space, vol stories in vol points). Page-render
+    only: the daily history stamp drops it (COLUMNS is the store's schema)."""
     if not tag or not key or not section or not text:
         raise ValueError("hotsheet.item: tag, key, section and text are required")
     if book not in BOOKS:
         raise ValueError(f"hotsheet.item: book must be one of {BOOKS}, got {book!r}")
+    sp = None
+    if spark is not None:
+        import math
+        vals = [float(v) for v in list(spark)
+                if v is not None and math.isfinite(float(v))]
+        if len(vals) >= SPARK_MIN:
+            if len(vals) > SPARK_MAX:                # stride down, always keep the last point
+                step = (len(vals) - 1) / (SPARK_MAX - 1)
+                vals = [vals[round(i * step)] for i in range(SPARK_MAX)]
+            sp = vals
     return {"key": f"{tag}:{key}", "tag": str(tag).upper(), "section": section,
             "text": text, "metric": metric, "sub": sub,
             "heat": float(max(0.0, min(100.0, float(heat)))),
             "value": (float(value) if value is not None else None),
             "ticker": ticker or "", "page": page or "",
-            "book": book, "weekly": bool(weekly), "internal_only": bool(internal_only)}
+            "book": book, "weekly": bool(weekly), "internal_only": bool(internal_only),
+            "spark": sp}
 
 
 def heat_from_z(z: float, full: float = 4.0) -> float:

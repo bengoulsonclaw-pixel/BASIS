@@ -50,6 +50,24 @@ def test_item_contract():
         hotsheet.item(tag="", key="x", section="S", text="t", heat=1)
 
 
+def test_spark_validation():
+    it = _it("s", spark=[1, 2, float("nan"), 3, None, 4, 5, 6, 7, 8])
+    assert it["spark"] == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]   # NaN/None dropped
+    assert _it("s2", spark=[1, 2, 3])["spark"] is None               # too short = no shape
+    sp = _it("s3", spark=list(range(500)))["spark"]
+    assert len(sp) == hotsheet.SPARK_MAX
+    assert sp[0] == 0.0 and sp[-1] == 499.0                          # stride keeps both ends
+    assert _it("s4")["spark"] is None
+
+
+def test_stamp_drops_spark(tmp_store):
+    rep = {"p": {"status": "ok", "n": 1, "ms": 1, "err": "", "over_cap": 0}}
+    hotsheet.stamp([_it("a", spark=list(range(20)))], rep,
+                   asof=date(2026, 8, 17), log=lambda *a: None)
+    h = hotsheet.load_history()
+    assert "spark" not in h.columns and len(h) == 1  # render-only, never persisted
+
+
 def test_heat_helpers():
     assert hotsheet.heat_from_z(2.0) == 50.0
     assert hotsheet.heat_from_z(-9.0) == 100.0

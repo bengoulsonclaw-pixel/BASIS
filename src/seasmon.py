@@ -474,6 +474,24 @@ RADAR_MAX = 3              # editorial cap — only the strongest windows
 RADAR_CACHE = Path(__file__).resolve().parents[1] / "data" / "signals" / "seas_radar_cache.json"
 
 
+def _avg_year_spark(weekly: pd.DataFrame, ticker: str) -> list | None:
+    """The product's average seasonal year: mean cumulative weekly path, 52
+    points Jan→Dec, complete years only — the sparkline shows the shape the
+    flagged window sits in. Same pivot / complete-year convention as
+    seasonal_path; plain floats so the item survives the JSON radar cache."""
+    if weekly is None or weekly.empty or ticker not in weekly.columns:
+        return None
+    piv = _year_pivot(weekly[ticker])
+    if piv.empty:
+        return None
+    cum = piv.fillna(0.0).cumsum()
+    cum[piv.ffill().isna()] = np.nan       # NaN before a year's first datum
+    years = [c for c in cum.columns if piv[c].notna().sum() >= 40]
+    if len(years) < MIN_YEARS:
+        return None
+    return cum[years].mean(axis=1).tolist()
+
+
 def radar_items() -> list:
     """Hot Sheet provider: strong seasonal windows — hit ≥ HIT_STRONG over the
     window finder's own ≥ MIN_YEARS complete years — opening within the next
@@ -486,7 +504,8 @@ def radar_items() -> list:
     this_wk = min(date.today().isocalendar()[1], 52)   # week 53 folds into 52 (_iso_weekly)
     try:
         _mt = int((deepstore.STORE_DIR / "deep_prices.parquet").stat().st_mtime)
-        _ck = f"{_mt}|{this_wk}"               # invalidates on a new data day or week roll
+        # v2 = items carry sparks — the format bump misses pre-spark caches once
+        _ck = f"v2|{_mt}|{this_wk}"            # invalidates on a new data day or week roll
     except Exception:
         _ck = None
     if _ck:
@@ -527,7 +546,8 @@ def radar_items() -> list:
             # hit onto 0-100: 0.70 (the HIT_STRONG floor) → 40, a perfect record → 100
             heat=max(0.0, (float(r.hit) - 0.5) * 200.0),
             metric=f"{r.wins}/{r.n} yrs", sub="observed sample",
-            value=float(r.med), ticker=t, page="Seasonality", book="ficc"))
+            value=float(r.med), ticker=t, page="Seasonality", book="ficc",
+            spark=_avg_year_spark(weekly, t)))
         if len(out) >= RADAR_MAX:
             break
     if _ck:

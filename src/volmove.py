@@ -130,18 +130,45 @@ def response_table(window: int = 260) -> pd.DataFrame:
 
 RADAR_VOL_MAX = 4      # richest/cheapest names carried to the Hot Sheet
 RADAR_STIR_MAX = 1     # plus at most one STIR-book flag (bp units)
+RADAR_SPARK_N = 130    # ~6 months of the story's own daily path carried per spark
+
+
+def _read_quiet(path, cols) -> pd.DataFrame | None:
+    """Sparks are garnish — a missing/corrupt history store returns None
+    instead of taking the provider's items down."""
+    try:
+        return pd.read_parquet(path, columns=cols)
+    except Exception:
+        return None
+
+
+def _spark_iv_path(hist: pd.DataFrame | None, ticker: str, col: str) -> list | None:
+    """Trailing ~6m of one product's own fitted implied path, oldest→newest —
+    a rich/cheap vol read is a statement about where implied sits, so the spark
+    IS the implied path in vol points. None when the ticker isn't covered."""
+    if hist is None:
+        return None
+    try:
+        s = hist.loc[hist["ticker"] == ticker].sort_values("date")[col].dropna()
+        s = s.iloc[-RADAR_SPARK_N:]
+        return s.tolist() if len(s) else None
+    except Exception:
+        return None
 
 
 def radar_items() -> list:
     """Hot Sheet provider — the vol book's own z-flags (direction != 0 in the
     snapshot-written cross-section), weekreview's collect_vol cut without the
-    realized-peer line. Reads the cached signal stores only — never a fetch."""
+    realized-peer line. Reads the cached signal stores only — never a fetch.
+    Each item carries its own implied-vol path as the sparkline (our fitted
+    constant-30d curve; the STIR book's own 90d curve for the rate names)."""
     from src import hotsheet
     from src.reportkit import ordinal
     sig_dir = ROOT / "data" / "signals"
     det = pd.read_parquet(sig_dir / "volatility.parquet")
     fl = det[det["direction"] != 0]
     fl = fl.reindex(fl["z"].abs().sort_values(ascending=False).index).head(RADAR_VOL_MAX)
+    iv_hist = _read_quiet(SNAP / "own30_history.parquet", ["date", "ticker", "ours30"])
     out = []
     for r in fl.itertuples(index=False):
         side = "rich" if r.direction < 0 else "cheap"
@@ -153,12 +180,16 @@ def radar_items() -> list:
                   f"1σ daily move ≈ {r.iv_sd:,.{dec}f} points."),
             heat=hotsheet.heat_from_z(r.z), metric=f"z {r.z:+.1f}",
             sub="IV−RV spread, 1y", value=float(r.z), ticker=r.ticker,
-            page="Volatility", book="ficc"))
+            page="Volatility", book="ficc",
+            spark=_spark_iv_path(iv_hist, r.ticker, "ours30")))
     # STIR book, same bar, bp units
     try:
         stir = pd.read_parquet(sig_dir / "stirvol.parquet")
         sfl = stir[stir["direction"] != 0]
         sfl = sfl.reindex(sfl["z"].abs().sort_values(ascending=False).index).head(RADAR_STIR_MAX)
+        stir_hist = (_read_quiet(SNAP / "stir_curve_history.parquet",
+                                 ["date", "ticker", "ours"])
+                     if len(sfl) else None)
         for r in sfl.itertuples(index=False):
             side = "rich" if r.direction < 0 else "cheap"
             out.append(hotsheet.item(
@@ -167,7 +198,8 @@ def radar_items() -> list:
                       f"1σ daily move ≈ {r.iv_bp:,.1f} bp."),
                 heat=hotsheet.heat_from_z(r.z), metric=f"z {r.z:+.1f}",
                 sub="IV−RV spread, 1y", value=float(r.z), ticker=r.ticker,
-                page="Volatility", book="ficc"))
+                page="Volatility", book="ficc",
+                spark=_spark_iv_path(stir_hist, r.ticker, "ours")))
     except Exception:
         pass
     return out

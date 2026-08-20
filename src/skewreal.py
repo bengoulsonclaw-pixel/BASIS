@@ -138,18 +138,56 @@ RADAR_WINDOW = 126     # the page's 6M default fit window
 RADAR_MIN_GAP = 2.0    # vols between wing mark and the line — under this it isn't a story
 RADAR_MIN_R2 = 0.20    # the page's own "ignore the row" r² floor
 RADAR_GAP_FULL = 8.0   # vols of gap that saturate the heat gauge (gaps run ~2× a z-score)
+RADAR_SPARK_N = 130    # ~6 months of the story's own daily gap path per spark
+
+
+def _gap_history(ticker: str, wing: str, iv: pd.DataFrame, px: pd.DataFrame,
+                 window: int = RADAR_WINDOW) -> list | None:
+    """The item's own story series, rebuilt from stores already on disk: per day,
+    (levels-fit prediction at the wing distance) − (that day's own wing mark) —
+    the same gap analyze() quotes for today, walked back ~6 months. The rolling
+    fit is level_fit's slope in closed form (rolling cov/var of iv on price,
+    rescaled to vol pts per 1% of that day's spot), so the whole path is a few
+    vectorized rolling ops — no per-day refits. Sparks are garnish: any problem
+    returns None rather than taking the provider down."""
+    try:
+        if ticker not in iv.columns or ticker not in px.columns:
+            return None
+        j = pd.concat([px[ticker].rename("px"), iv[ticker].rename("iv")],
+                      axis=1, sort=True).dropna()
+        if len(j) < 40:                                    # move_frame's own floor
+            return None
+        cov = j["px"].rolling(window, min_periods=40).cov(j["iv"])
+        var = j["px"].rolling(window, min_periods=40).var()
+        g = cov / var * j["px"] / 100.0                    # vol pts per 1% of the day's spot
+        sign = -1.0 if wing == "put" else 1.0
+        pred = j["iv"] + sign * g * WING_PCT
+        h = pd.read_parquet(SNAP / "own_skew_history.parquet")
+        h = h[h["ticker"] == ticker].copy()
+        h["date"] = pd.to_datetime(h["date"])
+        mark = h.sort_values("date").set_index("date")[wing]
+        mark = mark[~mark.index.duplicated(keep="last")]
+        mark = mark.reindex(pred.index, method="ffill")    # last point uses the latest
+        gap = (pred - mark).dropna().iloc[-RADAR_SPARK_N:]  # mark, same as analyze()
+        return gap.tolist() if len(gap) else None
+    except Exception:
+        return None
 
 
 def radar_items() -> list:
     """Hot Sheet provider — wings whose gap to the realized-path line clears the
     module's own bar: confident fits only (the changes-beta regime check), r²
     above the page's ignore floor, one item per product on its wider wing.
+    Each item carries the gap's own reconstructed daily path as the sparkline.
     All inputs are our own local files — never a fetch."""
     from src import hotsheet
     df = analyze(window=RADAR_WINDOW)
     if df.empty:
         return []
     ok = df[df["confident"] & (df["r2"] >= RADAR_MIN_R2) & (df["max_gap"] >= RADAR_MIN_GAP)]
+    if ok.empty:
+        return []
+    iv, px = _own_iv(), _prices()                          # shared by every item's spark
     out = []
     for r in ok.head(RADAR_MAX).itertuples(index=False):   # analyze() sorts by max_gap
         wing, gap = (("put", r.put_gap) if abs(r.put_gap) >= abs(r.call_gap)
@@ -166,5 +204,6 @@ def radar_items() -> list:
             heat=hotsheet.heat_from_z(gap, full=RADAR_GAP_FULL),
             metric=f"gap {gap:+.1f}", sub="vols vs realized path, 6m fit",
             value=float(gap), ticker=r.ticker,
-            page="Skew Volatility", book="ficc"))
+            page="Skew Volatility", book="ficc",
+            spark=_gap_history(r.ticker, wing, iv, px)))
     return out

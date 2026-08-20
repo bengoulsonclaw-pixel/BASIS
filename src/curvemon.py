@@ -349,6 +349,7 @@ RADAR_MAX = 4         # editorial cap — the book's four most stretched flags m
 # module's other first-class read, so decade extremes get their own item kind.
 RADAR_PCTL_HI = 95.0
 RADAR_PCTL_LO = 5.0
+RADAR_SPARK = 250     # sessions of the spread's own level behind each line's sparkline (~1y)
 
 
 def radar_items() -> list:
@@ -360,9 +361,18 @@ def radar_items() -> list:
     from src import hotsheet
     from .reportkit import ordinal
 
-    m = monitor()
+    history = load_history()
+    m = monitor(history=history)
     if m.empty:
         return []
+
+    def _spark(key: str) -> list | None:
+        """The spread's own recent daily levels, oldest→newest, in the same unit
+        the line quotes (its last point IS the item's level) — rebuilt from the
+        already-loaded history frame, so no extra store reads."""
+        s = _build_spread(SPREAD_BY_KEY[key], history)
+        return None if s is None else s.tail(RADAR_SPARK).tolist()
+
     fl = m[(m["direction"] != 0) & m["z"].notna()].copy()
     fl = fl.reindex(fl["z"].abs().sort_values(ascending=False).index).head(RADAR_MAX)
     out = []
@@ -379,6 +389,7 @@ def radar_items() -> list:
                      hotsheet.heat_from_pctl(r.pctl) if r.pctl == r.pctl else 0.0),
             metric=f"z {r.z:+.1f}", sub="vs its 1y band",
             value=float(r.level),        # the spread level — a meaningful week-on-week Δ
+            spark=_spark(r.key),         # the spread's own level, same unit as quoted
             ticker="",                   # multi-leg — no single ticker for the sector filter
             page="Curve Monitor", book="ficc",
         ))
@@ -400,6 +411,7 @@ def radar_items() -> list:
             heat=hotsheet.heat_from_pctl(r.pctl),
             metric=f"{r.pctl:.0f}th pctl", sub="of stored history",
             value=float(r.level),
+            spark=_spark(r.key),
             ticker="", page="Curve Monitor", book="ficc",
         ))
     return out

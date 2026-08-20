@@ -393,6 +393,14 @@ def compute(max_age_hours: float = 20.0, force: bool = False):
 RADAR_EXTREME_MAX = 3      # crowded-positioning extremes shown (cross-section is already |idx−50| sorted)
 RADAR_SHIFT_MAX = 2        # the week's largest size-normalised net shifts
 RADAR_SHIFT_Z_FULL = 5.0   # σ that pins a shift's heat gauge at 100 (the weekreview convention)
+RADAR_SPARK_WEEKS = 104    # sparkline lookback — ~2y of weekly CFTC prints
+
+
+def _radar_spark(hist: pd.DataFrame, ticker: str, col: str) -> list:
+    """Trailing ~2y of one market's weekly `col`, oldest→newest — the sparkline
+    series for radar_items (cot_index for the crowding stories, net for shifts)."""
+    g = hist.loc[hist["ticker"] == ticker].sort_values("date")
+    return pd.to_numeric(g[col], errors="coerce").tail(RADAR_SPARK_WEEKS).tolist()
 
 
 def radar_items() -> list:
@@ -425,6 +433,8 @@ def radar_items() -> list:
             metric=f"idx {r.cot_index:.0f}", sub="COT index, 0–100",
             value=float(r.net_pct_oi),       # the crowding level — net %OI, Δ-able on the week
             ticker=r.ticker, page="COT Reports", book="ficc",
+            # the metric quotes the COT index, so the spark draws its path
+            spark=_radar_spark(hist, r.ticker, "cot_index"),
         ))
     try:
         # cotreport imports bare-name siblings (reportkit, cotstudy…) — its
@@ -435,6 +445,7 @@ def radar_items() -> list:
         from src import cotreport
         tick = dict(zip(detail["market"], detail["ticker"]))
         for s in cotreport._weekly_shifts(detail, hist)[:RADAR_SHIFT_MAX]:
+            _tkr = tick.get(s["market"], "")
             out.append(hotsheet.item(
                 tag="COT", key=f"shift:{s['market']}", section="Positioning",
                 text=f"**{s['market']}**: the week's net positioning move was "
@@ -443,7 +454,9 @@ def radar_items() -> list:
                 heat=hotsheet.heat_from_z(s["z"], full=RADAR_SHIFT_Z_FULL),
                 metric=f"{s['z']:+.1f}σ", sub="vs 3y of weekly moves",
                 value=float(s["chg"]),       # contracts moved on the week
-                ticker=tick.get(s["market"], ""), page="COT Reports", book="ficc",
+                ticker=_tkr, page="COT Reports", book="ficc",
+                # net path in contracts — the last step IS the week's shift
+                spark=_radar_spark(hist, _tkr, "net") if _tkr else None,
             ))
     except Exception:                        # shifts are additive — the extremes still stand
         pass

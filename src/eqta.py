@@ -139,6 +139,26 @@ def load_signals():
 # (threshold mode may legitimately return nothing); RADAR_TOP_N is just the safety cap, matched
 # to the sheet's per-provider cap.
 RADAR_TOP_N = 5
+RADAR_SPARK = 120           # trailing sessions behind each pick's sparkline (~6 months)
+
+
+def _radar_closes(tickers) -> pd.DataFrame:
+    """The picks' trailing closes — a column-pruned read of the SAME cached store the
+    signals were computed from (eqta_close.parquet, the TA-adjusted closes), so each
+    spark is exactly the series its pick's claim was judged on. Disk only, never
+    yfinance; a failure here only costs the sparks, never the picks."""
+    tickers = [t for t in dict.fromkeys(tickers) if t]
+    if not tickers or not CLOSE_FILE.exists():
+        return pd.DataFrame()
+    try:
+        import pyarrow.parquet as pq
+        have = set(pq.read_schema(CLOSE_FILE).names)
+        cols = [t for t in tickers if t in have]
+        if not cols:
+            return pd.DataFrame()
+        return pd.read_parquet(CLOSE_FILE, columns=cols).sort_index()
+    except Exception:
+        return pd.DataFrame()
 
 
 def radar_items() -> list:
@@ -160,16 +180,20 @@ def radar_items() -> list:
                             exclude=sorted(universe.report_excluded("equities")),
                             min_conviction=float(rd["min_conviction"]),
                             min_score=float(rd["min_score"]))
+    picks = [(side, p) for side in ("constructive", "cautious") for p in sel[side]]
+    closes = _radar_closes([p.get("instruments", "") for _, p in picks])
     out = []
-    for side in ("constructive", "cautious"):
-        for p in sel[side]:
-            out.append(hotsheet.item(
-                tag="EQ-TECH", key=f"{p['market']}:{side}", section="Equities · Technical",
-                text=(f"**{p['market']}** clears the desk's technical quality bar on the "
-                      f"**{side}** side — **{p['n']}** strategies align, "
-                      f"score {p['score']:+.0f}."),
-                metric=f"conv {p['conviction']:.0f}", sub="of 100",
-                heat=float(p["conviction"]), value=float(p["score"]),
-                ticker=p.get("instruments", ""),
-                page="eq:Technical Analysis", book="equities"))
+    for side, p in picks:
+        tkr = p.get("instruments", "")
+        sp = closes[tkr].dropna().tail(RADAR_SPARK) if tkr in closes.columns else None
+        out.append(hotsheet.item(
+            tag="EQ-TECH", key=f"{p['market']}:{side}", section="Equities · Technical",
+            text=(f"**{p['market']}** clears the desk's technical quality bar on the "
+                  f"**{side}** side — **{p['n']}** strategies align, "
+                  f"score {p['score']:+.0f}."),
+            metric=f"conv {p['conviction']:.0f}", sub="of 100",
+            heat=float(p["conviction"]), value=float(p["score"]),
+            ticker=tkr,
+            spark=(sp.tolist() if sp is not None and len(sp) else None),
+            page="eq:Technical Analysis", book="equities"))
     return out

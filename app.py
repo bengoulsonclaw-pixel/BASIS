@@ -4521,10 +4521,30 @@ def _hs_go(dest: str) -> None:
 _HS_MONO = "'IBM Plex Mono', Consolas, monospace"
 
 
+def _hs_spark(vals: list, pal: dict) -> str:
+    """Inline SVG sparkline of an item's own series (oldest→newest): a quiet trace
+    with the latest point marked gold, so a slow grind and a sudden snap read
+    differently before the prose is even parsed. Pure markup — no chart library,
+    so thirty rows render instantly."""
+    W, H, P = 110.0, 30.0, 2.5
+    lo, hi = min(vals), max(vals)
+    rng = (hi - lo) or 1.0
+    n = len(vals)
+    xy = [(P + i * (W - 2 * P) / (n - 1), P + (H - 2 * P) * (1 - (v - lo) / rng))
+          for i, v in enumerate(vals)]
+    pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in xy)
+    lx, ly = xy[-1]
+    return (f'<svg width="100%" height="{H:.0f}" viewBox="0 0 {W:.0f} {H:.0f}" '
+            f'preserveAspectRatio="none" style="display:block">'
+            f'<polyline points="{pts}" fill="none" stroke="{pal["faint"]}" '
+            f'stroke-width="1.2" vector-effect="non-scaling-stroke"/>'
+            f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="2.4" fill="{pal["gold"]}"/></svg>')
+
+
 def _hs_row(it: dict, uid: str, pal: dict) -> None:
-    """One Hot Sheet line: tag chip + badge + prose, the metric column with its heat
-    gauge, and the jump into the owning module."""
-    c_txt, c_met, c_go = st.columns([11, 3, 1])
+    """One Hot Sheet line: tag chip + badge + prose, the story's sparkline, the
+    metric column with its heat gauge, and the jump into the owning module."""
+    c_txt, c_spark, c_met, c_go = st.columns([8, 3, 3, 1])
     chip = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{pal["gold"]};'
             f'border:1px solid {pal["label_ring"]};padding:.05rem .35rem;'
             f'margin-right:.5rem;white-space:nowrap">{it["tag"]}</span>')
@@ -4537,6 +4557,9 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
                  f'border:1px solid {pal["border"]};padding:.05rem .35rem;'
                  f'margin-right:.5rem;white-space:nowrap">{it["badge"]}</span>')
     c_txt.markdown(chip + badge + it["text"], unsafe_allow_html=True)
+    if it.get("spark"):
+        c_spark.markdown(f'<div style="padding-top:.35rem">{_hs_spark(it["spark"], pal)}</div>',
+                         unsafe_allow_html=True)
     met = it["metric"] or f"{it['heat']:.0f}"
     sub = (f'<br><span style="font:400 .62rem {_HS_MONO};color:{pal["faint"]}">{it["sub"]}</span>'
            if it["sub"] else "")

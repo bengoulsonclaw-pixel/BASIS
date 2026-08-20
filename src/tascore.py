@@ -256,6 +256,24 @@ def score_products(flagged: pd.DataFrame) -> pd.DataFrame:
 # min_score bar does the real gating (threshold mode may legitimately return nothing);
 # RADAR_TOP_N is just the safety cap, matched to the sheet's per-provider cap.
 RADAR_TOP_N = 5
+RADAR_SPARK = 120           # trailing sessions behind each pick's sparkline (~6 months)
+
+
+def _radar_sparks(tickers) -> pd.DataFrame:
+    """The picks' trailing history in TA SPACE — datafeed.get_history_ta, the exact seam
+    the strategies computed on (yields for FI, prices elsewhere), so an FI pick's spark
+    reads in the same direction as its prose. Snapshot/mock modes are pure disk /
+    synthetic; in bloomberg mode the same seam would be a LIVE pull — the morning stamp
+    runs in that mode and drops sparks anyway (render-only), so skip them there. A
+    failure here only costs the sparks, never the picks."""
+    from . import datafeed
+    tickers = [t for t in dict.fromkeys(tickers) if t]
+    if not tickers or datafeed.MODE == "bloomberg":
+        return pd.DataFrame()
+    try:
+        return datafeed.get_history_ta(tickers)
+    except Exception:
+        return pd.DataFrame()
 
 
 def radar_items() -> list:
@@ -273,16 +291,20 @@ def radar_items() -> list:
     sel = convreport.select(sig, top_n=RADAR_TOP_N, mode="threshold",
                             min_conviction=float(rd["min_conviction"]),
                             min_score=float(rd["min_score"]))
+    picks = [(side, p) for side in ("constructive", "cautious") for p in sel[side]]
+    hist = _radar_sparks([p.get("instruments", "") for _, p in picks])
     out = []
-    for side in ("constructive", "cautious"):
-        for p in sel[side]:
-            out.append(hotsheet.item(
-                tag="TECH", key=f"{p['market']}:{side}", section="Technical",
-                text=(f"**{p['market']}** clears the desk's technical quality bar on the "
-                      f"**{side}** side — **{p['n']}** strategies align, "
-                      f"score {p['score']:+.0f}."),
-                metric=f"conv {p['conviction']:.0f}", sub="of 100",
-                heat=float(p["conviction"]), value=float(p["score"]),
-                ticker=p.get("instruments", ""),
-                page="Technical Analysis", book="ficc"))
+    for side, p in picks:
+        tkr = p.get("instruments", "")
+        sp = hist[tkr].dropna().tail(RADAR_SPARK) if tkr in hist.columns else None
+        out.append(hotsheet.item(
+            tag="TECH", key=f"{p['market']}:{side}", section="Technical",
+            text=(f"**{p['market']}** clears the desk's technical quality bar on the "
+                  f"**{side}** side — **{p['n']}** strategies align, "
+                  f"score {p['score']:+.0f}."),
+            metric=f"conv {p['conviction']:.0f}", sub="of 100",
+            heat=float(p["conviction"]), value=float(p["score"]),
+            ticker=tkr,
+            spark=(sp.tolist() if sp is not None and len(sp) else None),
+            page="Technical Analysis", book="ficc"))
     return out
