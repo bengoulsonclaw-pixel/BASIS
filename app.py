@@ -2108,12 +2108,14 @@ def _explain_fetch_failure(out: str, err: str) -> None:
     elif "[BASIS] fetch stalled" in text:
         st.error(
             "⏱️ **The pull stalled and was stopped automatically** — it stopped making "
-            "progress mid-run, which in practice means the Bloomberg session silently "
-            "died underneath it (Terminal closed/logged out, login moved to another "
-            "PC, or a connection drop).\n\n"
-            "**What to do:** check the Terminal is open and logged in **on this "
-            "machine**, then pull again — a pull can't resume, it restarts and takes "
-            "~10–15 min. " + kept)
+            "progress mid-run. Most often the Bloomberg engine lost one request and "
+            "waited forever (its requests have no timeout) — **the Terminal is usually "
+            "fine** and an immediate retry succeeds. The other cause is the session "
+            "dying underneath it (Terminal closed/logged out, login moved to another "
+            "PC).\n\n"
+            "**What to do:** pull again — a pull can't resume, it restarts and takes "
+            "~10–15 min. If the retry ALSO stalls, then check the Terminal login on "
+            "this machine. " + kept)
     elif n_fail >= 8:
         st.error(
             "🔌 **The Bloomberg connection died mid-pull** — requests were flowing and "
@@ -2149,15 +2151,20 @@ def _explain_fetch_failure(out: str, err: str) -> None:
         st.code(text[-4000:] or "no output", language="text")
 
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def _landing_eq_events() -> list:
-    """The landing page's earnings chips — cached LONG (6h): the underlying
-    fundamentals frame's own cache is only 10 min, and its ~30s cold load left the
-    front door looking empty/broken. Earnings dates only move on the weekly
-    fundamentals pull cadence, so 6h staleness is invisible."""
+    """The landing page's earnings chips — FILE-backed since 2026-08-20 (Ben: the
+    homepage 'takes ages each time'): the daily equities pull pre-writes
+    data/equities/earnings_events.json, and reading it back is milliseconds and
+    survives server restarts (in-process caches don't). The ~30s fundamentals
+    compute only ever runs as a fallback when the store is missing, and then
+    writes it for everyone after."""
     from src import eqearncal
-    _edf, _easof, _esrc = _eqf_frame(tuple(equities.INDICES.keys()))
-    return eqearncal.events(_edf, cap=10)      # the day panel has room for a full list
+    ev = eqearncal.read_events_store()
+    if ev is not None:
+        return ev
+    eqearncal.refresh_events_store()
+    return eqearncal.read_events_store() or []
 
 
 _MACRO_FLAGS = {"USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵", "CAD": "🇨🇦",
@@ -2409,79 +2416,77 @@ def render_home() -> None:
                   help="The Monday wrap — what every module's own thresholds flagged this week, "
                        "with the technical scorecard folded in.")
     def _run_ficc_pull():
-        # TWO PHASES so the Terminal only needs to be open for the short one:
-        # fetch (Bloomberg, ~3-5 min) -> banner flips to "close the Terminal" ->
-        # compute (fits + signals, Terminal-closed). Live elapsed timers on both.
-        def _phase(args, msg, cap_min=None):
-            # cap_min: hard stall guard — a wedged Bloomberg engine otherwise hangs
-            # FOREVER at ~0 CPU (seen 2026-08-13, three runs in one morning) and the
-            # banner just counts minutes. Past the cap the whole process TREE is
-            # killed (the fetch spawns grandchildren) and a marker lands in stderr
-            # for _explain_fetch_failure to diagnose.
-            ph = st.empty()
-            t0 = time.time()
-            proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI), *args], cwd=str(ROOT),
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                    env={**os.environ, "DATAFEED_MODE": "bloomberg",
-                                         "PYTHONUTF8": "1"})
-            while proc.poll() is None:
-                el = (time.time() - t0) / 60
-                if cap_min and el > cap_min:
-                    subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-                                   capture_output=True)
-                    out, err = proc.communicate()
-                    ph.empty()
-                    return -9, out, (err or "") + f"\n[BASIS] fetch stalled — killed after {el:.0f} min", el
-                ph.info(msg.format(el=el))
-                time.sleep(5)
-            out, err = proc.communicate()
-            ph.empty()
-            return proc.returncode, out, err, (time.time() - t0) / 60
+        # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through
+        # run_pull.py — pre-flight probe (a block / logged-out Terminal refuses in
+        # ~2s, zero hits), fetch with an 8-min WRITE-STALL watchdog, ONE automatic
+        # retry (the playbook that fixed every wedge this month), compute, git
+        # backup. Press Pull, keep the Terminal open until the green banner — no
+        # babysitting, no 45-minute mornings.
+        _DSTAT = ROOT / "data" / "snapshot" / ".pull_driver_status.json"
 
-        # Pre-flight: one raw request BEFORE committing to a 10-15 min pull — a
-        # -4002 block or a logged-out Terminal is caught here in ~2s instead of
-        # after a long doomed run that wastes API hits (learned 2026-08-14).
-        _pre = _blp_block_probe()
-        if _pre:
-            _block_error(_pre)
-            return
-        if _pre is None:
-            st.error(
-                "🖥️ **Bloomberg isn't answering on this machine** — the Terminal is "
-                "closed, not logged in, or the login is active on another PC. "
-                "Open it, log in, then pull again. (The pull was NOT started — "
-                "no API hits were spent.)")
-            return
+        def _dstat() -> dict:
+            try:
+                return json.loads(_DSTAT.read_text(encoding="utf-8"))
+            except Exception:
+                return {}
 
-        _t_all = time.time()
-        rc, _out, _err, _m1 = _phase(
-            ["--fetch"],
-            "⏳ **Bloomberg phase** — {el:.1f} min elapsed (a full pull takes ~10–15 min; "
-            "auto-stops if stalled past 25). The Terminal must stay open **and logged in "
-            "on this machine** for THIS phase only.",
-            cap_min=25)
-        if rc != 0:
-            _explain_fetch_failure(_out, _err)
-            return
-        _done = st.empty()
-        _done.success(f"✅ **Bloomberg finished ({_m1:.1f} min) — you can CLOSE THE "
-                      "TERMINAL now.** Crunching the maths…")
-        rc, _out, _err, _m2 = _phase(
-            ["--compute"],
-            "🧮 **Compute phase** (Terminal-closed) — {el:.1f} min elapsed: COT signals, "
-            "own-vol-curve fits, manifest.")
-        if rc != 0:
+        ph = st.empty()
+        t0 = time.time()
+        proc = subprocess.Popen([sys.executable, "-u", str(ROOT / "run_pull.py")],
+                                cwd=str(ROOT), stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True)
+        _msgs = {
+            "running": "⏳ **Pulling** — {el:.1f} min elapsed (fetch + maths; ~10–15 min "
+                       "healthy). Self-healing: a stalled fetch is killed after ~8 quiet "
+                       "minutes and retried once automatically. Keep the Terminal open "
+                       "until the green banner.",
+            "retrying": "🔁 **First attempt stalled — the automatic retry is running** "
+                        "({el:.1f} min total). Nothing to do; keep the Terminal open.",
+        }
+        while proc.poll() is None:
+            el = (time.time() - t0) / 60
+            ph.info(_msgs.get(_dstat().get("outcome"), _msgs["running"]).format(el=el))
+            time.sleep(5)
+        proc.communicate()
+        ph.empty()
+        stat = _dstat()
+        outcome, detail = stat.get("outcome"), stat.get("detail", "")
+        if outcome == "ok":
+            run_daily.run(); load_signals.clear()
+            _regen_mc_heatmap()      # refresh the Morning Coffee heatmap on Home
+            st.session_state.pop("ficc_pull_confirm", None)
+            st.success(f"✅ Snapshot {detail} — backup pushed. You can close the "
+                       "Terminal now.")
+            st.rerun()
+        elif outcome == "preflight_refused":
+            if "WORKFLOW_REVIEW" in detail or "-4002" in detail:
+                st.error(f"🚫 **{detail}.** The Terminal itself is fine — every API "
+                         "request is rejected until Bloomberg lifts the block (HELP "
+                         "HELP, quote the -4002). No pull was started, no hits spent. "
+                         "The existing snapshot was **kept**.")
+            else:
+                st.error(f"🖥️ **Bloomberg isn't answering on this machine** — {detail}. "
+                         "Open the Terminal, log in, and press Pull again. (No pull "
+                         "was started — no API hits were spent.)")
+        elif outcome == "fetch_failed_twice":
+            st.error("⏱️ **Both fetch attempts stalled** — even the automatic retry "
+                     "froze, which points at a genuinely unhealthy Bloomberg session. "
+                     "Restart the Terminal (log in on THIS machine), then press Pull "
+                     "again. The existing snapshot was **kept** — nothing was "
+                     "overwritten.")
+            try:
+                _tail = (ROOT / "logs" / "pull_driver_fetch_retry.log").read_text(
+                    encoding="utf-8", errors="replace")[-4000:]
+            except Exception:
+                _tail = "no log"
+            with st.expander("Technical log"):
+                st.code(_tail, language="text")
+        elif outcome == "compute_failed":
             st.error("Snapshot compute failed (the fetched data is safe on disk — "
-                     "'Re-run signals' or retry):\n\n" + (_err or _out or "no output"))
-            return
-        run_daily.run(); load_signals.clear()
-        _regen_mc_heatmap()          # refresh the Morning Coffee heatmap on Home
-        gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
-        st.session_state.pop("ficc_pull_confirm", None)
-        _done.empty()
-        st.success(f"Snapshot complete — Bloomberg needed {_m1:.1f} min, maths "
-                   f"{_m2:.1f} min, total {(time.time() - _t_all) / 60:.1f} min.")
-        st.rerun()
+                     "'Re-run signals' or retry). " + detail)
+        else:
+            st.error("The pull driver ended unexpectedly — see logs/pull_driver.log. "
+                     "The existing snapshot was **kept**.")
 
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
@@ -5121,7 +5126,7 @@ def _eq_ta_gallery_data(tk, strset_key, as_of):
     out = {"pf": None, "flag": None, "sr_levels": [], "fib_levels": [], "retest_level": None,
            "mom": None, "elliott": None, "ichimoku": None, "obv": None, "mfi": None,
            "donchian": None, "aroon": None}
-    close, vol = eqta.load_history()
+    close, vol = eqta.load_history_one(tk)     # column-pruned: ms, not a 37MB load
     if close.empty or tk not in close.columns:
         return out
     out["pf"] = close[tk].dropna()
@@ -11913,9 +11918,9 @@ def render_curve_monitor() -> None:
 # ---------------------------------------------------------------------------
 @st.cache_data(show_spinner=False, ttl=1800)
 def _seas_changes(mode: str):
-    """Monthly + weekly change frames for the whole book — one deep-store read."""
-    frames = seasmon.load_frames(universe.TREND_UNIVERSE)
-    return seasmon.monthly_changes(frames), seasmon.weekly_changes(frames)
+    """Monthly + weekly change frames for the whole book — reads the daily disk
+    store (~ms; the 7.5s deep-store scan only runs if the store is stale)."""
+    return seasmon.changes_cached()
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -11936,7 +11941,7 @@ def _seas_spread(ticker: str, mode: str):
 
 @st.cache_data(show_spinner=False, ttl=1800)
 def _seas_spread_screener(mode: str):
-    return seasmon.spread_screener()
+    return seasmon.spread_screener_cached()      # daily disk store, ms on open
 
 
 def _seas_fmt(unit: str) -> str:

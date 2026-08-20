@@ -1,0 +1,149 @@
+{
+ "asof": "2026-08-20 07:08:49",
+ "est_hits": 6097,
+ "n_duplicate_pairs": 23,
+ "duplicates": {
+  "SX5E Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "SX7E Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "DAX Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "UKX Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "CAC Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "SMI Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "NKY Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "KOSPI2 Index | PX_LAST": [
+   "datafeed._bloomberg_history",
+   "datafeed._bloomberg_live_quote",
+   "deepstore._pull_field"
+  ],
+  "SFRM6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFRU6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFRZ6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFRH7 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFRM7 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFIM6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFIU6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFIZ6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFIH7 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "SFIM7 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "ERM6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "ERU6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "ERZ6 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "ERH7 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ],
+  "ERM7 Comdty | PX_SETTLE": [
+   "stircurve._bdh",
+   "stirpaths.refresh_strip_store"
+  ]
+ },
+ "accepted_overlaps": {
+  "USGG30YR Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "USGG10YR Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "USGG5YR Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "USGG2YR Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "GDBR30 Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "GDBR10 Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "GDBR5 Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "GDBR2 Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "GTFRF10Y Govt | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ],
+  "GUKG10 Index | PX_LAST": [
+   "datafeed._bloomberg_yield",
+   "deepstore._pull_field"
+  ]
+ }
+}

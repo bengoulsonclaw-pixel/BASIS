@@ -115,11 +115,58 @@ def _merge_cache(new: pd.DataFrame) -> None:
         pass
 
 
+def _fresh_cache(tickers: list, sessions: int):
+    """corr_history.parquet when it is CURRENT (covers through the last few days)
+    and wide enough — the page-open fast path since 2026-08-20: the daily pull
+    tops the store up, so a cold open is a parquet read, not a 10-30s Yahoo pull."""
+    try:
+        cached = pd.read_parquet(_HIST_FILE) if _HIST_FILE.exists() else None
+    except Exception:
+        return None
+    if cached is None or len(cached) < _min_obs(sessions):
+        return None
+    if pd.Timestamp(cached.index.max()) < pd.Timestamp.today().normalize() - pd.Timedelta(days=4):
+        return None                                 # stale — fall through to live
+    have = [t for t in tickers if t in cached.columns]
+    if len(have) < max(2, len(tickers) // 2):
+        return None
+    px = cached[have].sort_index()
+    return px, f"daily store · to {px.index.max():%Y-%m-%d}"
+
+
+def refresh_history_store() -> int:
+    """The daily pull's top-up hook: fold the DEFAULT_INDICES universe's closes
+    into corr_history.parquet (a deep backfill when the store is thin, else just
+    the recent tail) so _fresh_cache serves every page open same-day. Returns the
+    ticker count folded in, 0 on any failure (never raises into the pull)."""
+    try:
+        uni = equities.cached_universe()
+        keys = [k for k in equities.DEFAULT_INDICES if k in uni] or list(uni)
+        ticks = sorted({c["ticker"] for k in keys for c in uni.get(k, [])})
+        if not ticks:
+            return 0
+        try:
+            cached = pd.read_parquet(_HIST_FILE) if _HIST_FILE.exists() else None
+        except Exception:
+            cached = None
+        deep = cached is None or len(cached) < _min_obs(PERIODS["1 year"])
+        px = yfin.get_history(ticks, sessions=(max(PERIODS.values()) + 60) if deep else 30)
+        if px is None or px.empty:
+            return 0
+        _merge_cache(px)
+        return int(px.shape[1])
+    except Exception:
+        return 0
+
+
 def price_history(tickers: list, sectors: dict, sessions: int) -> tuple:
     """(prices date x ticker, source label) covering ~`sessions` trading days back.
-    Yahoo Finance first (free, deep history — also tops up the cache), then live
-    Bloomberg, then the cache when it covers enough of the window; otherwise
-    deterministic demo prices."""
+    The SAME-DAY disk store first (written by the daily pull — page opens in ms),
+    then live Yahoo (free, also tops up the store), then live Bloomberg, then a
+    stale store when it covers enough of the window; otherwise demo prices."""
+    hit = _fresh_cache(tickers, sessions)
+    if hit is not None:
+        return hit
     if equities._use_yf():
         try:
             px = yfin.get_history(tickers, sessions=sessions)

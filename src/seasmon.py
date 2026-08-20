@@ -465,6 +465,78 @@ def spread_screener() -> pd.DataFrame:
             .reset_index(drop=True))
 
 
+# ── the page's once-a-day stores (Ben's app-wide rule, 2026-08-20) ───────────
+# load_frames over the 81-product trend universe measures ~7.5s cold and the
+# spread screener ~2s — far too slow per page open, and st.cache dies with every
+# server restart. The daily compute phase warms these; pages read them in ms and
+# self-heal (compute + write) when a store is missing or the deep store moved on.
+_PAGE_DIR = Path(__file__).resolve().parents[1] / "data" / "signals"
+_PAGE_MONTHLY = _PAGE_DIR / "seas_monthly.parquet"
+_PAGE_WEEKLY = _PAGE_DIR / "seas_weekly.parquet"
+_PAGE_SPREADS = _PAGE_DIR / "seas_spread_screen.parquet"
+
+
+def _page_key() -> str | None:
+    try:
+        return f"v1|{int((deepstore.STORE_DIR / 'deep_prices.parquet').stat().st_mtime)}"
+    except Exception:
+        return None
+
+
+def _key_ok(key_file: Path) -> bool:
+    try:
+        return json.loads(key_file.read_text(encoding="utf-8")).get("key") == _page_key()
+    except Exception:
+        return False
+
+
+def _key_write(key_file: Path) -> None:
+    try:
+        k = _page_key()
+        if k:
+            key_file.write_text(json.dumps({"key": k}), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def changes_cached() -> tuple:
+    """(monthly, weekly) change frames — the disk store when current, else
+    compute-and-write. THE page-open fast path (was the 7.5s load_frames)."""
+    kf = _PAGE_MONTHLY.with_suffix(".key.json")
+    if _key_ok(kf):
+        try:
+            return pd.read_parquet(_PAGE_MONTHLY), pd.read_parquet(_PAGE_WEEKLY)
+        except Exception:
+            pass
+    frames = load_frames(universe.TREND_UNIVERSE)
+    mo, wk = monthly_changes(frames), weekly_changes(frames)
+    try:
+        _PAGE_DIR.mkdir(parents=True, exist_ok=True)
+        mo.to_parquet(_PAGE_MONTHLY)
+        wk.to_parquet(_PAGE_WEEKLY)
+        _key_write(kf)
+    except Exception:
+        pass
+    return mo, wk
+
+
+def spread_screener_cached() -> pd.DataFrame:
+    kf = _PAGE_SPREADS.with_suffix(".key.json")
+    if _key_ok(kf) and _PAGE_SPREADS.exists():
+        try:
+            return pd.read_parquet(_PAGE_SPREADS)
+        except Exception:
+            pass
+    df = spread_screener()
+    try:
+        _PAGE_DIR.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(_PAGE_SPREADS)
+        _key_write(kf)
+    except Exception:
+        pass
+    return df
+
+
 # ── Hot Sheet provider ───────────────────────────────────────────────────────
 RADAR_HORIZON_WEEKS = 2    # windows opening within this many ISO weeks make the sheet
 RADAR_MAX = 3              # editorial cap — only the strongest windows

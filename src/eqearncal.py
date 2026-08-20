@@ -10,6 +10,10 @@ code — like the futures sector colours, it stays out of client PDFs.
 """
 from __future__ import annotations
 
+import json
+from datetime import date, datetime
+from pathlib import Path
+
 import pandas as pd
 
 # GICS sector -> chip colour (deep tones so the white chip text stays legible).
@@ -94,6 +98,41 @@ def events(df: pd.DataFrame, cap: int = CAP) -> list:
                        "color": OTHER_COLOR, "auto": False,
                        "tip": names + ("…" if len(rest) > 40 else "")})
     return ev
+
+
+# ── the once-a-day events store (seasonality/Hot-Sheet pattern, 2026-08-20) ─────
+# In-process caches die with every server restart, so the landing page kept paying
+# the ~30s fundamentals load. The daily equities pull pre-writes the answer here;
+# every page view reads it back in milliseconds.
+EVENTS_STORE = Path(__file__).resolve().parents[1] / "data" / "equities" / "earnings_events.json"
+
+
+def write_events_store(ev: list) -> None:
+    EVENTS_STORE.parent.mkdir(parents=True, exist_ok=True)
+    out = [{**e, "date": e["date"].isoformat()} for e in ev]
+    EVENTS_STORE.write_text(
+        json.dumps({"asof": datetime.now().isoformat(timespec="seconds"), "events": out},
+                   indent=1), encoding="utf-8")
+
+
+def read_events_store() -> list | None:
+    """The persisted events (dates revived), or None when the store is missing/bad."""
+    try:
+        raw = json.loads(EVENTS_STORE.read_text(encoding="utf-8"))
+        return [{**e, "date": date.fromisoformat(e["date"])} for e in raw["events"]]
+    except Exception:
+        return None
+
+
+def refresh_events_store(cap: int = 10) -> int:
+    """Build + persist from the fundamentals DB — the daily pull's pre-warm hook
+    (also the lazy fallback when the store is missing). Returns the event count."""
+    from . import eqfunda, equities
+    df, _asof, _src = eqfunda.company_frame(universe=equities.cached_universe(),
+                                            index_keys=list(equities.INDICES.keys()))
+    ev = events(df, cap=cap)
+    write_events_store(ev)
+    return len(ev)
 
 
 def legend_html() -> str:

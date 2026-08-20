@@ -95,6 +95,21 @@ def load_history():
     return close, vol
 
 
+def load_history_one(tk: str):
+    """(close, volume) frames for ONE ticker — column-pruned reads. The page's
+    chart gallery only ever needs the picked name; loading both full-universe
+    parquets (~37 MB, ~2,600 columns) for it cost seconds on every cold open."""
+    try:
+        close = pd.read_parquet(CLOSE_FILE, columns=[tk]) if CLOSE_FILE.exists() else pd.DataFrame()
+    except Exception:
+        close = pd.DataFrame()
+    try:
+        vol = pd.read_parquet(VOL_FILE, columns=[tk]) if VOL_FILE.exists() else pd.DataFrame()
+    except Exception:
+        vol = pd.DataFrame()
+    return close, vol
+
+
 def run() -> pd.DataFrame:
     """Run every technical strategy over the cached equity OHLCV → eqta_opportunities.parquet.
     Market names are remapped to company names from the equity membership cache."""

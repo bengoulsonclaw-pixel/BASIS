@@ -172,6 +172,27 @@ def run_equities() -> dict:
             except Exception as e:
                 print(f"  (Fundamentals pull skipped: {e})")
 
+        # Correlation close-history store — daily top-up so the Single Stock
+        # Correlations page opens from disk instead of a 10-30s live Yahoo pull
+        # (the app-wide once-a-day store pattern, Ben 2026-08-20).
+        try:
+            from src import eqcorr
+            n_cx = eqcorr.refresh_history_store()
+            print(f"  Corr history store: {n_cx} tickers topped up")
+        except Exception as e:
+            print(f"  (Corr history top-up skipped: {e})")
+
+        # Landing-board earnings store — precompute the front door's earnings chips once
+        # per pull (data/equities/earnings_events.json) so the homepage opens in ms:
+        # in-process caches die on every server restart; this file is the same
+        # once-a-day pattern as the seasonality/Hot Sheet stores.
+        try:
+            from src import eqearncal
+            n_ev = eqearncal.refresh_events_store()
+            print(f"  Earnings board: {n_ev} calendar chips written")
+        except Exception as e:
+            print(f"  (Earnings board refresh skipped: {e})")
+
         # Analyst view — top up the sell-side consensus cache (src/eqanalyst.py). Deliberately
         # NOT a universe-wide pull: it re-pulls only the names already cached (i.e. the ones the
         # desk has actually opened) that have gone stale, so the Analyst view blocks open
@@ -512,6 +533,18 @@ def _compute_phase(include_equities: bool = False) -> dict:
     eq = {}
     if include_equities:
         eq = run_equities()
+
+    # Seasonality page stores — warm the monthly/weekly change frames + spread
+    # screener to disk (data/signals/seas_*.parquet) so the page opens in ms
+    # instead of a ~10s deep-store scan (app-wide once-a-day rule, 2026-08-20).
+    try:
+        from src import seasmon
+        _mo, _wk = seasmon.changes_cached()
+        _sp = seasmon.spread_screener_cached()
+        print(f"  Seasonality stores: {len(_wk.columns)} products, "
+              f"{len(_sp)} spread rows warmed")
+    except Exception as e:
+        print(f"  (Seasonality store warm skipped: {e})")
 
     # Hot Sheet — stamp today's cross-module highlights into the daily history
     # (data/signals/hotsheet_history.parquet: NEW/streak badges + the Weekly Review's
