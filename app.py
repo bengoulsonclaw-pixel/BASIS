@@ -4611,10 +4611,22 @@ def render_hotsheet(book: str = "ficc") -> None:
     n_new = sum(1 for it in items if it.get("badge") == "NEW")
     st.caption(f"**{len(items)}** items across **{len({it['provider'] for it in items})}** "
                f"{_desk} modules" + (f" — **{n_new}** new today." if n_new else "."))
-    for i, it in enumerate(items[:10]):
+    # Top strip: at most 2 lines per module, so one module's ties (COT crowding and
+    # perfect seasonal records both pin heat at 100) can't crowd the cross-desk read —
+    # everything skipped here still shows in its module's expander below.
+    top, _per_tag = [], {}
+    for it in items:
+        if _per_tag.get(it["tag"], 0) >= 2:
+            continue
+        _per_tag[it["tag"]] = _per_tag.get(it["tag"], 0) + 1
+        top.append(it)
+        if len(top) >= 10:
+            break
+    for i, it in enumerate(top):
         _hs_row(it, f"top{i}", pal)
 
-    rest = items[10:]
+    _top_ids = {id(it) for it in top}
+    rest = [it for it in items if id(it) not in _top_ids]
     if rest:
         st.markdown("##### The rest of the sheet")
         by_sect: dict = {}
