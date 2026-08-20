@@ -471,8 +471,14 @@ def radar_items() -> list:
     if not tickers:                                # no analyst pull yet — quiet, not broken
         return []
     feed = recent_actions(tickers, days=RADAR_DAYS, limit=RADAR_MAX, fetch=False)
-    out = []
+    out, seen = [], set()
     for _, r in feed.iterrows():
+        # dual-class listings (FOX/FOXA) carry the SAME published action once per
+        # ticker — dedupe on the event itself, keep the first (highest-ranked) class
+        ev = (r["stock"], r["firm"], f"{r['date']:%Y-%m-%d}", r["from"], r["to"])
+        if ev in seen:
+            continue
+        seen.add(ev)
         if r["from"] and r["to"] and r["from"] != r["to"]:
             what = f"moved to **{r['to']}** from {r['from']}"
         elif r["action"] == "init":

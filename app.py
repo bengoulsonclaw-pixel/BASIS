@@ -4569,11 +4569,15 @@ def _hs_footer(report: dict) -> None:
         brand.themed_dataframe(pd.DataFrame(rows), {})
 
 
-def render_hotsheet() -> None:
+def render_hotsheet(book: str = "ficc") -> None:
+    """One Hot Sheet per desk (Ben, 2026-08-19): the FICC page shows the FICC book,
+    the Equities side carries its own page — no cross-book toggle. Meta caveats
+    (data health, ledger) ride the FICC sheet, where the stores they guard live."""
+    _desk = "FICC" if book == "ficc" else "Equities"
     st.subheader("🔥 Hot Sheet")
-    st.caption("Everything the desk's modules are flagging **today**, ranked on one heat scale — "
-               "the morning 30-second read. Each line jumps into the module that owns it; the "
-               "sheet is exception-based, so quiet modules simply don't appear.")
+    st.caption(f"Everything the {_desk} modules are flagging **today**, ranked on one heat "
+               "scale — the morning 30-second read. Each line jumps into the module that owns "
+               "it; the sheet is exception-based, so quiet modules simply don't appear.")
     items, report = _hs_collect()
     hotsheet.apply_badges(items)
     if universe.filter_active():                 # the Home sector filter applies here too
@@ -4582,8 +4586,8 @@ def render_hotsheet() -> None:
                  if it["book"] != "ficc" or not it["ticker"] or it["ticker"] in _en]
 
     pal = brand.palette()
-    meta_items = [it for it in items if it["book"] == "meta"]
-    items = [it for it in items if it["book"] != "meta"]
+    meta_items = [it for it in items if it["book"] == "meta"] if book == "ficc" else []
+    items = [it for it in items if it["book"] == book]
     if meta_items:                               # trust caveats first — a quiet sheet only means
         _cav = " · ".join(it["text"].replace("**", "") for it in meta_items)   # calm markets if the data is healthy
         st.markdown(f'<div style="border:1px solid {pal["border"]};border-left:3px solid #D9971C;'
@@ -4592,24 +4596,21 @@ def render_hotsheet() -> None:
                     unsafe_allow_html=True)
 
     if not items:
-        st.info("Nothing is clearing any module's bar right now — either genuinely quiet markets, "
-                "or the morning snapshot hasn't run yet (see the provider roll-call below).")
+        st.info(f"No {_desk} module is clearing its bar right now — either genuinely quiet "
+                "markets, or the morning snapshot hasn't run yet (see the provider roll-call "
+                "below).")
         _hs_footer(report)
         return
 
-    c1, c2, _sp = st.columns([3, 3, 6])
-    _book = c1.radio("Book", ["All", "FICC", "Equities"], horizontal=True, key="hs_book",
-                     label_visibility="collapsed")
-    _order = c2.radio("Order", ["By heat", "New first"], horizontal=True, key="hs_order",
+    c1, _sp = st.columns([3, 9])
+    _order = c1.radio("Order", ["By heat", "New first"], horizontal=True, key="hs_order",
                       label_visibility="collapsed")
-    if _book != "All":
-        items = [it for it in items if it["book"] == _book.lower()]
     if _order == "New first":
         items.sort(key=lambda it: (it.get("badge") != "NEW", -it["heat"]))
 
     n_new = sum(1 for it in items if it.get("badge") == "NEW")
-    st.caption(f"**{len(items)}** items across **{sum(1 for v in report.values() if v['n'])}** "
-               f"modules" + (f" — **{n_new}** new today." if n_new else "."))
+    st.caption(f"**{len(items)}** items across **{len({it['provider'] for it in items})}** "
+               f"{_desk} modules" + (f" — **{n_new}** new today." if n_new else "."))
     for i, it in enumerate(items[:10]):
         _hs_row(it, f"top{i}", pal)
 
@@ -13200,12 +13201,13 @@ with st.sidebar:
         # No "Equities Home" entry — the Equities desk segment (and the logo) already land there.
         # Technical Analysis carries its tab row (hub + TA Backtester; the equities
         # Signal Ledger is embedded at the hub's foot) — no separate Backtester entry.
-        _nav_button("01 · Technical Analysis", "eq:Technical Analysis")
-        _nav_button("02 · Company Fundamentals", "eq:Fundamentals")
-        _nav_button("03 · Earnings Calendar", "eq:Earnings")
-        _nav_button("04 · Single Stock Correlations", "eq:Correlations")
-        _nav_button("05 · Index Dispersion", "eq:Dispersion")
-        _nav_button("06 · Client ETFs", "eq:ETFs")
+        _nav_button("01 · Hot Sheet", "eq:Hot Sheet")
+        _nav_button("02 · Technical Analysis", "eq:Technical Analysis")
+        _nav_button("03 · Company Fundamentals", "eq:Fundamentals")
+        _nav_button("04 · Earnings Calendar", "eq:Earnings")
+        _nav_button("05 · Single Stock Correlations", "eq:Correlations")
+        _nav_button("06 · Index Dispersion", "eq:Dispersion")
+        _nav_button("07 · Client ETFs", "eq:ETFs")
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
     _nav_button("Strategy Builder", "Strategy Builder")
@@ -13402,7 +13404,9 @@ if side == "Equities" and active not in _SHARED_DESTS:
     # The equities modules' own tab rows (e.g. TA Hub / TA Backtester / Signal Ledger) —
     # the FICC switcher below never runs on this side, so render it here.
     _render_group_tabs(active)
-    if active == "eq:Fundamentals":
+    if active == "eq:Hot Sheet":
+        render_hotsheet("equities")
+    elif active == "eq:Fundamentals":
         render_eq_fundamentals()
     elif active == "eq:Earnings":
         render_eq_earnings()
@@ -13439,7 +13443,7 @@ if active == "Landing":
 if active == "Home":
     render_home(); st.stop()
 if active in ("Hot Sheet", "Confluence"):        # old saved-state deep links land here too
-    render_hotsheet(); st.stop()
+    render_hotsheet("ficc"); st.stop()
 if active == "Technical Analysis":
     render_ta_overview(); st.stop()
 if active == "Morning Coffee":
