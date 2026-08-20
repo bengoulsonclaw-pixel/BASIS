@@ -2564,7 +2564,7 @@ def _mc_synopsis_card() -> None:
                     f'</span></div>', unsafe_allow_html=True)
         if prose:
             paras = "".join(
-                f'<p style="margin:0 0 .6rem;font-size:13px;line-height:1.55">'
+                f'<p style="margin:0 0 .7rem;font-size:15px;line-height:1.6">'
                 f'{repcal._esc(p.strip())}</p>'
                 for p in prose.split("\n") if p.strip())
             st.markdown(f'<div style="padding:10px 2px 2px">{paras}</div>',
@@ -2583,31 +2583,61 @@ def _mc_card() -> None:
         mc = {}
     heads = mc.get("headlines") or []
     stamp = mc.get("generated_at", "")
+    _time = stamp.split("·")[-1].strip() if "·" in stamp else stamp      # "08:49 ET"
+    _srcs = list(dict.fromkeys(str(h.get("source", "")).strip()
+                               for h in heads if str(h.get("source", "")).strip()))
     with st.container(key="dkcard_mc"):
+        _sub = f"{len(_srcs)} sources · pulled {_time}" if heads else "no run yet"
         st.markdown(f'<div class="dk-h"><span class="dk-t">Headlines · Morning Coffee'
-                    f'</span><span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
+                    f'</span><span class="dk-s" style="margin-right:96px">{repcal._esc(_sub)}'
                     f'</span></div>', unsafe_allow_html=True)
+        # the design's Run report pill, floated into the header band (admin + this
+        # PC only — the pipeline needs Bloomberg, the news feeds and the Gmail token)
+        if IS_ADMIN and MORNING_COFFEE_DIR.exists():
+            if st.button("Run report", key="home_mc_run",
+                         help="Run the Morning Coffee pipeline now — pulls Bloomberg, reads "
+                              "the news, writes the commentary and emails the desk (~1–2 min). "
+                              "These cards refresh when it finishes."):
+                with st.spinner("Pulling Bloomberg, reading the news, writing the macro "
+                                "commentary and emailing the report… (~1–2 min)"):
+                    _ok = run_morning_coffee()
+                if _ok:
+                    st.toast("Morning Coffee sent — cards refreshed.", icon="☕")
+                else:
+                    st.toast("Morning Coffee failed — see the Morning Coffee page for the log.",
+                             icon="⚠️")
+                st.rerun()
         # (the synopsis moved to its own card beside this one, 2026-08-20)
         if heads:
+            def _h_sub(h) -> str:
+                _s = " · ".join(x for x in (str(h.get("time", "")).strip(),
+                                            str(h.get("tag", "")).strip()) if x)
+                return (f'<div class="dk-s" style="margin-top:2px">{repcal._esc(_s)}</div>'
+                        if _s else "")
             _rows = "".join(
-                f'<div style="display:grid;grid-template-columns:70px 1fr;gap:10px;'
-                f'padding:8px 2px;border-bottom:1px solid rgba(128,128,128,.1)">'
-                f'<div style="font-family:var(--basis-mono,monospace);font-size:10px;'
+                f'<div style="display:grid;grid-template-columns:92px 1fr;gap:10px;'
+                f'padding:9px 2px;border-bottom:1px solid rgba(128,128,128,.1)">'
+                f'<div style="font-family:var(--basis-mono,monospace);font-size:11px;'
                 f'letter-spacing:.06em;text-transform:uppercase;color:#F5C518;'
                 f'padding-top:2px">{repcal._esc(str(h.get("source", "")))}</div>'
-                f'<div><div style="font-size:13px;line-height:1.4">'
+                f'<div><div style="font-size:14.5px;line-height:1.45">'
                 f'{repcal._esc(str(h.get("title", "")))}</div>'
-                f'<div class="dk-s" style="margin-top:2px">'
-                f'{repcal._esc(str(h.get("time", "")))}'
-                f'{" · " + repcal._esc(str(h.get("tag", ""))) if h.get("tag") else ""}'
-                f'</div></div></div>'
+                f'{_h_sub(h)}</div></div>'
                 for h in heads[:8])
             st.markdown(_rows, unsafe_allow_html=True)
         else:
             st.caption("No headlines exported yet — the next Morning Coffee run will "
                        "fill this card.")
-        st.button("Open Morning Coffee →", key="home_open_mc", on_click=_go,
-                  args=("Morning Coffee",))
+        # footer strip (design): sources roll-call + last run · gold link into the module
+        with st.container(key="mc_footer"):
+            _fl, _fr = st.columns([2.4, 1.0], vertical_alignment="center")
+            _ftxt = (" · ".join(_srcs) + (f" — last run {_time}" if _time else "")
+                     if _srcs else "No run yet")
+            _fl.markdown(f'<div class="dk-vc mc-foot">{repcal._esc(_ftxt)}</div>',
+                         unsafe_allow_html=True)
+            with _fr:
+                st.button("Open Morning Coffee →", key="home_open_mc", on_click=_go,
+                          args=("Morning Coffee",))
 
 
 def render_home() -> None:

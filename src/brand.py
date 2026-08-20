@@ -679,6 +679,28 @@ div[class*="st-key-sf_chiprow"] button p {
 /* the drill-down pills echo the chip language */
 div[class*="st-key-dkcard_sectors"] [data-testid="stPills"] button {
     border-radius:6px !important; min-height:0 !important; padding:2px 9px !important; }
+/* Morning Coffee headlines card (design): the Run report pill floats in the header
+   band; the footer strip carries the sources roll-call + a gold text-link */
+div[class*="st-key-dkcard_mc"] { position:relative; }
+div.st-key-home_mc_run, [data-testid="stElementContainer"].st-key-home_mc_run {
+    position:absolute; top:7px; right:14px; width:auto !important; z-index:5;
+    margin:0 !important; }
+div.st-key-home_mc_run button {
+    background:$btn_gold !important; border:1px solid rgba(245,197,24,.55) !important;
+    min-height:0 !important; padding:3px 12px !important; border-radius:8px !important; }
+div.st-key-home_mc_run button p {
+    color:$gold !important; font-size:12px !important; font-weight:600;
+    text-transform:none !important; letter-spacing:0 !important; }
+div[class*="st-key-mc_footer"] {
+    border-top:1px solid $border; margin-top:.3rem; padding-top:.45rem; }
+.mc-foot { font-size:12px; color:$caption; line-height:1.5; }
+div[class*="st-key-mc_footer"] button {
+    background:transparent !important; border:none !important; box-shadow:none !important;
+    min-height:0 !important; padding:0 !important; justify-content:flex-end; width:100%; }
+div[class*="st-key-mc_footer"] button p {
+    color:$gold !important; font-size:13px !important; font-weight:600;
+    text-transform:none !important; letter-spacing:0 !important; }
+div[class*="st-key-mc_footer"] button:hover p { text-decoration:underline; }
 /* (pure-HTML .dk-cards rely on matched min-heights instead of flex-stretch —
    chaining flex through Streamlit's markdown wrappers fed back the column gap
    and inflated the card by 14px per pass.) */
