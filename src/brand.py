@@ -250,7 +250,15 @@ _CSS = Template("""
 
 /* terminal geometry: sharp corners everywhere — separation comes from borders and
    surface steps, never radius or shadows (design_kit/handoff/README.md). */
-*, *::before, *::after { border-radius:0 !important; }
+/* 2026-08-20 redesign: rounded corners per the Claude Design language (Ben) —
+   replaces the old radius:0-everything terminal flattener. Streamlit's own
+   ~8px defaults come back for widgets; cards get the design's 12px. */
+button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
+    border-radius:8px !important; }
+input, textarea, [data-baseweb="input"], [data-baseweb="select"] > div {
+    border-radius:6px !important; }
+[data-baseweb="tag"] { border-radius:6px !important; }
+div[class*="st-key-dkcard"], .dk-card { border-radius:12px !important; }
 
 html, body, .stApp, [data-testid="stAppViewContainer"],
 [data-testid="stMain"], [data-testid="stBottom"] {
