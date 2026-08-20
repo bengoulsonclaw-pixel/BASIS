@@ -2614,7 +2614,7 @@ def render_home() -> None:
     _tag = ('<span style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;'
             'color:#F5C518;font-weight:700;margin-right:8px">Today</span>'
             if _day == _today else "")
-    p2.markdown(f'<div style="text-align:center;font-family:var(--basis-mono,monospace);'
+    p2.markdown(f'<div class="dk-vc" style="text-align:center;font-family:var(--basis-mono,monospace);'
                 f'font-size:14px;font-weight:600">{_tag}{_day:%a %d %b %Y}</div>',
                 unsafe_allow_html=True)
     p3.button("›", key="home_next", on_click=_home_day_set, args=(_off + 1,),
@@ -2624,7 +2624,7 @@ def render_home() -> None:
         _bits.append(f"{dk['ahead']} still ahead")
         if dk.get("next_txt"):
             _bits.append(dk["next_txt"])
-    pc.markdown('<div class="dk-s" style="text-align:right;letter-spacing:.06em;'
+    pc.markdown('<div class="dk-s dk-vc" style="text-align:right;letter-spacing:.06em;'
                 'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
                 unsafe_allow_html=True)
     def _run_ficc_pull():

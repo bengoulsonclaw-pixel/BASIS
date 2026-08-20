@@ -374,7 +374,8 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] { gap:.3rem;
    margin, so the -14px swallowed real height and the text overflowed onto the
    row below (the DESK-on-FICC overlap). Cancel the cancel for bare-div markup. */
 [data-testid="stMarkdownContainer"]:has(> .bt-sect),
-[data-testid="stMarkdownContainer"]:has(> .seat-chip) { margin-bottom:0 !important; }
+[data-testid="stMarkdownContainer"]:has(> .seat-chip),
+[data-testid="stMarkdownContainer"]:has(> .dk-vc) { margin-bottom:0 !important; }
 /* sidebar nav rows (handoff): flat text rows, not buttons. Normal case, left-aligned;
    hover = surface step; ACTIVE (Streamlit type=primary) = surface2 fill + inset 2px
    gold left rule. Overrides the global uppercase/bordered button treatment. */
