@@ -131,3 +131,40 @@ def scatter_frame(ticker: str, window: int = 126):
         "s_now": s_now, "iv_now": iv_now,
     })
     return j, fit
+
+
+RADAR_MAX = 3          # widest wing gaps carried to the Hot Sheet
+RADAR_WINDOW = 126     # the page's 6M default fit window
+RADAR_MIN_GAP = 2.0    # vols between wing mark and the line — under this it isn't a story
+RADAR_MIN_R2 = 0.20    # the page's own "ignore the row" r² floor
+RADAR_GAP_FULL = 8.0   # vols of gap that saturate the heat gauge (gaps run ~2× a z-score)
+
+
+def radar_items() -> list:
+    """Hot Sheet provider — wings whose gap to the realized-path line clears the
+    module's own bar: confident fits only (the changes-beta regime check), r²
+    above the page's ignore floor, one item per product on its wider wing.
+    All inputs are our own local files — never a fetch."""
+    from src import hotsheet
+    df = analyze(window=RADAR_WINDOW)
+    if df.empty:
+        return []
+    ok = df[df["confident"] & (df["r2"] >= RADAR_MIN_R2) & (df["max_gap"] >= RADAR_MIN_GAP)]
+    out = []
+    for r in ok.head(RADAR_MAX).itertuples(index=False):   # analyze() sorts by max_gap
+        wing, gap = (("put", r.put_gap) if abs(r.put_gap) >= abs(r.call_gap)
+                     else ("call", r.call_gap))
+        side = "cheap" if gap > 0 else "rich"              # gap = line − wing mark
+        mark = r.put_wing if wing == "put" else r.call_wing
+        pred = r.pred_put if wing == "put" else r.pred_call
+        pct = "90%" if wing == "put" else "110%"
+        out.append(hotsheet.item(
+            tag="SKEW", key=f"{r.ticker}:{wing}:{side}", section="Volatility",
+            text=(f"**{r.market}** {pct} {wing} wing screens **{side}** against the "
+                  f"realized spot-vol path — marked {mark:.1f} vols vs {pred:.1f} "
+                  f"where the 6-month fit puts vol at that strike."),
+            heat=hotsheet.heat_from_z(gap, full=RADAR_GAP_FULL),
+            metric=f"gap {gap:+.1f}", sub="vols vs realized path, 6m fit",
+            value=float(gap), ticker=r.ticker,
+            page="Skew Volatility", book="ficc"))
+    return out

@@ -131,3 +131,45 @@ def load_signals():
     except Exception:
         meta = {}
     return df, meta
+
+
+# Hot Sheet provider — the equities twin of tascore.radar_items: the equity TA report's own saved
+# threshold mode (the SAME picks the client PDF would write up today), scored on THIS book's
+# confluence set and exclude list. The saved min_conviction / min_score bar does the real gating
+# (threshold mode may legitimately return nothing); RADAR_TOP_N is just the safety cap, matched
+# to the sheet's per-provider cap.
+RADAR_TOP_N = 5
+
+
+def radar_items() -> list:
+    """Hot Sheet provider — today's top-conviction equity technical picks, one item per pick on
+    the constructive and cautious sides. Reads the cached opportunities frame only (the equities
+    snapshot's signal store); never triggers a pull."""
+    import sys
+    _src = str(Path(__file__).resolve().parent)
+    if _src not in sys.path:
+        sys.path.insert(0, _src)                   # convreport resolves reportkit via src/
+    from src import convreport, hotsheet, tascore, universe
+    from src.specs import ta_report_defaults
+    sig, _meta = load_signals()
+    if sig is None or sig.empty:                   # no equity signals cached yet — quiet, not broken
+        return []
+    rd = ta_report_defaults("equities")
+    sel = convreport.select(sig, top_n=RADAR_TOP_N, mode="threshold",
+                            strategies=tascore.confluence_set("equities"),
+                            exclude=sorted(universe.report_excluded("equities")),
+                            min_conviction=float(rd["min_conviction"]),
+                            min_score=float(rd["min_score"]))
+    out = []
+    for side in ("constructive", "cautious"):
+        for p in sel[side]:
+            out.append(hotsheet.item(
+                tag="EQ-TECH", key=f"{p['market']}:{side}", section="Equities · Technical",
+                text=(f"**{p['market']}** clears the desk's technical quality bar on the "
+                      f"**{side}** side — **{p['n']}** strategies align, "
+                      f"score {p['score']:+.0f}."),
+                metric=f"conv {p['conviction']:.0f}", sub="of 100",
+                heat=float(p["conviction"]), value=float(p["score"]),
+                ticker=p.get("instruments", ""),
+                page="eq:Technical Analysis", book="equities"))
+    return out

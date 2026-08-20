@@ -188,3 +188,42 @@ def percentile_extremes(metric: str, asof, *, lo: float = 5.0, hi: float = 95.0,
              & ((bt["pctl"] <= lo) | (bt["pctl"] >= hi))].copy()
     hit["kind"] = np.where(hit["diff"] < 0, "breakdown", "lockstep")
     return hit.reset_index(drop=True)
+
+
+RADAR_PAIRS = 4                       # Hot Sheet cut: the widest breaks, one line per pair
+
+
+def radar_items() -> list:
+    """Hot Sheet provider: today's correlation extremes — exactly what the daily
+    alert banner flags (percentile_extremes' own ≤5th/≥95th percentile + move
+    floor), deduped per unordered pair on the widest |diff|, top RADAR_PAIRS by
+    |diff|. Heat is the extremeness within the pair's own rolling 1-year range."""
+    from datetime import date
+
+    from src import hotsheet
+    from src.universe import name as _uname
+
+    ex = percentile_extremes("realized", date.today())
+    if ex is None or ex.empty:
+        return []
+    best: dict = {}                   # dedupe unordered pairs, keep the widest move
+    for r in ex.to_dict("records"):
+        k = tuple(sorted((r["a"], r["b"])))
+        if k not in best or abs(r["diff"]) > abs(best[k]["diff"]):
+            best[k] = r
+    rows = sorted(best.values(), key=lambda r: -abs(r["diff"]))[:RADAR_PAIRS]
+    items = []
+    for r in rows:
+        kind = "breaking down" if r["kind"] == "breakdown" else "moving in lockstep"
+        a, b = (_uname(r["a"]) or r["a"]), (_uname(r["b"]) or r["b"])
+        items.append(hotsheet.item(
+            tag="CORR", key=f"{r['a']}|{r['b']}:{r['kind']}",
+            section="Correlations",
+            text=(f"**{a} × {b}** are {kind} — 1-month correlation "
+                  f"**{r['corr_1m']:+.2f}** against {r['corr_1y']:+.2f} over the year, "
+                  "an extreme of the pair's own range."),
+            metric=f"Δρ {r['diff']:+.2f}", sub="1M vs 1Y",
+            heat=hotsheet.heat_from_pctl(r["pctl"]),
+            value=r["corr_1m"], ticker="",
+            page="Product Correlations", book="ficc"))
+    return items

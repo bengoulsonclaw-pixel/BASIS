@@ -463,3 +463,78 @@ def spread_screener() -> pd.DataFrame:
     return (pd.DataFrame(rows)
             .sort_values("z", key=lambda c: c.abs(), ascending=False)
             .reset_index(drop=True))
+
+
+# ── Hot Sheet provider ───────────────────────────────────────────────────────
+RADAR_HORIZON_WEEKS = 2    # windows opening within this many ISO weeks make the sheet
+RADAR_MAX = 3              # editorial cap — only the strongest windows
+# The best_windows scan is ~40-60s of pure python over the trend universe — far too
+# slow for a page render, so the result is cached per (deep-store day, ISO week): the
+# snapshot's morning Hot Sheet stamp pays the scan once, every render reads it back.
+RADAR_CACHE = Path(__file__).resolve().parents[1] / "data" / "signals" / "seas_radar_cache.json"
+
+
+def radar_items() -> list:
+    """Hot Sheet provider: strong seasonal windows — hit ≥ HIT_STRONG over the
+    window finder's own ≥ MIN_YEARS complete years — opening within the next
+    fortnight, one window per product (the weekreview selection). Pure disk:
+    load_frames reads the deep store only."""
+    from datetime import date
+
+    from src import hotsheet
+
+    this_wk = min(date.today().isocalendar()[1], 52)   # week 53 folds into 52 (_iso_weekly)
+    try:
+        _mt = int((deepstore.STORE_DIR / "deep_prices.parquet").stat().st_mtime)
+        _ck = f"{_mt}|{this_wk}"               # invalidates on a new data day or week roll
+    except Exception:
+        _ck = None
+    if _ck:
+        try:
+            _c = json.loads(RADAR_CACHE.read_text(encoding="utf-8"))
+            if _c.get("key") == _ck:
+                return _c["items"]
+        except Exception:
+            pass
+    frames = load_frames(universe.TREND_UNIVERSE)
+    weekly = weekly_changes(frames)
+    cands = []
+    for t in universe.TREND_UNIVERSE:
+        try:
+            win = best_windows(weekly, t)
+        except Exception:
+            continue
+        if win is None or win.empty:
+            continue
+        for r in win.itertuples(index=False):
+            ahead = (int(r.start) - this_wk) % 52
+            if ahead <= RADAR_HORIZON_WEEKS and r.hit >= HIT_STRONG:
+                cands.append((t, ahead, r))
+    cands.sort(key=lambda x: (-x[2].hit, -x[2].n))
+    out, seen = [], set()
+    for t, ahead, r in cands:
+        if t in seen:                       # one window per product
+            continue
+        seen.add(t)
+        opens = "is open now" if ahead == 0 else ("opens next week" if ahead == 1
+                                                  else f"opens within {ahead} weeks")
+        out.append(hotsheet.item(
+            tag="SEAS", key=f"{t}:{r.label}", section="Seasonality",
+            # yield_name + unit_of keep FI worded in yield/rate space (bp, not %)
+            text=f"**{universe.yield_name(t)}** enters a seasonal window ({r.label}) "
+                 f"that {opens} — **{r.dir.lower()}**, median move "
+                 f"{r.med:+.1f}{unit_of(t)}.",
+            # hit onto 0-100: 0.70 (the HIT_STRONG floor) → 40, a perfect record → 100
+            heat=max(0.0, (float(r.hit) - 0.5) * 200.0),
+            metric=f"{r.wins}/{r.n} yrs", sub="observed sample",
+            value=float(r.med), ticker=t, page="Seasonality", book="ficc"))
+        if len(out) >= RADAR_MAX:
+            break
+    if _ck:
+        try:
+            RADAR_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            RADAR_CACHE.write_text(json.dumps({"key": _ck, "items": out},
+                                              ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+    return out

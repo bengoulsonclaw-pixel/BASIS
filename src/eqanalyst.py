@@ -449,3 +449,43 @@ def data_status() -> str:
     freshest = min(ages) if ages else None
     return (f"Yahoo Finance · {len(cache)} names cached"
             + (f" · newest {freshest}d old" if freshest is not None else ""))
+
+
+# ── Hot Sheet provider ────────────────────────────────────────────────────────
+RADAR_DAYS = 7      # the sheet is a daily screen — only this week's actions qualify
+RADAR_MAX = 5       # editorial cap, matched to the sheet's per-provider cap
+RADAR_HEAT = 45.0   # flat: rating actions are newsy dated events, not rankable extremes —
+                    # there's no z / percentile to grade one against another, so they all
+                    # sit mid-sheet and the date does the sorting
+
+
+def radar_items() -> list:
+    """Hot Sheet provider — this week's published rating actions (upgrades / downgrades /
+    initiations) across the names already in the analyst cache, purely from disk. The cache
+    holds exactly the names the Equities pages have looked at (the home's movers feed and the
+    snapshot's refresh_stale keep it warm), so this is the page's own universe; fetch=False
+    keeps recent_actions on its cache-only path — nothing here can pull."""
+    from src import hotsheet
+    cache = _read_cache()
+    tickers = [t for t, r in cache.items() if has_data(r)]
+    if not tickers:                                # no analyst pull yet — quiet, not broken
+        return []
+    feed = recent_actions(tickers, days=RADAR_DAYS, limit=RADAR_MAX, fetch=False)
+    out = []
+    for _, r in feed.iterrows():
+        if r["from"] and r["to"] and r["from"] != r["to"]:
+            what = f"moved to **{r['to']}** from {r['from']}"
+        elif r["action"] == "init":
+            what = (f"initiated coverage at **{r['to']}**" if r["to"]
+                    else "initiated coverage")
+        else:
+            what = f"moved to **{r['to'] or r['from']}**"
+        out.append(hotsheet.item(
+            tag="EQ-STREET",
+            key=f"{r['ticker']}:{r['date']:%Y-%m-%d}:{r['firm']}",  # an action is a dated event — stable id
+            section="Equities · Street",
+            text=f"**{r['stock']}**: {r['firm']} {what} ({r['date']:%d %b}).",
+            metric=action_label(r["action"]), sub="published grade change",
+            heat=RADAR_HEAT, value=None,
+            ticker=r["ticker"], page="eq:Fundamentals", book="equities"))
+    return out

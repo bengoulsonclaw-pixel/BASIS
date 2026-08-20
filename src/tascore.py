@@ -248,3 +248,41 @@ def score_products(flagged: pd.DataFrame) -> pd.DataFrame:
         })
     out = pd.DataFrame(rows)
     return out.reindex(out["score"].abs().sort_values(ascending=False).index).reset_index(drop=True)
+
+
+# ── Hot Sheet provider ────────────────────────────────────────────────────────────────────────
+# Mirrors weekreview.collect_technical: the FICC TA report's own saved threshold mode — the same
+# picks the client PDF would write up today, nothing re-derived. The saved min_conviction /
+# min_score bar does the real gating (threshold mode may legitimately return nothing);
+# RADAR_TOP_N is just the safety cap, matched to the sheet's per-provider cap.
+RADAR_TOP_N = 5
+
+
+def radar_items() -> list:
+    """Hot Sheet provider — today's top-conviction technical picks, one item per pick on the
+    constructive and cautious sides. Reads the cached opportunities frame only (the snapshot's
+    signal store); never triggers a pull."""
+    import sys
+    _src = str(Path(__file__).resolve().parent)
+    if _src not in sys.path:
+        sys.path.insert(0, _src)                   # convreport resolves reportkit via src/
+    from src import convreport, hotsheet
+    from src.specs import ta_report_defaults
+    rd = ta_report_defaults("ficc")
+    sig = pd.read_parquet(_DATA_DIR / "signals" / "opportunities.parquet")
+    sel = convreport.select(sig, top_n=RADAR_TOP_N, mode="threshold",
+                            min_conviction=float(rd["min_conviction"]),
+                            min_score=float(rd["min_score"]))
+    out = []
+    for side in ("constructive", "cautious"):
+        for p in sel[side]:
+            out.append(hotsheet.item(
+                tag="TECH", key=f"{p['market']}:{side}", section="Technical",
+                text=(f"**{p['market']}** clears the desk's technical quality bar on the "
+                      f"**{side}** side — **{p['n']}** strategies align, "
+                      f"score {p['score']:+.0f}."),
+                metric=f"conv {p['conviction']:.0f}", sub="of 100",
+                heat=float(p["conviction"]), value=float(p["score"]),
+                ticker=p.get("instruments", ""),
+                page="Technical Analysis", book="ficc"))
+    return out

@@ -627,3 +627,69 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# ---------------------------------------------------------------------------
+# Hot Sheet provider
+# ---------------------------------------------------------------------------
+PM_RADAR_MAX = 2            # flow lines on the sheet — mirrors weekreview.PM_MAX
+PM_RADAR_STALE_DAYS = 45    # the monitor is monthly; beyond this the provider goes quiet
+PM_RADAR_HEAT_SCALE = 20.0  # heat = |monthly ETF % change| × this (a 5% flow month pins 100)
+PM_RADAR_HEAT_FLAT = 40.0   # gauge when only vault stocks moved (no ETF % to scale from)
+PM_RADAR_HEAT_FLOOR = 30.0  # emitted lines already cleared the monitor's rounds-to-zero
+                            # bar — floor the gauge so a typical flow month (~0.3% ETF
+                            # change → 6 raw) isn't invisible against z-scored providers
+
+
+def radar_items() -> list:
+    """Hot Sheet provider: the monitor's flow lines — only metals whose ETF/vault
+    numbers actually moved (the same rounds-to-zero suppression and prose as
+    weekreview.collect_pm), read straight from data/pm_monitor.json. Pure disk;
+    quiet once the monthly build has gone stale."""
+    from datetime import date
+
+    from src import hotsheet
+
+    try:
+        d = json.loads((DATA / "pm_monitor.json").read_text(encoding="utf-8"))
+    except Exception:                        # monitor never built — quiet, not broken
+        return []
+    try:
+        asof = datetime.strptime(d.get("asof", ""), "%d %b %Y").date()
+        if (date.today() - asof).days > PM_RADAR_STALE_DAYS:
+            return []
+        stamp = f" (as of {d['asof']})" if (date.today() - asof).days > 10 else ""
+    except Exception:
+        stamp = ""
+    tickers = {m["key"]: m["ticker"] for m in METALS}
+    out = []
+    for m in d.get("metals", []):
+        parts = []
+        if m.get("etf_disp"):
+            word = "outflows" if (m.get("etf_chg_1m") or 0) < 0 else "inflows"
+            parts.append(f"ETF holdings saw {word} of **{m['etf_disp'].lstrip('+-')}** on the month")
+        if m.get("comex_disp"):
+            word = "drew" if str(m["comex_disp"]).startswith("-") else "built"
+            parts.append(f"exchange registered stocks {word} {m['comex_disp'].lstrip('+-')}")
+        if not parts:
+            continue
+        # the json stores the monthly ETF change as an absolute (etf_chg_1m) plus the
+        # level (etf_last), not a % — reconstruct the % to scale the heat gauge
+        chg, last = m.get("etf_chg_1m"), m.get("etf_last")
+        pct = (100.0 * chg / (last - chg)
+               if isinstance(chg, (int, float)) and isinstance(last, (int, float))
+               and np.isfinite(chg) and np.isfinite(last) and last != chg else None)
+        val = chg if isinstance(chg, (int, float)) else (
+            m.get("comex_chg_1m") if isinstance(m.get("comex_chg_1m"), (int, float)) else None)
+        out.append(hotsheet.item(
+            tag="METALS", key=f"{m['key']}:flows", section="Precious metals",
+            text=f"**{m['name']}** flows moved — " + " and ".join(parts) + f"{stamp}.",
+            heat=(max(PM_RADAR_HEAT_FLOOR, min(100.0, abs(pct) * PM_RADAR_HEAT_SCALE))
+                  if pct is not None else PM_RADAR_HEAT_FLAT),
+            metric=(m.get("etf_disp") or m.get("comex_disp") or ""), sub="on the month",
+            value=val,                       # the monthly ETF (or vault) change, native units
+            ticker=tickers.get(m["key"], ""), page="Precious Metals", book="ficc",
+        ))
+        if len(out) >= PM_RADAR_MAX:
+            break
+    return out

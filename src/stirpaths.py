@@ -1136,3 +1136,64 @@ def strip_source(contracts: list[Contract]) -> tuple[str, str | None]:
     if codes and sum(1 for c in codes if c in have) >= max(1, len(codes) // 2):
         return "snapshot", store.get("asof")
     return "mock", None
+
+
+# ── Hot Sheet provider (src/hotsheet.py discovers radar_items by name) ────────────────
+# A meeting must reprice this much vs the prior ledger day to make the Hot Sheet —
+# small enough to catch a real repricing, big enough to ignore day-to-day fit noise.
+STIR_DAY_MIN_BP = 3.0
+
+
+def radar_items() -> list:
+    """Daily Hot Sheet items: decision-week alerts (weekreview.collect_stir's
+    selection, minus the options-expiry embellishment) plus the day's biggest
+    per-meeting repricings off the ledger. Store-only by construction —
+    default_bank_fit prices off the morning strip store and meeting_repricing
+    reads the history ledger; nothing here can touch Bloomberg."""
+    from src import hotsheet
+
+    today = date.today()
+    out = []
+    # (a) meeting-week alerts: a central bank decides within 7 days.
+    for bk, bank in BANKS.items():
+        soon = [m for m in bank.meetings if today <= m <= today + timedelta(days=7)]
+        if not soon:
+            continue
+        ip = default_bank_fit(bk, today)
+        per = ({m.isoformat(): float(bp) for m, bp in zip(ip.meetings, ip.per_meeting_bp)}
+               if ip is not None else {})
+        for m in soon:
+            bp = per.get(m.isoformat(), 0.0)
+            d, p = implied_odds(bp, bank.step_bp)
+            odds = "a hold" if d == "hold" else f"{p * 100:.0f}% of a {d}"
+            # Heat floors at 50 so a live decision always surfaces, even when the
+            # strip prices a clean hold — the event itself is the story, and the
+            # priced move only scales it from there (one full step = 100).
+            out.append(hotsheet.item(
+                tag="STIR",
+                key=f"{bk}:{m.isoformat()}",     # the date IS the story — stable
+                section="STIR / Policy",
+                text=(f"**{bank.name}** decides **{m:%A %d %b}** — the strip prices "
+                      f"**{bp:+.0f}bp**, {odds}."),
+                metric=f"{bp:+.0f} bp", sub=f"{bank.meeting_name} this week",
+                heat=50.0 + 50.0 * min(1.0, abs(bp) / bank.step_bp),
+                value=float(bp), page="STIR Timeline", book="ficc"))
+    # (b) daily repricings: the ledger's per-meeting day-over-day deltas, top 3.
+    moves = []
+    for bk, per in meeting_repricing(today).items():
+        for iso, (bp, chg) in per.items():
+            if abs(chg) >= STIR_DAY_MIN_BP:
+                moves.append((abs(chg), bk, iso, bp, chg))
+    for _, bk, iso, bp, chg in sorted(moves, reverse=True)[:3]:
+        bank = BANKS[bk]
+        m = date.fromisoformat(iso)
+        word = "added easing" if chg < 0 else "took easing out"
+        out.append(hotsheet.item(
+            tag="STIR", key=f"{bk}:reprice:{iso}", section="STIR / Policy",
+            text=(f"**{bank.name} repricing** — the market {word} at the {m:%b %Y} "
+                  f"{bank.meeting_name}: **{chg:+.0f}bp** on the day "
+                  f"(now {bp:+.0f}bp priced)."),
+            metric=f"{chg:+.0f} bp", sub="on the day",
+            heat=min(100.0, abs(chg) / 10.0 * 100.0),
+            value=float(bp), page="STIR Timeline", book="ficc"))
+    return out

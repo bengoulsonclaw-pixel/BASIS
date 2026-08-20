@@ -590,3 +590,77 @@ def backtest(universe: dict, index_key: str, hist_label: str = "2 years",
     }
     return DispersionBT(index_key=index_key, weighting=weighting, roll=roll,
                         trades=tr, curve=curve, stats=stats, source=d["source"])
+
+
+# ── Hot Sheet provider ────────────────────────────────────────────────────────
+RADAR_MAX_AGE_DAYS = 7   # cached-IV freshness bar — a stale spread is not today's story
+RADAR_MAX_ITEMS = 3      # editorial cap — the most stretched indices only
+
+
+def radar_items() -> list:
+    """Hot Sheet provider: indices whose implied − realized correlation spread
+    sits at the monitor's own extremes (flag()'s RICH_PCTL / CHEAP_PCTL bars),
+    the DEFAULT_HISTORY percentile rebuilt from the module's own caches —
+    disp_weights.json + disp_iv.parquet + eqcorr's price cache. Pure disk:
+    compute() goes live for prices/IVs, so it is never called here. Quiet when
+    the cached IVs have gone stale (the flag claims a CURRENT implied read —
+    opening the Dispersion page on the Terminal box refreshes them)."""
+    from src import hotsheet
+    from src.reportkit import ordinal
+
+    try:
+        weights = json.loads(_WEIGHTS_FILE.read_text(encoding="utf-8"))
+        iv = pd.read_parquet(_IV_FILE).sort_index().ffill(limit=3)   # _inputs' stale-mark ffill
+        px = pd.read_parquet(eqcorr._HIST_FILE).sort_index()
+    except Exception:
+        return []
+    n_hist = HISTORY[DEFAULT_HISTORY]
+    px = px.iloc[-(n_hist + TENOR_SESSIONS + 30):]                   # the _inputs window
+    today = pd.Timestamp.today().normalize()
+    ann = np.sqrt(252.0) * 100.0
+
+    items = []
+    for index_key, w_raw in weights.items():
+        if index_key.startswith("_") or index_key not in equities.INDICES:
+            continue
+        idx_ticker = equities.INDICES[index_key][1]
+        if idx_ticker not in px.columns or idx_ticker not in iv.columns:
+            continue
+        # the same basket cut as _inputs: top-N by cached weight, renormalised
+        w_all = pd.Series(w_raw, dtype=float).sort_values(ascending=False)
+        w_all = w_all[w_all > 0]
+        if len(w_all) < 5:
+            continue
+        have = [t for t in w_all.head(DEFAULT_TOP_N).index if t in px.columns]
+        if len(have) < 5:
+            continue
+        wk = w_all.reindex(have)
+        wk = wk / wk.sum()
+
+        rets = np.log(px[have].where(px[have] > 0)).diff()
+        rv = rets.rolling(TENOR_SESSIONS, min_periods=TENOR_SESSIONS - 4).std() * ann
+        idx_rets = np.log(px[idx_ticker].where(px[idx_ticker] > 0)).diff()
+        idx_rv = idx_rets.rolling(TENOR_SESSIONS, min_periods=TENOR_SESSIONS - 4).std() * ann
+        real = _corr_series(rv, idx_rv, wk).iloc[-n_hist:].dropna()
+        imp = _corr_series(iv, iv[idx_ticker], wk).iloc[-n_hist:].dropna()
+        common = imp.index.intersection(real.index)
+        if len(common) < TENOR_SESSIONS:
+            continue
+        spread = (imp - real).loc[common].dropna()
+        if spread.empty or (today - spread.index.max()).days > RADAR_MAX_AGE_DAYS:
+            continue                                     # stale implied read → quiet
+        last = float(spread.iloc[-1])
+        pctl = float((spread < last).mean() * 100.0)
+        if not (pctl >= RICH_PCTL or pctl <= CHEAP_PCTL):
+            continue
+        kind = "rich" if pctl >= RICH_PCTL else "cheap"
+        items.append(hotsheet.item(
+            tag="EQ-DISP", key=f"{index_key}:{kind}", section="Equities · Dispersion",
+            text=(f"**{index_key}** option-implied index correlation screens at the "
+                  f"**{ordinal(int(round(pctl)))} percentile** of its {DEFAULT_HISTORY} "
+                  f"spread history — implied corr {kind} to realized."),
+            metric=f"{pctl:.0f}th pctl", sub=f"imp−real {last:+.2f}",
+            heat=hotsheet.heat_from_pctl(pctl), value=pctl,
+            page="eq:Dispersion", book="equities"))
+    items.sort(key=lambda it: -it["heat"])
+    return items[:RADAR_MAX_ITEMS]

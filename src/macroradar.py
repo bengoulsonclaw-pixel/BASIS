@@ -233,3 +233,68 @@ def dashboard(banks=("FED", "ECB", "BOE"), *, rule=macrorules.balanced,
     out["surprise"] = {b: macrosurprise.index(b) for b in banks}
     out["surprise_readiness"] = macrosurprise.readiness()
     return out
+
+
+# ── Hot Sheet provider (src/hotsheet.py discovers radar_items by name) ────────────────
+# Prescribed-vs-priced divergence worth surfacing, in bp. The module publishes no
+# threshold of its own (level gaps of 100bp+ persist for years — see the docstring);
+# 50bp = two conventional steps, comfortably past rule-input noise.
+GAP_MIN_BP = 50.0
+
+# The bank's flagship strip ticker, for the Hot Sheet's sector filter.
+_RADAR_TICKER = {"FED": "SFRA Comdty", "ECB": "ERA Comdty", "BOE": "SFIA Comdty"}
+
+
+def radar_items() -> list:
+    """Daily Hot Sheet items: banks where the policy-rule prescription sits notably
+    away from what the curve prices.
+
+    STRICTLY CACHE-ONLY. compare() lets the macrodata fetchers refresh any cache
+    older than its TTL — a network call this context must never make (the Hot
+    Sheet runs inside snapshot compute and page loads). macrodata was built to
+    degrade to its stale disk cache whenever HTTP fails, so for the duration of
+    the call its fetch hook is swapped for one that always raises: every series
+    then comes off data/macro_cache exactly as last written (or reports ok=False
+    and drops out), and nothing can touch the network. The market side is already
+    store-only (stirpaths.default_bank_fit reads the morning strip store)."""
+    from src import hotsheet, macrodata
+
+    def _no_network(*a, **k):
+        raise RuntimeError("hotsheet provider is cache-only — no network fetches")
+
+    out = []
+    orig_http = macrodata._http
+    macrodata._http = _no_network
+    try:
+        for bk in stirpaths.BANKS:
+            try:
+                res = compare(bk)
+            except Exception:                     # one dead bank never blanks the sheet
+                continue
+            if not res.ok:
+                continue
+            usable = [m for m in res.meetings if m.spread_bp is not None]
+            if not usable:
+                continue
+            last = usable[-1]                     # the headline_bp meeting
+            gap = float(last.spread_bp)
+            if abs(gap) < GAP_MIN_BP:
+                continue
+            # Per-bank honesty (module convention): say so when the rule ran on
+            # assumed inputs rather than measured ones — the BoE leg always does.
+            caveat = ""
+            if res.provenance is not None and res.provenance.assumed:
+                caveat = f" ({' and '.join(res.provenance.assumed)} assumed for this bloc)"
+            side = "above" if gap > 0 else "below"
+            out.append(hotsheet.item(
+                tag="MACRO", key=f"{bk}:rulegap", section="Policy rules",
+                text=(f"The **{res.rule_name}** rule prescribes a policy rate "
+                      f"**{abs(gap):.0f}bp {side}** what the market prices for the "
+                      f"**{stirpaths.BANKS[bk].name}**{caveat}."),
+                metric=f"{gap:+.0f} bp", sub=f"by the {last.meeting:%b %Y} meeting",
+                heat=min(100.0, abs(gap) / 150.0 * 100.0),
+                value=gap, ticker=_RADAR_TICKER.get(bk, ""),
+                page="Macro Radar", book="ficc"))
+    finally:
+        macrodata._http = orig_http
+    return out

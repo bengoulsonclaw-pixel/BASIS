@@ -4481,7 +4481,7 @@ def render_morning_coffee() -> None:
         st.code(st.session_state.get("mc_log", ""), language="text")
 
 
-# --- overview pages: cross-strategy confluence + data health ----------------
+# --- overview pages: the Hot Sheet + data health -----------------------------
 _STRAT_SHORT = {
     "Mean Reversion": "MeanRev", "Trend": "Trend", "MA Crossover": "MA×",
     "MA Swing": "MA∿", "Flag Breakout": "Flag", "Support & Resistance": "S/R",
@@ -4500,64 +4500,130 @@ def _norm_mkt(m) -> str:
     return str(m).split(" · ")[0].strip()
 
 
-def render_confluence() -> None:
-    st.subheader("\U0001F3AF Confluence")
-    st.caption("Instruments flagged by several strategies today — where the signals stack up. "
-               "Grouped by the underlying contract; pick one below for the full breakdown.")
-    df, _meta = load_signals()
-    fl = df[df["signal"].ne("—")].copy() if (df is not None and "signal" in df) else None
-    fl = _filter_signals(fl)
-    if fl is None or fl.empty:
-        st.info("No flagged signals yet — pull a snapshot or re-run signals on Home.")
-        return
-    fl["key"] = fl["instruments"].astype(str)
-    fl["name"] = fl["market"].map(_norm_mkt)
-    n_strats = int(df["strategy"].nunique())
-    minc = st.slider("Show instruments flagged by at least…", 2, min(10, n_strats), 3,
-                     help=f"{n_strats} strategies ran today — raise this to see only the strongest pile-ups.")
-    _VOL = {"Volatility", "Skew Volatility", "Vol Term Structure"}
+from src import hotsheet
 
-    rows = []
-    for key, sub in fl.groupby("key"):
-        strats = list(dict.fromkeys(sub["strategy"].tolist()))   # unique, order-preserving
-        if len(strats) < minc:
-            continue
-        nm = sub["name"].mode()
-        nm = nm.iat[0] if not nm.empty else sub["name"].iat[0]
-        sector = "pair" if " / " in key else (INSTRUMENTS.get(key, (key, 0.0, "", ""))[2] or "—")
-        dirs = sub[~sub["strategy"].isin(_VOL)]["direction"].fillna(0)
-        nb, ns = int((dirs > 0).sum()), int((dirs < 0).sum())
-        lean = f"▲{nb} ▼{ns}" if (nb or ns) else "—"
-        rows.append({"Market": nm, "Sector": sector, "# Strats": len(strats), "Lean": lean,
-                     "Flagged by": ", ".join(_STRAT_SHORT.get(s, s) for s in strats)})
-    if not rows:
-        st.info(f"Nothing is flagged by {minc}+ strategies right now — lower the threshold above.")
-        return
-    conf = pd.DataFrame(rows).sort_values(["# Strats", "Market"], ascending=[False, True])
-    _q = st.text_input("Find a product", key="conf_search", placeholder=prodsearch.PLACEHOLDER).strip()
-    if _q:
-        conf = prodsearch.filter_frame(conf, INSTRUMENTS, _q, name_col="Market")
-        if conf.empty:
-            st.info(prodsearch.NO_MATCH.format(q=_q))
-            return
-    st.caption(f"**{len(conf)}** instruments flagged by **{minc}+** of {n_strats} strategies. "
-               "**Lean** = directional signals leaning long (▲) vs short (▼), excluding the vol strategies.")
-    brand.themed_dataframe(conf, {})
 
-    st.markdown("##### Inspect an instrument")
-    pick = st.selectbox("Instrument", conf["Market"].tolist(), key="conf_pick",
-                        label_visibility="collapsed")
-    det = fl[fl["name"] == pick]
-    det_tbl = det[["strategy", "signal", "metric_label", "context"]].rename(
-        columns={"strategy": "Strategy", "signal": "Signal",
-                 "metric_label": "Metric", "context": "Notes"})
-    brand.themed_dataframe(det_tbl, {})
-    _uniq = list(dict.fromkeys(det["strategy"].tolist()))
-    st.caption("Open the strategy:")
-    jcols = st.columns(min(len(_uniq), 5) or 1)
-    for i, s in enumerate(_uniq):
-        jcols[i % len(jcols)].button(_STRAT_SHORT.get(s, s), key=f"conf_go_{s}",
-                                     use_container_width=True, on_click=_go, args=(s,))
+@st.cache_data(ttl=300, show_spinner="Collecting the desk's screens…")
+def _hs_collect():
+    """Run every discovered Hot Sheet provider (src/hotsheet.py). All providers read
+    precomputed stores, so this is seconds of parquet reads; a 5-min TTL keeps page
+    flips instant while staying fresher than the stores underneath it change."""
+    return hotsheet.collect()
+
+
+def _hs_go(dest: str) -> None:
+    """Jump into the module that owns an item — equities pages need the desk side
+    switched too, or the sidebar highlight lands on the wrong book."""
+    st.session_state.side = "Equities" if dest.startswith("eq:") else "FICC"
+    _go(dest)
+
+
+_HS_MONO = "'IBM Plex Mono', Consolas, monospace"
+
+
+def _hs_row(it: dict, uid: str, pal: dict) -> None:
+    """One Hot Sheet line: tag chip + badge + prose, the metric column with its heat
+    gauge, and the jump into the owning module."""
+    c_txt, c_met, c_go = st.columns([11, 3, 1])
+    chip = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{pal["gold"]};'
+            f'border:1px solid {pal["label_ring"]};padding:.05rem .35rem;'
+            f'margin-right:.5rem;white-space:nowrap">{it["tag"]}</span>')
+    badge = ""
+    if it.get("badge") == "NEW":
+        badge = (f'<span style="font:700 .6rem/1.7 {_HS_MONO};color:{pal["canvas"]};'
+                 f'background:{pal["gold"]};padding:.05rem .35rem;margin-right:.5rem">NEW</span>')
+    elif it.get("badge"):
+        badge = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{pal["faint"]};'
+                 f'border:1px solid {pal["border"]};padding:.05rem .35rem;'
+                 f'margin-right:.5rem;white-space:nowrap">{it["badge"]}</span>')
+    c_txt.markdown(chip + badge + it["text"], unsafe_allow_html=True)
+    met = it["metric"] or f"{it['heat']:.0f}"
+    sub = (f'<br><span style="font:400 .62rem {_HS_MONO};color:{pal["faint"]}">{it["sub"]}</span>'
+           if it["sub"] else "")
+    bar = (f'<div style="height:3px;background:{pal["border"]};margin-top:.3rem">'
+           f'<div style="height:3px;width:{it["heat"]:.0f}%;background:{pal["gold"]}"></div></div>')
+    c_met.markdown(f'<div style="text-align:right"><span style="font:600 .78rem {_HS_MONO};'
+                   f'color:{pal["text"]}">{met}</span>{sub}{bar}</div>', unsafe_allow_html=True)
+    if it["page"]:
+        c_go.button("→", key=f"hs_{uid}", help=f"Open {it['page'].removeprefix('eq:')}",
+                    on_click=_hs_go, args=(it["page"],))
+
+
+def _hs_footer(report: dict) -> None:
+    """Provider roll-call — a newly built module (anything in src/ defining
+    radar_items()) visibly plugs itself in here, and a broken one visibly falls off
+    instead of silently vanishing from the sheet."""
+    n_on = sum(1 for v in report.values() if v["n"])
+    n_quiet = sum(1 for v in report.values() if v["status"] == "quiet")
+    n_fail = sum(1 for v in report.values() if v["status"] == "failed")
+    try:
+        _m = json.loads(hotsheet.META_FILE.read_text(encoding="utf-8"))
+        _stamp = f" · history last stamped {_m.get('stamped', '—')}"
+    except Exception:
+        _stamp = " · history not stamped yet"
+    with st.expander(f"Providers — {n_on} contributing · {n_quiet} quiet · {n_fail} failed{_stamp}"):
+        st.caption("The page collects live on each render; badges and the Weekly Review read the "
+                   "once-a-day history stamp written by the morning snapshot.")
+        rows = [{"Provider": k, "Status": v["status"], "Items": v["n"], "ms": v["ms"],
+                 "Error": v["err"]} for k, v in sorted(report.items())]
+        brand.themed_dataframe(pd.DataFrame(rows), {})
+
+
+def render_hotsheet() -> None:
+    st.subheader("🔥 Hot Sheet")
+    st.caption("Everything the desk's modules are flagging **today**, ranked on one heat scale — "
+               "the morning 30-second read. Each line jumps into the module that owns it; the "
+               "sheet is exception-based, so quiet modules simply don't appear.")
+    items, report = _hs_collect()
+    hotsheet.apply_badges(items)
+    if universe.filter_active():                 # the Home sector filter applies here too
+        _en = set(universe.enabled_tickers())
+        items = [it for it in items
+                 if it["book"] != "ficc" or not it["ticker"] or it["ticker"] in _en]
+
+    pal = brand.palette()
+    meta_items = [it for it in items if it["book"] == "meta"]
+    items = [it for it in items if it["book"] != "meta"]
+    if meta_items:                               # trust caveats first — a quiet sheet only means
+        _cav = " · ".join(it["text"].replace("**", "") for it in meta_items)   # calm markets if the data is healthy
+        st.markdown(f'<div style="border:1px solid {pal["border"]};border-left:3px solid #D9971C;'
+                    f'background:{pal["surface"]};padding:.45rem .7rem;font-size:.8rem;'
+                    f'color:{pal["text_dim"]};margin-bottom:.6rem">⚠️ {_cav}</div>',
+                    unsafe_allow_html=True)
+
+    if not items:
+        st.info("Nothing is clearing any module's bar right now — either genuinely quiet markets, "
+                "or the morning snapshot hasn't run yet (see the provider roll-call below).")
+        _hs_footer(report)
+        return
+
+    c1, c2, _sp = st.columns([3, 3, 6])
+    _book = c1.radio("Book", ["All", "FICC", "Equities"], horizontal=True, key="hs_book",
+                     label_visibility="collapsed")
+    _order = c2.radio("Order", ["By heat", "New first"], horizontal=True, key="hs_order",
+                      label_visibility="collapsed")
+    if _book != "All":
+        items = [it for it in items if it["book"] == _book.lower()]
+    if _order == "New first":
+        items.sort(key=lambda it: (it.get("badge") != "NEW", -it["heat"]))
+
+    n_new = sum(1 for it in items if it.get("badge") == "NEW")
+    st.caption(f"**{len(items)}** items across **{sum(1 for v in report.values() if v['n'])}** "
+               f"modules" + (f" — **{n_new}** new today." if n_new else "."))
+    for i, it in enumerate(items[:10]):
+        _hs_row(it, f"top{i}", pal)
+
+    rest = items[10:]
+    if rest:
+        st.markdown("##### The rest of the sheet")
+        by_sect: dict = {}
+        for it in rest:
+            by_sect.setdefault(it["section"], []).append(it)
+        for sect in sorted(by_sect, key=lambda s: -max(x["heat"] for x in by_sect[s])):
+            with st.expander(f"{sect} · {len(by_sect[sect])}", expanded=False):
+                for i, it in enumerate(by_sect[sect]):
+                    _hs_row(it, f"{sect}_{i}", pal)
+    _hs_footer(report)
 
 
 def _ax(tk) -> str:
@@ -5469,7 +5535,7 @@ def render_ta_overview() -> None:
                            colorers=[(["Signal"], _sig_color)], height=520)
     st.caption("**Conviction** = this signal's strength 0–100 (on its strategy's scale); **Score** = the "
                "product's cross-strategy conviction (confluence × strength), so a product's rows cluster at "
-               "the top when several strategies agree. The **Confluence** page covers the whole book.")
+               "the top when several strategies agree. The **Hot Sheet** covers the whole desk.")
 
     # Report controls pinned to the FOOT of the page (a consistent "generate + email at the bottom"
     # layout across the app). Still isolated in a fragment, so a Generate click reruns only this
@@ -13099,7 +13165,7 @@ with st.sidebar:
         # the tab-row switcher (_render_group_tabs). Trade Testing is the Vol Backtester
         # alone. Morning Coffee is reached from the Home page's Data row.
         _nav_button("01 · Market Information", "Release Calendar")
-        _nav_button("02 · Confluence", "Confluence")
+        _nav_button("02 · Hot Sheet", "Hot Sheet")
         _n_mod = 2
         for _group, _strats in NAV_GROUPS.items():
             # Each strategy group collapses to ONE sidebar entry; its members are reached from within
@@ -13372,8 +13438,8 @@ if active == "Landing":
     render_landing(); st.stop()
 if active == "Home":
     render_home(); st.stop()
-if active == "Confluence":
-    render_confluence(); st.stop()
+if active in ("Hot Sheet", "Confluence"):        # old saved-state deep links land here too
+    render_hotsheet(); st.stop()
 if active == "Technical Analysis":
     render_ta_overview(); st.stop()
 if active == "Morning Coffee":

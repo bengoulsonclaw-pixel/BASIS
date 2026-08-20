@@ -339,3 +339,37 @@ def spread_chart_data(key: str, window: int = WINDOW, threshold: float = Z_THRES
         cut = s.index.max() - pd.DateOffset(days=int(years * 365.25))
         out = out[out["date"] >= cut].reset_index(drop=True)
     return out, info
+
+
+# ── Hot Sheet provider ──────────────────────────────────────────────────────
+RADAR_MAX = 4         # editorial cap — the book's four most stretched flags make the sheet
+
+
+def radar_items() -> list:
+    """The book's own flags (|z| ≥ Z_THRESHOLD) for the Hot Sheet — the same
+    selection and prose as weekreview.collect_curve: stretched spreads only,
+    ranked by |z|, full-history percentile quoted where the store holds one.
+    Reads the deep store via monitor(); nothing here can trigger a pull."""
+    from src import hotsheet
+    from .reportkit import ordinal
+
+    m = monitor()
+    if m.empty:
+        return []
+    fl = m[(m["direction"] != 0) & m["z"].notna()].copy()
+    fl = fl.reindex(fl["z"].abs().sort_values(ascending=False).index).head(RADAR_MAX)
+    out = []
+    for r in fl.itertuples(index=False):
+        pct = (f" — {ordinal(int(round(r.pctl)))} percentile of the stored history"
+               if r.pctl == r.pctl else "")
+        out.append(hotsheet.item(
+            tag="CURVE", key=f"{r.key}:{r.signal}", section="Curve / RV",
+            text=f"**{r.name}** screens **{r.signal.lower()}** at {r.level:,.{r.dp}f} "
+                 f"{r.unit}{pct}.",
+            heat=hotsheet.heat_from_z(r.z),
+            metric=f"z {r.z:+.1f}", sub="vs its 1y band",
+            value=float(r.level),        # the spread level — a meaningful week-on-week Δ
+            ticker="",                   # multi-leg — no single ticker for the sector filter
+            page="Curve Monitor", book="ficc",
+        ))
+    return out

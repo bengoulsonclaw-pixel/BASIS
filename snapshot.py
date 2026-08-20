@@ -515,6 +515,16 @@ def _compute_phase(include_equities: bool = False) -> dict:
     if include_equities:
         eq = run_equities()
 
+    # Hot Sheet — stamp today's cross-module highlights into the daily history
+    # (data/signals/hotsheet_history.parquet: NEW/streak badges + the Weekly Review's
+    # week aggregation read it). Runs LAST so it sees everything just refreshed above;
+    # same-day re-runs replace today only, past days stay frozen.
+    try:
+        from src import hotsheet
+        hotsheet.stamp_today(log=print)
+    except Exception as e:
+        print(f"  (Hot Sheet stamp skipped: {e})")
+
     # Manifest from the ON-DISK snapshot (the fetch phase's files) — works whether the
     # compute phase runs seconds or hours after the fetch. `created` = the pull moment
     # (live.parquet's write time), not when the math happened to run.

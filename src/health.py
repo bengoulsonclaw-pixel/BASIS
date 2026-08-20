@@ -542,3 +542,75 @@ def checks(*, frames: pd.DataFrame | None = None, deep: dict | None = None,
             f"({str(tr.get('when', ''))[:16]} UTC). Fix before trusting engine output.")
 
     return out
+
+
+# ---------------------------------------------------------------------------
+# Hot Sheet provider (src/hotsheet.py) — trust-affecting problems only
+# ---------------------------------------------------------------------------
+RADAR_COMPUTE_LAG_H = 30.0   # a day+ behind: checks() nags at 2h, the sheet only at
+                             # "everything derived is yesterday's" scale
+RADAR_HEAT = 20.0            # health lines render as a flat caveat strip, not ranked stories
+
+
+def radar_items() -> list:
+    """Hot Sheet provider — the health board's trust-affecting exceptions (max 3):
+    missing core snapshot frames, a compute phase far behind the fetch, and stale
+    implied-vol surfaces. Desk-only (internal_only), flat low heat — the sheet shows
+    these as caveats on everything else, not as stories. Disk reads only: the
+    surface census reads the snapshot parquets straight off disk via
+    datafeed._read_snapshot (stale_surfaces() routes through the mode-dependent
+    getters, which PULL when the process runs with DATAFEED_MODE=bloomberg)."""
+    from src import hotsheet
+    from .datafeed import _read_snapshot, stale_iv_reasons, TENOR_LABELS
+
+    common = dict(tag="DATA", section="Data health", page="Data health",
+                  book="meta", weekly=False, internal_only=True)
+    items = []
+    frames = snapshot_frames()
+
+    missing = missing_core_frames(frames)
+    if missing:
+        items.append(hotsheet.item(
+            key="core:missing", heat=RADAR_HEAT, metric=f"{len(missing)} missing",
+            text=("Core snapshot frames are **missing** from data/snapshot/ ("
+                  + ", ".join(missing) + ") — the modules riding them are on "
+                  "fallback/demo data."),
+            sub="one pull writes all core frames together",
+            value=float(len(missing)), **common))
+
+    lag = compute_lag_h(frames)
+    if np.isfinite(lag) and lag > RADAR_COMPUTE_LAG_H:
+        items.append(hotsheet.item(
+            key="compute:lag", heat=RADAR_HEAT, metric=f"{lag:.0f}h behind",
+            text=(f"The morning compute is **{lag:.0f} hours behind** the fetched data — "
+                  "signals, own-curve fits and the signal cache are stale. "
+                  "Run:  python snapshot.py --compute"),
+            sub="fetch ran, compute didn't",
+            value=float(round(lag, 1)), **common))
+
+    # Stale-surface census on the SNAPSHOT files — the same stale_iv_reasons guard the
+    # vol/skew/term pages apply, run over the frames one pull writes to disk.
+    surfaces = [("implied_vol.parquet", "1M ATM"),
+                ("skew_put.parquet", "skew 90% put"),
+                ("skew_call.parquet", "skew 110% call")]
+    surfaces += [(f"term_{lab.lower()}.parquet", f"term {lab}") for lab in TENOR_LABELS]
+    tickers = list(universe.INSTRUMENTS)
+    stale_markets, n_rows = set(), 0
+    for fname, _surface in surfaces:
+        try:
+            f = _read_snapshot(fname)
+            reasons = stale_iv_reasons(f.reindex(columns=tickers)) if f is not None else {}
+        except Exception:
+            reasons = {}
+        stale_markets.update(reasons)
+        n_rows += len(reasons)
+    if stale_markets:
+        names = sorted(universe.name(t) for t in stale_markets)
+        items.append(hotsheet.item(
+            key="surfaces:stale", heat=RADAR_HEAT, metric=f"{len(stale_markets)} stale",
+            text=(f"**{len(stale_markets)} market(s)** show a frozen or dead implied-vol "
+                  f"surface ({n_rows} surface rows) — already left unscored by the "
+                  "vol/skew/term strategies."),
+            sub=", ".join(names[:4]) + ("…" if len(names) > 4 else ""),
+            value=float(len(stale_markets)), **common))
+    return items

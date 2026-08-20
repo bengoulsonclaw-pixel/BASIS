@@ -126,3 +126,48 @@ def response_table(window: int = 260) -> pd.DataFrame:
     if not df.empty:
         df = df.sort_values("pop_pct", ascending=False).reset_index(drop=True)
     return df
+
+
+RADAR_VOL_MAX = 4      # richest/cheapest names carried to the Hot Sheet
+RADAR_STIR_MAX = 1     # plus at most one STIR-book flag (bp units)
+
+
+def radar_items() -> list:
+    """Hot Sheet provider — the vol book's own z-flags (direction != 0 in the
+    snapshot-written cross-section), weekreview's collect_vol cut without the
+    realized-peer line. Reads the cached signal stores only — never a fetch."""
+    from src import hotsheet
+    from src.reportkit import ordinal
+    sig_dir = ROOT / "data" / "signals"
+    det = pd.read_parquet(sig_dir / "volatility.parquet")
+    fl = det[det["direction"] != 0]
+    fl = fl.reindex(fl["z"].abs().sort_values(ascending=False).index).head(RADAR_VOL_MAX)
+    out = []
+    for r in fl.itertuples(index=False):
+        side = "rich" if r.direction < 0 else "cheap"
+        dec = int(min(r.px_dec, 2))
+        out.append(hotsheet.item(
+            tag="VOL", key=f"{r.ticker}:{side}", section="Volatility",
+            text=(f"**{r.market}** implied vol screens **{side}** — "
+                  f"{ordinal(int(round(r.pctl)))} percentile of the year; "
+                  f"1σ daily move ≈ {r.iv_sd:,.{dec}f} points."),
+            heat=hotsheet.heat_from_z(r.z), metric=f"z {r.z:+.1f}",
+            sub="IV−RV spread, 1y", value=float(r.z), ticker=r.ticker,
+            page="Volatility", book="ficc"))
+    # STIR book, same bar, bp units
+    try:
+        stir = pd.read_parquet(sig_dir / "stirvol.parquet")
+        sfl = stir[stir["direction"] != 0]
+        sfl = sfl.reindex(sfl["z"].abs().sort_values(ascending=False).index).head(RADAR_STIR_MAX)
+        for r in sfl.itertuples(index=False):
+            side = "rich" if r.direction < 0 else "cheap"
+            out.append(hotsheet.item(
+                tag="VOL", key=f"{r.ticker}:{side}", section="Volatility",
+                text=(f"**{r.market}** rate vol screens **{side}** — "
+                      f"1σ daily move ≈ {r.iv_bp:,.1f} bp."),
+                heat=hotsheet.heat_from_z(r.z), metric=f"z {r.z:+.1f}",
+                sub="IV−RV spread, 1y", value=float(r.z), ticker=r.ticker,
+                page="Volatility", book="ficc"))
+    except Exception:
+        pass
+    return out

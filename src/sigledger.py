@@ -522,3 +522,64 @@ def heat(out: pd.DataFrame, horizon: int, by: str = "market") -> pd.DataFrame:
         g = g.rename(columns={by: "market"})
     g["hit"] = g["hit"] * 100.0
     return g.dropna(subset=["hit"])
+
+
+# ---------------------------------------------------------------------------
+# Hot Sheet provider (src/hotsheet.py) — track-record exceptions, desk-only
+# ---------------------------------------------------------------------------
+RADAR_HIT_GAP_PP = 5.0    # book-level 1y-vs-full-history hit gap (pp) below this is noise
+RADAR_MIN_RECENT = 250    # evaluated signals the 1y window needs before it can speak
+RADAR_GUARD_HEAT = 60.0   # an active corrupt-frame refusal is this module's loudest state
+
+
+def radar_items() -> list:
+    """Hot Sheet provider — AT MOST ONE exception line from the FICC track record,
+    desk-only (internal_only: the ledger is accountability plumbing, not a client
+    story). Two things qualify: an ACTIVE corrupt-frame guard refusal (the
+    2026-08-13 class of morning — someone must look), or the book-level 1y hit rate
+    at the longest horizon deviating >= RADAR_HIT_GAP_PP pp from its full-history
+    baseline (windows_league's 1y-vs-Full delta, pooled across strategies so one
+    method's routine regime swing can't page the desk). A quiet ledger returns [] —
+    the sheet is exception-based. Disk reads only."""
+    from src import hotsheet
+
+    common = dict(tag="LEDGER", section="Track record", page="Signal Ledger",
+                  book="meta", weekly=False, internal_only=True)
+
+    ref = guard_refusal("ficc")
+    if ref:
+        flips, checked = float(ref.get("flips", 0.0)), int(ref.get("checked", 0))
+        return [hotsheet.item(
+            key="guard:ficc",
+            text=(f"The ledger's **corrupt-frame guard refused an update** on "
+                  f"{str(ref.get('when', '?'))[:10]} — {flips:.1%} of {checked:,} settled "
+                  "outcomes would have been re-marked. The track record on disk is "
+                  "unchanged; the refusal clears on the next clean rebuild."),
+            metric="guard active", sub=f"{flips:.1%} of {checked:,} settled rows",
+            heat=RADAR_GUARD_HEAT, **common)]
+
+    # Column-restricted read — load() materializes the whole ~30MB outcome frame;
+    # the gap test needs one hit column and the date axis.
+    hcol = f"hit{HORIZONS[-1]}"
+    path = _outcomes_path("ficc")
+    if not path.exists():
+        return []
+    out = pd.read_parquet(path, columns=["date", hcol])
+    out["date"] = pd.to_datetime(out["date"])
+    recent = out.loc[out["date"] >= out["date"].max() - pd.DateOffset(years=1), hcol].dropna()
+    full = out[hcol].dropna()
+    if len(recent) < RADAR_MIN_RECENT:
+        return []
+    gap = (recent.mean() - full.mean()) * 100.0
+    if abs(gap) < RADAR_HIT_GAP_PP:
+        return []
+    return [hotsheet.item(
+        key="hitrate:1y_vs_full",
+        text=(f"The FICC book's **1y hit rate** at {HORIZONS[-1]} sessions is running "
+              f"**{gap:+.1f}pp** against its full-history baseline "
+              f"({recent.mean() * 100:.1f}% vs {full.mean() * 100:.1f}%, "
+              f"n={len(recent):,} evaluated signals) — a swing this large may be worth "
+              "a closer look on the windows league."),
+        metric=f"{gap:+.1f}pp", sub=f"1y vs full history, {HORIZONS[-1]}-session horizon",
+        heat=min(60.0, 30.0 + (abs(gap) - RADAR_HIT_GAP_PP) * 3.0),
+        value=round(gap, 2), **common)]

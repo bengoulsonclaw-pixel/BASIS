@@ -385,3 +385,66 @@ def compute(max_age_hours: float = 20.0, force: bool = False):
     except Exception:
         pass
     return detail, hist
+
+
+# ---------------------------------------------------------------------------
+# Hot Sheet provider
+# ---------------------------------------------------------------------------
+RADAR_EXTREME_MAX = 3      # crowded-positioning extremes shown (cross-section is already |idx−50| sorted)
+RADAR_SHIFT_MAX = 2        # the week's largest size-normalised net shifts
+RADAR_SHIFT_Z_FULL = 5.0   # σ that pins a shift's heat gauge at 100 (the weekreview convention)
+
+
+def radar_items() -> list:
+    """Hot Sheet provider: Friday's positioning extremes (the crowded 80/20
+    cutoff) plus the week's largest size-normalised net shifts — the same
+    selection and prose as weekreview.collect_cot. Cache only: compute() runs
+    with an effectively infinite max-age so the parquet on disk is reused,
+    never refetched; no cache at all means quiet, not a pull."""
+    import sys as _sys
+
+    from src import hotsheet
+
+    if not COT_HISTORY_FILE.exists():        # no cache yet — quiet, never fetch here
+        return []
+    try:                                     # probe the cache readable — a corrupt parquet
+        pd.read_parquet(COT_HISTORY_FILE, columns=["date"])
+    except Exception:                        # would fall through compute() to a live fetch
+        return []
+    detail, hist = compute(max_age_hours=1e9)
+    out = []
+    ext = detail[detail["direction"] != 0].head(RADAR_EXTREME_MAX)   # already |idx−50| sorted
+    for r in ext.itertuples(index=False):
+        side = "long" if r.direction > 0 else "short"
+        out.append(hotsheet.item(
+            tag="COT", key=f"{r.ticker}:{side}", section="Positioning",
+            text=f"**{r.market}** {r.category.lower()} positioning is **crowded "
+                 f"{side}** — net {r.net_pct_oi:+.0f}% of open interest "
+                 f"({r.date:%d %b}).",
+            heat=hotsheet.heat_from_pctl(r.cot_index),
+            metric=f"idx {r.cot_index:.0f}", sub="COT index, 0–100",
+            value=float(r.net_pct_oi),       # the crowding level — net %OI, Δ-able on the week
+            ticker=r.ticker, page="COT Reports", book="ficc",
+        ))
+    try:
+        # cotreport imports bare-name siblings (reportkit, cotstudy…) — its
+        # standalone-script convention — so src/ must sit on sys.path first.
+        _src = str(Path(__file__).resolve().parent)
+        if _src not in _sys.path:
+            _sys.path.insert(0, _src)
+        from src import cotreport
+        tick = dict(zip(detail["market"], detail["ticker"]))
+        for s in cotreport._weekly_shifts(detail, hist)[:RADAR_SHIFT_MAX]:
+            out.append(hotsheet.item(
+                tag="COT", key=f"shift:{s['market']}", section="Positioning",
+                text=f"**{s['market']}**: the week's net positioning move was "
+                     f"**{s['chg']:+,.0f}** contracts ({s['pct']:+.1f}% of open "
+                     f"interest).",
+                heat=hotsheet.heat_from_z(s["z"], full=RADAR_SHIFT_Z_FULL),
+                metric=f"{s['z']:+.1f}σ", sub="vs 3y of weekly moves",
+                value=float(s["chg"]),       # contracts moved on the week
+                ticker=tick.get(s["market"], ""), page="COT Reports", book="ficc",
+            ))
+    except Exception:                        # shifts are additive — the extremes still stand
+        pass
+    return out

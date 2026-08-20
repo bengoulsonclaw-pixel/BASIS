@@ -127,3 +127,55 @@ def fmt_aum(v) -> str:
     if not isinstance(v, (int, float)) or v != v:
         return "—"
     return f"${v / 1e9:,.1f}bn" if v >= 1e9 else f"${v / 1e6:,.0f}mm"
+
+
+# ── Hot Sheet provider ────────────────────────────────────────────────────────
+RADAR_SIGMA_FLOOR = 2.0    # outsized day: |move| ≥ 2 of the fund's own ~1-month daily σ
+RADAR_PCT_FLOOR = 1.5      # fallback bar (|%| move) when no history is cached for the σ
+RADAR_MAX_ITEMS = 3        # editorial cap — the biggest movers only
+
+
+def radar_items() -> list:
+    """Hot Sheet provider: client-list funds with an outsized overnight move —
+    movers_frame()'s σ sizing rule (the move in the fund's own ~1-month daily σ),
+    falling back to a flat % bar when no history is cached. Pure disk: reads the
+    morning equities snapshot parquets only — movers_frame() itself pulls live
+    Yahoo — and only a snapshot written TODAY (yesterday's pct is not the day's
+    move). Quiet until the morning pull's ticker list covers the ETFs."""
+    from src import equities, hotsheet
+
+    if not equities._file_is_todays(equities._QUOTES_FILE):
+        return []
+    q = equities._read_parquet(equities._QUOTES_FILE)
+    if q is None or q.empty or "pct" not in q:
+        return []
+    h = equities._read_parquet(equities._HISTORY_FILE)
+    items = []
+    for (root, name, _group), t in zip(ETFS, tickers()):
+        pct = float(q["pct"].get(t, np.nan))
+        if pct != pct:
+            continue
+        sigma = np.nan
+        if h is not None and t in getattr(h, "columns", []):
+            dd = h[t].dropna().pct_change().dropna() * 100.0   # the movers_frame σ
+            sd = float(dd.tail(21).std())
+            if sd and sd == sd:
+                sigma = pct / sd
+        if sigma == sigma:                                     # σ path: the fund's own bar
+            if abs(sigma) < RADAR_SIGMA_FLOOR:
+                continue
+            heat = min(100.0, abs(sigma) * 33.0)
+            metric, sub = f"{sigma:+.1f}σ", "of its own 21-day daily σ"
+        else:                                                  # no σ history: flat % bar
+            if abs(pct) < RADAR_PCT_FLOOR:
+                continue
+            heat = min(100.0, abs(pct) / 3.0 * 100.0)
+            metric, sub = f"{pct:+.1f}%", f"vs a ±{RADAR_PCT_FLOOR:.1f}% day bar"
+        items.append(hotsheet.item(
+            tag="EQ-ETF", key=f"{root}:move", section="Client ETFs",
+            text=(f"**{name}** ({root}) moved **{pct:+.1f}%** on the day — "
+                  "beyond its usual daily range."),
+            metric=metric, sub=sub, heat=heat, value=pct,
+            ticker=t, page="eq:ETFs", book="equities"))
+    items.sort(key=lambda it: -it["heat"])
+    return items[:RADAR_MAX_ITEMS]
