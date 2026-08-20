@@ -2702,8 +2702,9 @@ def render_home() -> None:
                                         vertical_alignment="center")
     p1.button("‹", key="home_prev", on_click=_home_day_set, args=(_off - 1,),
               use_container_width=True)
-    _tag = ('<span style="font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;'
-            'color:#F5C518;font-weight:700;margin-right:10px">Today</span>'
+    _tag = ('<span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;'
+            'background:#F5C518;color:#14171C;font-weight:800;padding:2px 9px;'
+            'border-radius:5px;margin-right:12px;vertical-align:2px">Today</span>'
             if _day == _today else "")
     p2.markdown(f'<div class="dk-vc" style="text-align:center;font-family:var(--basis-mono,monospace);'
                 f'font-size:17px;font-weight:600">{_tag}{_day:%a %d %b %Y}</div>',
@@ -13604,10 +13605,15 @@ with st.sidebar:
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
+    _data_s = str((snap or {}).get("as_of", "—"))
+    try:        # ISO -> the same "19 Aug 2026" style as the other footer dates
+        _data_s = datetime.strptime(_data_s[:10], "%Y-%m-%d").strftime("%d %b %Y")
+    except Exception:
+        pass
     brand.sidebar_footer([
         ("signals", _to_et(meta.get("as_of", "n/a")), ""),
         ("feed", _feed[0], _feed[1]),
-        ("data", str((snap or {}).get("as_of", "—")), ""),
+        ("data", _data_s, ""),
     ])
 
 # ----- fixed top bar (same on every page, stays while scrolling): world clocks
