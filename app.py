@@ -1640,7 +1640,14 @@ def render_sector_filter() -> None:
             key, [tk for tk in tks if INSTRUMENTS[tk][2] not in off_a and tk not in off_t])
 
     on = _sf_enabled()
-    st.markdown(f"#### 🗂️  Sectors & products — {len(on)}/{len(INSTRUMENTS)} instruments on")
+    d_off_a, d_off_t = universe.default_off()
+    n_def = len({tk for tk in INSTRUMENTS
+                 if INSTRUMENTS[tk][2] not in d_off_a and tk not in d_off_t})
+    # design card header: summary + startup default live in the header sub-line now
+    st.markdown(f'<div class="dk-h"><span class="dk-t">Sectors &amp; products</span>'
+                f'<span class="dk-s">{len(on)}/{len(INSTRUMENTS)} instruments on · '
+                f'startup default {n_def}/{len(INSTRUMENTS)}</span></div>',
+                unsafe_allow_html=True)
     if not IS_ADMIN:
         # This filter is one shared file (data/sector_filter.json) read by every session, not a
         # per-user preference -- a colleague toggling it would change what everyone else sees, so
@@ -1649,31 +1656,29 @@ def render_sector_filter() -> None:
         return
     with st.container():
         st.caption("Hit a group to switch the whole sector on or off. Open its dropdown to drill in "
-                   "by region / asset class and toggle individual contracts.")
-        groups = [g[0] for g in _FILTER_GROUPS]
-        cols = st.columns(3 + len(groups))
-        if cols[0].button("All", key="sf_b_all", use_container_width=True):
-            _sf_apply(lambda s: s[2])
-        if cols[1].button("None", key="sf_b_none", use_container_width=True):
-            _sf_apply(lambda s: [])
-        for col, group in zip(cols[2:2 + len(groups)], groups):
-            gtks = {tk for s in secs if s[0] == group for tk in s[2]}
-            n_on = len(gtks & on)
-            if col.button(f"{group}\n\n{n_on}/{len(gtks)}", key=f"sf_b_{group}",
-                          use_container_width=True, type="primary" if n_on else "secondary"):
-                _sf_apply(lambda s, _g=group, _full=(n_on == len(gtks)):
-                          (([] if _full else s[2]) if s[0] == _g
-                           else st.session_state.get(s[3], s[2])))
-        if cols[-1].button("📌 Set default", key="sf_b_setdef", use_container_width=True,
-                           help="Save the current selection as the startup default — the app loads "
-                                "this on every launch until you set it again."):
-            universe.save_default(*_sf_current_off())
-            st.toast("Saved — the dashboard will start with this selection from now on.", icon="📌")
-        d_off_a, d_off_t = universe.default_off()
-        n_def = len({tk for tk in INSTRUMENTS
-                     if INSTRUMENTS[tk][2] not in d_off_a and tk not in d_off_t})
-        st.caption(f"📌 **Startup default: {n_def}/{len(INSTRUMENTS)} markets.** Arrange the selection "
-                   "how you want it, then **Set default** to change what loads each launch.")
+                   "by region / asset class and toggle individual contracts. 📌 saves the current "
+                   "selection as the startup default.")
+        # one wrapping row of chips (design): All · None · sector chips · Set default
+        with st.container(key="sf_chiprow"):
+            groups = [g[0] for g in _FILTER_GROUPS]
+            if st.button("All", key="sf_b_all"):
+                _sf_apply(lambda s: s[2])
+            if st.button("None", key="sf_b_none"):
+                _sf_apply(lambda s: [])
+            for group in groups:
+                gtks = {tk for s in secs if s[0] == group for tk in s[2]}
+                n_on = len(gtks & on)
+                if st.button(f"{group} · {n_on}/{len(gtks)}", key=f"sf_b_{group}",
+                             type="primary" if n_on else "secondary"):
+                    _sf_apply(lambda s, _g=group, _full=(n_on == len(gtks)):
+                              (([] if _full else s[2]) if s[0] == _g
+                               else st.session_state.get(s[3], s[2])))
+            if st.button("📌 Set default", key="sf_b_setdef",
+                         help="Save the current selection as the startup default — the app loads "
+                              "this on every launch until you set it again."):
+                universe.save_default(*_sf_current_off())
+                st.toast("Saved — the dashboard will start with this selection from now on.",
+                         icon="📌")
 
         _gcols = st.columns(len(_FILTER_GROUPS))          # 4 group dropdowns side by side, evenly sized
         for _gi, (group, _classes, mode) in enumerate(_FILTER_GROUPS):

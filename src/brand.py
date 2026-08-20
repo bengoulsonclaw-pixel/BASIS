@@ -657,6 +657,22 @@ div[class*="st-key-dkcard"] > div[data-testid="stVerticalBlock"] { gap:.3rem; }
     [data-testid="stLayoutWrapper"]:has(> div[class*="st-key-dkcard"]) { flex:1 1 auto; display:flex; }
 [data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) [data-testid="stColumn"]
     div[class*="st-key-dkcard"] { flex:1 1 auto; }
+/* sectors & products card (design): one wrapping row of 6px chips — the keyed
+   container's vertical block flips to a row, each button shrinks to content;
+   active chips get the gold primary treatment from the global button rules */
+div[class*="st-key-sf_chiprow"] {
+    flex-direction:row !important; flex-wrap:wrap; gap:7px !important; align-items:center; }
+div[class*="st-key-sf_chiprow"] [data-testid="stElementContainer"],
+div[class*="st-key-sf_chiprow"] [data-testid="stLayoutWrapper"],
+div[class*="st-key-sf_chiprow"] .stButton { width:auto !important; flex:0 0 auto; }
+div[class*="st-key-sf_chiprow"] button {
+    min-height:0 !important; height:auto !important; padding:4px 10px !important;
+    border-radius:6px !important; white-space:nowrap; }
+div[class*="st-key-sf_chiprow"] button p {
+    font-size:10.5px !important; letter-spacing:.07em !important; line-height:1.3 !important; }
+/* the drill-down pills echo the chip language */
+div[class*="st-key-dkcard_sectors"] [data-testid="stPills"] button {
+    border-radius:6px !important; min-height:0 !important; padding:2px 9px !important; }
 /* (pure-HTML .dk-cards rely on matched min-heights instead of flex-stretch —
    chaining flex through Streamlit's markdown wrappers fed back the column gap
    and inflated the card by 14px per pass.) */
