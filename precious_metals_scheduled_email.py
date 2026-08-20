@@ -85,6 +85,14 @@ def main():
     from src import pmdata, pmreport
     d = pmdata.build(force=args.force)
     OUT_JSON.write_text(json.dumps(d, indent=1), encoding="utf-8")
+    # pm_monitor.json is what the Hot Sheet's METALS lines read — re-persist the sheet
+    # so the monthly flows land on it today (cache only, no history re-stamp).
+    try:
+        from src import hotsheet
+        hotsheet.refresh_collection()
+        print("Hot Sheet re-collected off the fresh PM monitor.")
+    except Exception as e:
+        print(f"(Hot Sheet refresh skipped: {e})")
     pmreport.build_pdf(d, OUT_PDF)
     print(f"Built {OUT_PDF} (mock blocks: {', '.join(d['mock_blocks']) or 'none'})")
 

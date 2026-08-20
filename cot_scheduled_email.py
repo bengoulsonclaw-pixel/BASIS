@@ -322,6 +322,14 @@ def main():
     if detail is None or detail.empty:
         print("No COT data available (network?) — skipping this run.")
         return
+    # Fresh COT store on disk → re-persist the Hot Sheet so its positioning lines
+    # update this afternoon rather than at tomorrow's stamp (cache only, no re-stamp).
+    try:
+        from src import hotsheet
+        hotsheet.refresh_collection()
+        print("Hot Sheet re-collected off the fresh COT store.")
+    except Exception as e:
+        print(f"(Hot Sheet refresh skipped: {e})")
     latest = pd.to_datetime(detail["date"]).max().date()
 
     # Sanity checks: the as-of date must be a Tuesday and reasonably fresh.

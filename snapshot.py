@@ -602,6 +602,17 @@ def main():
         return
     if args.equities:
         eq = run_equities()
+        # Standalone equities pulls (autopull task + the Equities home button) never
+        # pass through _compute_phase, so re-persist the Hot Sheet here — cache only,
+        # not a history re-stamp (that stays with the signals-final moments). NOT
+        # inside run_equities(): the --with-equities path stamps right after it.
+        if eq.get("ok"):
+            try:
+                from src import hotsheet
+                hotsheet.refresh_collection()
+                print("  Hot Sheet re-collected off the fresh equities stores")
+            except Exception as e:
+                print(f"  (Hot Sheet refresh skipped: {e})")
         print(json.dumps(eq, indent=2, default=str))
         # nonzero on a dead pull so the app's button shows the failure instead of "refreshed";
         # a DELIBERATELY-disabled pull ("disabled") is not a failure, so it exits 0.

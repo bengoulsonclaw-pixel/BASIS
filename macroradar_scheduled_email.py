@@ -211,6 +211,15 @@ def main():
     if not pdfs:
         print("no PDF could be built — not sending.")
         return
+    # build_pdfs let the macrodata fetchers refresh any stale data/macro_cache series,
+    # and the Hot Sheet's MACRO lines read exactly those caches — re-persist the sheet
+    # (cache only, no history re-stamp).
+    try:
+        from src import hotsheet
+        hotsheet.refresh_collection()
+        print("Hot Sheet re-collected off the fresh macro caches.")
+    except Exception as e:
+        print(f"(Hot Sheet refresh skipped: {e})")
     send_email(pdfs, dry_run=a.dry_run)
     if not a.dry_run:
         MARKER.parent.mkdir(parents=True, exist_ok=True)

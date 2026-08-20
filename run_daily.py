@@ -50,6 +50,15 @@ def run() -> pd.DataFrame:
         "as_of": pd.Timestamp.today().strftime("%Y-%m-%d %H:%M"),
         "rows": int(len(df)),
     }))
+    # Hot Sheet: this is the moment the signal cross-section becomes FINAL (the
+    # snapshot compute's stamp runs BEFORE this rebuild in the app pull flow, so it
+    # sees yesterday's opportunities) — re-stamp today + re-persist the sheet here.
+    # Same-day re-stamps replace today only; a failure can never fail the rebuild.
+    try:
+        from src import hotsheet
+        hotsheet.stamp_today(log=print)
+    except Exception as e:
+        print(f"  (Hot Sheet refresh skipped: {e})")
     return df
 
 
