@@ -357,7 +357,24 @@ div.st-key-basis_scroll_top,
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] { gap:.3rem; }
 /* padding, NOT margin: .bt-sect margins collapse out of the markdown container
    (14px box around 17px text) and the air never materialises */
-[data-testid="stSidebar"] .bt-sect { padding-top:.55rem; padding-bottom:.25rem; }
+/* design reference (2026-08-20): ~8px of clear air under a section label, ~15px
+   above the next section. The .bt-sect div's own margins/padding OVERFLOW its
+   markdown wrapper (the wrapper stays at bare text height), so the label was
+   physically overlapping the row beneath it. Zero the div's vertical spacing and
+   put the air on the ELEMENT CONTAINER, which the sidebar's flex layout honours. */
+[data-testid="stSidebar"] .bt-sect {
+    margin-top:0 !important; margin-bottom:0 !important;
+    padding-top:0; padding-bottom:0; }
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.bt-sect) {
+    margin-top:.75rem; margin-bottom:.3rem; }
+.st-key-basis_sidebar_sticky [data-testid="stElementContainer"]:has(.bt-sect) {
+    margin-top:.35rem; }
+/* Streamlit puts margin-bottom:-1rem on stMarkdownContainer to cancel the last
+   markdown <p>'s bottom margin. Our labels/chips are bare <div>s with NO such
+   margin, so the -14px swallowed real height and the text overflowed onto the
+   row below (the DESK-on-FICC overlap). Cancel the cancel for bare-div markup. */
+[data-testid="stMarkdownContainer"]:has(> .bt-sect),
+[data-testid="stMarkdownContainer"]:has(> .seat-chip) { margin-bottom:0 !important; }
 /* sidebar nav rows (handoff): flat text rows, not buttons. Normal case, left-aligned;
    hover = surface step; ACTIVE (Streamlit type=primary) = surface2 fill + inset 2px
    gold left rule. Overrides the global uppercase/bordered button treatment. */
@@ -586,6 +603,16 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
     background:$surface; border-bottom:1px solid $border;
 }
 .st-key-basis_masthead { padding:.65rem 1.2rem .6rem; }
+/* the masthead shares its topbar row with the (shorter) seat selector column; its
+   column's vertical block has flex-basis:0% + min-height:0, so it reported ~zero
+   natural height — the row sized itself to the SEAT column and crushed the masthead
+   until BASIS ran into the row's bottom border. Floor every link of the wrapper
+   chain at its real content height so the row grows to fit the wordmark. */
+div.st-key-basis_masthead { flex:0 0 auto !important; min-height:58px; }
+[data-testid="stLayoutWrapper"]:has(> .st-key-basis_masthead) {
+    flex-shrink:0; min-height:max-content; }
+[data-testid="stVerticalBlock"]:has(> [data-testid="stLayoutWrapper"] > .st-key-basis_masthead) {
+    min-height:max-content; }
 .bt-mast { display:flex; align-items:center; gap:14px; min-height:40px; }
 .bt-word {
     font-weight:700; font-size:2.2rem; letter-spacing:.11em; line-height:1.05;
@@ -641,11 +668,36 @@ div[class*="st-key-dkcard"] > div[data-testid="stVerticalBlock"] { gap:.3rem; }
              margin:9px 2px 4px; font-size:11px; color:$faint; }
 .dk-legend .bar { width:2px; height:12px; display:inline-block; margin-right:6px;
                   vertical-align:-2px; }
-/* seat selector chip on the masthead */
-div.st-key-basis_seat [data-testid="stSelectbox"] > div > div {
-    background:$surface2; border:1px solid $btn_border; min-height:2rem;
+/* seat selector: the design's pill — gold initials chip + name · desk + chevron
+   in one bordered rounded surface */
+div.st-key-basis_seat {
+    max-width:238px; margin-left:auto; border:1px solid $border; border-radius:8px;
+    background:$surface; padding:3px 4px;
 }
-div.st-key-basis_seat { max-width:230px; margin-left:auto; }
+div.st-key-basis_seat [data-testid="stHorizontalBlock"] { gap:.25rem; align-items:center; }
+div.st-key-basis_seat [data-baseweb="select"] > div {
+    background:transparent !important; border:none !important; min-height:1.7rem;
+}
+.seat-chip {
+    width:24px; height:24px; border-radius:5px; background:$btn_gold;
+    border:1px solid rgba(245,197,24,.55); color:$gold;
+    font-family:var(--basis-mono); font-size:10.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; margin-left:2px;
+}
+/* the date-bar data actions: gold pill for Pull, quiet pill for Re-run (design) */
+div.st-key-home_pull button {
+    background:$btn_gold !important; border:1px solid rgba(245,197,24,.55) !important;
+}
+div.st-key-home_pull button p {
+    color:$gold !important; font-size:12.5px !important; font-weight:600;
+    text-transform:none !important; letter-spacing:0 !important;
+}
+div.st-key-home_rerun button {
+    background:$surface2 !important; border:1px solid $btn_border !important;
+}
+div.st-key-home_rerun button p {
+    font-size:12.5px !important; text-transform:none !important; letter-spacing:0 !important;
+}
 
 /* ticker rail */
 .bt-rail {
@@ -745,7 +797,7 @@ div.st-key-basis_seat { max-width:230px; margin-left:auto; }
         padding-left:.75rem !important; padding-right:.75rem !important;
         padding-top:calc(var(--basis-topbar-h, 156px) + 14px);
     }
-    .st-key-basis_masthead { padding:.45rem .7rem .4rem; }
+    .st-key-basis_masthead { padding:.45rem .7rem .4rem; min-height:44px; }
     .bt-mast { gap:10px; min-height:30px; min-width:0; overflow:hidden; }
     /* the open sidebar overlays the page here — it must sit ABOVE the fixed bar */
     [data-testid="stSidebar"] { z-index:999995 !important; }
@@ -761,6 +813,12 @@ div.st-key-basis_seat { max-width:230px; margin-left:auto; }
     div.st-key-basis_topbar [data-testid="stColumn"] { min-width:0 !important; }
     div.st-key-basis_topbar [data-testid="stColumn"]:last-child {
         flex:0 0 40px !important; width:40px !important; min-width:40px !important;
+    }
+    /* phones: the seat picker is a desk action — hide the pill (the seat keeps its
+       session default) so the masthead row can't overflow the 412px viewport, and
+       the 40px last-child rule above stops mangling the masthead row */
+    div.st-key-basis_topbar [data-testid="stColumn"]:has(div.st-key-basis_seat) {
+        display:none !important;
     }
     .st-key-basis_theme_toggle { padding-right:0; }
     .st-key-basis_theme_toggle button {

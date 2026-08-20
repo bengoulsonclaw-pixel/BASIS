@@ -1191,7 +1191,7 @@ def _overnight_moves(snap) -> None:
         return
     _have_live = (SNAPSHOT_DIR / "live.parquet").exists()
     if MODE == "snapshot" and not _have_live:
-        st.caption("No live overnight quote captured yet — click **Pull Bloomberg Snapshot** "
+        st.caption("No live overnight quote captured yet — click **Pull Bloomberg snapshot** "
                    "(needs the Terminal). It records each contract's move from the previous "
                    "trading day's settle to the moment the snapshot is pulled.")
         return
@@ -1414,7 +1414,7 @@ def _home_heatmap() -> None:
     mvf = mvf.dropna(subset=["sigma"]) if not mvf.empty else mvf
     if mvf.empty:
         st.caption("Appears once an overnight quote is available "
-                   "(**Pull Bloomberg Snapshot**, or a Morning Coffee run).")
+                   "(**Pull Bloomberg snapshot**, or a Morning Coffee run).")
         return
     st.caption("**Tile size = how many σ the contract moved overnight** (vs its own ~1-month daily "
                "vol) — colour is direction (green up / red down), deepening with |σ|. Grouped by "
@@ -2685,7 +2685,7 @@ def render_home() -> None:
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
     # with the old row faded beneath it for the whole computation.
-    if IS_ADMIN and c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
+    if IS_ADMIN and c1.button("Pull Bloomberg snapshot", use_container_width=True, key="home_pull",
                  help="Two phases: the Terminal is only needed for the FETCH (~3–5 min) — "
                       "the banner tells you when you can close it — then the maths (own-vol "
                       "curve, COT, signals) runs Terminal-free. Equities have their own pull "
@@ -2705,7 +2705,7 @@ def render_home() -> None:
             st.session_state["ficc_pull_confirm"] = _pw
         else:
             st.session_state["ficc_pull_go"] = True
-    if IS_ADMIN and c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
+    if IS_ADMIN and c2.button("Re-run signals", use_container_width=True, key="home_rerun",
                  help="Recompute all strategies from the current data — instant in snapshot mode."):
         st.session_state["rerun_signals_go"] = True
     if IS_ADMIN and st.session_state.get("ficc_pull_confirm"):
@@ -13525,9 +13525,16 @@ with st.container(key="basis_topbar"):
             st.session_state["seat"] = _uid
         else:
             with st.container(key="basis_seat"):
+                # the design's pill: gold initials chip · "Name · Desk" · chevron
                 _opts = {f'{s["name"]} · {s["desk"]}': s["id"] for s in _seats}
-                _pick = st.selectbox("Seat", list(_opts), key="basis_seat_pick",
-                                     label_visibility="collapsed")
+                _names = list(_opts)
+                _cur = st.session_state.get("basis_seat_pick") or (_names[0] if _names else "")
+                _init = "".join(w[0] for w in _cur.split("·")[0].replace(".", " ").split()[:2]).upper() or "?"
+                _sc_chip, _sc_sel = st.columns([0.16, 0.84], vertical_alignment="center")
+                _sc_chip.markdown(f'<div class="seat-chip">{_init}</div>', unsafe_allow_html=True)
+                with _sc_sel:
+                    _pick = st.selectbox("Seat", _names, key="basis_seat_pick",
+                                         label_visibility="collapsed")
                 st.session_state["seat"] = _opts.get(_pick, "admin")
     _tb_cl, _tb_tg = st.columns([0.94, 0.06], vertical_alignment="center")
     with _tb_cl:
@@ -13661,7 +13668,7 @@ def render_universe():
             st.rerun()
     _uc2.caption(
         "Saving rewrites `data/universe.json` and re-runs every strategy on the new list. "
-        "In **snapshot** mode a brand-new product has no data until you **Pull Bloomberg Snapshot** "
+        "In **snapshot** mode a brand-new product has no data until you **Pull Bloomberg snapshot** "
         "again; regenerate any client reports afterwards to include it."
     )
 
