@@ -64,7 +64,7 @@ DARK = dict(
     sidebar="#14171C",
     gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.14)",
     bracket="#9BA1A9", tagline="#9BA1A9",
-    blue="#5B9BF0", green="#46C58A", red="#EC6A57",
+    blue="#5B9BF0", blue_bright="#A6C6F7", green="#46C58A", red="#EC6A57",
     cal_ink="#9BA1A9", cal_ink_strong="#ECEEF1",
     word=(("0", "#EEF0F3"), ("0.46", "#C0C5CC"), ("0.70", "#CBA53C"), ("1", "#F4CC3A")),
 )
@@ -79,7 +79,7 @@ LIGHT = dict(
     sidebar="#D7DBE2",
     gold="#C8901A", gold_deep="#8A6208", gold_soft="rgba(200,144,26,.13)",
     bracket="#5A6069", tagline="#5A6069",
-    blue="#1F5FA8", green="#1F7A44", red="#C62828",
+    blue="#1F5FA8", blue_bright="#1F5FA8", green="#1F7A44", red="#C62828",
     cal_ink="#5A6069", cal_ink_strong="#1A1A1A",
     word=(("0", "#1A1A1A"), ("0.58", "#3A3D42"), ("0.73", "#8A6208"), ("1", "#C8901A")),
 )
@@ -555,8 +555,10 @@ code, pre, kbd { background:$surface2; color:$text; }
 
 /* masthead */
 .basis-masthead { display:flex; align-items:center; gap:1rem; }
-.basis-tag { color:$blue; font-size:.66rem; letter-spacing:.34em; font-weight:600;
-             text-transform:uppercase; white-space:nowrap; }   /* design: strapline in blue */
+/* design: strapline in blue — LIGHTENED for dark mode (Ben 2026-08-20: the design's
+   #5B9BF0 at 9px caps was unreadable on the sidebar; light mode keeps its deep blue) */
+.basis-tag { color:$blue_bright; font-size:.74rem; letter-spacing:.34em; font-weight:600;
+             text-transform:uppercase; white-space:nowrap; }
 /* the stacked BASIS+tagline lockup is rendered inline in header_svg(tagline=True) */
 .basis-rule { height:1px; border:0; margin:.5rem 0 1.05rem; background:$border; }
 
@@ -642,6 +644,10 @@ div[class*="st-key-dkcard"] {
     padding:0 14px .55rem; overflow:hidden;     /* side padding for the WIDGETS */
 }
 div[class*="st-key-dkcard"] .dk-h { margin:0 -14px; }   /* headers stay full-bleed */
+/* air between a keyed card's header rule and its first widget row (Ben: the My Day
+   inputs sat straight on the line) */
+div[class*="st-key-dkcard"] > [data-testid="stElementContainer"]:has([data-testid="stMarkdown"] .dk-h) {
+    margin-bottom:.5rem; }
 /* the My Day / desk-timeline pair share a floor height so the row reads level */
 div[class*="st-key-dkcard_myday"] { min-height:352px; }
 div[class*="st-key-dkcard"] > div[data-testid="stVerticalBlock"] { gap:.3rem; }

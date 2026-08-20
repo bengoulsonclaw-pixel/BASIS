@@ -207,18 +207,19 @@ WEEK_CSS = """
 # and a gold "now" line inserted at the current moment. Pure builder.
 DESK_CSS = """
 <style>
-  .dkl-row { display:grid; grid-template-columns:96px 1fr; gap:12px; padding:9px 16px;
+  .dkl-row { display:grid; grid-template-columns:104px 1fr; gap:12px; padding:10px 16px;
              border-bottom:1px solid rgba(128,128,128,.14); }
-  .dkl-row.past { opacity:.5; }
-  .dkl-t { text-align:right; font-family:var(--basis-mono, monospace); font-size:12.5px;
+  /* past rows stay readable — .5 made the morning's events near-invisible (Ben) */
+  .dkl-row.past { opacity:.68; }
+  .dkl-t { text-align:right; font-family:var(--basis-mono, monospace); font-size:13.5px;
            font-variant-numeric:tabular-nums; color:var(--basis-cal-ink-strong, #c6ccd4);
-           line-height:1.35; }
-  .dkl-t .loc { display:block; font-size:10.5px; opacity:.75; }
-  .dkl-t .dy-tl { display:block; font-size:10.5px; opacity:.75; }
+           line-height:1.4; }
+  .dkl-t .loc { display:block; font-size:11.5px; opacity:.85; }
+  .dkl-t .dy-tl { display:block; font-size:11.5px; opacity:.85; }
   .dkl-b { border-left:2px solid #7FB3F5; padding-left:10px; }
   .dkl-b.exp { border-left-color:#F5C518; }
-  .dkl-title { font-size:13.5px; color:var(--basis-cal-ink-strong, #e7eaee); }
-  .dkl-det { font-size:11.5px; color:var(--basis-cal-ink, #8a929c); margin-top:2px; }
+  .dkl-title { font-size:15px; font-weight:600; color:var(--basis-cal-ink-strong, #e7eaee); }
+  .dkl-det { font-size:12.5px; color:var(--basis-cal-ink, #8a929c); margin-top:2px; }
   .dkl-star { font-size:10px; background:rgba(245,197,24,.14); color:#F5C518;
               border-radius:4px; padding:1px 6px; font-weight:700; margin-left:6px; }
   .dkl-nowrow { display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:center;
