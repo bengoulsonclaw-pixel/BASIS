@@ -2509,7 +2509,7 @@ def _hotsheet_top10_card() -> None:
         story = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", it["text"])
         badge = '<span class="hs-newb">NEW</span>' if it.get("badge") == "NEW" else ""
         met = it["metric"] or f"{it['heat']:.0f}"
-        sub = f'<div class="hs-sub">{it["sub"]}</div>' if it.get("sub") else ""
+        sub = f'<span class="hs-subi"> · {it["sub"]}</span>' if it.get("sub") else ""
         bar = f'<div class="hs-heat"><div style="width:{it["heat"]:.0f}%"></div></div>'
         rows.append(
             f'<tr><td class="hs-n">{n:02d}</td>'
@@ -2521,8 +2521,8 @@ def _hotsheet_top10_card() -> None:
         '.hs-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;'
         'font-weight:600;padding:8px 12px;border-bottom:1px solid rgba(128,128,128,.28);'
         'color:var(--basis-cal-ink,#8a929c);text-align:left}'
-        '.hs-tbl td{padding:9px 12px;border-bottom:1px solid rgba(128,128,128,.14);'
-        'vertical-align:top}'
+        '.hs-tbl td{padding:6px 12px;border-bottom:1px solid rgba(128,128,128,.14);'
+        'vertical-align:middle}'
         '.hs-n,.hs-num{font-family:var(--basis-mono,monospace);font-variant-numeric:tabular-nums}'
         '.hs-num{text-align:right;white-space:nowrap;font-weight:600}'
         '.hs-tbl th.r{text-align:right}'
@@ -2533,9 +2533,9 @@ def _hotsheet_top10_card() -> None:
         '.hs-newb{display:inline-block;font:700 10px/1.7 var(--basis-mono,monospace);'
         'color:#14171C;background:var(--basis-gold,#F5C518);padding:1px 6px;margin-left:6px}'
         '.hs-story{line-height:1.45}'
-        '.hs-sub{font:400 10.5px var(--basis-mono,monospace);'
-        'color:var(--basis-cal-ink,#8a929c);margin-top:2px}'
-        '.hs-heat{height:3px;background:rgba(128,128,128,.22);margin-top:5px}'
+        '.hs-subi{font:400 10.5px var(--basis-mono,monospace);'
+        'color:var(--basis-cal-ink,#8a929c);font-weight:400}'
+        '.hs-heat{height:3px;background:rgba(128,128,128,.22);margin-top:4px}'
         '.hs-heat div{height:3px;background:var(--basis-gold,#F5C518)}</style>'
         '<div style="overflow-x:auto"><table class="hs-tbl"><thead><tr>'
         '<th>#</th><th>Tag</th><th>Story</th><th class="r">Metric · heat</th>'
