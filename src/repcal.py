@@ -214,6 +214,7 @@ DESK_CSS = """
            font-variant-numeric:tabular-nums; color:var(--basis-cal-ink-strong, #c6ccd4);
            line-height:1.35; }
   .dkl-t .loc { display:block; font-size:10.5px; opacity:.75; }
+  .dkl-t .dy-tl { display:block; font-size:10.5px; opacity:.75; }
   .dkl-b { border-left:2px solid #7FB3F5; padding-left:10px; }
   .dkl-b.exp { border-left-color:#F5C518; }
   .dkl-title { font-size:13.5px; color:var(--basis-cal-ink-strong, #e7eaee); }

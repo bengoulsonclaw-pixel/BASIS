@@ -2737,8 +2737,9 @@ def render_home() -> None:
     with _cl:
         _myday_card()
     with _cr:
-        st.markdown('<div class="dk-card"><div class="dk-h"><span class="dk-t">FICC'
-                    '</span><span class="dk-s">Prints, decisions &amp; expiries</span>'
+        st.markdown('<div class="dk-card" style="min-height:352px"><div class="dk-h">'
+                    '<span class="dk-t">FICC</span>'
+                    '<span class="dk-s">Prints, decisions &amp; expiries</span>'
                     '</div>' + dk["html"] + '</div>', unsafe_allow_html=True)
     st.markdown('<div class="dk-legend">'
                 '<span><span class="bar" style="background:#F5C518"></span>Expiry</span>'

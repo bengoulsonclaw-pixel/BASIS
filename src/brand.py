@@ -1,4 +1,4 @@
-"""BASIS brand kit for the Strategy Monitor dashboard.
+﻿"""BASIS brand kit for the Strategy Monitor dashboard.
 
 Single source of truth for the rebrand: the colour palettes, the inline logo
 (convergence mark + BASIS wordmark), the dark/light theme CSS, and the masthead
@@ -613,8 +613,24 @@ div[class*="st-key-dkcard"] {
     background:$surface; border:1px solid $border; border-radius:12px;
     padding:0 0 .5rem; overflow:hidden;
 }
+/* the My Day / desk-timeline pair share a floor height so the row reads level */
+div[class*="st-key-dkcard_myday"] { min-height:352px; }
 div[class*="st-key-dkcard"] > div[data-testid="stVerticalBlock"] { gap:.3rem; }
 .dk-card { background:$surface; border:1px solid $border; border-radius:12px; overflow:hidden; }
+/* equal-height card rows (design): stretch every card in a columns row to the
+   tallest sibling — the chain of Streamlit wrappers each needs to pass height. */
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) { align-items:stretch !important; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) > [data-testid="stColumn"] {
+    display:flex; flex-direction:column; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) > [data-testid="stColumn"]
+    > [data-testid="stVerticalBlock"] { flex:1 1 auto; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) [data-testid="stColumn"]
+    [data-testid="stLayoutWrapper"]:has(> div[class*="st-key-dkcard"]) { flex:1 1 auto; display:flex; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) [data-testid="stColumn"]
+    div[class*="st-key-dkcard"] { flex:1 1 auto; }
+/* (pure-HTML .dk-cards rely on matched min-heights instead of flex-stretch —
+   chaining flex through Streamlit's markdown wrappers fed back the column gap
+   and inflated the card by 14px per pass.) */
 .dk-h { display:flex; align-items:baseline; justify-content:space-between;
         padding:11px 16px; border-bottom:1px solid $border; }
 .dk-t { font-size:11px; letter-spacing:.16em; text-transform:uppercase;
