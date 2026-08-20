@@ -2521,21 +2521,22 @@ def _hotsheet_top10_card() -> None:
             pass
     st.markdown(
         '<style>'
-        '.hsr{display:grid;grid-template-columns:34px 118px 1fr 225px;gap:10px;'
-        'align-items:center;padding:5px 2px;border-bottom:1px solid rgba(128,128,128,.14);'
-        'font-size:13px}'
+        '.hsr{display:grid;grid-template-columns:34px 118px minmax(0,1fr) minmax(200px,295px);'
+        'gap:10px;align-items:center;padding:5px 2px;'
+        'border-bottom:1px solid rgba(128,128,128,.14);font-size:13px}'
         '.hsr-head{padding:7px 2px;border-bottom:1px solid rgba(128,128,128,.28)}'
         '.hsr-head div{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;'
         'font-weight:600;color:var(--basis-cal-ink,#8a929c)}'
         '.hs-n,.hs-num{font-family:var(--basis-mono,monospace);font-variant-numeric:tabular-nums}'
-        '.hs-num{text-align:right;white-space:nowrap;font-weight:600}'
+        '.hs-num{text-align:right;white-space:nowrap;font-weight:600;'
+        'overflow:hidden;text-overflow:ellipsis}'
         '.hs-tag{white-space:nowrap}'
         '.hs-chip{display:inline-block;font:600 10px/1.7 var(--basis-mono,monospace);'
         'color:var(--basis-gold,#F5C518);border:1px solid rgba(245,197,24,.45);'
         'padding:1px 6px;text-transform:uppercase;letter-spacing:.06em}'
         '.hs-newb{display:inline-block;font:700 10px/1.7 var(--basis-mono,monospace);'
         'color:#14171C;background:var(--basis-gold,#F5C518);padding:1px 6px;margin-left:6px}'
-        '.hs-story{line-height:1.45}'
+        '.hs-story{line-height:1.45;min-width:0;overflow-wrap:break-word}'
         '.hs-subi{font:400 10.5px var(--basis-mono,monospace);'
         'color:var(--basis-cal-ink,#8a929c);font-weight:400}'
         '.hs-heat{height:3px;background:rgba(128,128,128,.22);margin-top:4px}'
@@ -2566,7 +2567,9 @@ def _hotsheet_top10_card() -> None:
                 f'<div class="hsr"><div class="hs-n">{n:02d}</div>'
                 f'<div class="hs-tag"><span class="hs-chip">{it["tag"]}</span>{badge}</div>'
                 f'<div class="hs-story">{story}</div>'
-                f'<div class="hs-num">{met}{sub}{bar}</div></div>', unsafe_allow_html=True)
+                f'<div class="hs-num" title="{repcal._esc(met)}'
+                f'{" · " + repcal._esc(it["sub"]) if it.get("sub") else ""}">'
+                f'{met}{sub}{bar}</div></div>', unsafe_allow_html=True)
             if it.get("page"):
                 _rg.button("→", key=f"hs_go_{n}",
                            help=f"Open {it['page'].removeprefix('eq:')}",
