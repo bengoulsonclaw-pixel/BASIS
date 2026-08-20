@@ -2460,62 +2460,80 @@ def _myday_card() -> None:
 
 
 def _hotsheet_top10_card() -> None:
-    """Top 10 by conviction (tascore composite) as the design's Hot Sheet table."""
+    """The design's Hot Sheet table, showing what module 02 actually shows: the
+    radar's top strip. Same pipeline as the Hot Sheet page — persisted collection,
+    NEW badges, the Home sector filter, FICC book, 2-per-module cap, first 10 —
+    so the card and the module can never disagree. (The old card ran the tascore
+    conviction composite, which is a different engine — Ben, 2026-08-20.)"""
     try:
-        df, meta = load_signals()
-        _fkey = tuple(sorted(universe.enabled_tickers())) if universe.filter_active() else ()
-        flagged, scored = _ta_scored(meta.get("as_of", ""), _fkey,
-                                     tuple(tascore.CONFLUENCE_DEFAULT))
+        items, _report, _collected, _ = _hs_collect()
+        items = [dict(it) for it in items]      # apply_badges mutates — keep the cache pristine
+        hotsheet.apply_badges(items)
     except Exception:
-        flagged, scored = None, None
+        items, _collected = [], 0.0
+    if universe.filter_active():                 # the Home sector filter applies here too
+        _en = set(universe.enabled_tickers())
+        items = [it for it in items
+                 if it["book"] != "ficc" or not it["ticker"] or it["ticker"] in _en]
+    items = [it for it in items if it["book"] == "ficc"]
+    top, _per_tag = [], {}
+    for it in items:                             # mirror of the module's top strip
+        if _per_tag.get(it["tag"], 0) >= 2:
+            continue
+        _per_tag[it["tag"]] = _per_tag.get(it["tag"], 0) + 1
+        top.append(it)
+        if len(top) >= 10:
+            break
+    _sub = "Top 10 by heat"
+    if top:
+        try:
+            _ts = pd.Timestamp(_collected, unit="s", tz="UTC").tz_convert("America/New_York")
+            _sub = (f"Top {len(top)} by heat · {len({it['provider'] for it in items})} "
+                    f"modules · collected {_ts:%H:%M} ET")
+        except Exception:
+            pass
     st.markdown('<div class="dk-card"><div class="dk-h"><span class="dk-t">Hot Sheet'
-                '</span><span class="dk-s">Top 10 by conviction · tascore composite'
-                '</span></div>', unsafe_allow_html=True)
-    if scored is None or scored.empty:
-        st.markdown('<div class="dkl-none">No scored signals yet — pull a snapshot '
-                    'first.</div></div>', unsafe_allow_html=True)
+                f'</span><span class="dk-s">{_sub}</span></div>', unsafe_allow_html=True)
+    if not top:
+        st.markdown('<div class="dkl-none">No module is clearing its bar — quiet '
+                    'markets, or the morning snapshot hasn&#8217;t run yet.</div></div>',
+                    unsafe_allow_html=True)
         return
-    lvl = {}
-    if flagged is not None and not flagged.empty:
-        for _, r in flagged.iterrows():
-            lvl.setdefault((r["market"], r["strategy"]), r.get("level"))
     rows = []
-    for n, (_, r) in enumerate(scored.sort_values("conviction", ascending=False)
-                               .head(10).iterrows(), start=1):
-        tags = r.get("tags") or []
-        top = tags[0] if len(tags) else ("—", 0, 0)
-        strat = str(top[0]) if isinstance(top, (list, tuple)) else str(top)
-        sig = "Long" if r.get("net_dir", 0) > 0 else "Short"
-        pill = ("background:rgba(70,197,138,.14);color:#46C58A;border:1px solid #46C58A"
-                if sig == "Long" else
-                "background:rgba(236,106,87,.14);color:#EC6A57;border:1px solid #EC6A57")
-        v = lvl.get((r["market"], strat))
-        lvl_s = f"{v:,.4g}" if isinstance(v, (int, float)) and v == v else "—"
-        conf = " ⚠" if r.get("conflict") else ""
+    for n, it in enumerate(top, start=1):
+        story = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", it["text"])
+        badge = '<span class="hs-newb">NEW</span>' if it.get("badge") == "NEW" else ""
+        met = it["metric"] or f"{it['heat']:.0f}"
+        sub = f'<div class="hs-sub">{it["sub"]}</div>' if it.get("sub") else ""
+        bar = f'<div class="hs-heat"><div style="width:{it["heat"]:.0f}%"></div></div>'
         rows.append(
             f'<tr><td class="hs-n">{n:02d}</td>'
-            f'<td class="hs-m">{repcal._esc(str(r["market"]))}</td>'
-            f'<td class="hs-mod">Technical Analysis</td>'
-            f'<td class="hs-st">{repcal._esc(strat)}</td>'
-            f'<td><span class="hs-pill" style="{pill}">{sig}</span>{conf}</td>'
-            f'<td class="hs-num">{lvl_s}</td>'
-            f'<td class="hs-num">{int(r.get("n", 0))} signals</td>'
-            f'<td class="hs-num hs-conv">{r["conviction"]:.0f}</td></tr>')
+            f'<td class="hs-tag"><span class="hs-chip">{it["tag"]}</span>{badge}</td>'
+            f'<td class="hs-story">{story}</td>'
+            f'<td class="hs-num">{met}{sub}{bar}</td></tr>')
     st.markdown(
         '<style>.hs-tbl{width:100%;border-collapse:collapse;font-size:13px}'
         '.hs-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;'
         'font-weight:600;padding:8px 12px;border-bottom:1px solid rgba(128,128,128,.28);'
         'color:var(--basis-cal-ink,#8a929c);text-align:left}'
-        '.hs-tbl td{padding:9px 12px;border-bottom:1px solid rgba(128,128,128,.14)}'
+        '.hs-tbl td{padding:9px 12px;border-bottom:1px solid rgba(128,128,128,.14);'
+        'vertical-align:top}'
         '.hs-n,.hs-num{font-family:var(--basis-mono,monospace);font-variant-numeric:tabular-nums}'
-        '.hs-num{text-align:right}.hs-tbl th.r{text-align:right}'
-        '.hs-m{font-weight:600}.hs-mod{font-size:12px;color:var(--basis-cal-ink,#8a929c)}'
-        '.hs-conv{font-weight:700}'
-        '.hs-pill{display:inline-block;font-size:11px;font-weight:650;border-radius:20px;'
-        'padding:2px 10px;white-space:nowrap}</style>'
+        '.hs-num{text-align:right;white-space:nowrap;font-weight:600}'
+        '.hs-tbl th.r{text-align:right}'
+        '.hs-tag{white-space:nowrap}'
+        '.hs-chip{display:inline-block;font:600 10px/1.7 var(--basis-mono,monospace);'
+        'color:var(--basis-gold,#F5C518);border:1px solid rgba(245,197,24,.45);'
+        'padding:1px 6px;text-transform:uppercase;letter-spacing:.06em}'
+        '.hs-newb{display:inline-block;font:700 10px/1.7 var(--basis-mono,monospace);'
+        'color:#14171C;background:var(--basis-gold,#F5C518);padding:1px 6px;margin-left:6px}'
+        '.hs-story{line-height:1.45}'
+        '.hs-sub{font:400 10.5px var(--basis-mono,monospace);'
+        'color:var(--basis-cal-ink,#8a929c);margin-top:2px}'
+        '.hs-heat{height:3px;background:rgba(128,128,128,.22);margin-top:5px}'
+        '.hs-heat div{height:3px;background:var(--basis-gold,#F5C518)}</style>'
         '<div style="overflow-x:auto"><table class="hs-tbl"><thead><tr>'
-        '<th>#</th><th>Market</th><th>Module</th><th>Strategy</th><th>Signal</th>'
-        '<th class="r">Level</th><th class="r">Breadth</th><th class="r">Conviction</th>'
+        '<th>#</th><th>Tag</th><th>Story</th><th class="r">Metric · heat</th>'
         '</tr></thead><tbody>' + "".join(rows) + '</tbody></table></div></div>',
         unsafe_allow_html=True)
     st.button("Open Hot Sheet →", key="home_open_hs", on_click=_go, args=("Hot Sheet",))
