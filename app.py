@@ -2539,13 +2539,13 @@ def _mc_card() -> None:
                     f'</span><span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
                     f'</span></div>', unsafe_allow_html=True)
         if syn:
-            st.markdown(f'<div style="padding:9px 16px;font-size:13px;line-height:1.5;'
+            st.markdown(f'<div style="padding:9px 2px;font-size:13px;line-height:1.5;'
                         f'border-bottom:1px solid rgba(128,128,128,.14)">'
                         f'{repcal._esc(syn)}</div>', unsafe_allow_html=True)
         if heads:
             _rows = "".join(
                 f'<div style="display:grid;grid-template-columns:70px 1fr;gap:10px;'
-                f'padding:8px 16px;border-bottom:1px solid rgba(128,128,128,.1)">'
+                f'padding:8px 2px;border-bottom:1px solid rgba(128,128,128,.1)">'
                 f'<div style="font-family:var(--basis-mono,monospace);font-size:10px;'
                 f'letter-spacing:.06em;text-transform:uppercase;color:#F5C518;'
                 f'padding-top:2px">{repcal._esc(str(h.get("source", "")))}</div>'

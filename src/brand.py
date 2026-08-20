@@ -611,8 +611,9 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 /* ── desk-home cards (2026-08-20 redesign): rounded surfaces, hairline headers ── */
 div[class*="st-key-dkcard"] {
     background:$surface; border:1px solid $border; border-radius:12px;
-    padding:0 0 .5rem; overflow:hidden;
+    padding:0 14px .55rem; overflow:hidden;     /* side padding for the WIDGETS */
 }
+div[class*="st-key-dkcard"] .dk-h { margin:0 -14px; }   /* headers stay full-bleed */
 /* the My Day / desk-timeline pair share a floor height so the row reads level */
 div[class*="st-key-dkcard_myday"] { min-height:352px; }
 div[class*="st-key-dkcard"] > div[data-testid="stVerticalBlock"] { gap:.3rem; }
