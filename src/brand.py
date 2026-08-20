@@ -246,6 +246,7 @@ _CSS = Template("""
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 :root { --basis-gold:$gold; --basis-gold-deep:$gold_deep;
         --basis-cal-ink:$cal_ink; --basis-cal-ink-strong:$cal_ink_strong;
+        --basis-text:$text;
         --basis-mono:'IBM Plex Mono', Consolas, 'SF Mono', Menlo, monospace; }
 
 /* terminal geometry: sharp corners everywhere — separation comes from borders and
@@ -693,7 +694,17 @@ div.st-key-home_mc_run button p {
     text-transform:none !important; letter-spacing:0 !important; }
 div[class*="st-key-mc_footer"] {
     border-top:1px solid $border; margin-top:.3rem; padding-top:.45rem; }
-.mc-foot { font-size:12px; color:$caption; line-height:1.5; }
+.mc-foot { font-size:11.5px; color:$caption; line-height:1.5;
+           white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+div[class*="st-key-mc_footer"] button p { white-space:nowrap; }
+/* My Day rows: coloured left rule — gold = dated (shows only that day),
+   blue = undated standing task (recurs every day until done) */
+div[class*="st-key-mdrowd_"], div[class*="st-key-mdrowu_"] {
+    border-left:3px solid #F5C518; padding-left:10px; }
+div[class*="st-key-mdrowu_"] { border-left-color:#7FB3F5; }
+/* task text matches the synopsis prose colour (Ben: calendar + to-do = same ink) */
+div[class*="st-key-mdrowd_"] button p, div[class*="st-key-mdrowu_"] button p {
+    color:$text !important; }
 div[class*="st-key-mc_footer"] button {
     background:transparent !important; border:none !important; box-shadow:none !important;
     min-height:0 !important; padding:0 !important; justify-content:flex-end; width:100%; }

@@ -2413,6 +2413,8 @@ def _md_add_cb(seat: str) -> None:
               _d.isoformat() if _d else "",
               _t.strftime("%H:%M") if _t else "")
     st.session_state["md_title"] = ""
+    st.session_state["md_date"] = None      # date is optional — reset to empty
+    st.session_state["md_time"] = None
 
 
 def _myday_card() -> None:
@@ -2424,7 +2426,10 @@ def _myday_card() -> None:
                 {"name": str(seat), "desk": ""})
     items = myday.load(seat)
     today_s = date.today().isoformat()
-    open_n = sum(1 for i in items if not i.get("done") and i.get("date") == today_s)
+    # open = anything not done that concerns today: dated today, or undated
+    # (undated tasks recur every day until completed — Ben, 2026-08-20)
+    open_n = sum(1 for i in items
+                 if not i.get("done") and (i.get("date") or today_s) == today_s)
     with st.container(key="dkcard_myday"):
         st.markdown(f'<div class="dk-h"><span class="dk-t">My Day</span>'
                     f'<span class="dk-s">{meta["name"]} · {open_n} open</span></div>',
@@ -2432,27 +2437,39 @@ def _myday_card() -> None:
         a1, a2, a3, a4 = st.columns([2.9, 1.7, 1.25, 1.0], vertical_alignment="center")
         a1.text_input("Task", key="md_title", label_visibility="collapsed",
                       placeholder="Add a task…")
-        a2.date_input("Date", key="md_date", label_visibility="collapsed",
-                      value=date.today())
+        a2.date_input("Date (optional)", key="md_date", label_visibility="collapsed",
+                      value=None)
         a3.time_input("Time", key="md_time", label_visibility="collapsed", value=None)
         a4.button("Add", key="md_add", use_container_width=True,
                   on_click=_md_add_cb, args=(seat,))
         _f = st.session_state.setdefault("md_filter", "today")
-        show = [i for i in items if _f == "all" or i.get("date") == today_s]
-        show.sort(key=lambda i: (i.get("date", ""), i.get("time") or "99:99"))
+
+        def _today_view(i) -> bool:
+            if i.get("date"):                     # dated: only on its date
+                return i["date"] == today_s
+            # undated: every day until done; keep the struck row for the rest of
+            # the completion day so it can still be un-toggled
+            return (not i.get("done")) or i.get("done_date") == today_s
+        show = [i for i in items if _f == "all" or _today_view(i)]
+        show.sort(key=lambda i: (0 if i.get("date") else 1,
+                                 i.get("date", ""), i.get("time") or "99:99"))
         for i in show[:12]:
-            r1, r2, r3 = st.columns([1.15, 4.5, 0.5], vertical_alignment="center")
-            _dl = "Today" if i.get("date") == today_s else (i.get("date") or "—")
-            r1.markdown(f'<div class="dkl-t">{i.get("time") or "—"}'
-                        f'<span class="loc">{_dl}</span></div>', unsafe_allow_html=True)
-            _lbl = f'~~{i.get("title", "")}~~' if i.get("done") else i.get("title", "")
-            if r2.button(_lbl or "—", key=f'md_t_{i.get("id")}', use_container_width=True,
-                         help="Click to mark done / not done"):
-                myday.toggle(seat, i.get("id")); st.rerun()
-            if r3.button("×", key=f'md_x_{i.get("id")}', help="Remove"):
-                myday.remove(seat, i.get("id")); st.rerun()
+            _kind = "d" if i.get("date") else "u"     # gold rule = dated, blue = until-done
+            with st.container(key=f'mdrow{_kind}_{i.get("id")}'):
+                r1, r2, r3 = st.columns([1.15, 4.5, 0.5], vertical_alignment="center")
+                _dl = ("Today" if i.get("date") == today_s
+                       else (i.get("date") or "every day"))
+                r1.markdown(f'<div class="dkl-t">{i.get("time") or "—"}'
+                            f'<span class="loc">{_dl}</span></div>', unsafe_allow_html=True)
+                _lbl = f'~~{i.get("title", "")}~~' if i.get("done") else i.get("title", "")
+                if r2.button(_lbl or "—", key=f'md_t_{i.get("id")}', use_container_width=True,
+                             help="Click to mark done / not done"):
+                    myday.toggle(seat, i.get("id")); st.rerun()
+                if r3.button("×", key=f'md_x_{i.get("id")}', help="Remove"):
+                    myday.remove(seat, i.get("id")); st.rerun()
         if not show:
-            st.caption("Nothing here yet — add your first task above.")
+            st.caption("Nothing here yet — add your first task above. Leave the date "
+                       "empty for a standing task that shows every day until it's done.")
         f1, f2, f3 = st.columns([1.0, 1.25, 3.2], vertical_alignment="center")
         if f1.button("Today", key="md_f_today",
                      type="primary" if _f == "today" else "secondary"):
@@ -2461,7 +2478,12 @@ def _myday_card() -> None:
                      type="primary" if _f == "all" else "secondary"):
             st.session_state["md_filter"] = "all"; st.rerun()
         f3.markdown('<div class="dk-s" style="text-align:right;padding:6px 4px 0 0">'
-                    'Private to this seat</div>', unsafe_allow_html=True)
+                    '<span style="display:inline-block;width:10px;height:3px;'
+                    'background:#F5C518;vertical-align:middle;margin-right:4px"></span>dated'
+                    '<span style="display:inline-block;width:10px;height:3px;'
+                    'background:#7FB3F5;vertical-align:middle;margin:0 4px 0 10px"></span>'
+                    'every day until done · private to this seat</div>',
+                    unsafe_allow_html=True)
 
 
 def _hotsheet_top10_card() -> None:
@@ -2630,7 +2652,7 @@ def _mc_card() -> None:
                        "fill this card.")
         # footer strip (design): sources roll-call + last run · gold link into the module
         with st.container(key="mc_footer"):
-            _fl, _fr = st.columns([2.4, 1.0], vertical_alignment="center")
+            _fl, _fr = st.columns([3.4, 1.0], vertical_alignment="center")
             _ftxt = (" · ".join(_srcs) + (f" — last run {_time}" if _time else "")
                      if _srcs else "No run yet")
             _fl.markdown(f'<div class="dk-vc mc-foot">{repcal._esc(_ftxt)}</div>',

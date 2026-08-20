@@ -58,10 +58,18 @@ def add(seat: str, title: str, date_s: str, time_s: str) -> None:
 
 
 def toggle(seat: str, tid: str) -> None:
+    from datetime import date as _date
     items = load(seat)
     for i in items:
         if i.get("id") == tid:
             i["done"] = not i.get("done")
+            # undated tasks recur every day until done; stamping the completion day
+            # lets the Today view keep the struck row visible (and un-toggleable)
+            # until midnight, then drop it
+            if i["done"]:
+                i["done_date"] = _date.today().isoformat()
+            else:
+                i.pop("done_date", None)
     save(seat, items)
 
 
