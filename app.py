@@ -2547,6 +2547,33 @@ def _hotsheet_top10_card() -> None:
 _MC_HOME_FILE = ROOT / "data" / "morning_coffee_home.json"
 
 
+def _mc_synopsis_card() -> None:
+    """The Morning Coffee report's market commentary in full (Ben, 2026-08-20:
+    replaced the overnight-moves table on this row — the moves live on in the
+    Morning Coffee page's treemap). Reads the same export as the headlines card;
+    falls back to the short synopsis field for older exports."""
+    try:
+        mc = json.loads(_MC_HOME_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        mc = {}
+    prose = (mc.get("commentary") or mc.get("synopsis") or "").strip()
+    stamp = mc.get("generated_at", "")
+    with st.container(key="dkcard_mcsyn"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Synopsis · Morning Coffee</span>'
+                    f'<span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
+                    f'</span></div>', unsafe_allow_html=True)
+        if prose:
+            paras = "".join(
+                f'<p style="margin:0 0 .6rem;font-size:13px;line-height:1.55">'
+                f'{repcal._esc(p.strip())}</p>'
+                for p in prose.split("\n") if p.strip())
+            st.markdown(f'<div style="padding:10px 2px 2px">{paras}</div>',
+                        unsafe_allow_html=True)
+        else:
+            st.caption("No commentary exported yet — the next Morning Coffee run will "
+                       "fill this card.")
+
+
 def _mc_card() -> None:
     """Headlines + synopsis from the last Morning Coffee run — reads the export the
     MC pipeline writes (morning_coffee_home.json); graceful before the first run."""
@@ -2555,16 +2582,12 @@ def _mc_card() -> None:
     except Exception:
         mc = {}
     heads = mc.get("headlines") or []
-    syn = (mc.get("synopsis") or "").strip()
     stamp = mc.get("generated_at", "")
     with st.container(key="dkcard_mc"):
         st.markdown(f'<div class="dk-h"><span class="dk-t">Headlines · Morning Coffee'
                     f'</span><span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
                     f'</span></div>', unsafe_allow_html=True)
-        if syn:
-            st.markdown(f'<div style="padding:9px 2px;font-size:13px;line-height:1.5;'
-                        f'border-bottom:1px solid rgba(128,128,128,.14)">'
-                        f'{repcal._esc(syn)}</div>', unsafe_allow_html=True)
+        # (the synopsis moved to its own card beside this one, 2026-08-20)
         if heads:
             _rows = "".join(
                 f'<div style="display:grid;grid-template-columns:70px 1fr;gap:10px;'
@@ -2578,7 +2601,7 @@ def _mc_card() -> None:
                 f'{repcal._esc(str(h.get("time", "")))}'
                 f'{" · " + repcal._esc(str(h.get("tag", ""))) if h.get("tag") else ""}'
                 f'</div></div></div>'
-                for h in heads[:6])
+                for h in heads[:8])
             st.markdown(_rows, unsafe_allow_html=True)
         else:
             st.caption("No headlines exported yet — the next Morning Coffee run will "
@@ -2774,11 +2797,10 @@ def render_home() -> None:
     # ── Hot Sheet top-10 ──
     _hotsheet_top10_card()
 
-    # ── overnight moves + Morning Coffee ──
+    # ── Morning Coffee: synopsis (left) + headlines (right) ──
     _bl, _br = st.columns(2)
     with _bl:
-        with st.container(key="dkcard_moves"):
-            _overnight_moves(snap)
+        _mc_synopsis_card()
     with _br:
         _mc_card()
 
