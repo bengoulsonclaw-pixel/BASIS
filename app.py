@@ -2505,12 +2505,12 @@ def _myday_card() -> None:
                     unsafe_allow_html=True)
 
 
-def _hotsheet_top10_card() -> None:
+def _hotsheet_top10_card(book: str = "ficc") -> None:
     """The design's Hot Sheet table, showing what module 02 actually shows: the
     radar's top strip. Same pipeline as the Hot Sheet page — persisted collection,
-    NEW badges, the Home sector filter, FICC book, 2-per-module cap, first 10 —
-    so the card and the module can never disagree. (The old card ran the tascore
-    conviction composite, which is a different engine — Ben, 2026-08-20.)"""
+    NEW badges, the Home sector filter, one desk's book, 2-per-module cap, first
+    10 — so the card and the module can never disagree. (The old card ran the
+    tascore conviction composite, which is a different engine — Ben, 2026-08-20.)"""
     try:
         items, _report, _collected, _ = _hs_collect()
         items = [dict(it) for it in items]      # apply_badges mutates — keep the cache pristine
@@ -2521,7 +2521,7 @@ def _hotsheet_top10_card() -> None:
         _en = set(universe.enabled_tickers())
         items = [it for it in items
                  if it["book"] != "ficc" or not it["ticker"] or it["ticker"] in _en]
-    items = [it for it in items if it["book"] == "ficc"]
+    items = [it for it in items if it["book"] == book]
     top, _per_tag = [], {}
     for it in items:                             # mirror of the module's top strip
         if _per_tag.get(it["tag"], 0) >= 2:
@@ -2590,10 +2590,11 @@ def _hotsheet_top10_card() -> None:
                 f'{" · " + repcal._esc(it["sub"]) if it.get("sub") else ""}">'
                 f'{met}{sub}{bar}</div></div>', unsafe_allow_html=True)
             if it.get("page"):
-                _rg.button("→", key=f"hs_go_{n}",
+                _rg.button("→", key=f"hs_go_{book}_{n}",
                            help=f"Open {it['page'].removeprefix('eq:')}",
                            on_click=_hs_go, args=(it["page"],))
-        st.button("Open Hot Sheet →", key="home_open_hs", on_click=_go, args=("Hot Sheet",))
+        st.button("Open Hot Sheet →", key=f"home_open_hs_{book}", on_click=_hs_go,
+                  args=("Hot Sheet" if book == "ficc" else "eq:Hot Sheet",))
 
 
 _MC_HOME_FILE = ROOT / "data" / "morning_coffee_home.json"
@@ -2930,8 +2931,9 @@ def _eq_movers(index_keys: tuple):
     return equities.movers_frame(list(index_keys), universe=_eq_universe())
 
 
-def _equities_overnight_moves(index_keys, snap) -> None:
-    st.subheader("Overnight moves")
+def _equities_overnight_moves(index_keys, snap, show_header: bool = True) -> None:
+    if show_header:
+        st.subheader("Overnight moves")
     f = _eq_movers(tuple(index_keys))
     f = f.dropna(subset=["pct"]) if not f.empty else f
     if f.empty:
@@ -3009,9 +3011,10 @@ def _eq_recent_actions(index_keys: tuple, n_names: int = 30, days: int = 60):
         return pd.DataFrame(), {}
 
 
-def _eq_rating_actions(index_keys) -> None:
+def _eq_rating_actions(index_keys, show_header: bool = True) -> None:
     """The Equities home's rating-actions strip: who changed their view on the names in view."""
-    st.subheader("Recent rating actions")
+    if show_header:
+        st.subheader("Recent rating actions")
     with st.spinner("Checking the analyst feed…"):
         feed, cov = _eq_recent_actions(tuple(index_keys))
     scope = (f"the {cov.get('asked', 0)} biggest overnight movers among the **US-listed** names "
@@ -3204,27 +3207,73 @@ def _eq_autopull_control(col) -> None:
                      "Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
 
 
+def _eq_home_day_set(off: int) -> None:
+    st.session_state["eq_home_day"] = off
+
+
 def render_equities_home() -> None:
+    """Equities desk overview — the FICC desk-home design cloned (Ben, 2026-08-21):
+    date bar with the data pills, My Day beside the earnings timeline, the equities
+    Hot Sheet top-10, movers + rating actions, the heatmap, and the indices scope
+    demoted to the bottom card. (The econ-figures strip stays retired — the BASIS
+    landing board owns the day's prints, same call as the FICC redesign.)"""
     snap = _load_snap()
-    # (world clocks moved to the fixed top bar — rendered on every page)
+    _today = datetime.now(ZoneInfo("America/New_York")).date()
+    _base = _today if _today.weekday() < 5 else _add_weekdays(_today, 1)
+    st.session_state.setdefault("eq_home_day", 0)
+    _off = st.session_state["eq_home_day"]
+    _day = _add_weekdays(_base, _off)
+
     _keys = list(equities.INDICES.keys())
-    sel = st.multiselect("Indices to show", _keys, default=list(equities.DEFAULT_INDICES),
-                         key="eq_idx_filter",
-                         help="Scope the movers table and heatmap to these indices. "
-                              "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
-    sel = sel or _keys
-    # Data row is ADMIN-ONLY (view-only colleagues see no pull/refresh controls)
-    if IS_ADMIN:
-        st.subheader("Data")
-        _eq_pull_banner()
-        c0, c1, c2, c3 = st.columns([1.15, 1.55, 1.55, 2.75])
-        _eq_autopull_control(c0)
+    # the indices multiselect renders in the BOTTOM card; read its state up here
+    _sel_state = st.session_state.get("eq_idx_filter")
+    sel = (_sel_state or _keys) if _sel_state is not None else list(equities.DEFAULT_INDICES)
+
+    # today's reporters, with Yahoo's report hour merged in (Bloomberg is date-only)
+    try:
+        eq_ev = [dict(e) for e in _landing_eq_events()]
+    except Exception:
+        eq_ev = []
+    try:
+        _dayrep = tuple(e["bbg"] for e in eq_ev if e.get("bbg") and e["date"] == _day)
+        if _dayrep:
+            _times = _earnings_times(_dayrep)
+            for e in eq_ev:
+                t = _times.get(e.get("bbg"))
+                if t:
+                    e["time"] = t
+    except Exception:
+        pass
+    dk = repcal.desk_day(eq_ev, _day)
+
+    # ── date bar: ‹ Today · date › + reporter counts + the two data actions ──
+    p1, p2, p3, pc, c1, c2 = st.columns([0.42, 1.85, 0.42, 2.35, 1.4, 1.05],
+                                        vertical_alignment="center")
+    p1.button("‹", key="eq_home_prev", on_click=_eq_home_day_set, args=(_off - 1,),
+              use_container_width=True)
+    _tag = ('<span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;'
+            'background:#F5C518;color:#14171C;font-weight:800;padding:2px 9px;'
+            'border-radius:5px;margin-right:12px;vertical-align:2px">Today</span>'
+            if _day == _today else "")
+    p2.markdown(f'<div class="dk-vc" style="text-align:center;font-family:var(--basis-mono,monospace);'
+                f'font-size:17px;font-weight:600">{_tag}{_day:%a %d %b %Y}</div>',
+                unsafe_allow_html=True)
+    p3.button("›", key="eq_home_next", on_click=_eq_home_day_set, args=(_off + 1,),
+              use_container_width=True)
+    _bits = [f"{dk['total']} reporters" + (" today" if _day == _today else "")]
+    if _day == _today:
+        _bits.append(f"{dk['ahead']} still ahead")
+        if dk.get("next_txt"):
+            _bits.append(dk["next_txt"])
+    pc.markdown('<div class="dk-s dk-vc" style="text-align:right;letter-spacing:.06em;'
+                'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
+                unsafe_allow_html=True)
     try:                                   # mirror snapshot.py's equities pull switches
         from snapshot import PULL_EQUITY_CONSTITUENTS as _EQ_ON, PULL_FUNDAMENTALS as _EQF_ON
     except Exception:
         _EQ_ON = _EQF_ON = True
     _eq_pull_on = bool(_EQ_ON or _EQF_ON)
-    if IS_ADMIN and c1.button("📥 Pull equities data", use_container_width=True, key="eq_pull",
+    if IS_ADMIN and c1.button("Pull equities data", use_container_width=True, key="eq_pull",
                  disabled=not _eq_pull_on,
                  help=("The Equities side's own data pull — overnight quotes/history and the "
                        "(weekly-guarded) fundamentals refresh come FREE from Yahoo Finance; "
@@ -3260,27 +3309,38 @@ def render_equities_home() -> None:
     if st.session_state.pop("eq_pull_go", False):
         _ph = st.empty()
         _t0 = time.time()
-        proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI), "--equities"],
-                                cwd=str(ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                text=True, env={**os.environ, "DATAFEED_MODE": "bloomberg",
-                                                "PYTHONUTF8": "1"})
+        # DETACHED + file logging, same lesson as the FICC driver (2026-08-21):
+        # a server restart mid-pull must never kill the pull through a dead pipe
+        _con = (ROOT / "logs" / "eq_pull_console.log").open("w", encoding="utf-8")
+        proc = subprocess.Popen(
+            [sys.executable, str(SNAPSHOT_CLI), "--equities"], cwd=str(ROOT),
+            stdout=_con, stderr=subprocess.STDOUT,
+            env={**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"},
+            creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP
+                           | subprocess.DETACHED_PROCESS))
         while proc.poll() is None:
             _el = (time.time() - _t0) / 60
             _ph.info(f"⏳ Pulling equities — **{_el:.1f} min elapsed** (typically ~5–7 min for "
                      "the ~2,700-name universe: ETF membership + chunked Yahoo quotes/history, "
                      "plus fundamentals when their cycle is due).")
             time.sleep(5)
-        _out, _err = proc.communicate()
+        _con.close()
         _ph.empty()
         if proc.returncode != 0:
-            st.error("Equities pull failed:\n\n" + (_err or _out or "no output"))
+            try:
+                _tail = (ROOT / "logs" / "eq_pull_console.log").read_text(
+                    encoding="utf-8", errors="replace")[-3000:]
+            except Exception:
+                _tail = "no log"
+            st.error("Equities pull failed — the tail of logs/eq_pull_console.log:")
+            st.code(_tail, language="text")
         else:
             _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
             _eqf_frame.clear()
             gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
             st.success(f"Equities data refreshed ({(time.time() - _t0) / 60:.1f} min).")
             st.rerun()
-    if IS_ADMIN and c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
+    if IS_ADMIN and c2.button("Refresh quotes", use_container_width=True, key="eq_refresh",
                  help="Re-pull the latest closes from Yahoo Finance (free) and rebuild the "
                       "movers table and heatmap. Falls back to the cached quotes offline."):
         _eq_movers.clear(); _eq_heatmap_sections.clear()
@@ -3289,16 +3349,69 @@ def render_equities_home() -> None:
     if IS_ADMIN and st.session_state.pop("eq_refresh_note", False):
         st.info("Quotes refreshed — live Yahoo Finance when reachable, otherwise the cached "
                 "pull (see the source caption).")
-    _n = sum(len(v) for v in _eq_universe().values())
     if IS_ADMIN:
-        c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
-               + equities.data_status() + ". Quotes, history and fundamentals ride Yahoo "
-               "Finance free of charge; Bloomberg only refreshes index membership.")
-    st.divider()
-    _equities_overnight_moves(sel, snap)
-    _eq_rating_actions(sel)
-    _econ_figures()
+        _eq_pull_banner()          # live bar while a manual/auto pull runs
+
+    # ── My Day beside the earnings day timeline ──
+    _cl, _cr = st.columns([0.82, 1])
+    with _cl:
+        _myday_card()
+    with _cr:
+        _next = ""
+        if dk["total"] == 0:                      # quiet day → point at the next reporters
+            _fut = [e for e in eq_ev if e["date"] > _day]
+            if _fut:
+                _nd = min(e["date"] for e in _fut)
+                _labs = sorted({e["label"] for e in _fut if e["date"] == _nd})
+                _next = ('<div class="dkl-none">Next: '
+                         + repcal._esc(", ".join(_labs[:4]))
+                         + ("…" if len(_labs) > 4 else "")
+                         + f' · {_nd:%a %d %b}</div>')
+        st.markdown('<div class="dk-card" style="min-height:352px"><div class="dk-h">'
+                    '<span class="dk-t">Equities</span>'
+                    '<span class="dk-s">Earnings reporters</span>'
+                    '</div>' + dk["html"] + _next + '</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dk-legend">'
+                '<span><span class="bar" style="background:#7FB3F5"></span>Earnings report</span>'
+                '<span>Past reporters dimmed · gold line = now</span>'
+                '<span>Times via Yahoo where published, — date-only otherwise</span>'
+                '<span>My Day tasks are per-seat · click a task to mark done</span>'
+                '</div>', unsafe_allow_html=True)
+
+    # ── Hot Sheet top-10 (equities book) ──
+    _hotsheet_top10_card("equities")
+
+    # ── overnight movers (left) + rating actions (right) ──
+    _bl, _br = st.columns(2)
+    with _bl, st.container(key="dkcard_eqmoves"):
+        st.markdown('<div class="dk-h"><span class="dk-t">Overnight movers</span>'
+                    '<span class="dk-s">settlement → latest close · σ-ranked</span></div>',
+                    unsafe_allow_html=True)
+        _equities_overnight_moves(sel, snap, show_header=False)
+    with _br, st.container(key="dkcard_eqrate"):
+        st.markdown('<div class="dk-h"><span class="dk-t">Rating actions</span>'
+                    '<span class="dk-s">upgrades · downgrades · new coverage</span></div>',
+                    unsafe_allow_html=True)
+        _eq_rating_actions(sel, show_header=False)
+
+    # ── heatmap, then the indices scope as the very last card ──
     _equities_heatmap(sel)
+    with st.container(key="dkcard_eqscope"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Indices &amp; universe</span>'
+                    f'<span class="dk-s">{len(sel)}/{len(_keys)} indices in view</span></div>',
+                    unsafe_allow_html=True)
+        _mcol, _acol = st.columns([3.2, 1.1], vertical_alignment="center")
+        _mcol.multiselect("Indices to show", _keys, default=list(equities.DEFAULT_INDICES),
+                          key="eq_idx_filter",
+                          help="Scope the movers table and heatmap to these indices. "
+                               "Russell 2000 (~2000 names) is opt-in — add it here when needed.",
+                          label_visibility="collapsed")
+        if IS_ADMIN:
+            _eq_autopull_control(_acol)
+        _n = sum(len(v) for v in _eq_universe().values())
+        st.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
+                   + equities.data_status() + ". Quotes, history and fundamentals ride Yahoo "
+                   "Finance free of charge; Bloomberg only refreshes index membership.")
 
 
 # ── Company Fundamentals (Equities) ───────────────────────────────────────────

@@ -704,7 +704,7 @@ div[class*="st-key-dkcard_hotsheet"] { gap:.05rem !important; }
 div[class*="st-key-dkcard_hotsheet"] [data-testid="stHorizontalBlock"] { gap:.45rem; }
 div[class*="st-key-dkcard_hotsheet"] .stButton button {
     min-height:1.7rem !important; padding:2px 9px !important; }
-div.st-key-home_open_hs button { min-height:2rem !important; }
+div[class*="st-key-home_open_hs"] button { min-height:2rem !important; }
 /* My Day rows: coloured left rule — gold = dated (shows only that day),
    blue = undated standing task (recurs every day until done) */
 div[class*="st-key-mdrowd_"], div[class*="st-key-mdrowu_"] {
@@ -749,17 +749,17 @@ div.st-key-basis_seat [data-baseweb="select"] > div {
     display:flex; align-items:center; justify-content:center; margin-left:2px;
 }
 /* the date-bar data actions: gold pill for Pull, quiet pill for Re-run (design) */
-div.st-key-home_pull button {
+div.st-key-home_pull button, div.st-key-eq_pull button {
     background:$btn_gold !important; border:1px solid rgba(245,197,24,.55) !important;
 }
-div.st-key-home_pull button p {
+div.st-key-home_pull button p, div.st-key-eq_pull button p {
     color:$gold !important; font-size:12.5px !important; font-weight:600;
     text-transform:none !important; letter-spacing:0 !important;
 }
-div.st-key-home_rerun button {
+div.st-key-home_rerun button, div.st-key-eq_refresh button {
     background:$surface2 !important; border:1px solid $btn_border !important;
 }
-div.st-key-home_rerun button p {
+div.st-key-home_rerun button p, div.st-key-eq_refresh button p {
     font-size:12.5px !important; text-transform:none !important; letter-spacing:0 !important;
 }
 
