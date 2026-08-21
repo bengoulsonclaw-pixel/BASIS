@@ -2338,7 +2338,7 @@ def render_landing() -> None:
                                                          vertical_alignment="center")
         n_prev.button("‹", key="land_prev", on_click=_land_day_set, args=(off - 1,),
                       use_container_width=True)
-        n_title.markdown(f"<div class='land-daytitle' style='font-size:21px;font-weight:700;"
+        n_title.markdown(f"<div class='land-daytitle dk-vc' style='font-size:21px;font-weight:700;"
                          f"text-align:center'>{_title}</div>", unsafe_allow_html=True)
         n_next.button("›", key="land_next", on_click=_land_day_set, args=(off + 1,),
                       use_container_width=True)
