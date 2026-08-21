@@ -228,6 +228,8 @@ DESK_CSS = """
                 padding:2px 16px; }
   .dkl-nowt { text-align:right; font-family:var(--basis-mono, monospace); font-size:10px;
               color:#F5C518; letter-spacing:.08em; }
+  .dkl-nowt .nowt-et { display:block; }
+  .dkl-nowt .nowt-loc { display:block; font-size:9px; opacity:.8; }
   .dkl-now { height:1px; background:#F5C518; position:relative; }
   .dkl-now span { position:absolute; left:0; top:-2.5px; width:5px; height:5px;
                   border-radius:3px; background:#F5C518; }
@@ -251,6 +253,18 @@ def _ev_dt(e, day):
         return None
 
 
+def _now_row(now) -> str:
+    """The gold now-line: ET with the machine-local time beneath (suppressed when
+    they match), classed so the world-clock script can tick both LIVE between
+    reruns (Ben, 2026-08-21 — the stamped time went stale within minutes)."""
+    loc = datetime.now().astimezone()
+    loc_line = (f'<span class="nowt-loc">{loc:%H:%M} local</span>'
+                if loc.utcoffset() != now.utcoffset() else "")
+    return (f'<div class="dkl-nowrow"><span class="dkl-nowt">'
+            f'<span class="nowt-et">{now:%H:%M} ET</span>{loc_line}</span>'
+            f'<div class="dkl-now"><span></span></div></div>')
+
+
 def desk_day(events, day) -> dict:
     """{html, total, ahead, next_txt} — the desk-home day timeline for `day`.
     Events use the calendar shape; kinds are inferred: labels containing 'expir'
@@ -269,8 +283,7 @@ def desk_day(events, day) -> dict:
             if next_dt is None or dt < next_dt:
                 next_dt = dt
         if not now_done and (dt is None or dt >= now):
-            rows.append(f'<div class="dkl-nowrow"><span class="dkl-nowt">{now:%H:%M} ET</span>'
-                        f'<div class="dkl-now"><span></span></div></div>')
+            rows.append(_now_row(now))
             now_done = True
         kind = "exp" if "expir" in str(e.get("label", "")).lower() else ""
         star = '<span class="dkl-star">EMAILS DESK</span>' if e.get("auto") else ""
@@ -282,8 +295,7 @@ def desk_day(events, day) -> dict:
             f'{_esc(e.get("label", ""))}{star}</div>'
             + (f'<div class="dkl-det">{det}</div>' if det else "") + '</div></div>')
     if not now_done:
-        rows.append(f'<div class="dkl-nowrow"><span class="dkl-nowt">{now:%H:%M} ET</span>'
-                    f'<div class="dkl-now"><span></span></div></div>')
+        rows.append(_now_row(now))
     if not evs:
         rows = ['<div class="dkl-none">Nothing scheduled for this desk today.</div>']
     nxt = None

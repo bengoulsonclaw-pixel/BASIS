@@ -1302,6 +1302,16 @@ def _world_clocks() -> None:
         "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
         "hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());});}"
         "t();setInterval(t,1000);"
+        # tick the day-timelines' gold now-line LIVE (ET + machine-local labels) —
+        # the timeline itself is static HTML, so the stamped time went stale in minutes
+        "function nl(){try{var d=window.parent.document,n=new Date();"
+        "var et=new Intl.DateTimeFormat('en-GB',{timeZone:'America/New_York',"
+        "hour:'2-digit',minute:'2-digit',hour12:false}).format(n);"
+        "var lo=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',"
+        "hour12:false}).format(n);"
+        "d.querySelectorAll('.nowt-et').forEach(function(e){e.textContent=et+' ET';});"
+        "d.querySelectorAll('.nowt-loc').forEach(function(e){e.textContent=lo+' local';});"
+        "}catch(e){}}nl();setInterval(nl,1000);"
         # keep the fixed top bar clear of the (drag-resizable) sidebar: mirror the
         # sidebar's live width into --basis-topbar-left on the parent document
         "function sb(){try{var d=window.parent.document;"
