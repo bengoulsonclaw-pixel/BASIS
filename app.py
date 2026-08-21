@@ -2222,14 +2222,16 @@ def _landing_expiries(day_iso: str) -> list:
     d = date.fromisoformat(day_iso)
     key = f"{d:%a %d %b %Y}"                        # expiries._fmt_date format
     bucket: dict = {}
-    for t in INSTRUMENTS:
+    seen: set = set()      # indices live in the universe TWICE (futures generic +
+    for t in INSTRUMENTS:  # cash ticker, same display name) — one expiry row each
         name, asset = INSTRUMENTS[t][0], INSTRUMENTS[t][2]
         try:
             ex = _exp.describe(t, asset, d)
         except Exception:
             continue
         for kind, dkey, tkey in (("future", "fut", "fut_time"), ("options", "opt", "opt_time")):
-            if ex.get(dkey) == key:
+            if ex.get(dkey) == key and (name, kind) not in seen:
+                seen.add((name, kind))
                 bucket.setdefault((asset, kind, ex.get(tkey) or ""), []).append(name)
     ev = []
     for (asset, kind, tm), names in bucket.items():
@@ -7672,11 +7674,17 @@ def _brazil_company_chart(blk: dict, cc: dict):
     if not rows:
         return None
     d = pd.DataFrame(rows)
-    order = d["company"].tolist()          # already sorted, "Other" last
+    order = d["company"].tolist()          # already sorted: companies, artisanal, Other
+    # Three-way: companies in gold, a non-corporate producer (garimpo) in blue so it can
+    # never be mistaken for a company, the Other bucket muted.
+    d["kind_lbl"] = np.where(d.get("is_artisanal", False), "Not a company",
+                             np.where(d["is_other"], "Other", "Company"))
     return alt.Chart(d).mark_bar().encode(
         x=alt.X("share_brazil:Q", title=blk.get("axis_label") or "share of Brazil (%)"),
         y=alt.Y("company:N", title=None, sort=order),
-        color=alt.condition("datum.is_other", alt.value(cc["muted"]), alt.value(cc["accent"])),
+        color=alt.Color("kind_lbl:N", legend=None,
+                        scale=alt.Scale(domain=["Company", "Not a company", "Other"],
+                                        range=[cc["accent"], cc["series"], cc["muted"]])),
         opacity=alt.condition("datum.is_other", alt.value(0.45), alt.value(0.9)),
         tooltip=[alt.Tooltip("company:N", title="Company"),
                  alt.Tooltip("volume:Q", title=f"Volume ({blk['unit']})", format=",.2f"),
@@ -7727,9 +7735,11 @@ def render_brazil_production() -> None:
                 st.error(f"Rebuild failed — {type(exc).__name__}: {exc}")
     if coms and a2.button("📈 Generate PDF report", key="brz_pdf_btn", use_container_width=True,
                           type="primary",
-                          help="A branded client PDF: Brazil's share of world supply across the "
-                               "book, then the company breakdown for the commodities that carry "
-                               "one. Each block prints what it measures."):
+                          help="A branded client PDF: the ranked share-of-world chart on the front "
+                               "page, then one page per commodity — Brazil's share of world "
+                               "production and, where the industry is concentrated enough to have "
+                               "an answer, which companies produce what share of Brazil's own "
+                               "output. Each page prints what its table measures."):
         with st.spinner("Building the Brazil Production report…"):
             try:
                 BRAZIL_PDF.parent.mkdir(parents=True, exist_ok=True)
@@ -7847,7 +7857,13 @@ def render_brazil_production() -> None:
     c2.metric("Data quality", blk["confidence_label"], help=blk["confidence_note"])
     c3.metric("Named companies cover", f"{blk['named_share']:.0f}%",
               help="Share of Brazil's total accounted for by the named companies; the "
-                   "remainder sits in the 'Other' bucket.")
+                   "remainder sits in the 'Other' bucket"
+                   + (" and in non-corporate production." if blk.get("has_artisanal") else "."))
+    if blk.get("has_artisanal"):
+        st.warning(f"**{blk['artisanal_share']:.0f}% of Brazil's {com['label'].lower()} has no "
+                   f"corporate producer.** That line is shown in blue on the chart below and is "
+                   f"counted in the totals, but it is not a company — which is why this table's "
+                   f"first column reads *Producer*, not *Company*.")
 
     if blk["basis"] == "export":
         st.warning(f"**This is an export share, not a production share.** {blk['note']}")
@@ -7874,10 +7890,10 @@ def render_brazil_production() -> None:
         "% of Brazil": tbl["share_brazil"].map("{:.1f}".format),
         "% of WORLD": tbl["share_world"].map("{:.2f}".format),
         "Listing": tbl["ticker"].fillna("").replace("", "—"),
-    }).rename(columns={"company": "Company"})
+    }).rename(columns={"company": blk.get("entity_label") or "Company"})
     # A "% of exports"-style block has no volume to show — that column would just
     # repeat "% of Brazil".
-    cols = ["Company"] + ([] if blk.get("unit_is_pct") else [vol_col])
+    cols = [blk.get("entity_label") or "Company"] + ([] if blk.get("unit_is_pct") else [vol_col])
     st.dataframe(show[cols + ["% of Brazil", "% of WORLD", "Listing", "Last", "1d %"]],
                  use_container_width=True, hide_index=True)
 
