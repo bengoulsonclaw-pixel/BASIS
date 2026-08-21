@@ -2309,7 +2309,8 @@ def render_landing() -> None:
         f'<div style="display:flex;flex-direction:column;align-items:center">'
         f'{brand.word_svg(pal, height=68)}'
         f'<div class="land-tag" style="font-size:17px;font-weight:600;letter-spacing:.44em;'
-        f'text-transform:uppercase;color:{pal["tagline"]};margin-top:3px">'
+        f'text-transform:uppercase;color:{pal.get("blue_bright", pal["tagline"])};'
+        f'margin-top:3px">'      # same blue as the sidebar strapline (Ben, 2026-08-21)
         f'Analysis · Strategies · Indicators</div>'
         f'</div></div>',
         unsafe_allow_html=True)
@@ -2320,8 +2321,11 @@ def render_landing() -> None:
     st.session_state.setdefault("land_day", 0)
     off = st.session_state["land_day"]
     day = _add_weekdays(base, off)
+    _badge = ('<span style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;'
+              'background:#F5C518;color:#14171C;font-weight:800;padding:2px 10px;'
+              'border-radius:5px;margin-right:12px;vertical-align:3px">Today</span>')
     if day == today:
-        _title = f"Today · {day:%a %d %b %Y}"
+        _title = f"{_badge}{day:%a %d %b %Y}"          # the desk homes' gold badge
     elif off == 0:
         _title = f"{day:%a %d %b %Y} · next trading day"
     else:
