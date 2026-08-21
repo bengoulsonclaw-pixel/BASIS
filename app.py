@@ -7771,14 +7771,21 @@ def render_brazil_production() -> None:
     st.dataframe(
         head.assign(**{"Brazil": head["Brazil"].map("{:,.2f}".format),
                        "World": head["World"].map("{:,.2f}".format),
-                       "Share %": head["Share %"].map("{:.1f}".format),
+                       # spelled out — "Share %" alone never says a share OF WHAT
+                       "% of world production": head["Share %"].map("{:.1f}%".format),
                        "Rank": head["Rank"].map(lambda r: f"#{int(r)}" if pd.notna(r) else "—"),
                        "Companies": head["Companies"].map({True: "✓", False: "—"})})
-            [["Commodity", "Group", "Year", "Brazil", "World", "Unit", "Share %", "Rank", "Companies"]],
+            [["Commodity", "Group", "Year", "Brazil", "World", "Unit",
+              "% of world production", "Rank", "Companies"]],
         use_container_width=True, hide_index=True,
-        column_config={"Companies": st.column_config.TextColumn(
-            "Co. table", help="A company-level breakdown exists for this commodity.")})
-    st.caption("**Share %** is Brazil's production divided by world production in the same year "
+        column_config={
+            "Brazil": st.column_config.TextColumn(help="Brazil's production, in the row's unit."),
+            "World": st.column_config.TextColumn(help="World production, same year and unit."),
+            "% of world production": st.column_config.TextColumn(
+                help="Brazil's production as a percentage of the world's."),
+            "Companies": st.column_config.TextColumn(
+                "Co. table", help="A company-level breakdown exists for this commodity.")})
+    st.caption("**% of world production** is Brazil's production divided by world production in the same year "
                "and unit. Agricultural years are USDA marketing years, not calendar years, so a "
                "2025/26 crop and a 2024 mining figure are not the same window — each row states "
                "its own. **Rank** counts every reporting country.")

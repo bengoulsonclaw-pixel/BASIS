@@ -1,6 +1,7 @@
 {
  "date": "2026-08-21",
  "runs": 1,
- "outcome": "running",
- "when": "2026-08-21T06:44:41"
+ "outcome": "ok",
+ "when": "2026-08-21T07:13:47",
+ "detail": "fetch 06:44-06:50 (89 tickers, first attempt); the driver was killed by a server restart mid-run \u2014 compute + backup push finished manually ~07:05"
 }
