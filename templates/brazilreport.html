@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 7.4pt; }
+  td:first-child { white-space: nowrap; }
+  tr.other td { color: #6b7280; }
+  .pair { display: flex; gap: 5mm; align-items: flex-start; }
+  .pair .half { flex: 1 1 0; min-width: 0; }
+  .pair .half img { width: 100%; }
+  .caphead { font-size: 7pt; font-weight: 700; letter-spacing: .3px; color: #333; margin-bottom: 1mm; }
+  .chips { margin: 1.5mm 0 2mm; font-size: 7pt; }
+  .chip { display: inline-block; padding: .6mm 2mm; border: 1px solid #d5d5d5; border-radius: 2mm;
+          margin-right: 2mm; color: #333; }
+  .chip b { color: #1a1a1a; }
+  .chip.warn { border-color: var(--yellow, #F5C518); background: #FFFBEA; }
+  .basisnote { font-size: 7pt; color: #444; margin: 0 0 2mm; }
+  .basisnote.warn { border-left: 2px solid var(--yellow, #F5C518); padding-left: 2mm; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Brazil Production</h1>
+      <div class="sub">Brazil in world supply &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      Where Brazil sits in the global supply of {{ n_com }} commodities, as of <b>{{ asof }}</b>,
+      and who produces its share. {{ lead }}. Country-level output is taken from the
+      <b>USDA Foreign Agricultural Service PS&amp;D</b> balance sheets and the
+      <b>US Energy Information Administration</b>; metals, pulp and ethanol are compiled from the
+      <b>USGS Mineral Commodity Summaries</b> and the relevant industry associations. Agricultural
+      figures are marketing years, mining and energy figures calendar years, so each line states
+      its own window.
+    </p>
+
+    <div class="section">
+      <div class="banner">Brazil's share of world production</div>
+      <div class="chart"><img src="{{ overview }}" alt="Brazil's share of world production"></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Commodity</th><th>Group</th><th>Year</th><th class="right">Brazil</th>
+            <th class="right">World</th><th>Unit</th><th class="right">Share</th>
+            <th class="center">Rank</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.label }}</td><td>{{ r.group }}</td><td>{{ r.year_label }}</td>
+          <td class="right">{{ r.brazil }}</td><td class="right">{{ r.world }}</td>
+          <td>{{ r.unit }}</td><td class="right"><b>{{ r.share }}%</b></td>
+          <td class="center">{% if r.rank %}#{{ r.rank }}{% else %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="fine">Share is Brazil's production divided by world production in the same year and
+      unit. Rank counts every reporting country.</div>
+
+    {% for b in blocks %}
+    <div class="section page-break">
+      <div class="banner">{{ b.label }} &mdash; Brazil {{ b.share }}% of world production</div>
+
+      <p class="summary">
+        Brazil produced <b>{{ b.brazil }} {{ b.unit }}</b> of a world total of
+        <b>{{ b.world }} {{ b.unit }}</b> in {{ b.year_label }}, ranking
+        {% if b.rank %}<b>#{{ b.rank }}</b>{% else %}outside the majors{% endif %} globally.
+        Source: {{ b.source }}.
+      </p>
+
+      <div class="chips">
+        <span class="chip">Company table measures: <b>{{ b.basis_label }}</b></span>
+        <span class="chip{% if b.is_estimate %} warn{% endif %}">Data quality:
+          <b>{{ b.confidence_label }}</b></span>
+        {% if b.coverage %}<span class="chip">Table totals <b>{{ b.coverage }}%</b> of the
+          national figure</span>{% endif %}
+      </div>
+
+      {% if b.is_export %}
+      <div class="basisnote warn"><b>This is an export share, not a production share.</b>
+        {{ b.note }}</div>
+      {% elif b.note %}
+      <div class="basisnote">{{ b.note }}</div>
+      {% endif %}
+
+      <div class="pair">
+        <div class="half">
+          <div class="caphead">WHO PRODUCES IT &mdash; BY COUNTRY</div>
+          <img src="{{ b.country_chart }}" alt="{{ b.label }} production by country">
+        </div>
+        <div class="half">
+          <div class="caphead">WHO PRODUCES BRAZIL'S SHARE</div>
+          <img src="{{ b.company_chart }}" alt="{{ b.label }} producers within Brazil">
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Company</th>
+              {% if not b.unit_is_pct %}<th class="right">{{ b.co_unit }}</th>{% endif %}
+              <th class="right">% of Brazil</th><th class="right">% of world</th>
+              <th>Listing</th></tr>
+        </thead>
+        <tbody>
+          {% for r in b.rows %}
+          <tr{% if r.is_other %} class="other"{% endif %}>
+            <td>{{ r.company }}</td>
+            {% if not b.unit_is_pct %}<td class="right">{{ r.volume }}</td>{% endif %}
+            <td class="right"><b>{{ r.share_brazil }}</b></td>
+            <td class="right">{{ r.share_world }}</td>
+            <td>{{ r.ticker }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="fine">{{ b.basis_note }} {{ b.co_year }} figures, compiled from
+        {{ b.co_source }}. <b>% of world</b> chains each company's share of Brazil through Brazil's
+        share of world supply.{% if b.is_estimate %} These are estimates assembled from company
+        disclosures and sector bodies rather than a single audited source.{% endif %}</div>
+    </div>
+    {% endfor %}
+
+    <div class="report-footer">
+    <div class="foot-disclaimer">
+    <hr class="rule">
+    <div class="fine">
+      Production figures are compiled by the internal Strategy Monitor from published public
+      sources: USDA FAS PS&amp;D, the US Energy Information Administration, the USGS Mineral
+      Commodity Summaries and the relevant industry associations. Company-level splits are
+      compiled from company production reports and sector bodies and were last reviewed on
+      {{ curated_as_of }}; where a table is marked a desk estimate it is an approximation, not a
+      reported figure. Each table states what it measures &mdash; production, equity share, cane
+      crushed, processing or exports &mdash; and these are not interchangeable. Figures are
+      descriptive only and are not a forecast of future output.
+      {% if dropped %}Company detail for {{ dropped }} is held in the Strategy Monitor and is
+      available on request.{% endif %}
+    </div>
+    {% include "_disclaimer.html" %}
+  </div>
+    </div>
+  </div>
+</body>
+</html>

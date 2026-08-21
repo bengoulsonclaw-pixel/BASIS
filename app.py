@@ -62,6 +62,7 @@ from src import eqcorr
 from src import eqdisp
 from src import curvemon
 from src import seasmon
+from src import brazilprod
 from src import auth
 from src import health
 from src import compliance
@@ -1085,7 +1086,8 @@ _GROUP_TABS = {
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
                            ("🛢️ OPEC Report", "OPEC Report"),
-                           ("🥇 Precious Metals", "Precious Metals")],
+                           ("🥇 Precious Metals", "Precious Metals"),
+                           ("🇧🇷 Brazil Production", "Brazil Production")],
     "Seasonality":        [("📅 Product Seasonality", "Seasonality"),
                            ("🔀 Spread Seasonality", "Seasonality Spreads")],
 }
@@ -2404,6 +2406,21 @@ def _home_day_set(off: int) -> None:
     st.session_state["home_day"] = off
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def _pull_driver_alive() -> bool:
+    """True if a run_pull.py process exists. Only consulted when the status file
+    claims 'running' (rare), cached 30s; on any doubt say alive — never cry wolf."""
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+             "Where-Object { $_.CommandLine -match 'run_pull' }).Count"],
+            capture_output=True, text=True, timeout=10)
+        return int((out.stdout or "0").strip() or 0) > 0
+    except Exception:
+        return True
+
+
 def _md_add_cb(seat: str) -> None:
     """My Day 'Add' — a callback so the title box can legally be cleared."""
     from src import myday
@@ -2719,6 +2736,23 @@ def render_home() -> None:
     pc.markdown('<div class="dk-s dk-vc" style="text-align:right;letter-spacing:.06em;'
                 'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
                 unsafe_allow_html=True)
+    # Honesty guard (2026-08-21): the status file said "running" for hours after a
+    # server restart killed the driver mid-run. If the status says running but no
+    # run_pull.py process exists, say so instead of showing nothing.
+    if IS_ADMIN:
+        try:
+            _pstat = json.loads((ROOT / "data" / "snapshot" /
+                                 ".pull_driver_status.json").read_text(encoding="utf-8"))
+        except Exception:
+            _pstat = {}
+        if _pstat.get("outcome") == "running" and not _pull_driver_alive():
+            st.warning("⚠️ **The pull driver was killed mid-run** (status still says "
+                       "'running' but no driver process exists — usually a server "
+                       "restart during a pull). The fetched data may already be safe: "
+                       "if `logs/pull_driver_fetch.log` ends with *BLOOMBERG PHASE "
+                       "COMPLETE*, press **Re-run signals** — do **not** pull again, "
+                       "that would re-spend the day's Bloomberg allowance.")
+
     def _run_ficc_pull():
         # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through
         # run_pull.py — pre-flight probe (a block / logged-out Terminal refuses in
@@ -2736,9 +2770,16 @@ def render_home() -> None:
 
         ph = st.empty()
         t0 = time.time()
-        proc = subprocess.Popen([sys.executable, "-u", str(ROOT / "run_pull.py")],
-                                cwd=str(ROOT), stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, text=True)
+        # DETACHED, console output to a file — never pipes (2026-08-21: a server
+        # restart mid-pull broke the driver's stdout pipe and killed it right
+        # after a perfect fetch; detached + file logging means a bounce, keeper
+        # respawn or crashed session can no longer take a running pull with it)
+        _con = (ROOT / "logs" / "pull_driver_console.log").open("w", encoding="utf-8")
+        proc = subprocess.Popen(
+            [sys.executable, "-u", str(ROOT / "run_pull.py")], cwd=str(ROOT),
+            stdout=_con, stderr=subprocess.STDOUT,
+            creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP
+                           | subprocess.DETACHED_PROCESS))
         _msgs = {
             "running": "⏳ **Pulling** — {el:.1f} min elapsed (fetch + maths; ~10–15 min "
                        "healthy). Self-healing: a stalled fetch is killed after ~8 quiet "
@@ -2751,7 +2792,7 @@ def render_home() -> None:
             el = (time.time() - t0) / 60
             ph.info(_msgs.get(_dstat().get("outcome"), _msgs["running"]).format(el=el))
             time.sleep(5)
-        proc.communicate()
+        _con.close()
         ph.empty()
         stat = _dstat()
         outcome, detail = stat.get("outcome"), stat.get("detail", "")
@@ -7539,6 +7580,307 @@ def render_precious_metals() -> None:
             st.image(str(p), use_container_width=True)
     else:
         st.info("No report built yet — use “Rebuild preview” above.")
+
+
+# ── Brazil Production (FICC → Fundamentals) ──────────────────────────────────
+# Two layers per commodity: how much Brazil produces against the world (pulled free
+# from USDA PS&D / EIA, or curated from USGS where no free feed exists), then which
+# companies produce Brazil's share (curated — physical output per company is not in
+# any free feed, and Brazilian producers are not in the equity universe). The company
+# tables state their BASIS on the page because an export or crush share must never be
+# read as a production share. Engine + the honest-data rules: src/brazilprod.py.
+BRAZIL_PDF = ROOT / "reports" / "Brazil_Production.pdf"
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _brazil_store() -> dict:
+    return brazilprod.load_or_build()
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _brazil_quotes(tickers: tuple) -> dict:
+    """{bloomberg ticker: (last, pct)} for the listed producers, off free Yahoo. The
+    B3 lines resolve through yfin's new BZ -> .SA mapping; anything unmappable (the
+    HK and Santiago lines, the private groups) simply comes back empty."""
+    if not tickers:
+        return {}
+    try:
+        from src import yfin
+        q = yfin.get_quotes([f"{t} Equity" for t in tickers])
+    except Exception:
+        return {}
+    out = {}
+    for t in tickers:
+        key = f"{t} Equity"
+        if key in q.index:
+            last, pct = q.loc[key, "last"], q.loc[key, "pct"]
+            if pd.notna(last):
+                out[t] = (float(last), None if pd.isna(pct) else float(pct))
+    return out
+
+
+def _brazil_share_chart(com: dict, cc: dict):
+    """Top producing countries, Brazil in gold and everyone else muted."""
+    import altair as alt
+    rows = com.get("countries") or []
+    if not rows:
+        return None
+    d = pd.DataFrame(rows)
+    # Sorted by size but with the "Other" bucket pinned last — mid-table it reads as
+    # if it were a country.
+    order = (d[~d["is_other"]].sort_values("value", ascending=False)["country"].tolist()
+             + d[d["is_other"]]["country"].tolist())
+    # Three-way colouring needs a scale — alt.condition takes one test, not a chain.
+    d["kind"] = np.where(d["is_brazil"], "Brazil",
+                         np.where(d["is_other"], "Other", "Producer"))
+    return alt.Chart(d).mark_bar().encode(
+        x=alt.X("value:Q", title=f"{com['year_label']} production ({com['unit']})"),
+        y=alt.Y("country:N", title=None, sort=order),
+        color=alt.Color("kind:N", legend=None,
+                        scale=alt.Scale(domain=["Brazil", "Producer", "Other"],
+                                        range=[cc["accent"], cc["series"], cc["muted"]])),
+        opacity=alt.condition("datum.is_brazil", alt.value(1.0), alt.value(0.55)),
+        tooltip=[alt.Tooltip("country:N", title="Country"),
+                 alt.Tooltip("value:Q", title=f"Production ({com['unit']})", format=",.2f"),
+                 alt.Tooltip("share:Q", title="Share of world", format=".2f")],
+    ).properties(height=max(220, 26 * len(d)))
+
+
+def _brazil_history_chart(com: dict, cc: dict):
+    """Brazil's share of world production over time — the 'is this gaining or
+    losing ground?' read. Only the PS&D and EIA sources carry history."""
+    import altair as alt
+    hist = com.get("history") or []
+    if len(hist) < 3:
+        return None
+    d = pd.DataFrame(hist)
+    line = alt.Chart(d).mark_line(color=cc["accent"], strokeWidth=2.4).encode(
+        x=alt.X("year:O", title=None,
+                axis=alt.Axis(values=[y for y in d["year"] if y % 5 == 0])),
+        y=alt.Y("share:Q", title="Brazil's share of world (%)",
+                scale=alt.Scale(zero=False, nice=True)),
+        tooltip=[alt.Tooltip("year:O", title="Year"),
+                 alt.Tooltip("brazil:Q", title=f"Brazil ({com['unit']})", format=",.2f"),
+                 alt.Tooltip("world:Q", title=f"World ({com['unit']})", format=",.2f"),
+                 alt.Tooltip("share:Q", title="Share", format=".2f")])
+    return line.properties(height=230)
+
+
+def _brazil_company_chart(blk: dict, cc: dict):
+    import altair as alt
+    rows = [r for r in blk["rows"]]
+    if not rows:
+        return None
+    d = pd.DataFrame(rows)
+    order = d["company"].tolist()          # already sorted, "Other" last
+    return alt.Chart(d).mark_bar().encode(
+        x=alt.X("share_brazil:Q", title=blk.get("axis_label") or "share of Brazil (%)"),
+        y=alt.Y("company:N", title=None, sort=order),
+        color=alt.condition("datum.is_other", alt.value(cc["muted"]), alt.value(cc["accent"])),
+        opacity=alt.condition("datum.is_other", alt.value(0.45), alt.value(0.9)),
+        tooltip=[alt.Tooltip("company:N", title="Company"),
+                 alt.Tooltip("volume:Q", title=f"Volume ({blk['unit']})", format=",.2f"),
+                 alt.Tooltip("share_brazil:Q", title="Share of Brazil", format=".2f"),
+                 alt.Tooltip("share_world:Q", title="Share of WORLD", format=".2f")],
+    ).properties(height=max(200, 27 * len(d)))
+
+
+def render_brazil_production() -> None:
+    import altair as alt
+    st.subheader("🇧🇷 Brazil Production")
+    st.caption("What Brazil produces, how much of the world's supply that is, who else "
+               "produces it — and which companies produce Brazil's share. Country data is "
+               "free and refreshes with the daily pull (USDA PS&D, EIA); the metals, pulp "
+               "and company tables are hand-maintained, and every company block states what "
+               "it actually measures.")
+
+    store = _brazil_store()
+    coms = store.get("commodities") or {}
+    if not coms:
+        st.warning("No Brazil production store yet — run the daily pull, or use “Rebuild now” below.")
+
+    cc = brand.chart_colors()
+    b1, b2, b3 = st.columns(3)
+    b1.metric("Store built", store.get("built") or "—")
+    b2.metric("Commodities", len(coms))
+    b3.metric("Curated tables as of", store.get("curated_as_of") or "—")
+
+    warn = [e for e in (store.get("errors") or []) if e.get("level") == "warning"]
+    hard = [e for e in (store.get("errors") or []) if e.get("level") != "warning"]
+    if hard:
+        st.error("Sources that failed: " + "; ".join(f"**{e['label']}** — {e['error']}" for e in hard))
+    if warn:
+        st.warning("Curated table needs a look: "
+                   + "; ".join(f"**{e['label']}** — {e['error']}" for e in warn))
+
+    a1, a2 = st.columns(2)
+    if IS_ADMIN and a1.button("🔄 Rebuild now", key="brz_rebuild", use_container_width=True,
+                              help="Re-download the USDA PS&D and EIA data and re-read the "
+                                   "curated tables. Normally the daily pull does this."):
+        with st.spinner("Rebuilding Brazil production…"):
+            try:
+                brazilprod.build(force=True)
+                _brazil_store.clear()
+                st.success("Rebuilt.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Rebuild failed — {type(exc).__name__}: {exc}")
+    if coms and a2.button("📈 Generate PDF report", key="brz_pdf_btn", use_container_width=True,
+                          type="primary",
+                          help="A branded client PDF: Brazil's share of world supply across the "
+                               "book, then the company breakdown for the commodities that carry "
+                               "one. Each block prints what it measures."):
+        with st.spinner("Building the Brazil Production report…"):
+            try:
+                BRAZIL_PDF.parent.mkdir(parents=True, exist_ok=True)
+                res = subprocess.run(
+                    [sys.executable, str(ROOT / "src" / "brazilreport.py"), str(BRAZIL_PDF)],
+                    capture_output=True, text=True, timeout=600, cwd=str(ROOT))
+                if res.returncode == 0 and BRAZIL_PDF.exists():
+                    st.session_state["brz_pdf_ready"] = True
+                else:
+                    st.error("Report build failed.")
+                    st.code((res.stderr or res.stdout or "")[-3000:])
+            except Exception as exc:
+                st.error(f"Report build failed — {type(exc).__name__}: {exc}")
+    if st.session_state.get("brz_pdf_ready") and BRAZIL_PDF.exists():
+        st.download_button("⬇️  Download Brazil_Production.pdf", data=BRAZIL_PDF.read_bytes(),
+                           file_name=BRAZIL_PDF.name, mime="application/pdf", key="brz_pdf_dl")
+
+    if not coms:
+        return
+
+    # ── 1. the whole book at a glance ────────────────────────────────────────
+    st.divider()
+    st.markdown("#### Where Brazil sits in world supply")
+    head = brazilprod.headline_rows(store)
+    # Clean field names for Vega-Lite — '%' and spaces in a field name are a trap.
+    hd = head.rename(columns={"Commodity": "commodity", "Share %": "share", "Brazil": "brazil",
+                              "World": "world", "Unit": "unit", "Year": "yr", "Rank": "rank"})
+    bars = alt.Chart(hd).mark_bar(color=cc["accent"]).encode(
+        x=alt.X("share:Q", title="Brazil's share of world production (%)"),
+        y=alt.Y("commodity:N", title=None, sort=hd["commodity"].tolist()),
+        tooltip=[alt.Tooltip("commodity:N", title="Commodity"),
+                 alt.Tooltip("yr:N", title="Year"),
+                 alt.Tooltip("brazil:Q", title="Brazil", format=",.2f"),
+                 alt.Tooltip("world:Q", title="World", format=",.2f"),
+                 alt.Tooltip("unit:N", title="Unit"),
+                 alt.Tooltip("share:Q", title="Share of world", format=".1f"),
+                 alt.Tooltip("rank:Q", title="World rank")])
+    brand.show_chart(bars.properties(height=max(280, 26 * len(hd))))
+    st.dataframe(
+        head.assign(**{"Brazil": head["Brazil"].map("{:,.2f}".format),
+                       "World": head["World"].map("{:,.2f}".format),
+                       "Share %": head["Share %"].map("{:.1f}".format),
+                       "Rank": head["Rank"].map(lambda r: f"#{int(r)}" if pd.notna(r) else "—"),
+                       "Companies": head["Companies"].map({True: "✓", False: "—"})})
+            [["Commodity", "Group", "Year", "Brazil", "World", "Unit", "Share %", "Rank", "Companies"]],
+        use_container_width=True, hide_index=True,
+        column_config={"Companies": st.column_config.TextColumn(
+            "Co. table", help="A company-level breakdown exists for this commodity.")})
+    st.caption("**Share %** is Brazil's production divided by world production in the same year "
+               "and unit. Agricultural years are USDA marketing years, not calendar years, so a "
+               "2025/26 crop and a 2024 mining figure are not the same window — each row states "
+               "its own. **Rank** counts every reporting country.")
+
+    # ── 2. one commodity in depth ───────────────────────────────────────────
+    st.divider()
+    st.markdown("#### A commodity in depth")
+    ordered = [k for g in (store.get("group_order") or [])
+               for k in sorted(coms, key=lambda x: -coms[x]["share"]) if coms[k]["group"] == g]
+    labels = {k: f"{coms[k]['icon']} {coms[k]['label']}  ·  {coms[k]['group']}" for k in ordered}
+    pick = st.selectbox("Commodity", ordered, format_func=lambda k: labels[k], key="brz_pick")
+    com = coms[pick]
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(f"Brazil produces ({com['unit']})", f"{com['brazil']:,.2f}")
+    m2.metric(f"World produces ({com['unit']})", f"{com['world']:,.2f}")
+    m3.metric("Brazil's share", f"{com['share']:.1f}%")
+    m4.metric("World rank", f"#{com['rank']}" if com.get("rank") else "—",
+              help=f"Out of {com['n_producers']} reporting producers.")
+
+    hist = _brazil_history_chart(com, cc)
+    if hist is not None:
+        cl, cr = st.columns([3, 2])
+        with cl:
+            st.markdown("**Who produces it** &nbsp;·&nbsp; Brazil in gold")
+            ch = _brazil_share_chart(com, cc)
+            if ch is not None:
+                brand.show_chart(ch)
+        with cr:
+            st.markdown("**Brazil's share over time**")
+            brand.show_chart(hist)
+    else:
+        st.markdown("**Who produces it** &nbsp;·&nbsp; Brazil in gold")
+        ch = _brazil_share_chart(com, cc)
+        if ch is not None:
+            brand.show_chart(ch)
+
+    src_bits = [f"Source: **{com['source_label']}**", f"year **{com['year_label']}**"]
+    if com["src"] == "curated":
+        src_bits.append("hand-maintained — refreshed annually, no free machine-readable feed exists")
+    st.caption(" · ".join(src_bits) + ".")
+    if com.get("note"):
+        st.info(com["note"])
+
+    # ── 3. who inside Brazil produces it ────────────────────────────────────
+    st.divider()
+    blk = com.get("companies")
+    st.markdown(f"#### Who produces Brazil's {com['label'].lower()}")
+    if not blk:
+        st.info(f"No company table for {com['label'].lower()}. "
+                + ("Brazilian output here is spread across many private operators with no "
+                   "published company-level split worth charting."
+                   if com["src"] == "curated" else
+                   "Add one to `data/brazil_curated.json` under `companies` and it appears here."))
+        return
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Measures", blk["basis_label"], help=blk["basis_note"])
+    c2.metric("Data quality", blk["confidence_label"], help=blk["confidence_note"])
+    c3.metric("Named companies cover", f"{blk['named_share']:.0f}%",
+              help="Share of Brazil's total accounted for by the named companies; the "
+                   "remainder sits in the 'Other' bucket.")
+
+    if blk["basis"] == "export":
+        st.warning(f"**This is an export share, not a production share.** {blk['note']}")
+    elif blk.get("note"):
+        st.info(blk["note"])
+    if blk["confidence"] == "estimate":
+        st.caption("⚠️ These are desk estimates assembled from company disclosures and sector "
+                   "bodies — sound enough to frame a conversation, but verify a number before "
+                   "it goes in front of a client.")
+
+    ch = _brazil_company_chart(blk, cc)
+    if ch is not None:
+        brand.show_chart(ch)
+
+    quotes = _brazil_quotes(tuple(r["ticker"] for r in blk["rows"] if r.get("ticker")))
+    tbl = pd.DataFrame(blk["rows"])
+    tbl["Last"] = [f"{quotes[t][0]:,.2f}" if t in quotes else "—"
+                   for t in tbl.get("ticker", pd.Series([""] * len(tbl)))]
+    tbl["1d %"] = [("—" if t not in quotes or quotes[t][1] is None else f"{quotes[t][1]:+.2f}")
+                   for t in tbl.get("ticker", pd.Series([""] * len(tbl)))]
+    vol_col = f"Volume ({blk['unit']})"
+    show = tbl.assign(**{
+        vol_col: tbl["volume"].map("{:,.2f}".format),
+        "% of Brazil": tbl["share_brazil"].map("{:.1f}".format),
+        "% of WORLD": tbl["share_world"].map("{:.2f}".format),
+        "Listing": tbl["ticker"].fillna("").replace("", "—"),
+    }).rename(columns={"company": "Company"})
+    # A "% of exports"-style block has no volume to show — that column would just
+    # repeat "% of Brazil".
+    cols = ["Company"] + ([] if blk.get("unit_is_pct") else [vol_col])
+    st.dataframe(show[cols + ["% of Brazil", "% of WORLD", "Listing", "Last", "1d %"]],
+                 use_container_width=True, hide_index=True)
+
+    foot = [f"**{blk['basis_label']}**, {blk['year']} — {blk['source']}"]
+    if blk.get("coverage_pct") is not None:
+        foot.append(f"the table totals **{blk['coverage_pct']:.0f}%** of Brazil's national figure")
+    st.caption(" · ".join(foot) + ". **% of WORLD** chains each company's share of Brazil through "
+               "Brazil's share of world supply — what the company is worth to global balances. "
+               "Prices are free Yahoo closes for the listed lines (B3 or the ADR); private "
+               "groups, co-operatives and the Hong Kong / Santiago lines show “—”.")
 
 
 def _cal_shift(delta):
@@ -13900,6 +14242,8 @@ if active == "OPEC Report":
     render_opec(); st.stop()
 if active == "Precious Metals":
     render_precious_metals(); st.stop()
+if active == "Brazil Production":
+    render_brazil_production(); st.stop()
 if active == "Release Calendar":
     render_releases(); st.stop()
 if active == "Recipients":
