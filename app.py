@@ -2911,10 +2911,10 @@ def render_home() -> None:
     with _br:
         _mc_card()
 
-    # ── sectors & products (demoted to the bottom card) ──
+    # ── heatmap, then sectors & products as the very last card (Ben, 2026-08-21) ──
+    _home_heatmap()
     with st.container(key="dkcard_sectors"):
         render_sector_filter()
-    _home_heatmap()
 
 
 # ── EQUITIES side ─────────────────────────────────────────────────────────────
