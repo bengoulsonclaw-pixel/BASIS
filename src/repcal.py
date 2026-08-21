@@ -255,7 +255,8 @@ def desk_day(events, day) -> dict:
     """{html, total, ahead, next_txt} — the desk-home day timeline for `day`.
     Events use the calendar shape; kinds are inferred: labels containing 'expir'
     rule gold, everything else (prints, decisions, reports) rules blue."""
-    evs = sorted((e for e in events if e["date"] == day), key=_time_key)
+    evs = sorted((e for e in events if e["date"] == day),
+                 key=lambda e: _time_key(e, day))
     now = datetime.now(ZoneInfo("America/New_York"))
     is_today = day == now.date()
     rows, ahead, next_dt = [], 0, None
@@ -371,10 +372,24 @@ def _tcell(e, day) -> str:
     return _esc(t) + f'<span class="dy-tl">{approx}{loc:%H:%M} local{suffix}</span>'
 
 
-def _time_key(e) -> tuple:
-    """Sort key: timed events first (by ET clock time), untimed after, then label."""
+def _time_key(e, day=None) -> tuple:
+    """Sort key: timed events first by their TRUE instant (zone-aware — 09:00 CET
+    is 03:00 ET and must sort before 09:30 ET; Ben 2026-08-21), untimed after,
+    then label. Without `day` (or an unknown zone) falls back to naive clock order."""
     m = _re.match(r"~?(\d{1,2}):(\d{2})", e.get("time") or "")
-    return ((0, int(m.group(1)) * 60 + int(m.group(2))) if m else (1, 0), e["label"])
+    if not m:
+        return ((1, 0.0), e["label"])
+    if day is not None:
+        dt = _ev_dt(e, day)
+        if dt is None:
+            try:        # timed but unknown zone — treat the clock as ET
+                dt = datetime(day.year, day.month, day.day, int(m.group(1)),
+                              int(m.group(2)), tzinfo=ZoneInfo("America/New_York"))
+            except Exception:
+                dt = None
+        if dt is not None:
+            return ((0, dt.timestamp()), e["label"])
+    return ((0, float(int(m.group(1)) * 60 + int(m.group(2)))), e["label"])
 
 
 def day_html(ficc_events, eq_events, day, next_ficc=None, next_eq=None) -> str:
@@ -382,7 +397,8 @@ def day_html(ficc_events, eq_events, day, next_ficc=None, next_eq=None) -> str:
     the left, its expected earnings on the right. Same event shape as everywhere.
     next_ficc/next_eq: optional 'Next: …' pointer shown when that panel is empty."""
     def _rows(evs, empty_msg, nxt):
-        evs = sorted((e for e in evs if e["date"] == day), key=_time_key)
+        evs = sorted((e for e in evs if e["date"] == day),
+                     key=lambda e: _time_key(e, day))
         if not evs:
             more = f'<span class="dy-next">{_esc(nxt)}</span>' if nxt else ""
             return f'<div class="dy-none">{empty_msg}{more}</div>'
