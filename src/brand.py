@@ -731,6 +731,20 @@ div[class*="st-key-mc_footer"] button:hover p { text-decoration:underline; }
 /* (pure-HTML .dk-cards rely on matched min-heights instead of flex-stretch —
    chaining flex through Streamlit's markdown wrappers fed back the column gap
    and inflated the card by 14px per pass.) */
+/* EXCEPT the My Day | day-timeline pair (Ben 2026-08-21: "in line with one
+   another"): the old feedback loop was the stMarkdownContainer -14px margin,
+   which is cancelled here — so the timeline's markdown wrappers can flex and
+   BOTH cards stretch to the taller sibling, whichever side that is. */
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stElementContainer"]:has(.dk-card),
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stMarkdown"]:has(.dk-card),
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stMarkdownContainer"]:has(> .dk-card) {
+    flex:1 1 auto; display:flex; flex-direction:column;
+    margin-bottom:0 !important; min-width:0; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] .dk-card { flex:1 1 auto; }
 .dk-h { display:flex; align-items:baseline; justify-content:space-between;
         padding:11px 16px; border-bottom:1px solid $border; }
 .dk-t { font-size:11px; letter-spacing:.16em; text-transform:uppercase;
