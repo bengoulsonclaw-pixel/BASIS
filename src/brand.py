@@ -708,11 +708,19 @@ div[class*="st-key-home_open_hs"] button { min-height:2rem !important; }
 /* My Day rows: coloured left rule — gold = dated (shows only that day),
    blue = undated standing task (recurs every day until done) */
 div[class*="st-key-mdrowd_"], div[class*="st-key-mdrowu_"] {
-    border-left:3px solid #F5C518; padding-left:10px; }
+    border-left:3px solid #F5C518; padding:5px 8px 5px 10px;
+    background:$surface2; border-radius:0 8px 8px 0; }
 div[class*="st-key-mdrowu_"] { border-left-color:#7FB3F5; }
-/* task text matches the synopsis prose colour (Ben: calendar + to-do = same ink) */
-div[class*="st-key-mdrowd_"] button p, div[class*="st-key-mdrowu_"] button p {
-    color:$text !important; }
+/* the task itself reads as a bold left-aligned label, not a washed-out button
+   (Ben 2026-08-21: "the to do needs to stand out more") */
+[data-testid="stElementContainer"][class*="st-key-md_t_"] button {
+    background:transparent !important; border:none !important; box-shadow:none !important;
+    justify-content:flex-start !important; text-align:left; padding:2px 6px !important; }
+[class*="st-key-md_t_"] button p {
+    font-size:14.5px !important; font-weight:600; color:$text !important;
+    text-transform:none !important; letter-spacing:0 !important; }
+[class*="st-key-md_t_"] button del { color:$caption; font-weight:500; }
+[class*="st-key-md_t_"] button:hover p { color:$gold !important; }
 div[class*="st-key-mc_footer"] button {
     background:transparent !important; border:none !important; box-shadow:none !important;
     min-height:0 !important; padding:0 !important; justify-content:flex-end; width:100%; }
