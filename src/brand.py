@@ -740,6 +740,8 @@ div[class*="st-key-mc_footer"] button:hover p { text-decoration:underline; }
 [data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
     [data-testid="stColumn"] [data-testid="stMarkdown"]:has(.dk-card),
 [data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stMarkdown"]:has(.dk-card) > div,
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
     [data-testid="stColumn"] [data-testid="stMarkdownContainer"]:has(> .dk-card) {
     flex:1 1 auto; display:flex; flex-direction:column;
     margin-bottom:0 !important; min-width:0; }

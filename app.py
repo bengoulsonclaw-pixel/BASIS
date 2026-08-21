@@ -2385,17 +2385,38 @@ def render_landing() -> None:
         nd = min(e["date"] for e in fut)
         labs = sorted({f'{e["icon"]} {e["label"]}'.strip() for e in fut if e["date"] == nd})
         return (f'Next: {", ".join(labs[:3])}{"…" if len(labs) > 3 else ""} · {nd:%a %d %b}')
-    st.markdown(repcal.day_html(ficc_ev, eq_ev, day,
-                                next_ficc=_next_line(ficc_ev), next_eq=_next_line(eq_ev)),
-                unsafe_allow_html=True)
-    _cap = ("Left: fundamental reports, central-bank decisions, the day's major economic "
-            "prints (actuals appear on the chip once released) and futures/options expiries, "
-            "with times in ET (~ = typical). Right: expected earnings reporters — times via "
-            "Yahoo where published, — where only the date is known. "
-            "★ = auto-emails the desk · hover any chip for details.")
+    # ── the desk-home design on the front door (Ben, 2026-08-21): the user's
+    # My Day list beside BOTH day timelines, in the same card language ──
+    dkF = repcal.desk_day(ficc_ev, day)
+    dkE = repcal.desk_day(eq_ev, day)
+
+    def _day_card(dk, evs, title, sub):
+        nxt = ""
+        if dk["total"] == 0:
+            _nl = _next_line(evs)
+            if _nl:
+                nxt = f'<div class="dkl-none">{repcal._esc(_nl)}</div>'
+        return ('<div class="dk-card" style="min-height:352px"><div class="dk-h">'
+                f'<span class="dk-t">{title}</span><span class="dk-s">{sub}</span></div>'
+                + dk["html"] + nxt + '</div>')
+    _c0, _c1, _c2 = st.columns([0.72, 1, 1])
+    with _c0:
+        _myday_card()
+    _c1.markdown(_day_card(dkF, ficc_ev, "FICC", "Prints, decisions &amp; expiries"),
+                 unsafe_allow_html=True)
+    _c2.markdown(_day_card(dkE, eq_ev, "Equities", "Earnings reporters"),
+                 unsafe_allow_html=True)
+    st.markdown('<div class="dk-legend">'
+                '<span><span class="bar" style="background:#F5C518"></span>Expiry</span>'
+                '<span><span class="bar" style="background:#7FB3F5"></span>Print · decision · '
+                'earnings</span>'
+                '<span>Past events dimmed · gold line = now</span>'
+                '<span>Times in ET, local beneath · earnings times via Yahoo where published'
+                '</span>'
+                '<span>My Day tasks are per-seat</span></div>', unsafe_allow_html=True)
     if not eq_ev:
-        _cap += " No earnings dates loaded yet — pull equities data to fill the right panel."
-    st.caption(_cap)
+        st.caption("No earnings dates loaded yet — pull equities data to fill the "
+                   "Equities panel.")
 
     b1, b2, _ = st.columns([1.7, 1.7, 4.6])
     b1.button("📅 Full reports calendar", key="land_ficc_cal", use_container_width=True,
