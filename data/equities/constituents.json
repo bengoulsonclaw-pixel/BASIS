@@ -4338,16 +4338,16 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "JNJ US Equity",
-      "name": "Johnson + Johnson",
-      "sector": "Health Care",
+      "ticker": "MCD US Equity",
+      "name": "Mcdonald S Corp",
+      "sector": "Consumer Discretionary",
       "region": "US",
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "MCD US Equity",
-      "name": "Mcdonald S Corp",
-      "sector": "Consumer Discretionary",
+      "ticker": "JNJ US Equity",
+      "name": "Johnson + Johnson",
+      "sector": "Health Care",
       "region": "US",
       "index": "Dow Jones 30"
     },
@@ -4366,13 +4366,6 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "BA US Equity",
-      "name": "Boeing Co/The",
-      "sector": "Industrials",
-      "region": "US",
-      "index": "Dow Jones 30"
-    },
-    {
       "ticker": "HON US Equity",
       "name": "Honeywell International Inc",
       "sector": "Industrials",
@@ -4387,9 +4380,9 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "CRM US Equity",
-      "name": "Salesforce Inc",
-      "sector": "Information Technology",
+      "ticker": "BA US Equity",
+      "name": "Boeing Co/The",
+      "sector": "Industrials",
       "region": "US",
       "index": "Dow Jones 30"
     },
@@ -4397,6 +4390,13 @@
       "ticker": "CVX US Equity",
       "name": "Chevron Corp",
       "sector": "Energy",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "CRM US Equity",
+      "name": "Salesforce Inc",
+      "sector": "Information Technology",
       "region": "US",
       "index": "Dow Jones 30"
     },
@@ -4422,13 +4422,6 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "WMT US Equity",
-      "name": "Walmart Inc",
-      "sector": "Consumer Staples",
-      "region": "US",
-      "index": "Dow Jones 30"
-    },
-    {
       "ticker": "CSCO US Equity",
       "name": "Cisco Systems Inc",
       "sector": "Information Technology",
@@ -4439,6 +4432,13 @@
       "ticker": "DIS US Equity",
       "name": "Walt Disney Co/The",
       "sector": "Communication",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "WMT US Equity",
+      "name": "Walmart Inc",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "Dow Jones 30"
     },
