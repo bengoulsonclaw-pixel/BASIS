@@ -2698,9 +2698,29 @@ def _mc_card() -> None:
                 st.rerun()
         # (the synopsis moved to its own card beside this one, 2026-08-20)
         if heads:
+            # "cited in Hot Sheet: Brent" (design): product names from today's radar
+            # stories, matched as whole words against each headline
+            try:
+                _hs_items, *_ = _hs_collect()
+                _hs_names = []
+                for _it in _hs_items:
+                    _m = re.match(r"\s*\*\*([^*]+)\*\*", str(_it.get("text", "")))
+                    if _m:
+                        _nm = re.sub(r"\s*\([^)]*\)", "", _m.group(1)).strip()   # drop "(COMEX)"
+                        if len(_nm) >= 3 and _nm not in _hs_names:
+                            _hs_names.append(_nm)
+            except Exception:
+                _hs_names = []
+
             def _h_sub(h) -> str:
-                _s = " · ".join(x for x in (str(h.get("time", "")).strip(),
-                                            str(h.get("tag", "")).strip()) if x)
+                _bits = [str(h.get("time", "")).strip(), str(h.get("tag", "")).strip()]
+                _title = str(h.get("title", ""))
+                _hits = [n for n in _hs_names
+                         if re.search(r"\b" + re.escape(n.split(" × ")[0].split(" − ")[0]) + r"\b",
+                                      _title, flags=re.I)]
+                if _hits:
+                    _bits.append("cited in Hot Sheet: " + ", ".join(_hits[:2]))
+                _s = " · ".join(x for x in _bits if x)
                 return (f'<div class="dk-s" style="margin-top:2px">{repcal._esc(_s)}</div>'
                         if _s else "")
             _rows = "".join(
