@@ -536,6 +536,24 @@ def _file_is_todays(path: Path) -> bool:
         return False
 
 
+def _file_is_last_session(path: Path) -> bool:
+    """True when `path` is as fresh as the LAST SESSION's pull: written today, or — on a
+    weekend — on/after the preceding Friday (Friday's close IS the latest move a live
+    Yahoo call would return on a Saturday, so the store is just as current)."""
+    try:
+        import datetime as _dt
+        fd = _dt.date.fromtimestamp(path.stat().st_mtime)
+        today = _dt.date.today()
+        if fd == today:
+            return True
+        if today.weekday() >= 5:                         # Sat/Sun → back to Friday
+            friday = today - _dt.timedelta(days=today.weekday() - 4)
+            return fd >= friday
+        return False
+    except Exception:
+        return False
+
+
 def get_history(tickers) -> pd.DataFrame:
     """DataFrame date x ticker (PX_LAST) — used for the 21-day realized vol behind σ."""
     tickers = list(dict.fromkeys(tickers))

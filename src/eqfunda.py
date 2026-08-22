@@ -544,6 +544,53 @@ def company_frame(universe=None, index_keys=None):
     return out, asof, source
 
 
+def _frame_store_paths(index_keys):
+    import hashlib
+    h = hashlib.md5("|".join(sorted(index_keys)).encode()).hexdigest()[:10]
+    base = _DATA_DIR / f"fund_frame_{h}"
+    return base.with_suffix(".parquet"), base.with_suffix(".key.json")
+
+
+def _frame_store_key(index_keys) -> dict:
+    def _mt(p):
+        try:
+            return p.stat().st_mtime
+        except OSError:
+            return 0.0
+    from src import equities as _eq
+    return {"db": _mt(_DB_FILE), "manifest": _mt(_eq._MANIFEST_FILE),
+            "constituents": _mt(_eq._CONSTITUENTS_FILE), "keys": sorted(index_keys)}
+
+
+def company_frame_cached(universe=None, index_keys=None):
+    """company_frame() + sector percentiles served from a DISK store (app-wide once-a-day
+    rule, 2026-08-22): the ~2.5s pivot + per-company merge across ~700 names ran on every
+    page open after a server restart. The store is keyed on the fundamentals DB, the
+    membership files and the index set; the daily equities pull warms it for the default
+    indices, any other selection computes once and writes its own. Returns the same
+    (frame, asof, source) triple."""
+    import json
+    keys = sorted(index_keys or [])
+    fpath, kpath = _frame_store_paths(keys)
+    want = _frame_store_key(keys)
+    try:
+        have = json.loads(kpath.read_text(encoding="utf-8"))
+        if have.get("key") == want and fpath.exists():
+            return pd.read_parquet(fpath), have.get("asof", ""), have.get("source", "")
+    except Exception:
+        pass
+    df, asof, source = company_frame(universe=universe, index_keys=keys)
+    out = add_sector_percentiles(df) if not df.empty else df
+    try:
+        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+        out.to_parquet(fpath, index=False)
+        kpath.write_text(json.dumps({"key": want, "asof": asof, "source": source}),
+                         encoding="utf-8")
+    except Exception:
+        pass
+    return out, asof, source
+
+
 def add_sector_percentiles(df: pd.DataFrame, fields=None) -> pd.DataFrame:
     """Adds '<FIELD>__pctl' columns: the value's percent rank (0–100) WITHIN its GICS sector —
     the like-for-like frame (a bank's P/B vs banks, not vs software). Sectors with fewer than

@@ -50,10 +50,26 @@ def tickers() -> list:
 def movers_frame() -> pd.DataFrame:
     """One row per ETF: ETF · Name · Group · last · pct · sigma. σ = the overnight move
     in standard deviations of the fund's own ~1-month daily moves — the same sizing rule
-    as the FICC and index-equities heatmaps. Empty frame when Yahoo is unreachable."""
+    as the FICC and index-equities heatmaps. Empty frame when Yahoo is unreachable.
+    STORE-FIRST (app-wide once-a-day rule, 2026-08-22): when this morning's equities
+    pull wrote the quotes/history parquets and they cover the client ETFs, the frame
+    is built from disk in ms — the live Yahoo round-trip (~2s on every page open
+    after a restart) is only the fallback."""
     tk = tickers()
-    q = yfin.get_quotes(tk)
-    h = yfin.get_history(tk, sessions=24)
+    q = h = None
+    try:
+        from src import equities as _eq
+        if _eq._file_is_last_session(_eq._QUOTES_FILE):     # today, or Friday's on a weekend
+            _q = _eq._read_parquet(_eq._QUOTES_FILE)
+            _h = _eq._read_parquet(_eq._HISTORY_FILE)
+            if (_q is not None and not _q.empty and "pct" in _q
+                    and sum(t in _q.index for t in tk) >= max(1, len(tk) - 2)):
+                q, h = _q, _h
+    except Exception:
+        q = h = None
+    if q is None:
+        q = yfin.get_quotes(tk)
+        h = yfin.get_history(tk, sessions=24)
     rows = []
     for (root, name, group), t in zip(ETFS, tk):
         last = float(q.loc[t, "last"]) if t in q.index else np.nan

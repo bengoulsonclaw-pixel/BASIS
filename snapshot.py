@@ -206,6 +206,25 @@ def run_equities() -> dict:
         except Exception as e:
             print(f"  (Analyst view refresh skipped: {e})")
 
+        # Page-open stores for the Equities desk (app-wide once-a-day rule, 2026-08-22):
+        # the home's rating-actions card pre-fetched for the default indices' top movers,
+        # and the Company Fundamentals frame (+ sector percentiles) written to disk.
+        # (The Client-ETF movers need no leg — they read this pull's quotes/history.)
+        try:
+            from src import eqanalyst as _eqa, equities as _eqm
+            _w = _eqa.warm_home_feed(list(_eqm.DEFAULT_INDICES))
+            print(f"  Rating-actions card warmed: {_w.get('cached', 0)}/{_w.get('n', 0)} names"
+                  + (f" — {_w['reason']}" if _w.get("reason") else ""))
+        except Exception as e:
+            print(f"  (Rating-actions warm skipped: {e})")
+        try:
+            from src import eqfunda as _eqf, equities as _eqm
+            _fdf, _fasof, _ = _eqf.company_frame_cached(universe=_eqm.cached_universe(),
+                                                         index_keys=list(_eqm.DEFAULT_INDICES))
+            print(f"  Fundamentals frame store: {len(_fdf)} companies (as of {_fasof})")
+        except Exception as e:
+            print(f"  (Fundamentals frame store skipped: {e})")
+
         # Technical Analysis — refresh the equity OHLCV backfill + re-run every technical strategy, so the
         # Equities → Technical Analysis page (and its reports) are current each pull. Runs AFTER the
         # membership refresh above (it reads the just-updated universe). Settlement-based: yfin.get_ohlcv

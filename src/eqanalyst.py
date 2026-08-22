@@ -430,6 +430,71 @@ def recent_actions(tickers, names: dict | None = None, days: int = 45, limit: in
     return out.head(int(limit)) if limit else out
 
 
+def warm_home_feed(index_keys=None, n_names: int = 30, days: int = 60) -> dict:
+    """The daily pull's leg for the Equities home's rating-actions card (app-wide
+    once-a-day rule, 2026-08-22): pre-fetch the same names the card asks for — the
+    ~n biggest overnight movers among US-listed lines in the default indices — so
+    the page's recent_actions() call is served entirely from the same-day cache
+    instead of a multi-second Yahoo round-trip on every open after a restart."""
+    from src import equities
+    keys = list(index_keys or equities.DEFAULT_INDICES)
+    try:
+        f = equities.movers_frame(keys, universe=equities.cached_universe())
+    except Exception as e:
+        return {"n": 0, "reason": f"movers unavailable: {e}"}
+    if f is None or getattr(f, "empty", True):
+        return {"n": 0, "reason": "no overnight quotes"}
+    d = f.dropna(subset=["pct"]).copy()
+    d["_rank"] = pd.to_numeric(d["sigma"], errors="coerce").abs()
+    d["_rank"] = d["_rank"].fillna(pd.to_numeric(d["pct"], errors="coerce").abs())
+    d = d[[is_us_line(t) for t in d["ticker"]]]
+    d = d.sort_values("_rank", ascending=False).drop_duplicates("ticker").head(int(n_names))
+    tks = list(d["ticker"])
+    if not tks:
+        return {"n": 0, "reason": "no US-listed movers"}
+    recs = bulk(tks, max_fetch=int(n_names))
+    # …and write the card's FINAL feed as a small store: even fully cached, the
+    # per-name assembly took ~3.5s on page open — the page reads this in ms.
+    try:
+        names = dict(zip(d["ticker"], d["name"]))
+        feed = recent_actions(tks, names=names, days=days, limit=10, fetch=False)
+        payload = {"asof": pd.Timestamp.today().strftime("%Y-%m-%d"),
+                   "keys": sorted(keys), "n_names": int(n_names), "days": int(days),
+                   "feed": ([] if feed.empty else
+                            [{k: (v.strftime("%Y-%m-%d") if k == "date" else v)
+                              for k, v in r.items()} for r in feed.to_dict("records")]),
+                   "coverage": coverage(tks)}
+        _HOME_FEED_FILE.write_text(json.dumps(payload, ensure_ascii=False, default=str),
+                                   encoding="utf-8")
+    except Exception:
+        pass
+    return {"n": len(tks), "cached": sum(1 for t in tks if has_data(recs.get(t)))}
+
+
+_HOME_FEED_FILE = _CACHE_FILE.parent / "rating_actions_home.json"
+
+
+def read_home_feed(index_keys, n_names: int = 30, days: int = 60):
+    """(feed DataFrame, coverage) from the pull-written store when it matches the
+    page's selection and is as fresh as the last session's quotes; None otherwise
+    (the page then falls back to the live path)."""
+    try:
+        from src import equities
+        p = json.loads(_HOME_FEED_FILE.read_text(encoding="utf-8"))
+        if (p.get("keys") != sorted(index_keys) or int(p.get("n_names", 0)) != int(n_names)
+                or int(p.get("days", 0)) != int(days)):
+            return None
+        qd = pd.Timestamp(equities._QUOTES_FILE.stat().st_mtime, unit="s").strftime("%Y-%m-%d")
+        if str(p.get("asof", "")) < qd:                   # older than the latest pull
+            return None
+        feed = pd.DataFrame(p.get("feed") or [])
+        if not feed.empty:
+            feed["date"] = pd.to_datetime(feed["date"])
+        return feed, (p.get("coverage") or {})
+    except Exception:
+        return None
+
+
 def coverage(tickers) -> dict:
     """How much of a list the cache can answer for, for the UI's honesty note."""
     cache = _read_cache()

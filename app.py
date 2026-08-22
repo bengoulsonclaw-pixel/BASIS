@@ -3028,6 +3028,11 @@ def _eq_recent_actions(index_keys: tuple, n_names: int = 30, days: int = 60):
     ~`n_names` biggest overnight movers (the names already on this screen) and only US-listed
     lines — Yahoo's grade history doesn't exist for other listings. eqanalyst's disk cache
     serves everything already seen instantly and re-pulls only what's stale."""
+    # store-first (app-wide once-a-day rule): the equities pull writes the card's
+    # final feed for the default selection — ms instead of a per-name assembly
+    _st = eqanalyst.read_home_feed(list(index_keys), n_names=n_names, days=days)
+    if _st is not None:
+        return _st
     f = _eq_movers(tuple(index_keys))
     if f is None or getattr(f, "empty", True):
         return pd.DataFrame(), {}
@@ -3482,9 +3487,10 @@ def _eqf_frame(index_keys: tuple):
     """Fundamentals frame + sector percentiles for the selected indices (cached; cleared by
     'Pull fundamentals'). Uses the CACHED membership — a live INDX_MEMBERS re-pull here made
     the first click on the page sit on a dead screen for ~30s+ in Bloomberg mode."""
-    df, asof, src = eqfunda.company_frame(universe=equities.cached_universe(),
-                                          index_keys=list(index_keys))
-    return (eqfunda.add_sector_percentiles(df) if not df.empty else df), asof, src
+    # disk store (app-wide once-a-day rule): the daily equities pull warms it for
+    # the default indices; any other selection computes once and keeps its own
+    return eqfunda.company_frame_cached(universe=equities.cached_universe(),
+                                        index_keys=list(index_keys))
 
 
 def _eqf_pull_note() -> None:
