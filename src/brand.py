@@ -705,6 +705,38 @@ div[class*="st-key-dkcard_hotsheet"] [data-testid="stHorizontalBlock"] { gap:.45
 div[class*="st-key-dkcard_hotsheet"] .stButton button {
     min-height:1.7rem !important; padding:2px 9px !important; }
 div[class*="st-key-home_open_hs"] button { min-height:2rem !important; }
+/* My Day reflows by ITS OWN width (container query), not the viewport: in a
+   narrow window the landing's three-card row squeezed it to ~215px and the
+   add-row inputs + TODAY / ALL DATES wrapped into vertical letter stacks
+   (PWA capture, 2026-08-22). Under 470px the text box takes the full first
+   line and date · time · Add share the second; filters never wrap. */
+div[class*="st-key-dkcard_myday"] { container-type:inline-size; }
+div[class*="st-key-md_filters"] button p, div[class*="st-key-md_add"] button p { white-space:nowrap; }
+@container (max-width: 470px) {
+    div[class*="st-key-dkcard_myday"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stTextInput"]) {
+        flex-wrap:wrap !important; gap:.4rem !important; }
+    div[class*="st-key-dkcard_myday"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stTextInput"])
+        > [data-testid="stColumn"]:nth-child(1) { flex:1 1 100% !important; width:100% !important; }
+    div[class*="st-key-dkcard_myday"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stTextInput"])
+        > [data-testid="stColumn"]:nth-child(n+2) {
+        flex:1 1 28% !important; width:auto !important; min-width:84px !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stHorizontalBlock"],
+    div[class*="st-key-mdrowu_"] [data-testid="stHorizontalBlock"],
+    div[class*="st-key-md_filters"] [data-testid="stHorizontalBlock"] {
+        flex-wrap:nowrap !important; gap:.4rem !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(1),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(1) {
+        flex:0 0 66px !important; width:66px !important; min-width:66px !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(2),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 0 !important; width:auto !important; min-width:0 !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(3),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(3) {
+        flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
+    div[class*="st-key-md_filters"] [data-testid="stColumn"]:nth-child(-n+2) {
+        flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
+    div[class*="st-key-md_filters"] [data-testid="stColumn"]:nth-child(3) { display:none !important; }
+}
 /* My Day rows: coloured left rule — gold = dated (shows only that day),
    blue = undated standing task (recurs every day until done) */
 div[class*="st-key-mdrowd_"], div[class*="st-key-mdrowu_"] {
@@ -929,6 +961,47 @@ div.st-key-home_rerun button p, div.st-key-eq_refresh button p {
     }
     .st-key-land_nav [data-testid="stColumn"]:nth-child(3) { flex:1 1 auto !important; min-width:0 !important; }
     .land-daytitle { font-size:17px !important; }
+    /* desk-home date bar (FICC / Equities): ‹ date › stay one row, the counts
+       line takes a row of its own, the two data pills share the last row */
+    .st-key-desk_datebar [data-testid="stHorizontalBlock"] { flex-wrap:wrap !important; gap:.4rem !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(1),
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(3) {
+        flex:0 0 44px !important; width:44px !important; min-width:44px !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 0 !important; width:auto !important; min-width:0 !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(4) {
+        flex:0 0 100% !important; width:100% !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(4) .dk-s { text-align:center !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(5),
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(6) {
+        flex:1 1 45% !important; width:auto !important; min-width:0 !important; }
+    .st-key-desk_datebar .dk-vc { font-size:15px !important; }
+    /* My Day on a phone: a task row stays ONE row (time · title · ×) and the
+       Today / All dates filters sit side by side — stacked, each piece became
+       its own full-width band and the legend overflowed the card */
+    div[class*="st-key-mdrowd_"] [data-testid="stHorizontalBlock"],
+    div[class*="st-key-mdrowu_"] [data-testid="stHorizontalBlock"],
+    .st-key-md_filters [data-testid="stHorizontalBlock"] {
+        flex-wrap:nowrap !important; gap:.4rem !important; align-items:center !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(1),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(1) {
+        flex:0 0 66px !important; width:66px !important; min-width:66px !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(2),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 0 !important; width:auto !important; min-width:0 !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(3),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(3) {
+        flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
+    .st-key-md_filters [data-testid="stColumn"]:nth-child(1),
+    .st-key-md_filters [data-testid="stColumn"]:nth-child(2) {
+        flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
+    .st-key-md_filters [data-testid="stColumn"]:nth-child(3) { display:none !important; }
+    /* Hot Sheet card rows: the 4-column grid starved the story at phone width —
+       stack it: # + tag on the first line, story and metric beneath, full width */
+    .hsr { grid-template-columns:34px 1fr !important; row-gap:4px !important; }
+    .hsr .hs-story, .hsr .hs-num { grid-column:1 / -1 !important; }
+    .hsr .hs-num { text-align:left !important; white-space:normal !important; }
+    .hsr-head { display:none !important; }
     /* the roomy desktop caption size costs half a phone screen on the long
        help lines — step it back down (the .95rem rule above is !important) */
     .block-container [data-testid="stCaptionContainer"],

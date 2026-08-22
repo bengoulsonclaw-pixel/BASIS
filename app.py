@@ -2413,7 +2413,7 @@ def render_landing() -> None:
         return ('<div class="dk-card" style="min-height:352px"><div class="dk-h">'
                 f'<span class="dk-t">{title}</span><span class="dk-s">{sub}</span></div>'
                 + dk["html"] + nxt + '</div>')
-    _c0, _c1, _c2 = st.columns([0.72, 1, 1])
+    _c0, _c1, _c2 = st.columns([0.85, 1, 1])
     with _c0:
         _myday_card()
     _c1.markdown(_day_card(dkF, ficc_ev, "FICC", "Prints, decisions &amp; expiries"),
@@ -2524,7 +2524,8 @@ def _myday_card() -> None:
         if not show:
             st.caption("Nothing here yet — add your first task above. Leave the date "
                        "empty for a standing task that shows every day until it's done.")
-        f1, f2, f3 = st.columns([1.0, 1.25, 3.2], vertical_alignment="center")
+        f1, f2, f3 = st.container(key="md_filters").columns([1.0, 1.25, 3.2],
+                                                            vertical_alignment="center")
         if f1.button("Today", key="md_f_today",
                      type="primary" if _f == "today" else "secondary"):
             st.session_state["md_filter"] = "today"; st.rerun()
@@ -2753,8 +2754,10 @@ def render_home() -> None:
     dk = repcal.desk_day(ficc_ev, _day)
 
     # ── date bar: ‹ Today · date › + live counts + the two data actions ──
-    p1, p2, p3, pc, c1, c2 = st.columns([0.42, 1.85, 0.42, 2.35, 1.4, 1.05],
-                                        vertical_alignment="center")
+    # keyed so the phone CSS can hold ‹ date › on one row (stacked, the arrows
+    # became full-width empty bars around the date — same fix as the landing nav)
+    p1, p2, p3, pc, c1, c2 = st.container(key="desk_datebar").columns(
+        [0.42, 1.85, 0.42, 2.35, 1.4, 1.05], vertical_alignment="center")
     p1.button("‹", key="home_prev", on_click=_home_day_set, args=(_off - 1,),
               use_container_width=True)
     _tag = ('<span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;'
@@ -3282,8 +3285,10 @@ def render_equities_home() -> None:
     dk = repcal.desk_day(eq_ev, _day)
 
     # ── date bar: ‹ Today · date › + reporter counts + the two data actions ──
-    p1, p2, p3, pc, c1, c2 = st.columns([0.42, 1.85, 0.42, 2.35, 1.4, 1.05],
-                                        vertical_alignment="center")
+    # keyed so the phone CSS can hold ‹ date › on one row (stacked, the arrows
+    # became full-width empty bars around the date — same fix as the landing nav)
+    p1, p2, p3, pc, c1, c2 = st.container(key="desk_datebar").columns(
+        [0.42, 1.85, 0.42, 2.35, 1.4, 1.05], vertical_alignment="center")
     p1.button("‹", key="eq_home_prev", on_click=_eq_home_day_set, args=(_off - 1,),
               use_container_width=True)
     _tag = ('<span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;'

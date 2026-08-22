@@ -14,6 +14,16 @@
 #  kill the python on port 8501.
 # ===========================================================================
 Set-Location $PSScriptRoot
+# ONE keeper only (2026-08-22): every `schtasks /Run` from the launcher (or a hand
+# start) spawned ANOTHER copy of this loop — two or three keepers then raced each
+# other on port 8501 after every restart (competing Start-Process calls, crash
+# loops, 2-minute revivals instead of 10 seconds). A second instance now exits.
+# (match the -File invocation only — a diagnostic shell whose command text merely
+#  MENTIONS the script must never count as a running keeper)
+$others = @(Get-CimInstance Win32_Process -Filter 'Name = "powershell.exe" OR Name = "pwsh.exe"' |
+            Where-Object { $_.ProcessId -ne $PID -and
+                           $_.CommandLine -match '-File\s+\S*run_basis_server\.ps1' })
+if ($others.Count -gt 0) { exit 0 }
 $env:DATAFEED_MODE = "snapshot"
 $env:PYTHONUTF8 = "1"
 if (Test-Path "$PSScriptRoot\playwright-browsers") {
