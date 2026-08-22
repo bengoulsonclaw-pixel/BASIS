@@ -281,6 +281,12 @@ def write_top10_export(items: list, collected: float | None = None) -> int:
         except Exception:
             pass
         top = top_strip(rows)
+        if not top:             # never overwrite a usable export with an empty one
+            try:                # (an empty/failed collect must not blank the report page)
+                if json.loads(TOP10_FILE.read_text(encoding="utf-8")).get("rows"):
+                    return 0
+            except Exception:
+                pass
         payload = {
             "collected": float(collected or time.time()),
             "collected_et": pd.Timestamp(collected or time.time(), unit="s", tz="UTC")
