@@ -32,6 +32,7 @@ from src.specs import (SPECS, reflag_rows, trigger_default, save_trigger_default
                        tabt_defaults, save_tabt_defaults)
 from src import universe
 from src import brand
+from src import repcal
 from src import recipients
 from src import automation
 from src import alerts
@@ -61,6 +62,7 @@ from src import eqcorr
 from src import eqdisp
 from src import curvemon
 from src import seasmon
+from src import brazilprod
 from src import auth
 from src import health
 from src import compliance
@@ -1084,7 +1086,8 @@ _GROUP_TABS = {
     "Positioning & Flow": [(s, s) for s in NAV_GROUPS["Positioning & Flow"]],
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
                            ("🛢️ OPEC Report", "OPEC Report"),
-                           ("🥇 Precious Metals", "Precious Metals")],
+                           ("🥇 Precious Metals", "Precious Metals"),
+                           ("🇧🇷 Brazil Production", "Brazil Production")],
     "Seasonality":        [("📅 Product Seasonality", "Seasonality"),
                            ("🔀 Spread Seasonality", "Seasonality Spreads")],
 }
@@ -1190,7 +1193,7 @@ def _overnight_moves(snap) -> None:
         return
     _have_live = (SNAPSHOT_DIR / "live.parquet").exists()
     if MODE == "snapshot" and not _have_live:
-        st.caption("No live overnight quote captured yet — click **Pull Bloomberg Snapshot** "
+        st.caption("No live overnight quote captured yet — click **Pull Bloomberg snapshot** "
                    "(needs the Terminal). It records each contract's move from the previous "
                    "trading day's settle to the moment the snapshot is pulled.")
         return
@@ -1299,6 +1302,16 @@ def _world_clocks() -> None:
         "e.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:e.dataset.tz,"
         "hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());});}"
         "t();setInterval(t,1000);"
+        # tick the day-timelines' gold now-line LIVE (ET + machine-local labels) —
+        # the timeline itself is static HTML, so the stamped time went stale in minutes
+        "function nl(){try{var d=window.parent.document,n=new Date();"
+        "var et=new Intl.DateTimeFormat('en-GB',{timeZone:'America/New_York',"
+        "hour:'2-digit',minute:'2-digit',hour12:false}).format(n);"
+        "var lo=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',"
+        "hour12:false}).format(n);"
+        "d.querySelectorAll('.nowt-et').forEach(function(e){e.textContent=et+' ET';});"
+        "d.querySelectorAll('.nowt-loc').forEach(function(e){e.textContent=lo+' local';});"
+        "}catch(e){}}nl();setInterval(nl,1000);"
         # keep the fixed top bar clear of the (drag-resizable) sidebar: mirror the
         # sidebar's live width into --basis-topbar-left on the parent document
         "function sb(){try{var d=window.parent.document;"
@@ -1413,7 +1426,7 @@ def _home_heatmap() -> None:
     mvf = mvf.dropna(subset=["sigma"]) if not mvf.empty else mvf
     if mvf.empty:
         st.caption("Appears once an overnight quote is available "
-                   "(**Pull Bloomberg Snapshot**, or a Morning Coffee run).")
+                   "(**Pull Bloomberg snapshot**, or a Morning Coffee run).")
         return
     st.caption("**Tile size = how many σ the contract moved overnight** (vs its own ~1-month daily "
                "vol) — colour is direction (green up / red down), deepening with |σ|. Grouped by "
@@ -1639,7 +1652,14 @@ def render_sector_filter() -> None:
             key, [tk for tk in tks if INSTRUMENTS[tk][2] not in off_a and tk not in off_t])
 
     on = _sf_enabled()
-    st.markdown(f"#### 🗂️  Sectors & products — {len(on)}/{len(INSTRUMENTS)} instruments on")
+    d_off_a, d_off_t = universe.default_off()
+    n_def = len({tk for tk in INSTRUMENTS
+                 if INSTRUMENTS[tk][2] not in d_off_a and tk not in d_off_t})
+    # design card header: summary + startup default live in the header sub-line now
+    st.markdown(f'<div class="dk-h"><span class="dk-t">Sectors &amp; products</span>'
+                f'<span class="dk-s">{len(on)}/{len(INSTRUMENTS)} instruments on · '
+                f'startup default {n_def}/{len(INSTRUMENTS)}</span></div>',
+                unsafe_allow_html=True)
     if not IS_ADMIN:
         # This filter is one shared file (data/sector_filter.json) read by every session, not a
         # per-user preference -- a colleague toggling it would change what everyone else sees, so
@@ -1648,31 +1668,29 @@ def render_sector_filter() -> None:
         return
     with st.container():
         st.caption("Hit a group to switch the whole sector on or off. Open its dropdown to drill in "
-                   "by region / asset class and toggle individual contracts.")
-        groups = [g[0] for g in _FILTER_GROUPS]
-        cols = st.columns(3 + len(groups))
-        if cols[0].button("All", key="sf_b_all", use_container_width=True):
-            _sf_apply(lambda s: s[2])
-        if cols[1].button("None", key="sf_b_none", use_container_width=True):
-            _sf_apply(lambda s: [])
-        for col, group in zip(cols[2:2 + len(groups)], groups):
-            gtks = {tk for s in secs if s[0] == group for tk in s[2]}
-            n_on = len(gtks & on)
-            if col.button(f"{group}\n\n{n_on}/{len(gtks)}", key=f"sf_b_{group}",
-                          use_container_width=True, type="primary" if n_on else "secondary"):
-                _sf_apply(lambda s, _g=group, _full=(n_on == len(gtks)):
-                          (([] if _full else s[2]) if s[0] == _g
-                           else st.session_state.get(s[3], s[2])))
-        if cols[-1].button("📌 Set default", key="sf_b_setdef", use_container_width=True,
-                           help="Save the current selection as the startup default — the app loads "
-                                "this on every launch until you set it again."):
-            universe.save_default(*_sf_current_off())
-            st.toast("Saved — the dashboard will start with this selection from now on.", icon="📌")
-        d_off_a, d_off_t = universe.default_off()
-        n_def = len({tk for tk in INSTRUMENTS
-                     if INSTRUMENTS[tk][2] not in d_off_a and tk not in d_off_t})
-        st.caption(f"📌 **Startup default: {n_def}/{len(INSTRUMENTS)} markets.** Arrange the selection "
-                   "how you want it, then **Set default** to change what loads each launch.")
+                   "by region / asset class and toggle individual contracts. 📌 saves the current "
+                   "selection as the startup default.")
+        # one wrapping row of chips (design): All · None · sector chips · Set default
+        with st.container(key="sf_chiprow"):
+            groups = [g[0] for g in _FILTER_GROUPS]
+            if st.button("All", key="sf_b_all"):
+                _sf_apply(lambda s: s[2])
+            if st.button("None", key="sf_b_none"):
+                _sf_apply(lambda s: [])
+            for group in groups:
+                gtks = {tk for s in secs if s[0] == group for tk in s[2]}
+                n_on = len(gtks & on)
+                if st.button(f"{group} · {n_on}/{len(gtks)}", key=f"sf_b_{group}",
+                             type="primary" if n_on else "secondary"):
+                    _sf_apply(lambda s, _g=group, _full=(n_on == len(gtks)):
+                              (([] if _full else s[2]) if s[0] == _g
+                               else st.session_state.get(s[3], s[2])))
+            if st.button("📌 Set default", key="sf_b_setdef",
+                         help="Save the current selection as the startup default — the app loads "
+                              "this on every launch until you set it again."):
+                universe.save_default(*_sf_current_off())
+                st.toast("Saved — the dashboard will start with this selection from now on.",
+                         icon="📌")
 
         _gcols = st.columns(len(_FILTER_GROUPS))          # 4 group dropdowns side by side, evenly sized
         for _gi, (group, _classes, mode) in enumerate(_FILTER_GROUPS):
@@ -2214,14 +2232,16 @@ def _landing_expiries(day_iso: str) -> list:
     d = date.fromisoformat(day_iso)
     key = f"{d:%a %d %b %Y}"                        # expiries._fmt_date format
     bucket: dict = {}
-    for t in INSTRUMENTS:
+    seen: set = set()      # indices live in the universe TWICE (futures generic +
+    for t in INSTRUMENTS:  # cash ticker, same display name) — one expiry row each
         name, asset = INSTRUMENTS[t][0], INSTRUMENTS[t][2]
         try:
             ex = _exp.describe(t, asset, d)
         except Exception:
             continue
         for kind, dkey, tkey in (("future", "fut", "fut_time"), ("options", "opt", "opt_time")):
-            if ex.get(dkey) == key:
+            if ex.get(dkey) == key and (name, kind) not in seen:
+                seen.add((name, kind))
                 bucket.setdefault((asset, kind, ex.get(tkey) or ""), []).append(name)
     ev = []
     for (asset, kind, tm), names in bucket.items():
@@ -2299,7 +2319,8 @@ def render_landing() -> None:
         f'<div style="display:flex;flex-direction:column;align-items:center">'
         f'{brand.word_svg(pal, height=68)}'
         f'<div class="land-tag" style="font-size:17px;font-weight:600;letter-spacing:.44em;'
-        f'text-transform:uppercase;color:{pal["tagline"]};margin-top:3px">'
+        f'text-transform:uppercase;color:{pal.get("blue_bright", pal["tagline"])};'
+        f'margin-top:3px">'      # same blue as the sidebar strapline (Ben, 2026-08-21)
         f'Analysis · Strategies · Indicators</div>'
         f'</div></div>',
         unsafe_allow_html=True)
@@ -2310,8 +2331,11 @@ def render_landing() -> None:
     st.session_state.setdefault("land_day", 0)
     off = st.session_state["land_day"]
     day = _add_weekdays(base, off)
+    _badge = ('<span style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;'
+              'background:#F5C518;color:#14171C;font-weight:800;padding:2px 10px;'
+              'border-radius:5px;margin-right:12px;vertical-align:3px">Today</span>')
     if day == today:
-        _title = f"Today · {day:%a %d %b %Y}"
+        _title = f"{_badge}{day:%a %d %b %Y}"          # the desk homes' gold badge
     elif off == 0:
         _title = f"{day:%a %d %b %Y} · next trading day"
     else:
@@ -2324,7 +2348,7 @@ def render_landing() -> None:
                                                          vertical_alignment="center")
         n_prev.button("‹", key="land_prev", on_click=_land_day_set, args=(off - 1,),
                       use_container_width=True)
-        n_title.markdown(f"<div class='land-daytitle' style='font-size:21px;font-weight:700;"
+        n_title.markdown(f"<div class='land-daytitle dk-vc' style='font-size:21px;font-weight:700;"
                          f"text-align:center'>{_title}</div>", unsafe_allow_html=True)
         n_next.button("›", key="land_next", on_click=_land_day_set, args=(off + 1,),
                       use_container_width=True)
@@ -2375,17 +2399,38 @@ def render_landing() -> None:
         nd = min(e["date"] for e in fut)
         labs = sorted({f'{e["icon"]} {e["label"]}'.strip() for e in fut if e["date"] == nd})
         return (f'Next: {", ".join(labs[:3])}{"…" if len(labs) > 3 else ""} · {nd:%a %d %b}')
-    st.markdown(repcal.day_html(ficc_ev, eq_ev, day,
-                                next_ficc=_next_line(ficc_ev), next_eq=_next_line(eq_ev)),
-                unsafe_allow_html=True)
-    _cap = ("Left: fundamental reports, central-bank decisions, the day's major economic "
-            "prints (actuals appear on the chip once released) and futures/options expiries, "
-            "with times in ET (~ = typical). Right: expected earnings reporters — times via "
-            "Yahoo where published, — where only the date is known. "
-            "★ = auto-emails the desk · hover any chip for details.")
+    # ── the desk-home design on the front door (Ben, 2026-08-21): the user's
+    # My Day list beside BOTH day timelines, in the same card language ──
+    dkF = repcal.desk_day(ficc_ev, day)
+    dkE = repcal.desk_day(eq_ev, day)
+
+    def _day_card(dk, evs, title, sub):
+        nxt = ""
+        if dk["total"] == 0:
+            _nl = _next_line(evs)
+            if _nl:
+                nxt = f'<div class="dkl-none">{repcal._esc(_nl)}</div>'
+        return ('<div class="dk-card" style="min-height:352px"><div class="dk-h">'
+                f'<span class="dk-t">{title}</span><span class="dk-s">{sub}</span></div>'
+                + dk["html"] + nxt + '</div>')
+    _c0, _c1, _c2 = st.columns([0.85, 1, 1])
+    with _c0:
+        _myday_card()
+    _c1.markdown(_day_card(dkF, ficc_ev, "FICC", "Prints, decisions &amp; expiries"),
+                 unsafe_allow_html=True)
+    _c2.markdown(_day_card(dkE, eq_ev, "Equities", "Earnings reporters"),
+                 unsafe_allow_html=True)
+    st.markdown('<div class="dk-legend">'
+                '<span><span class="bar" style="background:#F5C518"></span>Expiry</span>'
+                '<span><span class="bar" style="background:#7FB3F5"></span>Print · decision · '
+                'earnings</span>'
+                '<span>Past events dimmed · gold line = now</span>'
+                '<span>Times in ET, local beneath · earnings times via Yahoo where published'
+                '</span>'
+                '<span>My Day tasks are per-seat</span></div>', unsafe_allow_html=True)
     if not eq_ev:
-        _cap += " No earnings dates loaded yet — pull equities data to fill the right panel."
-    st.caption(_cap)
+        st.caption("No earnings dates loaded yet — pull equities data to fill the "
+                   "Equities panel.")
 
     b1, b2, _ = st.columns([1.7, 1.7, 4.6])
     b1.button("📅 Full reports calendar", key="land_ficc_cal", use_container_width=True,
@@ -2394,27 +2439,361 @@ def render_landing() -> None:
               on_click=_land_desk_go, args=("Equities", "eq:Earnings"))
 
 
-def render_home() -> None:
-    render_report_banner()
-    _render_skew_backfill_banner()
-    _render_cb_calendar_banner()
-    snap = _load_snap()
+def _home_day_set(off: int) -> None:
+    st.session_state["home_day"] = off
 
-    # (world clocks moved to the fixed top bar — rendered on every page)
-    render_sector_filter()
-    # The whole Data row is ADMIN-ONLY (Ben, 2026-08-11): pulls, recomputes, exports
-    # and the report builders all act on shared state or reach external services —
-    # colleague sessions are strictly view-only and see no Data section at all.
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _pull_driver_alive() -> bool:
+    """True if a run_pull.py process exists. Only consulted when the status file
+    claims 'running' (rare), cached 30s; on any doubt say alive — never cry wolf."""
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+             "Where-Object { $_.CommandLine -match 'run_pull' }).Count"],
+            capture_output=True, text=True, timeout=10)
+        return int((out.stdout or "0").strip() or 0) > 0
+    except Exception:
+        return True
+
+
+def _md_add_cb(seat: str) -> None:
+    """My Day 'Add' — a callback so the title box can legally be cleared."""
+    from src import myday
+    _d = st.session_state.get("md_date")
+    _t = st.session_state.get("md_time")
+    myday.add(seat, st.session_state.get("md_title", ""),
+              _d.isoformat() if _d else "",
+              _t.strftime("%H:%M") if _t else "")
+    st.session_state["md_title"] = ""
+    st.session_state["md_date"] = None      # date is optional — reset to empty
+    st.session_state["md_time"] = None
+
+
+def _myday_card() -> None:
+    """The per-seat private task list (redesign 2026-08-20). One JSON per seat on
+    disk (src/myday.py); the header seat selector decides whose list shows."""
+    from src import myday
+    seat = st.session_state.get("seat", "admin")
+    meta = next((s for s in myday.seats() if s["id"] == seat),
+                {"name": str(seat), "desk": ""})
+    items = myday.load(seat)
+    today_s = date.today().isoformat()
+    # open = anything not done that concerns today: dated today, or undated
+    # (undated tasks recur every day until completed — Ben, 2026-08-20)
+    open_n = sum(1 for i in items
+                 if not i.get("done") and (i.get("date") or today_s) == today_s)
+    with st.container(key="dkcard_myday"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">My Day</span>'
+                    f'<span class="dk-s">{meta["name"]} · {open_n} open</span></div>',
+                    unsafe_allow_html=True)
+        a1, a2, a3, a4 = st.columns([2.9, 1.7, 1.25, 1.0], vertical_alignment="center")
+        a1.text_input("Task", key="md_title", label_visibility="collapsed",
+                      placeholder="Add a task…")
+        a2.date_input("Date (optional)", key="md_date", label_visibility="collapsed",
+                      value=None)
+        a3.time_input("Time", key="md_time", label_visibility="collapsed", value=None)
+        a4.button("Add", key="md_add", use_container_width=True,
+                  on_click=_md_add_cb, args=(seat,))
+        _f = st.session_state.setdefault("md_filter", "today")
+
+        def _today_view(i) -> bool:
+            if i.get("date"):                     # dated: only on its date
+                return i["date"] == today_s
+            # undated: every day until done; keep the struck row for the rest of
+            # the completion day so it can still be un-toggled
+            return (not i.get("done")) or i.get("done_date") == today_s
+        show = [i for i in items if _f == "all" or _today_view(i)]
+        show.sort(key=lambda i: (0 if i.get("date") else 1,
+                                 i.get("date", ""), i.get("time") or "99:99"))
+        for i in show[:12]:
+            _kind = "d" if i.get("date") else "u"     # gold rule = dated, blue = until-done
+            with st.container(key=f'mdrow{_kind}_{i.get("id")}'):
+                r1, r2, r3 = st.columns([1.15, 4.5, 0.5], vertical_alignment="center")
+                _dl = ("Today" if i.get("date") == today_s
+                       else (i.get("date") or "every day"))
+                r1.markdown(f'<div class="dkl-t">{i.get("time") or "—"}'
+                            f'<span class="loc">{_dl}</span></div>', unsafe_allow_html=True)
+                _lbl = f'~~{i.get("title", "")}~~' if i.get("done") else i.get("title", "")
+                if r2.button(_lbl or "—", key=f'md_t_{i.get("id")}', use_container_width=True,
+                             help="Click to mark done / not done"):
+                    myday.toggle(seat, i.get("id")); st.rerun()
+                if r3.button("×", key=f'md_x_{i.get("id")}', help="Remove"):
+                    myday.remove(seat, i.get("id")); st.rerun()
+        if not show:
+            st.caption("Nothing here yet — add your first task above. Leave the date "
+                       "empty for a standing task that shows every day until it's done.")
+        f1, f2, f3 = st.container(key="md_filters").columns([1.0, 1.25, 3.2],
+                                                            vertical_alignment="center")
+        if f1.button("Today", key="md_f_today",
+                     type="primary" if _f == "today" else "secondary"):
+            st.session_state["md_filter"] = "today"; st.rerun()
+        if f2.button("All dates", key="md_f_all",
+                     type="primary" if _f == "all" else "secondary"):
+            st.session_state["md_filter"] = "all"; st.rerun()
+        f3.markdown('<div class="dk-s" style="text-align:right;padding:6px 4px 0 0">'
+                    '<span style="display:inline-block;width:10px;height:3px;'
+                    'background:#F5C518;vertical-align:middle;margin-right:4px"></span>dated'
+                    '<span style="display:inline-block;width:10px;height:3px;'
+                    'background:#7FB3F5;vertical-align:middle;margin:0 4px 0 10px"></span>'
+                    'every day until done · private to this seat</div>',
+                    unsafe_allow_html=True)
+
+
+def _hotsheet_top10_card(book: str = "ficc") -> None:
+    """The design's Hot Sheet table, showing what module 02 actually shows: the
+    radar's top strip. Same pipeline as the Hot Sheet page — persisted collection,
+    NEW badges, the Home sector filter, one desk's book, 2-per-module cap, first
+    10 — so the card and the module can never disagree. (The old card ran the
+    tascore conviction composite, which is a different engine — Ben, 2026-08-20.)"""
+    try:
+        items, _report, _collected, _ = _hs_collect()
+        items = [dict(it) for it in items]      # apply_badges mutates — keep the cache pristine
+        hotsheet.apply_badges(items)
+    except Exception:
+        items, _collected = [], 0.0
+    if universe.filter_active():                 # the Home sector filter applies here too
+        _en = set(universe.enabled_tickers())
+        items = [it for it in items
+                 if it["book"] != "ficc" or not it["ticker"] or it["ticker"] in _en]
+    items = [it for it in items if it["book"] == book]
+    top, _per_tag = [], {}
+    for it in items:                             # mirror of the module's top strip
+        if _per_tag.get(it["tag"], 0) >= 2:
+            continue
+        _per_tag[it["tag"]] = _per_tag.get(it["tag"], 0) + 1
+        top.append(it)
+        if len(top) >= 10:
+            break
+    _sub = "Top 10 by heat"
+    if top:
+        try:
+            _ts = pd.Timestamp(_collected, unit="s", tz="UTC").tz_convert("America/New_York")
+            _sub = (f"Top {len(top)} by heat · {len({it['provider'] for it in items})} "
+                    f"modules · collected {_ts:%H:%M} ET")
+        except Exception:
+            pass
+    st.markdown(
+        '<style>'
+        '.hsr{display:grid;grid-template-columns:34px 118px minmax(0,1fr) minmax(200px,295px);'
+        'gap:10px;align-items:center;padding:5px 2px;'
+        'border-bottom:1px solid rgba(128,128,128,.14);font-size:13px}'
+        '.hsr-head{padding:7px 2px;border-bottom:1px solid rgba(128,128,128,.28)}'
+        '.hsr-head div{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;'
+        'font-weight:600;color:var(--basis-cal-ink,#8a929c)}'
+        '.hs-n,.hs-num{font-family:var(--basis-mono,monospace);font-variant-numeric:tabular-nums}'
+        '.hs-num{text-align:right;white-space:nowrap;font-weight:600;'
+        'overflow:hidden;text-overflow:ellipsis}'
+        '.hs-tag{white-space:nowrap}'
+        '.hs-chip{display:inline-block;font:600 10px/1.7 var(--basis-mono,monospace);'
+        'color:var(--basis-gold,#F5C518);border:1px solid rgba(245,197,24,.45);'
+        'padding:1px 6px;text-transform:uppercase;letter-spacing:.06em}'
+        '.hs-newb{display:inline-block;font:700 10px/1.7 var(--basis-mono,monospace);'
+        'color:#14171C;background:var(--basis-gold,#F5C518);padding:1px 6px;margin-left:6px}'
+        '.hs-story{line-height:1.45;min-width:0;overflow-wrap:break-word}'
+        '.hs-subi{font:400 10.5px var(--basis-mono,monospace);'
+        'color:var(--basis-cal-ink,#8a929c);font-weight:400}'
+        '.hs-heat{height:3px;background:rgba(128,128,128,.22);margin-top:4px}'
+        '.hs-heat div{height:3px;background:var(--basis-gold,#F5C518)}'
+        '</style>', unsafe_allow_html=True)
+    # a KEYED container (not one HTML blob) so each row can carry the module's
+    # jump button — the same _hs_go navigation as the Hot Sheet page (Ben)
+    with st.container(key="dkcard_hotsheet"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Hot Sheet'
+                    f'</span><span class="dk-s">{_sub}</span></div>', unsafe_allow_html=True)
+        if not top:
+            st.markdown('<div class="dkl-none">No module is clearing its bar — quiet '
+                        'markets, or the morning snapshot hasn&#8217;t run yet.</div>',
+                        unsafe_allow_html=True)
+            return
+        _hh, _hg = st.columns([12, 0.8], vertical_alignment="center")
+        _hh.markdown('<div class="hsr hsr-head"><div>#</div><div>Tag</div><div>Story</div>'
+                     '<div style="text-align:right">Metric · heat</div></div>',
+                     unsafe_allow_html=True)
+        for n, it in enumerate(top, start=1):
+            story = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", it["text"])
+            badge = '<span class="hs-newb">NEW</span>' if it.get("badge") == "NEW" else ""
+            met = it["metric"] or f"{it['heat']:.0f}"
+            sub = f'<span class="hs-subi"> · {it["sub"]}</span>' if it.get("sub") else ""
+            bar = f'<div class="hs-heat"><div style="width:{it["heat"]:.0f}%"></div></div>'
+            _rm, _rg = st.columns([12, 0.8], vertical_alignment="center")
+            _rm.markdown(
+                f'<div class="hsr"><div class="hs-n">{n:02d}</div>'
+                f'<div class="hs-tag"><span class="hs-chip">{it["tag"]}</span>{badge}</div>'
+                f'<div class="hs-story">{story}</div>'
+                f'<div class="hs-num" title="{repcal._esc(met)}'
+                f'{" · " + repcal._esc(it["sub"]) if it.get("sub") else ""}">'
+                f'{met}{sub}{bar}</div></div>', unsafe_allow_html=True)
+            if it.get("page"):
+                _rg.button("→", key=f"hs_go_{book}_{n}",
+                           help=f"Open {it['page'].removeprefix('eq:')}",
+                           on_click=_hs_go, args=(it["page"],))
+        st.button("Open Hot Sheet →", key=f"home_open_hs_{book}", on_click=_hs_go,
+                  args=("Hot Sheet" if book == "ficc" else "eq:Hot Sheet",))
+
+
+_MC_HOME_FILE = ROOT / "data" / "morning_coffee_home.json"
+
+
+def _mc_synopsis_card() -> None:
+    """The Morning Coffee report's market commentary in full (Ben, 2026-08-20:
+    replaced the overnight-moves table on this row — the moves live on in the
+    Morning Coffee page's treemap). Reads the same export as the headlines card;
+    falls back to the short synopsis field for older exports."""
+    try:
+        mc = json.loads(_MC_HOME_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        mc = {}
+    prose = (mc.get("commentary") or mc.get("synopsis") or "").strip()
+    stamp = mc.get("generated_at", "")
+    with st.container(key="dkcard_mcsyn"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Synopsis · Morning Coffee</span>'
+                    f'<span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
+                    f'</span></div>', unsafe_allow_html=True)
+        if prose:
+            paras = "".join(
+                f'<p style="margin:0 0 .7rem;font-size:15px;line-height:1.6">'
+                f'{repcal._esc(p.strip())}</p>'
+                for p in prose.split("\n") if p.strip())
+            st.markdown(f'<div style="padding:10px 2px 2px">{paras}</div>',
+                        unsafe_allow_html=True)
+        else:
+            st.caption("No commentary exported yet — the next Morning Coffee run will "
+                       "fill this card.")
+
+
+def _mc_card() -> None:
+    """Headlines + synopsis from the last Morning Coffee run — reads the export the
+    MC pipeline writes (morning_coffee_home.json); graceful before the first run."""
+    try:
+        mc = json.loads(_MC_HOME_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        mc = {}
+    heads = mc.get("headlines") or []
+    stamp = mc.get("generated_at", "")
+    _time = stamp.split("·")[-1].strip() if "·" in stamp else stamp      # "08:49 ET"
+    _srcs = list(dict.fromkeys(str(h.get("source", "")).strip()
+                               for h in heads if str(h.get("source", "")).strip()))
+    with st.container(key="dkcard_mc"):
+        _sub = f"{len(_srcs)} sources · pulled {_time}" if heads else "no run yet"
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Headlines · Morning Coffee'
+                    f'</span><span class="dk-s" style="margin-right:96px">{repcal._esc(_sub)}'
+                    f'</span></div>', unsafe_allow_html=True)
+        # the design's Run report pill, floated into the header band (admin + this
+        # PC only — the pipeline needs Bloomberg, the news feeds and the Gmail token)
+        if IS_ADMIN and MORNING_COFFEE_DIR.exists():
+            if st.button("Run report", key="home_mc_run",
+                         help="Run the Morning Coffee pipeline now — pulls Bloomberg, reads "
+                              "the news, writes the commentary and emails the desk (~1–2 min). "
+                              "These cards refresh when it finishes."):
+                with st.spinner("Pulling Bloomberg, reading the news, writing the macro "
+                                "commentary and emailing the report… (~1–2 min)"):
+                    _ok = run_morning_coffee()
+                if _ok:
+                    st.toast("Morning Coffee sent — cards refreshed.", icon="☕")
+                else:
+                    st.toast("Morning Coffee failed — see the Morning Coffee page for the log.",
+                             icon="⚠️")
+                st.rerun()
+        # (the synopsis moved to its own card beside this one, 2026-08-20)
+        if heads:
+            def _h_sub(h) -> str:
+                _s = " · ".join(x for x in (str(h.get("time", "")).strip(),
+                                            str(h.get("tag", "")).strip()) if x)
+                return (f'<div class="dk-s" style="margin-top:2px">{repcal._esc(_s)}</div>'
+                        if _s else "")
+            _rows = "".join(
+                f'<div style="display:grid;grid-template-columns:92px 1fr;gap:10px;'
+                f'padding:9px 2px;border-bottom:1px solid rgba(128,128,128,.1)">'
+                f'<div style="font-family:var(--basis-mono,monospace);font-size:11px;'
+                f'letter-spacing:.06em;text-transform:uppercase;color:#F5C518;'
+                f'padding-top:2px">{repcal._esc(str(h.get("source", "")))}</div>'
+                f'<div><div style="font-size:14.5px;line-height:1.45">'
+                f'{repcal._esc(str(h.get("title", "")))}</div>'
+                f'{_h_sub(h)}</div></div>'
+                for h in heads[:8])
+            st.markdown(_rows, unsafe_allow_html=True)
+        else:
+            st.caption("No headlines exported yet — the next Morning Coffee run will "
+                       "fill this card.")
+        # footer strip (design): sources roll-call + last run · gold link into the module
+        with st.container(key="mc_footer"):
+            _fl, _fr = st.columns([3.4, 1.0], vertical_alignment="center")
+            _ftxt = (" · ".join(_srcs) + (f" — last run {_time}" if _time else "")
+                     if _srcs else "No run yet")
+            _fl.markdown(f'<div class="dk-vc mc-foot">{repcal._esc(_ftxt)}</div>',
+                         unsafe_allow_html=True)
+            with _fr:
+                st.button("Open Morning Coffee →", key="home_open_mc", on_click=_go,
+                          args=("Morning Coffee",))
+
+
+def render_home() -> None:
+    """FICC desk overview — the 2026-08-20 Claude Design redesign: a date bar with
+    live event counts + the two data actions, My Day (per-seat tasks) beside the
+    FICC day timeline, the Hot Sheet top-10, overnight moves + Morning Coffee,
+    and the sector filter demoted to a bottom card. The old banners and the
+    Excel / Weekly Review buttons were removed per Ben."""
+    snap = _load_snap()
+    _today = datetime.now(ZoneInfo("America/New_York")).date()
+    _base = _today if _today.weekday() < 5 else _add_weekdays(_today, 1)
+    st.session_state.setdefault("home_day", 0)
+    _off = st.session_state["home_day"]
+    _day = _add_weekdays(_base, _off)
+
+    ficc_ev = repcal.calendar_events()
+    try:
+        ficc_ev = ficc_ev + _landing_macro(_day.isoformat())
+    except Exception:
+        pass
+    try:
+        ficc_ev = ficc_ev + _landing_expiries(_day.isoformat())
+    except Exception:
+        pass
+    dk = repcal.desk_day(ficc_ev, _day)
+
+    # ── date bar: ‹ Today · date › + live counts + the two data actions ──
+    # keyed so the phone CSS can hold ‹ date › on one row (stacked, the arrows
+    # became full-width empty bars around the date — same fix as the landing nav)
+    p1, p2, p3, pc, c1, c2 = st.container(key="desk_datebar").columns(
+        [0.42, 1.85, 0.42, 2.35, 1.4, 1.05], vertical_alignment="center")
+    p1.button("‹", key="home_prev", on_click=_home_day_set, args=(_off - 1,),
+              use_container_width=True)
+    _tag = ('<span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;'
+            'background:#F5C518;color:#14171C;font-weight:800;padding:2px 9px;'
+            'border-radius:5px;margin-right:12px;vertical-align:2px">Today</span>'
+            if _day == _today else "")
+    p2.markdown(f'<div class="dk-vc" style="text-align:center;font-family:var(--basis-mono,monospace);'
+                f'font-size:17px;font-weight:600">{_tag}{_day:%a %d %b %Y}</div>',
+                unsafe_allow_html=True)
+    p3.button("›", key="home_next", on_click=_home_day_set, args=(_off + 1,),
+              use_container_width=True)
+    _bits = [f"{dk['total']} events" + (" today" if _day == _today else "")]
+    if _day == _today:
+        _bits.append(f"{dk['ahead']} still ahead")
+        if dk.get("next_txt"):
+            _bits.append(dk["next_txt"])
+    pc.markdown('<div class="dk-s dk-vc" style="text-align:right;letter-spacing:.06em;'
+                'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
+                unsafe_allow_html=True)
+    # Honesty guard (2026-08-21): the status file said "running" for hours after a
+    # server restart killed the driver mid-run. If the status says running but no
+    # run_pull.py process exists, say so instead of showing nothing.
     if IS_ADMIN:
-        st.subheader("Data")
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c4.button("☕  Morning Coffee", use_container_width=True, key="home_mc",
-                  on_click=_go, args=("Morning Coffee",),
-                  help="The morning report — overnight moves, levels and the day ahead.")
-        c5.button("🗞️  Weekly Review", use_container_width=True, key="home_wr",
-                  on_click=_go, args=("Weekly Review",),
-                  help="The Monday wrap — what every module's own thresholds flagged this week, "
-                       "with the technical scorecard folded in.")
+        try:
+            _pstat = json.loads((ROOT / "data" / "snapshot" /
+                                 ".pull_driver_status.json").read_text(encoding="utf-8"))
+        except Exception:
+            _pstat = {}
+        if _pstat.get("outcome") == "running" and not _pull_driver_alive():
+            st.warning("⚠️ **The pull driver was killed mid-run** (status still says "
+                       "'running' but no driver process exists — usually a server "
+                       "restart during a pull). The fetched data may already be safe: "
+                       "if `logs/pull_driver_fetch.log` ends with *BLOOMBERG PHASE "
+                       "COMPLETE*, press **Re-run signals** — do **not** pull again, "
+                       "that would re-spend the day's Bloomberg allowance.")
+
     def _run_ficc_pull():
         # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through
         # run_pull.py — pre-flight probe (a block / logged-out Terminal refuses in
@@ -2432,9 +2811,16 @@ def render_home() -> None:
 
         ph = st.empty()
         t0 = time.time()
-        proc = subprocess.Popen([sys.executable, "-u", str(ROOT / "run_pull.py")],
-                                cwd=str(ROOT), stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, text=True)
+        # DETACHED, console output to a file — never pipes (2026-08-21: a server
+        # restart mid-pull broke the driver's stdout pipe and killed it right
+        # after a perfect fetch; detached + file logging means a bounce, keeper
+        # respawn or crashed session can no longer take a running pull with it)
+        _con = (ROOT / "logs" / "pull_driver_console.log").open("w", encoding="utf-8")
+        proc = subprocess.Popen(
+            [sys.executable, "-u", str(ROOT / "run_pull.py")], cwd=str(ROOT),
+            stdout=_con, stderr=subprocess.STDOUT,
+            creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP
+                           | subprocess.DETACHED_PROCESS))
         _msgs = {
             "running": "⏳ **Pulling** — {el:.1f} min elapsed (fetch + maths; ~10–15 min "
                        "healthy). Self-healing: a stalled fetch is killed after ~8 quiet "
@@ -2447,7 +2833,7 @@ def render_home() -> None:
             el = (time.time() - t0) / 60
             ph.info(_msgs.get(_dstat().get("outcome"), _msgs["running"]).format(el=el))
             time.sleep(5)
-        proc.communicate()
+        _con.close()
         ph.empty()
         stat = _dstat()
         outcome, detail = stat.get("outcome"), stat.get("detail", "")
@@ -2491,7 +2877,7 @@ def render_home() -> None:
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
     # with the old row faded beneath it for the whole computation.
-    if IS_ADMIN and c1.button("📥 Pull Bloomberg Snapshot", use_container_width=True, key="home_pull",
+    if IS_ADMIN and c1.button("Pull Bloomberg snapshot", use_container_width=True, key="home_pull",
                  help="Two phases: the Terminal is only needed for the FETCH (~3–5 min) — "
                       "the banner tells you when you can close it — then the maths (own-vol "
                       "curve, COT, signals) runs Terminal-free. Equities have their own pull "
@@ -2511,7 +2897,7 @@ def render_home() -> None:
             st.session_state["ficc_pull_confirm"] = _pw
         else:
             st.session_state["ficc_pull_go"] = True
-    if IS_ADMIN and c2.button("🔁 Re-run signals", use_container_width=True, key="home_rerun",
+    if IS_ADMIN and c2.button("Re-run signals", use_container_width=True, key="home_rerun",
                  help="Recompute all strategies from the current data — instant in snapshot mode."):
         st.session_state["rerun_signals_go"] = True
     if IS_ADMIN and st.session_state.get("ficc_pull_confirm"):
@@ -2535,27 +2921,39 @@ def render_home() -> None:
         with st.spinner("Recomputing all signals…"):
             run_daily.run()
         load_signals.clear(); st.rerun()
-    if IS_ADMIN and c3.button("⬇️  Export snapshot to Excel", use_container_width=True,
-                              key="home_excel",
-                              disabled=not (SNAPSHOT_DIR / "prices.parquet").exists()):
-        with st.spinner("Building workbook…"):
-            with tempfile.TemporaryDirectory() as tmp:
-                xlsx = Path(tmp) / "snapshot.xlsx"
-                res = subprocess.run([sys.executable, str(SNAPSHOT_CLI), "--excel", str(xlsx)],
-                                     cwd=str(ROOT), capture_output=True, text=True)
-                ok = res.returncode == 0 and xlsx.exists()
-                st.session_state["snap_xlsx"] = xlsx.read_bytes() if ok else None
-        if not st.session_state.get("snap_xlsx"):
-            st.error("Excel export failed:\n\n" + (res.stderr or res.stdout or "no output"))
-    if IS_ADMIN and st.session_state.get("snap_xlsx"):
-        st.download_button("Download snapshot.xlsx", data=st.session_state["snap_xlsx"],
-                           file_name="bloomberg_snapshot.xlsx", use_container_width=True,
-                           key="home_xlsx_dl",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    st.divider()
-    _overnight_moves(snap)
-    _econ_figures()
+    # (Excel export + Weekly Review buttons and the old banners removed in the
+    #  2026-08-20 redesign per Ben — Excel lives on via `snapshot.py --excel`.)
+
+    # ── My Day beside the FICC day timeline ──
+    _cl, _cr = st.columns([0.82, 1])
+    with _cl:
+        _myday_card()
+    with _cr:
+        st.markdown('<div class="dk-card" style="min-height:352px"><div class="dk-h">'
+                    '<span class="dk-t">FICC</span>'
+                    '<span class="dk-s">Prints, decisions &amp; expiries</span>'
+                    '</div>' + dk["html"] + '</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dk-legend">'
+                '<span><span class="bar" style="background:#F5C518"></span>Expiry</span>'
+                '<span><span class="bar" style="background:#7FB3F5"></span>Print · decision</span>'
+                '<span>Past events dimmed · gold line = now</span>'
+                '<span>My Day tasks are per-seat · click a task to mark done</span>'
+                '<span>Times in ET, local beneath</span></div>', unsafe_allow_html=True)
+
+    # ── Hot Sheet top-10 ──
+    _hotsheet_top10_card()
+
+    # ── Morning Coffee: synopsis (left) + headlines (right) ──
+    _bl, _br = st.columns(2)
+    with _bl:
+        _mc_synopsis_card()
+    with _br:
+        _mc_card()
+
+    # ── heatmap, then sectors & products as the very last card (Ben, 2026-08-21) ──
     _home_heatmap()
+    with st.container(key="dkcard_sectors"):
+        render_sector_filter()
 
 
 # ── EQUITIES side ─────────────────────────────────────────────────────────────
@@ -2571,8 +2969,9 @@ def _eq_movers(index_keys: tuple):
     return equities.movers_frame(list(index_keys), universe=_eq_universe())
 
 
-def _equities_overnight_moves(index_keys, snap) -> None:
-    st.subheader("Overnight moves")
+def _equities_overnight_moves(index_keys, snap, show_header: bool = True) -> None:
+    if show_header:
+        st.subheader("Overnight moves")
     f = _eq_movers(tuple(index_keys))
     f = f.dropna(subset=["pct"]) if not f.empty else f
     if f.empty:
@@ -2650,9 +3049,10 @@ def _eq_recent_actions(index_keys: tuple, n_names: int = 30, days: int = 60):
         return pd.DataFrame(), {}
 
 
-def _eq_rating_actions(index_keys) -> None:
+def _eq_rating_actions(index_keys, show_header: bool = True) -> None:
     """The Equities home's rating-actions strip: who changed their view on the names in view."""
-    st.subheader("Recent rating actions")
+    if show_header:
+        st.subheader("Recent rating actions")
     with st.spinner("Checking the analyst feed…"):
         feed, cov = _eq_recent_actions(tuple(index_keys))
     scope = (f"the {cov.get('asked', 0)} biggest overnight movers among the **US-listed** names "
@@ -2845,27 +3245,75 @@ def _eq_autopull_control(col) -> None:
                      "Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
 
 
+def _eq_home_day_set(off: int) -> None:
+    st.session_state["eq_home_day"] = off
+
+
 def render_equities_home() -> None:
+    """Equities desk overview — the FICC desk-home design cloned (Ben, 2026-08-21):
+    date bar with the data pills, My Day beside the earnings timeline, the equities
+    Hot Sheet top-10, movers + rating actions, the heatmap, and the indices scope
+    demoted to the bottom card. (The econ-figures strip stays retired — the BASIS
+    landing board owns the day's prints, same call as the FICC redesign.)"""
     snap = _load_snap()
-    # (world clocks moved to the fixed top bar — rendered on every page)
+    _today = datetime.now(ZoneInfo("America/New_York")).date()
+    _base = _today if _today.weekday() < 5 else _add_weekdays(_today, 1)
+    st.session_state.setdefault("eq_home_day", 0)
+    _off = st.session_state["eq_home_day"]
+    _day = _add_weekdays(_base, _off)
+
     _keys = list(equities.INDICES.keys())
-    sel = st.multiselect("Indices to show", _keys, default=list(equities.DEFAULT_INDICES),
-                         key="eq_idx_filter",
-                         help="Scope the movers table and heatmap to these indices. "
-                              "Russell 2000 (~2000 names) is opt-in — add it here when needed.")
-    sel = sel or _keys
-    # Data row is ADMIN-ONLY (view-only colleagues see no pull/refresh controls)
-    if IS_ADMIN:
-        st.subheader("Data")
-        _eq_pull_banner()
-        c0, c1, c2, c3 = st.columns([1.15, 1.55, 1.55, 2.75])
-        _eq_autopull_control(c0)
+    # the indices multiselect renders in the BOTTOM card; read its state up here
+    _sel_state = st.session_state.get("eq_idx_filter")
+    sel = (_sel_state or _keys) if _sel_state is not None else list(equities.DEFAULT_INDICES)
+
+    # today's reporters, with Yahoo's report hour merged in (Bloomberg is date-only)
+    try:
+        eq_ev = [dict(e) for e in _landing_eq_events()]
+    except Exception:
+        eq_ev = []
+    try:
+        _dayrep = tuple(e["bbg"] for e in eq_ev if e.get("bbg") and e["date"] == _day)
+        if _dayrep:
+            _times = _earnings_times(_dayrep)
+            for e in eq_ev:
+                t = _times.get(e.get("bbg"))
+                if t:
+                    e["time"] = t
+    except Exception:
+        pass
+    dk = repcal.desk_day(eq_ev, _day)
+
+    # ── date bar: ‹ Today · date › + reporter counts + the two data actions ──
+    # keyed so the phone CSS can hold ‹ date › on one row (stacked, the arrows
+    # became full-width empty bars around the date — same fix as the landing nav)
+    p1, p2, p3, pc, c1, c2 = st.container(key="desk_datebar").columns(
+        [0.42, 1.85, 0.42, 2.35, 1.4, 1.05], vertical_alignment="center")
+    p1.button("‹", key="eq_home_prev", on_click=_eq_home_day_set, args=(_off - 1,),
+              use_container_width=True)
+    _tag = ('<span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;'
+            'background:#F5C518;color:#14171C;font-weight:800;padding:2px 9px;'
+            'border-radius:5px;margin-right:12px;vertical-align:2px">Today</span>'
+            if _day == _today else "")
+    p2.markdown(f'<div class="dk-vc" style="text-align:center;font-family:var(--basis-mono,monospace);'
+                f'font-size:17px;font-weight:600">{_tag}{_day:%a %d %b %Y}</div>',
+                unsafe_allow_html=True)
+    p3.button("›", key="eq_home_next", on_click=_eq_home_day_set, args=(_off + 1,),
+              use_container_width=True)
+    _bits = [f"{dk['total']} reporters" + (" today" if _day == _today else "")]
+    if _day == _today:
+        _bits.append(f"{dk['ahead']} still ahead")
+        if dk.get("next_txt"):
+            _bits.append(dk["next_txt"])
+    pc.markdown('<div class="dk-s dk-vc" style="text-align:right;letter-spacing:.06em;'
+                'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
+                unsafe_allow_html=True)
     try:                                   # mirror snapshot.py's equities pull switches
         from snapshot import PULL_EQUITY_CONSTITUENTS as _EQ_ON, PULL_FUNDAMENTALS as _EQF_ON
     except Exception:
         _EQ_ON = _EQF_ON = True
     _eq_pull_on = bool(_EQ_ON or _EQF_ON)
-    if IS_ADMIN and c1.button("📥 Pull equities data", use_container_width=True, key="eq_pull",
+    if IS_ADMIN and c1.button("Pull equities data", use_container_width=True, key="eq_pull",
                  disabled=not _eq_pull_on,
                  help=("The Equities side's own data pull — overnight quotes/history and the "
                        "(weekly-guarded) fundamentals refresh come FREE from Yahoo Finance; "
@@ -2901,27 +3349,38 @@ def render_equities_home() -> None:
     if st.session_state.pop("eq_pull_go", False):
         _ph = st.empty()
         _t0 = time.time()
-        proc = subprocess.Popen([sys.executable, str(SNAPSHOT_CLI), "--equities"],
-                                cwd=str(ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                text=True, env={**os.environ, "DATAFEED_MODE": "bloomberg",
-                                                "PYTHONUTF8": "1"})
+        # DETACHED + file logging, same lesson as the FICC driver (2026-08-21):
+        # a server restart mid-pull must never kill the pull through a dead pipe
+        _con = (ROOT / "logs" / "eq_pull_console.log").open("w", encoding="utf-8")
+        proc = subprocess.Popen(
+            [sys.executable, str(SNAPSHOT_CLI), "--equities"], cwd=str(ROOT),
+            stdout=_con, stderr=subprocess.STDOUT,
+            env={**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"},
+            creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP
+                           | subprocess.DETACHED_PROCESS))
         while proc.poll() is None:
             _el = (time.time() - _t0) / 60
             _ph.info(f"⏳ Pulling equities — **{_el:.1f} min elapsed** (typically ~5–7 min for "
                      "the ~2,700-name universe: ETF membership + chunked Yahoo quotes/history, "
                      "plus fundamentals when their cycle is due).")
             time.sleep(5)
-        _out, _err = proc.communicate()
+        _con.close()
         _ph.empty()
         if proc.returncode != 0:
-            st.error("Equities pull failed:\n\n" + (_err or _out or "no output"))
+            try:
+                _tail = (ROOT / "logs" / "eq_pull_console.log").read_text(
+                    encoding="utf-8", errors="replace")[-3000:]
+            except Exception:
+                _tail = "no log"
+            st.error("Equities pull failed — the tail of logs/eq_pull_console.log:")
+            st.code(_tail, language="text")
         else:
             _eq_universe.clear(); _eq_movers.clear(); _eq_heatmap_sections.clear()
             _eqf_frame.clear()
             gitbackup.push_data_async()  # fresh data → GitHub → VPS site within ~15 min
             st.success(f"Equities data refreshed ({(time.time() - _t0) / 60:.1f} min).")
             st.rerun()
-    if IS_ADMIN and c2.button("🔄 Refresh quotes", use_container_width=True, key="eq_refresh",
+    if IS_ADMIN and c2.button("Refresh quotes", use_container_width=True, key="eq_refresh",
                  help="Re-pull the latest closes from Yahoo Finance (free) and rebuild the "
                       "movers table and heatmap. Falls back to the cached quotes offline."):
         _eq_movers.clear(); _eq_heatmap_sections.clear()
@@ -2930,16 +3389,69 @@ def render_equities_home() -> None:
     if IS_ADMIN and st.session_state.pop("eq_refresh_note", False):
         st.info("Quotes refreshed — live Yahoo Finance when reachable, otherwise the cached "
                 "pull (see the source caption).")
-    _n = sum(len(v) for v in _eq_universe().values())
     if IS_ADMIN:
-        c3.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
-               + equities.data_status() + ". Quotes, history and fundamentals ride Yahoo "
-               "Finance free of charge; Bloomberg only refreshes index membership.")
-    st.divider()
-    _equities_overnight_moves(sel, snap)
-    _eq_rating_actions(sel)
-    _econ_figures()
+        _eq_pull_banner()          # live bar while a manual/auto pull runs
+
+    # ── My Day beside the earnings day timeline ──
+    _cl, _cr = st.columns([0.82, 1])
+    with _cl:
+        _myday_card()
+    with _cr:
+        _next = ""
+        if dk["total"] == 0:                      # quiet day → point at the next reporters
+            _fut = [e for e in eq_ev if e["date"] > _day]
+            if _fut:
+                _nd = min(e["date"] for e in _fut)
+                _labs = sorted({e["label"] for e in _fut if e["date"] == _nd})
+                _next = ('<div class="dkl-none">Next: '
+                         + repcal._esc(", ".join(_labs[:4]))
+                         + ("…" if len(_labs) > 4 else "")
+                         + f' · {_nd:%a %d %b}</div>')
+        st.markdown('<div class="dk-card" style="min-height:352px"><div class="dk-h">'
+                    '<span class="dk-t">Equities</span>'
+                    '<span class="dk-s">Earnings reporters</span>'
+                    '</div>' + dk["html"] + _next + '</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dk-legend">'
+                '<span><span class="bar" style="background:#7FB3F5"></span>Earnings report</span>'
+                '<span>Past reporters dimmed · gold line = now</span>'
+                '<span>Times via Yahoo where published, — date-only otherwise</span>'
+                '<span>My Day tasks are per-seat · click a task to mark done</span>'
+                '</div>', unsafe_allow_html=True)
+
+    # ── Hot Sheet top-10 (equities book) ──
+    _hotsheet_top10_card("equities")
+
+    # ── overnight movers (left) + rating actions (right) ──
+    _bl, _br = st.columns(2)
+    with _bl, st.container(key="dkcard_eqmoves"):
+        st.markdown('<div class="dk-h"><span class="dk-t">Overnight movers</span>'
+                    '<span class="dk-s">settlement → latest close · σ-ranked</span></div>',
+                    unsafe_allow_html=True)
+        _equities_overnight_moves(sel, snap, show_header=False)
+    with _br, st.container(key="dkcard_eqrate"):
+        st.markdown('<div class="dk-h"><span class="dk-t">Rating actions</span>'
+                    '<span class="dk-s">upgrades · downgrades · new coverage</span></div>',
+                    unsafe_allow_html=True)
+        _eq_rating_actions(sel, show_header=False)
+
+    # ── heatmap, then the indices scope as the very last card ──
     _equities_heatmap(sel)
+    with st.container(key="dkcard_eqscope"):
+        st.markdown(f'<div class="dk-h"><span class="dk-t">Indices &amp; universe</span>'
+                    f'<span class="dk-s">{len(sel)}/{len(_keys)} indices in view</span></div>',
+                    unsafe_allow_html=True)
+        _mcol, _acol = st.columns([3.2, 1.1], vertical_alignment="center")
+        _mcol.multiselect("Indices to show", _keys, default=list(equities.DEFAULT_INDICES),
+                          key="eq_idx_filter",
+                          help="Scope the movers table and heatmap to these indices. "
+                               "Russell 2000 (~2000 names) is opt-in — add it here when needed.",
+                          label_visibility="collapsed")
+        if IS_ADMIN:
+            _eq_autopull_control(_acol)
+        _n = sum(len(v) for v in _eq_universe().values())
+        st.caption(f"**Universe:** {_n} index constituents across {len(_keys)} indices · "
+                   + equities.data_status() + ". Quotes, history and fundamentals ride Yahoo "
+                   "Finance free of charge; Bloomberg only refreshes index membership.")
 
 
 # ── Company Fundamentals (Equities) ───────────────────────────────────────────
@@ -7223,6 +7735,328 @@ def render_precious_metals() -> None:
             st.image(str(p), use_container_width=True)
     else:
         st.info("No report built yet — use “Rebuild preview” above.")
+
+
+# ── Brazil Production (FICC → Fundamentals) ──────────────────────────────────
+# Two layers per commodity: how much Brazil produces against the world (pulled free
+# from USDA PS&D / EIA, or curated from USGS where no free feed exists), then which
+# companies produce Brazil's share (curated — physical output per company is not in
+# any free feed, and Brazilian producers are not in the equity universe). The company
+# tables state their BASIS on the page because an export or crush share must never be
+# read as a production share. Engine + the honest-data rules: src/brazilprod.py.
+BRAZIL_PDF = ROOT / "reports" / "Brazil_Production.pdf"
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _brazil_store() -> dict:
+    return brazilprod.load_or_build()
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _brazil_quotes(tickers: tuple) -> dict:
+    """{bloomberg ticker: (last, pct)} for the listed producers, off free Yahoo. The
+    B3 lines resolve through yfin's new BZ -> .SA mapping; anything unmappable (the
+    HK and Santiago lines, the private groups) simply comes back empty."""
+    if not tickers:
+        return {}
+    try:
+        from src import yfin
+        q = yfin.get_quotes([f"{t} Equity" for t in tickers])
+    except Exception:
+        return {}
+    out = {}
+    for t in tickers:
+        key = f"{t} Equity"
+        if key in q.index:
+            last, pct = q.loc[key, "last"], q.loc[key, "pct"]
+            if pd.notna(last):
+                out[t] = (float(last), None if pd.isna(pct) else float(pct))
+    return out
+
+
+def _brazil_share_chart(com: dict, cc: dict):
+    """Top producing countries, Brazil in gold and everyone else muted."""
+    import altair as alt
+    rows = com.get("countries") or []
+    if not rows:
+        return None
+    d = pd.DataFrame(rows)
+    # Sorted by size but with the "Other" bucket pinned last — mid-table it reads as
+    # if it were a country.
+    order = (d[~d["is_other"]].sort_values("value", ascending=False)["country"].tolist()
+             + d[d["is_other"]]["country"].tolist())
+    # Three-way colouring needs a scale — alt.condition takes one test, not a chain.
+    d["kind"] = np.where(d["is_brazil"], "Brazil",
+                         np.where(d["is_other"], "Other", "Producer"))
+    return alt.Chart(d).mark_bar().encode(
+        x=alt.X("value:Q", title=f"{com['year_label']} production ({com['unit']})"),
+        y=alt.Y("country:N", title=None, sort=order),
+        color=alt.Color("kind:N", legend=None,
+                        scale=alt.Scale(domain=["Brazil", "Producer", "Other"],
+                                        range=[cc["accent"], cc["series"], cc["muted"]])),
+        opacity=alt.condition("datum.is_brazil", alt.value(1.0), alt.value(0.55)),
+        tooltip=[alt.Tooltip("country:N", title="Country"),
+                 alt.Tooltip("value:Q", title=f"Production ({com['unit']})", format=",.2f"),
+                 alt.Tooltip("share:Q", title="Share of world", format=".2f")],
+    ).properties(height=max(220, 26 * len(d)))
+
+
+def _brazil_history_chart(com: dict, cc: dict):
+    """Brazil's share of world production over time — the 'is this gaining or
+    losing ground?' read. Only the PS&D and EIA sources carry history."""
+    import altair as alt
+    hist = com.get("history") or []
+    if len(hist) < 3:
+        return None
+    d = pd.DataFrame(hist)
+    line = alt.Chart(d).mark_line(color=cc["accent"], strokeWidth=2.4).encode(
+        x=alt.X("year:O", title=None,
+                axis=alt.Axis(values=[y for y in d["year"] if y % 5 == 0])),
+        y=alt.Y("share:Q", title="Brazil's share of world (%)",
+                scale=alt.Scale(zero=False, nice=True)),
+        tooltip=[alt.Tooltip("year:O", title="Year"),
+                 alt.Tooltip("brazil:Q", title=f"Brazil ({com['unit']})", format=",.2f"),
+                 alt.Tooltip("world:Q", title=f"World ({com['unit']})", format=",.2f"),
+                 alt.Tooltip("share:Q", title="Share", format=".2f")])
+    return line.properties(height=230)
+
+
+def _brazil_company_chart(blk: dict, cc: dict):
+    import altair as alt
+    rows = [r for r in blk["rows"]]
+    if not rows:
+        return None
+    d = pd.DataFrame(rows)
+    order = d["company"].tolist()          # already sorted: companies, artisanal, Other
+    # Three-way: companies in gold, a non-corporate producer (garimpo) in blue so it can
+    # never be mistaken for a company, the Other bucket muted.
+    d["kind_lbl"] = np.where(d.get("is_artisanal", False), "Not a company",
+                             np.where(d["is_other"], "Other", "Company"))
+    return alt.Chart(d).mark_bar().encode(
+        x=alt.X("share_brazil:Q", title=blk.get("axis_label") or "share of Brazil (%)"),
+        y=alt.Y("company:N", title=None, sort=order),
+        color=alt.Color("kind_lbl:N", legend=None,
+                        scale=alt.Scale(domain=["Company", "Not a company", "Other"],
+                                        range=[cc["accent"], cc["series"], cc["muted"]])),
+        opacity=alt.condition("datum.is_other", alt.value(0.45), alt.value(0.9)),
+        tooltip=[alt.Tooltip("company:N", title="Company"),
+                 alt.Tooltip("volume:Q", title=f"Volume ({blk['unit']})", format=",.2f"),
+                 alt.Tooltip("share_brazil:Q", title="Share of Brazil", format=".2f"),
+                 alt.Tooltip("share_world:Q", title="Share of WORLD", format=".2f")],
+    ).properties(height=max(200, 27 * len(d)))
+
+
+def render_brazil_production() -> None:
+    import altair as alt
+    st.subheader("🇧🇷 Brazil Production")
+    st.caption("What Brazil produces, how much of the world's supply that is, who else "
+               "produces it — and which companies produce Brazil's share. Country data is "
+               "free and refreshes with the daily pull (USDA PS&D, EIA); the metals, pulp "
+               "and company tables are hand-maintained, and every company block states what "
+               "it actually measures.")
+
+    store = _brazil_store()
+    coms = store.get("commodities") or {}
+    if not coms:
+        st.warning("No Brazil production store yet — run the daily pull, or use “Rebuild now” below.")
+
+    cc = brand.chart_colors()
+    b1, b2, b3 = st.columns(3)
+    b1.metric("Store built", store.get("built") or "—")
+    b2.metric("Commodities", len(coms))
+    b3.metric("Curated tables as of", store.get("curated_as_of") or "—")
+
+    warn = [e for e in (store.get("errors") or []) if e.get("level") == "warning"]
+    hard = [e for e in (store.get("errors") or []) if e.get("level") != "warning"]
+    if hard:
+        st.error("Sources that failed: " + "; ".join(f"**{e['label']}** — {e['error']}" for e in hard))
+    if warn:
+        st.warning("Curated table needs a look: "
+                   + "; ".join(f"**{e['label']}** — {e['error']}" for e in warn))
+
+    a1, a2 = st.columns(2)
+    if IS_ADMIN and a1.button("🔄 Rebuild now", key="brz_rebuild", use_container_width=True,
+                              help="Re-download the USDA PS&D and EIA data and re-read the "
+                                   "curated tables. Normally the daily pull does this."):
+        with st.spinner("Rebuilding Brazil production…"):
+            try:
+                brazilprod.build(force=True)
+                _brazil_store.clear()
+                st.success("Rebuilt.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Rebuild failed — {type(exc).__name__}: {exc}")
+    if coms and a2.button("📈 Generate PDF report", key="brz_pdf_btn", use_container_width=True,
+                          type="primary",
+                          help="A branded client PDF: the ranked share-of-world chart on the front "
+                               "page, then one page per commodity — Brazil's share of world "
+                               "production and, where the industry is concentrated enough to have "
+                               "an answer, which companies produce what share of Brazil's own "
+                               "output. Each page prints what its table measures."):
+        with st.spinner("Building the Brazil Production report…"):
+            try:
+                BRAZIL_PDF.parent.mkdir(parents=True, exist_ok=True)
+                res = subprocess.run(
+                    [sys.executable, str(ROOT / "src" / "brazilreport.py"), str(BRAZIL_PDF)],
+                    capture_output=True, text=True, timeout=600, cwd=str(ROOT))
+                if res.returncode == 0 and BRAZIL_PDF.exists():
+                    st.session_state["brz_pdf_ready"] = True
+                else:
+                    st.error("Report build failed.")
+                    st.code((res.stderr or res.stdout or "")[-3000:])
+            except Exception as exc:
+                st.error(f"Report build failed — {type(exc).__name__}: {exc}")
+    if st.session_state.get("brz_pdf_ready") and BRAZIL_PDF.exists():
+        st.download_button("⬇️  Download Brazil_Production.pdf", data=BRAZIL_PDF.read_bytes(),
+                           file_name=BRAZIL_PDF.name, mime="application/pdf", key="brz_pdf_dl")
+
+    if not coms:
+        return
+
+    # ── 1. the whole book at a glance ────────────────────────────────────────
+    st.divider()
+    st.markdown("#### Where Brazil sits in world supply")
+    head = brazilprod.headline_rows(store)
+    # Clean field names for Vega-Lite — '%' and spaces in a field name are a trap.
+    hd = head.rename(columns={"Commodity": "commodity", "Share %": "share", "Brazil": "brazil",
+                              "World": "world", "Unit": "unit", "Year": "yr", "Rank": "rank"})
+    bars = alt.Chart(hd).mark_bar(color=cc["accent"]).encode(
+        x=alt.X("share:Q", title="Brazil's share of world production (%)"),
+        y=alt.Y("commodity:N", title=None, sort=hd["commodity"].tolist()),
+        tooltip=[alt.Tooltip("commodity:N", title="Commodity"),
+                 alt.Tooltip("yr:N", title="Year"),
+                 alt.Tooltip("brazil:Q", title="Brazil", format=",.2f"),
+                 alt.Tooltip("world:Q", title="World", format=",.2f"),
+                 alt.Tooltip("unit:N", title="Unit"),
+                 alt.Tooltip("share:Q", title="Share of world", format=".1f"),
+                 alt.Tooltip("rank:Q", title="World rank")])
+    brand.show_chart(bars.properties(height=max(280, 26 * len(hd))))
+    st.dataframe(
+        head.assign(**{"Brazil": head["Brazil"].map("{:,.2f}".format),
+                       "World": head["World"].map("{:,.2f}".format),
+                       # spelled out — "Share %" alone never says a share OF WHAT
+                       "% of world production": head["Share %"].map("{:.1f}%".format),
+                       "Rank": head["Rank"].map(lambda r: f"#{int(r)}" if pd.notna(r) else "—"),
+                       "Companies": head["Companies"].map({True: "✓", False: "—"})})
+            [["Commodity", "Group", "Year", "Brazil", "World", "Unit",
+              "% of world production", "Rank", "Companies"]],
+        use_container_width=True, hide_index=True,
+        column_config={
+            "Brazil": st.column_config.TextColumn(help="Brazil's production, in the row's unit."),
+            "World": st.column_config.TextColumn(help="World production, same year and unit."),
+            "% of world production": st.column_config.TextColumn(
+                help="Brazil's production as a percentage of the world's."),
+            "Companies": st.column_config.TextColumn(
+                "Co. table", help="A company-level breakdown exists for this commodity.")})
+    st.caption("**% of world production** is Brazil's production divided by world production in the same year "
+               "and unit. Agricultural years are USDA marketing years, not calendar years, so a "
+               "2025/26 crop and a 2024 mining figure are not the same window — each row states "
+               "its own. **Rank** counts every reporting country.")
+
+    # ── 2. one commodity in depth ───────────────────────────────────────────
+    st.divider()
+    st.markdown("#### A commodity in depth")
+    ordered = [k for g in (store.get("group_order") or [])
+               for k in sorted(coms, key=lambda x: -coms[x]["share"]) if coms[k]["group"] == g]
+    labels = {k: f"{coms[k]['icon']} {coms[k]['label']}  ·  {coms[k]['group']}" for k in ordered}
+    pick = st.selectbox("Commodity", ordered, format_func=lambda k: labels[k], key="brz_pick")
+    com = coms[pick]
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(f"Brazil produces ({com['unit']})", f"{com['brazil']:,.2f}")
+    m2.metric(f"World produces ({com['unit']})", f"{com['world']:,.2f}")
+    m3.metric("Brazil's share", f"{com['share']:.1f}%")
+    m4.metric("World rank", f"#{com['rank']}" if com.get("rank") else "—",
+              help=f"Out of {com['n_producers']} reporting producers.")
+
+    hist = _brazil_history_chart(com, cc)
+    if hist is not None:
+        cl, cr = st.columns([3, 2])
+        with cl:
+            st.markdown("**Who produces it** &nbsp;·&nbsp; Brazil in gold")
+            ch = _brazil_share_chart(com, cc)
+            if ch is not None:
+                brand.show_chart(ch)
+        with cr:
+            st.markdown("**Brazil's share over time**")
+            brand.show_chart(hist)
+    else:
+        st.markdown("**Who produces it** &nbsp;·&nbsp; Brazil in gold")
+        ch = _brazil_share_chart(com, cc)
+        if ch is not None:
+            brand.show_chart(ch)
+
+    src_bits = [f"Source: **{com['source_label']}**", f"year **{com['year_label']}**"]
+    if com["src"] == "curated":
+        src_bits.append("hand-maintained — refreshed annually, no free machine-readable feed exists")
+    st.caption(" · ".join(src_bits) + ".")
+    if com.get("note"):
+        st.info(com["note"])
+
+    # ── 3. who inside Brazil produces it ────────────────────────────────────
+    st.divider()
+    blk = com.get("companies")
+    st.markdown(f"#### Who produces Brazil's {com['label'].lower()}")
+    if not blk:
+        st.info(f"No company table for {com['label'].lower()}. "
+                + ("Brazilian output here is spread across many private operators with no "
+                   "published company-level split worth charting."
+                   if com["src"] == "curated" else
+                   "Add one to `data/brazil_curated.json` under `companies` and it appears here."))
+        return
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Measures", blk["basis_label"], help=blk["basis_note"])
+    c2.metric("Data quality", blk["confidence_label"], help=blk["confidence_note"])
+    c3.metric("Named companies cover", f"{blk['named_share']:.0f}%",
+              help="Share of Brazil's total accounted for by the named companies; the "
+                   "remainder sits in the 'Other' bucket"
+                   + (" and in non-corporate production." if blk.get("has_artisanal") else "."))
+    if blk.get("has_artisanal"):
+        st.warning(f"**{blk['artisanal_share']:.0f}% of Brazil's {com['label'].lower()} has no "
+                   f"corporate producer.** That line is shown in blue on the chart below and is "
+                   f"counted in the totals, but it is not a company — which is why this table's "
+                   f"first column reads *Producer*, not *Company*.")
+
+    if blk["basis"] == "export":
+        st.warning(f"**This is an export share, not a production share.** {blk['note']}")
+    elif blk.get("note"):
+        st.info(blk["note"])
+    if blk["confidence"] == "estimate":
+        st.caption("⚠️ These are desk estimates assembled from company disclosures and sector "
+                   "bodies — sound enough to frame a conversation, but verify a number before "
+                   "it goes in front of a client.")
+
+    ch = _brazil_company_chart(blk, cc)
+    if ch is not None:
+        brand.show_chart(ch)
+
+    quotes = _brazil_quotes(tuple(r["ticker"] for r in blk["rows"] if r.get("ticker")))
+    tbl = pd.DataFrame(blk["rows"])
+    tbl["Last"] = [f"{quotes[t][0]:,.2f}" if t in quotes else "—"
+                   for t in tbl.get("ticker", pd.Series([""] * len(tbl)))]
+    tbl["1d %"] = [("—" if t not in quotes or quotes[t][1] is None else f"{quotes[t][1]:+.2f}")
+                   for t in tbl.get("ticker", pd.Series([""] * len(tbl)))]
+    vol_col = f"Volume ({blk['unit']})"
+    show = tbl.assign(**{
+        vol_col: tbl["volume"].map("{:,.2f}".format),
+        "% of Brazil": tbl["share_brazil"].map("{:.1f}".format),
+        "% of WORLD": tbl["share_world"].map("{:.2f}".format),
+        "Listing": tbl["ticker"].fillna("").replace("", "—"),
+    }).rename(columns={"company": blk.get("entity_label") or "Company"})
+    # A "% of exports"-style block has no volume to show — that column would just
+    # repeat "% of Brazil".
+    cols = [blk.get("entity_label") or "Company"] + ([] if blk.get("unit_is_pct") else [vol_col])
+    st.dataframe(show[cols + ["% of Brazil", "% of WORLD", "Listing", "Last", "1d %"]],
+                 use_container_width=True, hide_index=True)
+
+    foot = [f"**{blk['basis_label']}**, {blk['year']} — {blk['source']}"]
+    if blk.get("coverage_pct") is not None:
+        foot.append(f"the table totals **{blk['coverage_pct']:.0f}%** of Brazil's national figure")
+    st.caption(" · ".join(foot) + ". **% of WORLD** chains each company's share of Brazil through "
+               "Brazil's share of world supply — what the company is worth to global balances. "
+               "Prices are free Yahoo closes for the listed lines (B3 or the ADR); private "
+               "groups, co-operatives and the Hong Kong / Santiago lines show “—”.")
 
 
 def _cal_shift(delta):
@@ -13289,10 +14123,15 @@ with st.sidebar:
     # footer status rows (handoff): SIGNALS · FEED · DATA
     _feed = {"bloomberg": ("BBG live", "#46C58A"),
              "snapshot": ("snapshot", "#F5C518")}.get(MODE, ("demo", "#EC6A57"))
+    _data_s = str((snap or {}).get("as_of", "—"))
+    try:        # ISO -> the same "19 Aug 2026" style as the other footer dates
+        _data_s = datetime.strptime(_data_s[:10], "%Y-%m-%d").strftime("%d %b %Y")
+    except Exception:
+        pass
     brand.sidebar_footer([
         ("signals", _to_et(meta.get("as_of", "n/a")), ""),
         ("feed", _feed[0], _feed[1]),
-        ("data", str((snap or {}).get("as_of", "—")), ""),
+        ("data", _data_s, ""),
     ])
 
 # ----- fixed top bar (same on every page, stays while scrolling): world clocks
@@ -13304,7 +14143,31 @@ if _active_dest in ("Home", "eq:Home", "Landing"):
 else:
     _crumb = f"{_side} desk · {_active_dest.removeprefix('eq:')}"
 with st.container(key="basis_topbar"):
-    brand.masthead(_crumb, toggle=False)          # BASIS on top, clocks underneath
+    # Masthead row: BASIS + crumb left, the SEAT selector right (redesign 2026-08-20:
+    # a "seat" is a person — locally the admin can flip seats to view/assign another
+    # colleague's My Day list; a logged-in VPS session is pinned to its own seat).
+    _mh_l, _mh_r = st.columns([0.78, 0.22], vertical_alignment="center")
+    with _mh_l:
+        brand.masthead(_crumb, toggle=False)      # BASIS on top, clocks underneath
+    with _mh_r:
+        from src import myday as _myday
+        _seats = _myday.seats()
+        if auth.REQUIRE_LOGIN and not IS_ADMIN:
+            _uid = str(CURRENT_USER.get("email") or CURRENT_USER.get("name") or "admin")
+            st.session_state["seat"] = _uid
+        else:
+            with st.container(key="basis_seat"):
+                # the design's pill: gold initials chip · "Name · Desk" · chevron
+                _opts = {f'{s["name"]} · {s["desk"]}': s["id"] for s in _seats}
+                _names = list(_opts)
+                _cur = st.session_state.get("basis_seat_pick") or (_names[0] if _names else "")
+                _init = "".join(w[0] for w in _cur.split("·")[0].replace(".", " ").split()[:2]).upper() or "?"
+                _sc_chip, _sc_sel = st.columns([0.16, 0.84], vertical_alignment="center")
+                _sc_chip.markdown(f'<div class="seat-chip">{_init}</div>', unsafe_allow_html=True)
+                with _sc_sel:
+                    _pick = st.selectbox("Seat", _names, key="basis_seat_pick",
+                                         label_visibility="collapsed")
+                st.session_state["seat"] = _opts.get(_pick, "admin")
     _tb_cl, _tb_tg = st.columns([0.94, 0.06], vertical_alignment="center")
     with _tb_cl:
         _world_clocks()
@@ -13437,7 +14300,7 @@ def render_universe():
             st.rerun()
     _uc2.caption(
         "Saving rewrites `data/universe.json` and re-runs every strategy on the new list. "
-        "In **snapshot** mode a brand-new product has no data until you **Pull Bloomberg Snapshot** "
+        "In **snapshot** mode a brand-new product has no data until you **Pull Bloomberg snapshot** "
         "again; regenerate any client reports afterwards to include it."
     )
 
@@ -13555,6 +14418,8 @@ if active == "OPEC Report":
     render_opec(); st.stop()
 if active == "Precious Metals":
     render_precious_metals(); st.stop()
+if active == "Brazil Production":
+    render_brazil_production(); st.stop()
 if active == "Release Calendar":
     render_releases(); st.stop()
 if active == "Recipients":

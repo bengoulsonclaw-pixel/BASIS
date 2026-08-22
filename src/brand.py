@@ -1,4 +1,4 @@
-"""BASIS brand kit for the Strategy Monitor dashboard.
+﻿"""BASIS brand kit for the Strategy Monitor dashboard.
 
 Single source of truth for the rebrand: the colour palettes, the inline logo
 (convergence mark + BASIS wordmark), the dark/light theme CSS, and the masthead
@@ -50,36 +50,38 @@ _MONO = "'IBM Plex Mono', Consolas, 'SF Mono', Menlo, monospace"
 # handoff tokens: border=--line, border_soft=--hair, btn_border/faint=--line2/--faint,
 # gold_soft=--goldWash, label_ring=--goldLine. On LIGHT, gold text/borders darken to
 # #A87A0C (raw #F5C518 fails contrast on white); washes keep the raw gold.
+# 2026-08-20 redesign: the Claude Design tokens — a LIGHTER dark (canvas #1C2026,
+# surfaces #272D36/#303743, bright #414957 borders) that Ben judged far easier to
+# read than the old near-black (#0F1216). Matches .streamlit/config.toml.
 DARK = dict(
     name="dark",
-    canvas="#0F1216", glass="rgba(22,26,32,.85)", surface="#161A20", surface2="#1C212A",
-    border="#232935", border_soft="rgba(255,255,255,.05)",
-    btn="transparent", btn_border="#333B49", btn_hover="#1C212A",
-    btn_gold="rgba(245,197,24,.10)", btn_gold_hover="rgba(245,197,24,.16)",
-    label_ring="rgba(245,197,24,.34)",
-    # Secondary-text floors RAISED 2026-08-15 (Ben: "barely readable... across the
-    # entire app") — was text_dim/caption #C3CAD3, faint #9AA4B0, tagline #8A94A1.
-    # Never re-dim below these.
-    text="#E7EAEE", text_dim="#CDD3DB", caption="#CDD3DB", faint="#AEB7C2",
-    sidebar="#0A0C10",
-    gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.10)",
-    bracket="#9FA9B5", tagline="#9FA9B5",
-    cal_ink="#B6BFC9", cal_ink_strong="#E7EAEE",
+    canvas="#1C2026", glass="rgba(39,45,54,.85)", surface="#272D36", surface2="#303743",
+    border="#414957", border_soft="rgba(255,255,255,.07)",
+    btn="transparent", btn_border="#414957", btn_hover="#303743",
+    btn_gold="rgba(245,197,24,.14)", btn_gold_hover="rgba(245,197,24,.22)",
+    label_ring="rgba(245,197,24,.40)",
+    text="#ECEEF1", text_dim="#CBD0D7", caption="#CBD0D7", faint="#9BA1A9",
+    sidebar="#14171C",
+    gold="#F5C518", gold_deep="#D9971C", gold_soft="rgba(245,197,24,.14)",
+    bracket="#9BA1A9", tagline="#9BA1A9",
+    blue="#5B9BF0", blue_bright="#A6C6F7", green="#46C58A", red="#EC6A57",
+    cal_ink="#9BA1A9", cal_ink_strong="#ECEEF1",
     word=(("0", "#EEF0F3"), ("0.46", "#C0C5CC"), ("0.70", "#CBA53C"), ("1", "#F4CC3A")),
 )
 LIGHT = dict(
     name="light",
-    canvas="#EDF0F3", glass="rgba(255,255,255,.85)", surface="#FFFFFF", surface2="#F4F6F9",
-    border="#D2D7DE", border_soft="rgba(0,0,0,.07)",
-    btn="transparent", btn_border="#BEC5CE", btn_hover="#F4F6F9",
-    btn_gold="rgba(245,197,24,.16)", btn_gold_hover="rgba(245,197,24,.24)",
+    canvas="#E3E6EB", glass="rgba(255,255,255,.85)", surface="#FFFFFF", surface2="#EFF1F5",
+    border="#C3C9D2", border_soft="rgba(0,0,0,.09)",
+    btn="transparent", btn_border="#C3C9D2", btn_hover="#EFF1F5",
+    btn_gold="rgba(200,144,26,.13)", btn_gold_hover="rgba(200,144,26,.22)",
     label_ring="rgba(168,122,12,.38)",
-    text="#12161B", text_dim="#3F4854", caption="#3F4854", faint="#5B6570",
-    sidebar="#E4E8EC",
-    gold="#A87A0C", gold_deep="#8A6208", gold_soft="rgba(245,197,24,.16)",
-    bracket="#6A737E", tagline="#6A737E",
-    cal_ink="#4A545F", cal_ink_strong="#12161B",
-    word=(("0", "#12161B"), ("0.58", "#12161B"), ("0.73", "#8A6208"), ("1", "#A87A0C")),
+    text="#1A1A1A", text_dim="#3A3D42", caption="#3A3D42", faint="#5A6069",
+    sidebar="#D7DBE2",
+    gold="#C8901A", gold_deep="#8A6208", gold_soft="rgba(200,144,26,.13)",
+    bracket="#5A6069", tagline="#5A6069",
+    blue="#1F5FA8", blue_bright="#1F5FA8", green="#1F7A44", red="#C62828",
+    cal_ink="#5A6069", cal_ink_strong="#1A1A1A",
+    word=(("0", "#1A1A1A"), ("0.58", "#3A3D42"), ("0.73", "#8A6208"), ("1", "#C8901A")),
 )
 PALETTES = {"dark": DARK, "light": LIGHT}
 
@@ -244,11 +246,20 @@ _CSS = Template("""
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 :root { --basis-gold:$gold; --basis-gold-deep:$gold_deep;
         --basis-cal-ink:$cal_ink; --basis-cal-ink-strong:$cal_ink_strong;
+        --basis-text:$text;
         --basis-mono:'IBM Plex Mono', Consolas, 'SF Mono', Menlo, monospace; }
 
 /* terminal geometry: sharp corners everywhere — separation comes from borders and
    surface steps, never radius or shadows (design_kit/handoff/README.md). */
-*, *::before, *::after { border-radius:0 !important; }
+/* 2026-08-20 redesign: rounded corners per the Claude Design language (Ben) —
+   replaces the old radius:0-everything terminal flattener. Streamlit's own
+   ~8px defaults come back for widgets; cards get the design's 12px. */
+button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
+    border-radius:8px !important; }
+input, textarea, [data-baseweb="input"], [data-baseweb="select"] > div {
+    border-radius:6px !important; }
+[data-baseweb="tag"] { border-radius:6px !important; }
+div[class*="st-key-dkcard"], .dk-card { border-radius:12px !important; }
 
 html, body, .stApp, [data-testid="stAppViewContainer"],
 [data-testid="stMain"], [data-testid="stBottom"] {
@@ -347,7 +358,26 @@ div.st-key-basis_scroll_top,
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] { gap:.3rem; }
 /* padding, NOT margin: .bt-sect margins collapse out of the markdown container
    (14px box around 17px text) and the air never materialises */
-[data-testid="stSidebar"] .bt-sect { padding-top:.55rem; padding-bottom:.25rem; }
+/* design reference (2026-08-20): ~8px of clear air under a section label, ~15px
+   above the next section. The .bt-sect div's own margins/padding OVERFLOW its
+   markdown wrapper (the wrapper stays at bare text height), so the label was
+   physically overlapping the row beneath it. Zero the div's vertical spacing and
+   put the air on the ELEMENT CONTAINER, which the sidebar's flex layout honours. */
+[data-testid="stSidebar"] .bt-sect {
+    margin-top:0 !important; margin-bottom:0 !important;
+    padding-top:0; padding-bottom:0; }
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.bt-sect) {
+    margin-top:.75rem; margin-bottom:.3rem; }
+.st-key-basis_sidebar_sticky [data-testid="stElementContainer"]:has(.bt-sect) {
+    margin-top:.35rem; }
+/* Streamlit puts margin-bottom:-1rem on stMarkdownContainer to cancel the last
+   markdown <p>'s bottom margin. Our labels/chips are bare <div>s with NO such
+   margin, so the -14px swallowed real height and the text overflowed onto the
+   row below (the DESK-on-FICC overlap). Cancel the cancel for bare-div markup. */
+[data-testid="stMarkdownContainer"]:has(> .bt-sect),
+[data-testid="stMarkdownContainer"]:has(> .seat-chip),
+[data-testid="stMarkdownContainer"]:has(> .hsr),
+[data-testid="stMarkdownContainer"]:has(> .dk-vc) { margin-bottom:0 !important; }
 /* sidebar nav rows (handoff): flat text rows, not buttons. Normal case, left-aligned;
    hover = surface step; ACTIVE (Streamlit type=primary) = surface2 fill + inset 2px
    gold left rule. Overrides the global uppercase/bordered button treatment. */
@@ -527,7 +557,9 @@ code, pre, kbd { background:$surface2; color:$text; }
 
 /* masthead */
 .basis-masthead { display:flex; align-items:center; gap:1rem; }
-.basis-tag { color:$tagline; font-size:.66rem; letter-spacing:.34em; font-weight:600;
+/* design: strapline in blue — LIGHTENED for dark mode (Ben 2026-08-20: the design's
+   #5B9BF0 at 9px caps was unreadable on the sidebar; light mode keeps its deep blue) */
+.basis-tag { color:$blue_bright; font-size:.74rem; letter-spacing:.34em; font-weight:600;
              text-transform:uppercase; white-space:nowrap; }
 /* the stacked BASIS+tagline lockup is rendered inline in header_svg(tagline=True) */
 .basis-rule { height:1px; border:0; margin:.5rem 0 1.05rem; background:$border; }
@@ -576,6 +608,16 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
     background:$surface; border-bottom:1px solid $border;
 }
 .st-key-basis_masthead { padding:.65rem 1.2rem .6rem; }
+/* the masthead shares its topbar row with the (shorter) seat selector column; its
+   column's vertical block has flex-basis:0% + min-height:0, so it reported ~zero
+   natural height — the row sized itself to the SEAT column and crushed the masthead
+   until BASIS ran into the row's bottom border. Floor every link of the wrapper
+   chain at its real content height so the row grows to fit the wordmark. */
+div.st-key-basis_masthead { flex:0 0 auto !important; min-height:58px; }
+[data-testid="stLayoutWrapper"]:has(> .st-key-basis_masthead) {
+    flex-shrink:0; min-height:max-content; }
+[data-testid="stVerticalBlock"]:has(> [data-testid="stLayoutWrapper"] > .st-key-basis_masthead) {
+    min-height:max-content; }
 .bt-mast { display:flex; align-items:center; gap:14px; min-height:40px; }
 .bt-word {
     font-weight:700; font-size:2.2rem; letter-spacing:.11em; line-height:1.05;
@@ -596,6 +638,185 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
 .st-key-basis_theme_toggle button {
     width:34px !important; min-width:34px; height:34px; min-height:34px; padding:0;
     display:flex; align-items:center; justify-content:center;   /* sharp corners: matches the app's other buttons */
+}
+
+/* ── desk-home cards (2026-08-20 redesign): rounded surfaces, hairline headers ── */
+div[class*="st-key-dkcard"] {
+    background:$surface; border:1px solid $border; border-radius:12px;
+    padding:0 14px .55rem; overflow:hidden;     /* side padding for the WIDGETS */
+}
+div[class*="st-key-dkcard"] .dk-h { margin:0 -14px; }   /* headers stay full-bleed */
+/* air between a keyed card's header rule and its first widget row (Ben: the My Day
+   inputs sat straight on the line) */
+div[class*="st-key-dkcard"] > [data-testid="stElementContainer"]:has([data-testid="stMarkdown"] .dk-h) {
+    margin-bottom:.5rem; }
+/* the My Day / desk-timeline pair share a floor height so the row reads level */
+div[class*="st-key-dkcard_myday"] { min-height:352px; }
+div[class*="st-key-dkcard"] > div[data-testid="stVerticalBlock"] { gap:.3rem; }
+.dk-card { background:$surface; border:1px solid $border; border-radius:12px; overflow:hidden; }
+/* equal-height card rows (design): stretch every card in a columns row to the
+   tallest sibling — the chain of Streamlit wrappers each needs to pass height. */
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) { align-items:stretch !important; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) > [data-testid="stColumn"] {
+    display:flex; flex-direction:column; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) > [data-testid="stColumn"]
+    > [data-testid="stVerticalBlock"] { flex:1 1 auto; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) [data-testid="stColumn"]
+    [data-testid="stLayoutWrapper"]:has(> div[class*="st-key-dkcard"]) { flex:1 1 auto; display:flex; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard"]) [data-testid="stColumn"]
+    div[class*="st-key-dkcard"] { flex:1 1 auto; }
+/* sectors & products card (design): one wrapping row of 6px chips — the keyed
+   container's vertical block flips to a row, each button shrinks to content;
+   active chips get the gold primary treatment from the global button rules */
+div[class*="st-key-sf_chiprow"] {
+    flex-direction:row !important; flex-wrap:wrap; gap:7px !important; align-items:center; }
+div[class*="st-key-sf_chiprow"] [data-testid="stElementContainer"],
+div[class*="st-key-sf_chiprow"] [data-testid="stLayoutWrapper"],
+div[class*="st-key-sf_chiprow"] .stButton { width:auto !important; flex:0 0 auto; }
+div[class*="st-key-sf_chiprow"] button {
+    min-height:0 !important; height:auto !important; padding:4px 10px !important;
+    border-radius:6px !important; white-space:nowrap; }
+div[class*="st-key-sf_chiprow"] button p {
+    font-size:10.5px !important; letter-spacing:.07em !important; line-height:1.3 !important; }
+/* the drill-down pills echo the chip language */
+div[class*="st-key-dkcard_sectors"] [data-testid="stPills"] button {
+    border-radius:6px !important; min-height:0 !important; padding:2px 9px !important; }
+/* Morning Coffee headlines card (design): the Run report pill floats in the header
+   band; the footer strip carries the sources roll-call + a gold text-link */
+div[class*="st-key-dkcard_mc"] { position:relative; }
+div.st-key-home_mc_run, [data-testid="stElementContainer"].st-key-home_mc_run {
+    position:absolute; top:7px; right:14px; width:auto !important; z-index:5;
+    margin:0 !important; }
+div.st-key-home_mc_run button {
+    background:$btn_gold !important; border:1px solid rgba(245,197,24,.55) !important;
+    min-height:0 !important; padding:3px 12px !important; border-radius:8px !important; }
+div.st-key-home_mc_run button p {
+    color:$gold !important; font-size:12px !important; font-weight:600;
+    text-transform:none !important; letter-spacing:0 !important; }
+div[class*="st-key-mc_footer"] {
+    border-top:1px solid $border; margin-top:.3rem; padding-top:.45rem; }
+.mc-foot { font-size:11.5px; color:$caption; line-height:1.5;
+           white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+div[class*="st-key-mc_footer"] button p { white-space:nowrap; }
+/* Hot Sheet card rows (keyed container so each row carries its jump button):
+   tight vertical rhythm, compact square → buttons like the module page */
+div[class*="st-key-dkcard_hotsheet"] { gap:.05rem !important; }
+div[class*="st-key-dkcard_hotsheet"] [data-testid="stHorizontalBlock"] { gap:.45rem; }
+div[class*="st-key-dkcard_hotsheet"] .stButton button {
+    min-height:1.7rem !important; padding:2px 9px !important; }
+div[class*="st-key-home_open_hs"] button { min-height:2rem !important; }
+/* My Day reflows by ITS OWN width (container query), not the viewport: in a
+   narrow window the landing's three-card row squeezed it to ~215px and the
+   add-row inputs + TODAY / ALL DATES wrapped into vertical letter stacks
+   (PWA capture, 2026-08-22). Under 470px the text box takes the full first
+   line and date · time · Add share the second; filters never wrap. */
+div[class*="st-key-dkcard_myday"] { container-type:inline-size; }
+div[class*="st-key-md_filters"] button p, div[class*="st-key-md_add"] button p { white-space:nowrap; }
+@container (max-width: 470px) {
+    div[class*="st-key-dkcard_myday"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stTextInput"]) {
+        flex-wrap:wrap !important; gap:.4rem !important; }
+    div[class*="st-key-dkcard_myday"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stTextInput"])
+        > [data-testid="stColumn"]:nth-child(1) { flex:1 1 100% !important; width:100% !important; }
+    div[class*="st-key-dkcard_myday"] [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stTextInput"])
+        > [data-testid="stColumn"]:nth-child(n+2) {
+        flex:1 1 28% !important; width:auto !important; min-width:84px !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stHorizontalBlock"],
+    div[class*="st-key-mdrowu_"] [data-testid="stHorizontalBlock"],
+    div[class*="st-key-md_filters"] [data-testid="stHorizontalBlock"] {
+        flex-wrap:nowrap !important; gap:.4rem !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(1),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(1) {
+        flex:0 0 66px !important; width:66px !important; min-width:66px !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(2),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 0 !important; width:auto !important; min-width:0 !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(3),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(3) {
+        flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
+    div[class*="st-key-md_filters"] [data-testid="stColumn"]:nth-child(-n+2) {
+        flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
+    div[class*="st-key-md_filters"] [data-testid="stColumn"]:nth-child(3) { display:none !important; }
+}
+/* My Day rows: coloured left rule — gold = dated (shows only that day),
+   blue = undated standing task (recurs every day until done) */
+div[class*="st-key-mdrowd_"], div[class*="st-key-mdrowu_"] {
+    border-left:3px solid #F5C518; padding:5px 8px 5px 10px;
+    background:$surface2; border-radius:0 8px 8px 0; }
+div[class*="st-key-mdrowu_"] { border-left-color:#7FB3F5; }
+/* the task itself reads as a bold left-aligned label, not a washed-out button
+   (Ben 2026-08-21: "the to do needs to stand out more") */
+[data-testid="stElementContainer"][class*="st-key-md_t_"] button {
+    background:transparent !important; border:none !important; box-shadow:none !important;
+    justify-content:flex-start !important; text-align:left; padding:2px 6px !important; }
+[class*="st-key-md_t_"] button p {
+    font-size:14.5px !important; font-weight:600; color:$text !important;
+    text-transform:none !important; letter-spacing:0 !important; }
+[class*="st-key-md_t_"] button del { color:$caption; font-weight:500; }
+[class*="st-key-md_t_"] button:hover p { color:$gold !important; }
+div[class*="st-key-mc_footer"] button {
+    background:transparent !important; border:none !important; box-shadow:none !important;
+    min-height:0 !important; padding:0 !important; justify-content:flex-end; width:100%; }
+div[class*="st-key-mc_footer"] button p {
+    color:$gold !important; font-size:13px !important; font-weight:600;
+    text-transform:none !important; letter-spacing:0 !important; }
+div[class*="st-key-mc_footer"] button:hover p { text-decoration:underline; }
+/* (pure-HTML .dk-cards rely on matched min-heights instead of flex-stretch —
+   chaining flex through Streamlit's markdown wrappers fed back the column gap
+   and inflated the card by 14px per pass.) */
+/* EXCEPT the My Day | day-timeline pair (Ben 2026-08-21: "in line with one
+   another"): the old feedback loop was the stMarkdownContainer -14px margin,
+   which is cancelled here — so the timeline's markdown wrappers can flex and
+   BOTH cards stretch to the taller sibling, whichever side that is. */
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stElementContainer"]:has(.dk-card),
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stMarkdown"]:has(.dk-card),
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stMarkdown"]:has(.dk-card) > div,
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] [data-testid="stMarkdownContainer"]:has(> .dk-card) {
+    flex:1 1 auto; display:flex; flex-direction:column;
+    margin-bottom:0 !important; min-width:0; }
+[data-testid="stHorizontalBlock"]:has(div[class*="st-key-dkcard_myday"])
+    [data-testid="stColumn"] .dk-card { flex:1 1 auto; }
+.dk-h { display:flex; align-items:baseline; justify-content:space-between;
+        padding:11px 16px; border-bottom:1px solid $border; }
+.dk-t { font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+        color:$text; font-weight:700; }
+.dk-s { font-size:11px; color:$faint; }
+.dk-legend { display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+             margin:9px 2px 4px; font-size:11px; color:$faint; }
+.dk-legend .bar { width:2px; height:12px; display:inline-block; margin-right:6px;
+                  vertical-align:-2px; }
+/* seat selector: the design's pill — gold initials chip + name · desk + chevron
+   in one bordered rounded surface */
+div.st-key-basis_seat {
+    max-width:238px; margin-left:auto; border:1px solid $border; border-radius:8px;
+    background:$surface; padding:3px 4px;
+}
+div.st-key-basis_seat [data-testid="stHorizontalBlock"] { gap:.25rem; align-items:center; }
+div.st-key-basis_seat [data-baseweb="select"] > div {
+    background:transparent !important; border:none !important; min-height:1.7rem;
+}
+.seat-chip {
+    width:24px; height:24px; border-radius:5px; background:$btn_gold;
+    border:1px solid rgba(245,197,24,.55); color:$gold;
+    font-family:var(--basis-mono); font-size:10.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; margin-left:2px;
+}
+/* the date-bar data actions: gold pill for Pull, quiet pill for Re-run (design) */
+div.st-key-home_pull button, div.st-key-eq_pull button {
+    background:$btn_gold !important; border:1px solid rgba(245,197,24,.55) !important;
+}
+div.st-key-home_pull button p, div.st-key-eq_pull button p {
+    color:$gold !important; font-size:12.5px !important; font-weight:600;
+    text-transform:none !important; letter-spacing:0 !important;
+}
+div.st-key-home_rerun button, div.st-key-eq_refresh button {
+    background:$surface2 !important; border:1px solid $btn_border !important;
+}
+div.st-key-home_rerun button p, div.st-key-eq_refresh button p {
+    font-size:12.5px !important; text-transform:none !important; letter-spacing:0 !important;
 }
 
 /* ticker rail */
@@ -696,7 +917,7 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
         padding-left:.75rem !important; padding-right:.75rem !important;
         padding-top:calc(var(--basis-topbar-h, 156px) + 14px);
     }
-    .st-key-basis_masthead { padding:.45rem .7rem .4rem; }
+    .st-key-basis_masthead { padding:.45rem .7rem .4rem; min-height:44px; }
     .bt-mast { gap:10px; min-height:30px; min-width:0; overflow:hidden; }
     /* the open sidebar overlays the page here — it must sit ABOVE the fixed bar */
     [data-testid="stSidebar"] { z-index:999995 !important; }
@@ -712,6 +933,12 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
     div.st-key-basis_topbar [data-testid="stColumn"] { min-width:0 !important; }
     div.st-key-basis_topbar [data-testid="stColumn"]:last-child {
         flex:0 0 40px !important; width:40px !important; min-width:40px !important;
+    }
+    /* phones: the seat picker is a desk action — hide the pill (the seat keeps its
+       session default) so the masthead row can't overflow the 412px viewport, and
+       the 40px last-child rule above stops mangling the masthead row */
+    div.st-key-basis_topbar [data-testid="stColumn"]:has(div.st-key-basis_seat) {
+        display:none !important;
     }
     .st-key-basis_theme_toggle { padding-right:0; }
     .st-key-basis_theme_toggle button {
@@ -734,6 +961,47 @@ div.st-key-basis_topbar [data-testid="stElementContainer"] {
     }
     .st-key-land_nav [data-testid="stColumn"]:nth-child(3) { flex:1 1 auto !important; min-width:0 !important; }
     .land-daytitle { font-size:17px !important; }
+    /* desk-home date bar (FICC / Equities): ‹ date › stay one row, the counts
+       line takes a row of its own, the two data pills share the last row */
+    .st-key-desk_datebar [data-testid="stHorizontalBlock"] { flex-wrap:wrap !important; gap:.4rem !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(1),
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(3) {
+        flex:0 0 44px !important; width:44px !important; min-width:44px !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 0 !important; width:auto !important; min-width:0 !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(4) {
+        flex:0 0 100% !important; width:100% !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(4) .dk-s { text-align:center !important; }
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(5),
+    .st-key-desk_datebar [data-testid="stColumn"]:nth-child(6) {
+        flex:1 1 45% !important; width:auto !important; min-width:0 !important; }
+    .st-key-desk_datebar .dk-vc { font-size:15px !important; }
+    /* My Day on a phone: a task row stays ONE row (time · title · ×) and the
+       Today / All dates filters sit side by side — stacked, each piece became
+       its own full-width band and the legend overflowed the card */
+    div[class*="st-key-mdrowd_"] [data-testid="stHorizontalBlock"],
+    div[class*="st-key-mdrowu_"] [data-testid="stHorizontalBlock"],
+    .st-key-md_filters [data-testid="stHorizontalBlock"] {
+        flex-wrap:nowrap !important; gap:.4rem !important; align-items:center !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(1),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(1) {
+        flex:0 0 66px !important; width:66px !important; min-width:66px !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(2),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 0 !important; width:auto !important; min-width:0 !important; }
+    div[class*="st-key-mdrowd_"] [data-testid="stColumn"]:nth-child(3),
+    div[class*="st-key-mdrowu_"] [data-testid="stColumn"]:nth-child(3) {
+        flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
+    .st-key-md_filters [data-testid="stColumn"]:nth-child(1),
+    .st-key-md_filters [data-testid="stColumn"]:nth-child(2) {
+        flex:0 0 auto !important; width:auto !important; min-width:0 !important; }
+    .st-key-md_filters [data-testid="stColumn"]:nth-child(3) { display:none !important; }
+    /* Hot Sheet card rows: the 4-column grid starved the story at phone width —
+       stack it: # + tag on the first line, story and metric beneath, full width */
+    .hsr { grid-template-columns:34px 1fr !important; row-gap:4px !important; }
+    .hsr .hs-story, .hsr .hs-num { grid-column:1 / -1 !important; }
+    .hsr .hs-num { text-align:left !important; white-space:normal !important; }
+    .hsr-head { display:none !important; }
     /* the roomy desktop caption size costs half a phone screen on the long
        help lines — step it back down (the .95rem rule above is !important) */
     .block-container [data-testid="stCaptionContainer"],

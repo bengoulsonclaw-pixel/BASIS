@@ -201,6 +201,111 @@ WEEK_CSS = """
 """
 
 
+# ── the desk-home day timeline (2026-08-20 redesign) ────────────────────────────
+# One desk's events for one day as a vertical timeline: mono time (ET + local),
+# a coloured left rule (gold = expiry, blue = print/decision), past rows dimmed,
+# and a gold "now" line inserted at the current moment. Pure builder.
+DESK_CSS = """
+<style>
+  .dkl-row { display:grid; grid-template-columns:104px 1fr; gap:12px; padding:10px 16px;
+             border-bottom:1px solid rgba(128,128,128,.14); }
+  /* past rows stay readable — .5 made the morning's events near-invisible (Ben) */
+  .dkl-row.past { opacity:.68; }
+  .dkl-t { text-align:right; font-family:var(--basis-mono, monospace); font-size:12.5px;
+           font-variant-numeric:tabular-nums; color:var(--basis-text, #ECEEF1);
+           line-height:1.4; }
+  .dkl-t .loc { display:block; font-size:10.5px; opacity:.85; }
+  .dkl-t .dy-tl { display:block; font-size:10.5px; opacity:.85; }
+  .dkl-b { border-left:2px solid #7FB3F5; padding-left:10px; }
+  .dkl-b.exp { border-left-color:#F5C518; }
+  /* sizes back to the originals (Ben) — the brighter --basis-text ink is the
+     legibility fix, not bigger type */
+  .dkl-title { font-size:13.5px; color:var(--basis-text, #ECEEF1); }
+  .dkl-det { font-size:11.5px; color:var(--basis-cal-ink, #8a929c); margin-top:2px; }
+  .dkl-star { font-size:10px; background:rgba(245,197,24,.14); color:#F5C518;
+              border-radius:4px; padding:1px 6px; font-weight:700; margin-left:6px; }
+  .dkl-nowrow { display:grid; grid-template-columns:96px 1fr; gap:12px; align-items:center;
+                padding:2px 16px; }
+  .dkl-nowt { text-align:right; font-family:var(--basis-mono, monospace); font-size:10px;
+              color:#F5C518; letter-spacing:.08em; }
+  .dkl-nowt .nowt-et { display:block; }
+  .dkl-nowt .nowt-loc { display:block; font-size:9px; opacity:.8; }
+  .dkl-now { height:1px; background:#F5C518; position:relative; }
+  .dkl-now span { position:absolute; left:0; top:-2.5px; width:5px; height:5px;
+                  border-radius:3px; background:#F5C518; }
+  .dkl-none { font-size:12.5px; opacity:.55; padding:12px 16px; }
+</style>
+"""
+
+
+def _ev_dt(e, day):
+    """The event's aware datetime on `day`, or None when its time is unparseable."""
+    m = _re.match(r"~?(\d{1,2}):(\d{2})\s+(.+)$", e.get("time") or "")
+    if not m:
+        return None
+    tz = _TZMAP.get(m.group(3).strip())
+    if not tz:
+        return None
+    try:
+        return datetime(day.year, day.month, day.day, int(m.group(1)), int(m.group(2)),
+                        tzinfo=ZoneInfo(tz))
+    except Exception:
+        return None
+
+
+def _now_row(now) -> str:
+    """The gold now-line: ET with the machine-local time beneath (suppressed when
+    they match), classed so the world-clock script can tick both LIVE between
+    reruns (Ben, 2026-08-21 — the stamped time went stale within minutes)."""
+    loc = datetime.now().astimezone()
+    loc_line = (f'<span class="nowt-loc">{loc:%H:%M} local</span>'
+                if loc.utcoffset() != now.utcoffset() else "")
+    return (f'<div class="dkl-nowrow"><span class="dkl-nowt">'
+            f'<span class="nowt-et">{now:%H:%M} ET</span>{loc_line}</span>'
+            f'<div class="dkl-now"><span></span></div></div>')
+
+
+def desk_day(events, day) -> dict:
+    """{html, total, ahead, next_txt} — the desk-home day timeline for `day`.
+    Events use the calendar shape; kinds are inferred: labels containing 'expir'
+    rule gold, everything else (prints, decisions, reports) rules blue."""
+    evs = sorted((e for e in events if e["date"] == day),
+                 key=lambda e: _time_key(e, day))
+    now = datetime.now(ZoneInfo("America/New_York"))
+    is_today = day == now.date()
+    rows, ahead, next_dt = [], 0, None
+    now_done = not is_today                      # only today carries a now-line
+    for e in evs:
+        dt = _ev_dt(e, day)
+        past = bool(is_today and dt and dt < now)
+        if dt and not past:
+            ahead += 1
+            if next_dt is None or dt < next_dt:
+                next_dt = dt
+        if not now_done and (dt is None or dt >= now):
+            rows.append(_now_row(now))
+            now_done = True
+        kind = "exp" if "expir" in str(e.get("label", "")).lower() else ""
+        star = '<span class="dkl-star">EMAILS DESK</span>' if e.get("auto") else ""
+        det = _esc(e.get("sub") or e.get("tip") or "")
+        rows.append(
+            f'<div class="dkl-row{" past" if past else ""}">'
+            f'<div class="dkl-t">{_tcell(e, day)}</div>'
+            f'<div class="dkl-b {kind}"><div class="dkl-title">{e.get("icon", "")} '
+            f'{_esc(e.get("label", ""))}{star}</div>'
+            + (f'<div class="dkl-det">{det}</div>' if det else "") + '</div></div>')
+    if not now_done:
+        rows.append(_now_row(now))
+    if not evs:
+        rows = ['<div class="dkl-none">Nothing scheduled for this desk today.</div>']
+    nxt = None
+    if next_dt is not None:
+        mins = int((next_dt - now).total_seconds() // 60)
+        nxt = f"Next in {mins}m" if mins < 95 else f"Next in {mins / 60:.1f}h"
+    return {"html": CSS + DESK_CSS + "".join(rows),
+            "total": len(evs), "ahead": ahead, "next_txt": nxt}
+
+
 # ── the landing page's TODAY board ──────────────────────────────────────────────
 # One day, two desks side by side: FICC (reports + CB decisions, each with its
 # release time, ET) on the LEFT, equities earnings on the RIGHT — Ben, 2026-08-15.
@@ -279,10 +384,24 @@ def _tcell(e, day) -> str:
     return _esc(t) + f'<span class="dy-tl">{approx}{loc:%H:%M} local{suffix}</span>'
 
 
-def _time_key(e) -> tuple:
-    """Sort key: timed events first (by ET clock time), untimed after, then label."""
+def _time_key(e, day=None) -> tuple:
+    """Sort key: timed events first by their TRUE instant (zone-aware — 09:00 CET
+    is 03:00 ET and must sort before 09:30 ET; Ben 2026-08-21), untimed after,
+    then label. Without `day` (or an unknown zone) falls back to naive clock order."""
     m = _re.match(r"~?(\d{1,2}):(\d{2})", e.get("time") or "")
-    return ((0, int(m.group(1)) * 60 + int(m.group(2))) if m else (1, 0), e["label"])
+    if not m:
+        return ((1, 0.0), e["label"])
+    if day is not None:
+        dt = _ev_dt(e, day)
+        if dt is None:
+            try:        # timed but unknown zone — treat the clock as ET
+                dt = datetime(day.year, day.month, day.day, int(m.group(1)),
+                              int(m.group(2)), tzinfo=ZoneInfo("America/New_York"))
+            except Exception:
+                dt = None
+        if dt is not None:
+            return ((0, dt.timestamp()), e["label"])
+    return ((0, float(int(m.group(1)) * 60 + int(m.group(2)))), e["label"])
 
 
 def day_html(ficc_events, eq_events, day, next_ficc=None, next_eq=None) -> str:
@@ -290,7 +409,8 @@ def day_html(ficc_events, eq_events, day, next_ficc=None, next_eq=None) -> str:
     the left, its expected earnings on the right. Same event shape as everywhere.
     next_ficc/next_eq: optional 'Next: …' pointer shown when that panel is empty."""
     def _rows(evs, empty_msg, nxt):
-        evs = sorted((e for e in evs if e["date"] == day), key=_time_key)
+        evs = sorted((e for e in evs if e["date"] == day),
+                     key=lambda e: _time_key(e, day))
         if not evs:
             more = f'<span class="dy-next">{_esc(nxt)}</span>' if nxt else ""
             return f'<div class="dy-none">{empty_msg}{more}</div>'

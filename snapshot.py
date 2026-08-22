@@ -546,6 +546,22 @@ def _compute_phase(include_equities: bool = False) -> dict:
     except Exception as e:
         print(f"  (Seasonality store warm skipped: {e})")
 
+    # Brazil Production store — re-download the USDA PS&D bulk CSVs and the EIA
+    # international series and fold in the curated metals/company tables
+    # (data/signals/brazil_prod.json). Free sources, no Terminal, but a ~40MB
+    # download and a minute of parsing, so it belongs to the daily pull rather
+    # than page-open (app-wide once-a-day rule).
+    try:
+        from src import brazilprod
+        _bz = brazilprod.build(force=True)
+        _err = [e for e in (_bz.get("errors") or []) if e.get("level") != "warning"]
+        print(f"  Brazil production store: {len(_bz.get('commodities') or {})} commodities"
+              + (f", {len(_err)} source failures" if _err else ""))
+        for _e in _err:
+            print(f"    ! {_e['label']}: {_e['error']}")
+    except Exception as e:
+        print(f"  (Brazil production store skipped: {e})")
+
     # Hot Sheet — stamp today's cross-module highlights into the daily history
     # (data/signals/hotsheet_history.parquet: NEW/streak badges + the Weekly Review's
     # week aggregation read it). Runs LAST so it sees everything just refreshed above;

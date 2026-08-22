@@ -42,7 +42,8 @@ with sync_playwright() as p:
         for _ in range(60):                       # tolerate the one-time cookie reload
             try:
                 pg.wait_for_timeout(2000)
-                if pg.evaluate("()=>!!document.querySelector('.daycal')"):
+                # landing board = .dk-card since the 2026-08-21 redesign (.daycal before)
+                if pg.evaluate("()=>!!document.querySelector('.dk-card, .daycal')"):
                     break
             except Exception:
                 pg.wait_for_load_state("load", timeout=60000)

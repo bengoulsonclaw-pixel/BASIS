@@ -60,6 +60,7 @@ _SUFFIX = {
     "JP": ".T", "JT": ".T",        # Tokyo
     "HK": ".HK",                   # Hong Kong
     "AU": ".AX", "AT": ".AX",      # Australia
+    "BZ": ".SA",                   # B3 / Sao Paulo — the Brazil Production page's producers
 }
 
 _INFO_WORKERS = 6                  # parallel Ticker.info pulls — modest, Yahoo throttles bursts

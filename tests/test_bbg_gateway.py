@@ -25,9 +25,12 @@ sys.path.insert(0, str(ROOT))
 # hand with the Terminal up and are not part of any pull pipeline.
 _ADHOC = re.compile(r"^(diag_|probe_|pnl_|check_bloomberg|backfill_)")
 
-# Raw blpapi (not xbbg) is allowed ONLY in the two low-level diagnostics that
-# exist to probe the connection itself (block detection / reachability).
-_BLPAPI_OK = {"app.py", "surface_topup.py"}
+# Raw blpapi (not xbbg) is allowed ONLY in the low-level diagnostics that exist
+# to probe the connection itself (block detection / reachability): app.py's
+# _blp_block_probe, surface_topup.py, and run_pull.py's pre-flight probe (the
+# pull driver refuses to start on a -4002 block or a logged-out Terminal —
+# same role, ~2s, zero data hits; added 2026-08-21).
+_BLPAPI_OK = {"app.py", "surface_topup.py", "run_pull.py"}
 
 
 def _repo_py_files():

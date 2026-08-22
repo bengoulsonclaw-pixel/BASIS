@@ -65,3 +65,8 @@ data/.pm_chrome_profile/
 
 # Local server logs (written by launch_basis.ps1)
 logs/
+
+# runtime locks / guard markers - never version these (a stale lock on main made the VPS think a pull was running)
+data/snapshot/.eq_pull.lock
+data/snapshot/.pull_driver.lock
+data/signal_cache/ledger_guard_*.json
