@@ -93,6 +93,7 @@ FLAGREPORT_CLI = ROOT / "src" / "flagreport.py"
 FLAG_DETAIL_FILE = ROOT / "data" / "signals" / "flag_breakout.parquet"
 CONVREPORT_CLI = ROOT / "src" / "convreport.py"   # the merged "Technical Analysis" report (was the Conviction Screen)
 CURVEREPORT_CLI = ROOT / "src" / "curvereport.py"
+SEASREPORT_CLI = ROOT / "src" / "seasreport.py"     # Seasonality Monitor client PDF (2026-08-22)
 SNAPSHOT_CLI = ROOT / "snapshot.py"
 SNAPSHOT_DIR = ROOT / "data" / "snapshot"
 SNAPSHOT_MANIFEST = SNAPSHOT_DIR / "manifest.json"
@@ -13029,6 +13030,89 @@ def render_seasonality() -> None:
             "years; overlapping echoes collapse to the strongest. **Worst** = the most adverse "
             "single year inside the window — the reminder that even a 9-of-10 pattern has an "
             "exception. Descriptive history, not a signal.")
+
+    # ---- client PDF (2026-08-22: the last module without one) --------------------
+    st.divider()
+    if st.button("📅 Generate Seasonality Report (visual PDF)", type="primary", key="seas_pdf_btn"):
+        with st.spinner("Rendering the Seasonality report…"):
+            try:
+                def _clean(d: dict) -> dict:
+                    return {k: (None if isinstance(v, float) and pd.isna(v) else v)
+                            for k, v in d.items()}
+                # detail panels: the four most seasonal names in the screened month
+                _det = scr.copy()
+                _det["_x"] = (_det["hit"] - 0.5).abs()
+                _det = _det.sort_values(["_x", "med"], key=lambda c: c.abs() if c.name == "med" else c,
+                                        ascending=False).head(4)
+                products = []
+                for _, r in _det.iterrows():
+                    _t = r["ticker"]
+                    _mat, _stats, _meta = seasmon.monthly_matrix(monthly, _t)
+                    if _mat is None:
+                        continue
+                    _spd, _sinfo = seasmon.seasonal_path(weekly, _t)
+                    _bw = _seas_windows(_t, MODE)
+                    products.append({
+                        "ticker": _t, "name": r["name"], "unit": _meta["unit"],
+                        "years": [int(y) for y in _mat.index],
+                        "matrix": [[None if pd.isna(v) else float(v) for v in row]
+                                   for row in _mat.to_numpy()],
+                        "partial": list(_meta["partial"]) if _meta["partial"] else None,
+                        "stats": {str(int(m)): _clean({"med": _stats.loc[m, "med"],
+                                                       "hit": _stats.loc[m, "hit"],
+                                                       "n": int(_stats.loc[m, "n"]),
+                                                       "best": _stats.loc[m, "best"],
+                                                       "worst": _stats.loc[m, "worst"]})
+                                  for m in range(1, 13)},
+                        "path": (None if _spd.empty else {
+                            c: [None if pd.isna(v) else float(v) for v in _spd[c]]
+                            for c in ("woy", "med", "p25", "p75", "current")}),
+                        "path_years": int(_sinfo.get("years", 0)),
+                        "cur_year": _sinfo.get("cur_year"),
+                        "windows": ([] if _bw is None or _bw.empty else
+                                    [_clean(w) for w in _bw.to_dict("records")]),
+                    })
+                try:
+                    # the physical + rate books only, like the spreads page's default:
+                    # index / bond / FX calendars are dividend, carry and roll mechanics
+                    _sp = seasmon.spread_screener_cached()
+                    _sp = _sp[_sp["asset"].isin(("STIRs", "Energy", "Metals", "Agriculture",
+                                                 "Softs"))] if not _sp.empty else _sp
+                    spreads = [_clean(w) for w in _sp.to_dict("records")] if not _sp.empty else []
+                except Exception:
+                    spreads = []
+                payload = {
+                    # the data date = the snapshot's as-of (the month bucket's end date
+                    # would read as the 31st of an in-progress month)
+                    "asof": str((_load_snap() or {}).get("as_of") or monthly.index.max().date()),
+                    "month": int(month),
+                    "month_label": mo_sel, "hit_strong": float(seasmon.HIT_STRONG),
+                    "seas_z_flag": float(seasmon.SEAS_Z_FLAG),
+                    "years": int(max((p["path_years"] for p in products), default=0)) or "~10",
+                    "sectors": [a for a in assets if a in set(scr["asset"])],
+                    "screener": [_clean(r) for r in scr.to_dict("records")],
+                    "products": products, "spreads": spreads,
+                }
+                with tempfile.TemporaryDirectory() as _t:
+                    _in = Path(_t) / "seas.json"
+                    _out = Path(_t) / "Seasonality_Monitor.pdf"
+                    _in.write_text(json.dumps(payload), encoding="utf-8")
+                    r = subprocess.run(
+                        [sys.executable, str(SEASREPORT_CLI), str(_in), str(_out)],
+                        capture_output=True, text=True, timeout=240)
+                    if r.returncode == 0 and _out.exists():
+                        st.session_state["seas_pdf"] = _out.read_bytes()
+                    else:
+                        st.error("Report failed:\n\n" + (r.stderr or r.stdout or "unknown error")[-2000:])
+            except Exception as e:
+                st.error(f"Report failed: {e}")
+    if st.session_state.get("seas_pdf"):
+        st.download_button("⬇️  Download Seasonality Report", data=st.session_state["seas_pdf"],
+                           file_name="Seasonality_Monitor.pdf", mime="application/pdf",
+                           key="seas_pdf_dl")
+        email_report_ui("seas_email", "seasonality", st.session_state["seas_pdf"],
+                        subject="BASIS — Seasonality Monitor",
+                        attachment_name="Seasonality_Monitor.pdf")
 
 
 def render_seasonality_spreads() -> None:

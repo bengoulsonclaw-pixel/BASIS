@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 8pt; }
+  .kpis { display: flex; gap: 3mm; margin: 3mm 0 1mm; }
+  .kpi { flex: 1; border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+         padding: 2mm 3mm; background: #FafafA; }
+  .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .val { font-size: 13pt; font-weight: 700; color: #111; }
+  .kpi .note { font-size: 6.5pt; color: #888; }
+  /* a panel may flow across pages (a whole panel is taller than the space left under
+     the screener); each visual block stays whole and a banner never orphans */
+  .panel { margin-top: 2mm; }
+  .panel .banner { break-after: avoid; }
+  .panel .chart, .panel .two, .panel table.mini { break-inside: avoid; }
+  .panel .kpiline { font-size: 7.5pt; color: #444; margin: 1mm 0 1.5mm; }
+  .panel .kpiline b { color: #111; }
+  .mini { font-size: 7pt; }
+  .mini th, .mini td { padding: 0.6mm 1mm; }
+  .two { display: flex; gap: 4mm; }
+  .two > div { flex: 1; }
+  .chartdesc { font-size: 7pt; color: #777; margin: 0 0 0.5mm; }
+  .bias { color: #111; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Seasonality Monitor</h1>
+      <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <p class="summary">
+      How each product's calendar year has actually traded across roughly <b>ten years of
+      settlement history</b>: the screened month's record for every market in the book, the
+      average-year path of the most seasonal names with the current year overlaid, the
+      calendar windows the decade rewarded most consistently, and where today's front
+      calendar spreads sit against their seasonal norm. Price products are measured in
+      <b>%</b> of the actual front level; fixed income runs in <b>yield / rate space (bp)</b>
+      &mdash; a positive month means the yield rose. Everything here is a description of
+      history, not a forecast.
+    </p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Month screened</div>
+        <div class="val">{{ month }}</div><div class="note">complete years only</div></div>
+      <div class="kpi"><div class="lab">Products</div>
+        <div class="val">{{ n_products }}</div><div class="note">across {{ n_sectors }} sectors</div></div>
+      <div class="kpi"><div class="lab">Seasonal bias</div>
+        <div class="val">{{ n_bias }}</div><div class="note">&ge; {{ hit_pct }} of years agree</div></div>
+      <div class="kpi"><div class="lab">Spreads vs season</div>
+        <div class="val">{{ n_spread_flags }}</div><div class="note">of {{ n_spreads_all }} beyond &plusmn;{{ seas_z }}&sigma;</div></div>
+    </div>
+
+    <p class="summary bias" style="margin-top:1mm"><b>Seasonal bias in {{ month }}:</b> {{ bias_line }}.</p>
+
+    {% for s in sectors %}
+    <div class="banner">{{ s.name }} &mdash; {{ month }} across the stored years ({{ s.unit }})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th><th class="center">Median</th><th class="center">Years up</th>
+          <th class="center">Mean</th><th class="center">Best</th><th class="center">Worst</th>
+          <th class="center">This yr</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in s.rows %}
+        <tr class="{% if r.dir > 0 %}long{% elif r.dir < 0 %}short{% endif %}">
+          <td class="market">{{ r.name }}</td>
+          <td class="center sig">{{ r.med }}</td>
+          <td class="center">{{ r.hit }}{% if r.dir > 0 %} &#9650;{% elif r.dir < 0 %} &#9660;{% endif %}</td>
+          <td class="center">{{ r.mean }}</td>
+          <td class="center">{{ r.best }}</td>
+          <td class="center">{{ r.worst }}</td>
+          <td class="center">{{ r.this }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+    <div class="chartdesc">Median / Mean / Best / Worst = that month's change across the stored
+      years (complete months only &mdash; the in-progress month shows under <i>This yr</i> with a *
+      and never joins the statistics). Years up counts the years the month printed positive; the
+      arrow marks {{ hit_pct }} agreement or better.</div>
+
+    {% for p in panels %}
+    <div class="panel">
+      <div class="banner">{{ p.name }} &mdash; ten-year detail ({{ p.unit }})</div>
+      <div class="kpiline"><b>{{ month }}:</b> {{ p.kpi_month }} &nbsp;&middot;&nbsp;
+        <b>Strongest month:</b> {{ p.kpi_best }} &nbsp;&middot;&nbsp;
+        <b>Weakest month:</b> {{ p.kpi_worst }} &nbsp;&middot;&nbsp; <b>Years on the store:</b> {{ p.years }}</div>
+      <div class="chart"><img src="{{ p.heat }}" alt="{{ p.name }} year by month"></div>
+      <table class="mini">
+        <thead><tr><th></th>{% for c in p.stats_row %}<th class="center">{{ c.lab }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          <tr><td class="market">Median</td>{% for c in p.stats_row %}<td class="center">{{ c.med }}</td>{% endfor %}</tr>
+          <tr><td class="market">Years up</td>{% for c in p.stats_row %}<td class="center">{{ c.hit }}</td>{% endfor %}</tr>
+        </tbody>
+      </table>
+      {% if p.path %}
+      <div class="chartdesc">Average year &mdash; cumulative change from 1 January: median of the
+        stored years, 25&ndash;75% band, current year in gold.</div>
+      <div class="chart"><img src="{{ p.path }}" alt="{{ p.name }} average year"></div>
+      {% endif %}
+      <div class="two">
+        <div>
+          <div class="chartdesc"><b>Historically higher windows</b> (hit &ge; {{ hit_pct }})</div>
+          {% if p.higher %}
+          <table class="mini"><thead><tr><th>Window</th><th class="center">Len</th><th class="center">Years</th><th class="center">Median</th><th class="center">Worst</th></tr></thead>
+          <tbody>{% for w in p.higher %}<tr class="long"><td class="market">{{ w.label }}</td><td class="center">{{ w.weeks }}</td><td class="center">{{ w.hit }}</td><td class="center sig">{{ w.med }}</td><td class="center">{{ w.worst }}</td></tr>{% endfor %}</tbody></table>
+          {% else %}<div class="chartdesc">No calendar window cleared the agreement bar.</div>{% endif %}
+        </div>
+        <div>
+          <div class="chartdesc"><b>Historically lower windows</b> (hit &ge; {{ hit_pct }})</div>
+          {% if p.lower %}
+          <table class="mini"><thead><tr><th>Window</th><th class="center">Len</th><th class="center">Years</th><th class="center">Median</th><th class="center">Worst</th></tr></thead>
+          <tbody>{% for w in p.lower %}<tr class="short"><td class="market">{{ w.label }}</td><td class="center">{{ w.weeks }}</td><td class="center">{{ w.hit }}</td><td class="center sig">{{ w.med }}</td><td class="center">{{ w.worst }}</td></tr>{% endfor %}</tbody></table>
+          {% else %}<div class="chartdesc">No calendar window cleared the agreement bar.</div>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="report-footer">
+      {% if spreads %}
+      <div class="banner">Front calendar spreads vs their seasonal norm</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Spread</th><th class="center">Now</th><th class="center">Seasonal norm</th>
+            <th class="center">z vs season</th><th class="center">Seasonal strength</th>
+            <th class="center">Peak</th><th class="center">Trough</th><th class="center" style="white-space:nowrap">vs season</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in spreads %}
+          <tr class="{% if r.dir > 0 %}short{% elif r.dir < 0 %}long{% endif %}">
+            <td class="market">{{ r.name }} <span style="color:#777">({{ r.legs }}, {{ r.unit }})</span></td>
+            <td class="center">{{ r.now }}</td>
+            <td class="center">{{ r.norm }}</td>
+            <td class="center sig">{{ r.z }}</td>
+            <td class="center">{{ r.strength }}</td>
+            <td class="center">{{ r.peak }}</td>
+            <td class="center">{{ r.trough }}</td>
+            <td class="center">{{ r.signal }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="chartdesc">The 1st futures contract minus the 2nd, on actual levels. z vs
+        season = today's spread against the median of this week of year (&plusmn;1 week) across
+        the stored years, in that pool's &sigma; &mdash; a stretch against the calendar norm, not
+        against the recent regime. Seasonal strength = the share of the spread's behaviour
+        explained by the calendar (between-week swing vs year-to-year noise).</div>
+      {% endif %}
+      <div class="foot-disclaimer">
+        <hr class="rule">
+        <div class="fine">
+          Monthly and weekly changes are exact point moves on the panama-adjusted continuation
+          divided by the actual front level at the start of the period (fixed income: the change
+          in the benchmark yield or STIR rate, in bp). The in-progress month is shown but never
+          counted. Windows are every 4&ndash;16-week calendar stretch, year-end wrap included,
+          that moved one way in at least {{ hit_pct }} of the stored years, overlapping echoes
+          collapsed to the strongest; Worst is the most adverse single year inside the window.
+          Descriptive history, not a signal.
+        </div>
+        {% include "_disclaimer.html" %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

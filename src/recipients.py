@@ -29,6 +29,7 @@ REPORTS = {
     "sigscore": "Weekly Signal Scorecard — Technical",
     "weekreview": "Weekly Review — cross-module wrap",
     "curve": "Curve / RV Monitor report",
+    "seasonality": "Seasonality Monitor report",
     "precious_metals": "Precious Metals Fundamentals monitor",
     "pm_releases": "Precious Metals release synopses (WGC / WPIC)",
 }

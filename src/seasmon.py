@@ -228,6 +228,13 @@ def seasonal_path(weekly: pd.DataFrame, ticker: str, smooth: int = 3):
     cum = piv.fillna(0.0).cumsum()
     cum[piv.ffill().isna()] = np.nan
     cur_year = int(piv.columns.max())
+    # the current year's path ENDS at its last observed week — ffill above would
+    # otherwise carry the latest level flat to December (read as "the year
+    # finished here" on the report page; Ben's PDF review, 2026-08-22)
+    if cur_year in piv.columns:
+        _last = piv[cur_year].last_valid_index()
+        if _last is not None:
+            cum.loc[cum.index > _last, cur_year] = np.nan
     years = [c for c in cum.columns if piv[c].notna().sum() >= 40]     # complete-ish years only
     info["years"] = len(years)
     info["cur_year"] = cur_year
