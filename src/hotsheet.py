@@ -255,6 +255,40 @@ CACHE_STALE_H = 20.0        # beyond this the file is a missed morning, not a ca
 TOP10_FILE = SIG_DIR / "hotsheet_top10.json"
 
 
+def export_from_history(min_rows: int = 5) -> int:
+    """Rebuild the top-10 export from the STAMPED history when the live sheet is thin
+    (weekend / off-hours re-collects): the latest stamped day with >= min_rows FICC
+    rows, heat-sorted, through the same top-strip rule. Returns rows written."""
+    try:
+        h = load_history()
+        if h.empty:
+            return 0
+        h = h[h["book"] == "ficc"]
+        for day, grp in sorted(h.groupby("date"), key=lambda kv: kv[0], reverse=True):
+            if len(grp) < min_rows:
+                continue
+            items = grp.sort_values("heat", ascending=False).to_dict("records")
+            for it in items:
+                it["badge"] = ""
+            top = top_strip(items)
+            payload = {
+                "collected": float(pd.Timestamp(day).timestamp()),
+                "collected_et": f"{pd.Timestamp(day):%Y-%m-%d} (morning stamp)",
+                "rows": [{"tag": it.get("tag", ""), "text": it.get("text", ""),
+                          "metric": it.get("metric", ""), "sub": it.get("sub", ""),
+                          "heat": float(it.get("heat", 0) or 0), "badge": "",
+                          "page": it.get("page", ""), "provider": it.get("provider", "")}
+                         for it in top],
+            }
+            SIG_DIR.mkdir(parents=True, exist_ok=True)
+            TOP10_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=1),
+                                  encoding="utf-8")
+            return len(top)
+    except Exception:
+        pass
+    return 0
+
+
 def top_strip(items: list, book: str = "ficc", per_tag: int = 2, n: int = 10) -> list:
     """The editorial top strip: `book` only, at most `per_tag` rows per module, first
     `n` by heat (items arrive heat-sorted). Pure selection — no I/O."""
@@ -281,12 +315,18 @@ def write_top10_export(items: list, collected: float | None = None) -> int:
         except Exception:
             pass
         top = top_strip(rows)
-        if not top:             # never overwrite a usable export with an empty one
-            try:                # (an empty/failed collect must not blank the report page)
-                if json.loads(TOP10_FILE.read_text(encoding="utf-8")).get("rows"):
-                    return 0
-            except Exception:
-                pass
+        # Never let a thin re-collect clobber a rich export: an off-hours / weekend
+        # stamp (providers quiet) produced 0-1 rows and overwrote the morning's ten
+        # (2026-08-22). Keep the existing file when it is materially fuller and
+        # less than 36h old — the next full morning stamp replaces it anyway.
+        try:
+            old = json.loads(TOP10_FILE.read_text(encoding="utf-8"))
+            old_rows = old.get("rows") or []
+            old_age_h = (time.time() - float(old.get("collected", 0))) / 3600.0
+            if old_rows and len(top) < max(3, len(old_rows) // 2) and old_age_h < 36:
+                return 0
+        except Exception:
+            pass
         payload = {
             "collected": float(collected or time.time()),
             "collected_et": pd.Timestamp(collected or time.time(), unit="s", tz="UTC")
