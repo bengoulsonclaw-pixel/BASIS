@@ -227,6 +227,10 @@ def stamp_today(log=print) -> int:
     millisecond file read instead of a live provider run."""
     items, report = collect()
     n = stamp(items, report, log=log)
+    try:        # the top-10 export other report pipelines read (Morning Coffee PDF)
+        log(f"  Hot Sheet top-10 export: {write_top10_export(items)} rows")
+    except Exception as e:
+        log(f"  (Hot Sheet top-10 export skipped: {e})")
     bad = [k for k, v in report.items() if v["status"] == "failed"]
     if items or len(bad) < len(report):         # the stamp's wedged-morning guard, mirrored
         _persist_collection(items, report)
@@ -242,6 +246,56 @@ def stamp_today(log=print) -> int:
 # ---------------------------------------------------------------------------
 CACHE_FILE = SIG_DIR / "hotsheet_cache.json"
 CACHE_STALE_H = 20.0        # beyond this the file is a missed morning, not a cache
+
+# The desk-home card's TOP STRIP as a tiny export for OTHER report pipelines (the
+# Morning Coffee PDF carries it as "BASIS Hot Sheet — top 10", Ben 2026-08-22):
+# FICC book, NEW badges, 2 per module, the first 10 by heat — the exact rows the
+# home card and module 02 show. Written with every stamp / persist so it's never
+# older than the sheet itself.
+TOP10_FILE = SIG_DIR / "hotsheet_top10.json"
+
+
+def top_strip(items: list, book: str = "ficc", per_tag: int = 2, n: int = 10) -> list:
+    """The editorial top strip: `book` only, at most `per_tag` rows per module, first
+    `n` by heat (items arrive heat-sorted). Pure selection — no I/O."""
+    top, seen = [], {}
+    for it in items:
+        if it.get("book") != book:
+            continue
+        if seen.get(it["tag"], 0) >= per_tag:
+            continue
+        seen[it["tag"]] = seen.get(it["tag"], 0) + 1
+        top.append(it)
+        if len(top) >= n:
+            break
+    return top
+
+
+def write_top10_export(items: list, collected: float | None = None) -> int:
+    """Persist the FICC top strip to TOP10_FILE; returns the row count. Badges are
+    applied on a copy so the caller's items stay pristine."""
+    try:
+        rows = [dict(it) for it in items]
+        try:
+            apply_badges(rows)
+        except Exception:
+            pass
+        top = top_strip(rows)
+        payload = {
+            "collected": float(collected or time.time()),
+            "collected_et": pd.Timestamp(collected or time.time(), unit="s", tz="UTC")
+                              .tz_convert("America/New_York").strftime("%Y-%m-%d %H:%M ET"),
+            "rows": [{"tag": it.get("tag", ""), "text": it.get("text", ""),
+                      "metric": it.get("metric", ""), "sub": it.get("sub", ""),
+                      "heat": float(it.get("heat", 0) or 0), "badge": it.get("badge", ""),
+                      "page": it.get("page", ""), "provider": it.get("provider", "")}
+                     for it in top],
+        }
+        SIG_DIR.mkdir(parents=True, exist_ok=True)
+        TOP10_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+        return len(top)
+    except Exception:
+        return 0
 
 
 def _persist_collection(items: list, report: dict) -> None:
