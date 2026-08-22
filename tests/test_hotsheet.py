@@ -26,7 +26,8 @@ def tmp_store(tmp_path, monkeypatch):
     monkeypatch.setattr(hotsheet, "HISTORY_FILE", tmp_path / "hist.parquet")
     monkeypatch.setattr(hotsheet, "META_FILE", tmp_path / "meta.json")
     monkeypatch.setattr(hotsheet, "CACHE_FILE", tmp_path / "cache.json")
-    monkeypatch.setattr(hotsheet, "SIG_DIR", tmp_path)
+    monkeypatch.setattr(hotsheet, "TOP10_FILE", tmp_path / "top10.json")   # 2026-08-22: the
+    monkeypatch.setattr(hotsheet, "SIG_DIR", tmp_path)    # unpatched export leaked TST rows live
     return tmp_path
 
 

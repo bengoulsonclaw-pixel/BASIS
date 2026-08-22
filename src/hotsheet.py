@@ -228,7 +228,12 @@ def stamp_today(log=print) -> int:
     items, report = collect()
     n = stamp(items, report, log=log)
     try:        # the top-10 export other report pipelines read (Morning Coffee PDF)
-        log(f"  Hot Sheet top-10 export: {write_top10_export(items)} rows")
+        n_exp = write_top10_export(items)
+        if n_exp < 3:           # thin live sheet (off-hours / weekend stamp): serve the
+            n_exp = export_from_history()      # latest stamped morning instead
+            log(f"  Hot Sheet top-10 export: live sheet thin — {n_exp} rows from history")
+        else:
+            log(f"  Hot Sheet top-10 export: {n_exp} rows")
     except Exception as e:
         log(f"  (Hot Sheet top-10 export skipped: {e})")
     bad = [k for k, v in report.items() if v["status"] == "failed"]
@@ -255,6 +260,13 @@ CACHE_STALE_H = 20.0        # beyond this the file is a missed morning, not a ca
 TOP10_FILE = SIG_DIR / "hotsheet_top10.json"
 
 
+def _top10_file() -> Path:
+    """Resolved at CALL time from SIG_DIR, so a test that redirects the store
+    directory can never write the export into the live data/ tree (it did,
+    2026-08-22: the suite's TST fixture row replaced the morning's ten)."""
+    return SIG_DIR / TOP10_FILE.name
+
+
 def export_from_history(min_rows: int = 5) -> int:
     """Rebuild the top-10 export from the STAMPED history when the live sheet is thin
     (weekend / off-hours re-collects): the latest stamped day with >= min_rows FICC
@@ -272,8 +284,8 @@ def export_from_history(min_rows: int = 5) -> int:
                 it["badge"] = ""
             top = top_strip(items)
             payload = {
-                "collected": float(pd.Timestamp(day).timestamp()),
-                "collected_et": f"{pd.Timestamp(day):%Y-%m-%d} (morning stamp)",
+                "collected": float(time.time()),      # written NOW: the thin-guard's 36h
+                "collected_et": f"{pd.Timestamp(day):%Y-%m-%d} (morning stamp)",   # window protects it
                 "rows": [{"tag": it.get("tag", ""), "text": it.get("text", ""),
                           "metric": it.get("metric", ""), "sub": it.get("sub", ""),
                           "heat": float(it.get("heat", 0) or 0), "badge": "",
@@ -281,7 +293,7 @@ def export_from_history(min_rows: int = 5) -> int:
                          for it in top],
             }
             SIG_DIR.mkdir(parents=True, exist_ok=True)
-            TOP10_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=1),
+            _top10_file().write_text(json.dumps(payload, ensure_ascii=False, indent=1),
                                   encoding="utf-8")
             return len(top)
     except Exception:
@@ -320,7 +332,7 @@ def write_top10_export(items: list, collected: float | None = None) -> int:
         # (2026-08-22). Keep the existing file when it is materially fuller and
         # less than 36h old — the next full morning stamp replaces it anyway.
         try:
-            old = json.loads(TOP10_FILE.read_text(encoding="utf-8"))
+            old = json.loads(_top10_file().read_text(encoding="utf-8"))
             old_rows = old.get("rows") or []
             old_age_h = (time.time() - float(old.get("collected", 0))) / 3600.0
             if old_rows and len(top) < max(3, len(old_rows) // 2) and old_age_h < 36:
@@ -338,7 +350,7 @@ def write_top10_export(items: list, collected: float | None = None) -> int:
                      for it in top],
         }
         SIG_DIR.mkdir(parents=True, exist_ok=True)
-        TOP10_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+        _top10_file().write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
         return len(top)
     except Exception:
         return 0
