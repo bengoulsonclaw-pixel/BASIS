@@ -591,6 +591,15 @@ def _compute_phase(include_equities: bool = False) -> dict:
     except Exception as e:
         print(f"  (Hot Sheet stamp skipped: {e})")
 
+    # Desk day export — today's reports / decisions / majors / expiries for the
+    # Morning Coffee PDF's page 2 (data/signals/desk_calendar.json). Pure calendar
+    # maths + the free econ feed; no Terminal.
+    try:
+        from src import deskday
+        print(f"  Desk calendar export: {deskday.export()} rows for {deskday.trading_day():%a %d %b}")
+    except Exception as e:
+        print(f"  (Desk calendar export skipped: {e})")
+
     # Manifest from the ON-DISK snapshot (the fetch phase's files) — works whether the
     # compute phase runs seconds or hours after the fetch. `created` = the pull moment
     # (live.parquet's write time), not when the math happened to run.
