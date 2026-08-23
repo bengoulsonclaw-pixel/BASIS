@@ -597,3 +597,49 @@ def test_positive_excess_pnl_is_not_sufficient_on_its_own():
     good = dict(cell, hit_rate=0.60, edge_phase_spread=(0.02, 0.05),
                 mcnemar={"p_value": 0.01})
     assert is_credible(good)
+
+
+# ---------------------------------------------------------------------------
+# The rates -> dollar -> gold chain
+# ---------------------------------------------------------------------------
+def test_real_and_breakeven_enter_gold_with_opposite_signs():
+    """Nominal yield = real + breakeven, and the halves push gold opposite ways.
+
+    A formula keyed on the NOMINAL yield averages two live effects into one number
+    that describes neither — which is why the naive gold-on-nominal regression has an
+    R-squared of 0.025 against 0.26 for the split version.
+    """
+    from src import macrochain as mc
+    c = mc.chain()
+    g = c["gold"]["terms"]
+    assert g["real10_bp"]["beta"] < 0, "real yields should weigh on gold"
+    assert g["breakeven_bp"]["beta"] > 0, "breakevens should support gold"
+    assert c["gold"]["r2"] > c["gold_nominal_only"]["r2"] * 3
+
+
+def test_rate_move_decomposition_adds_up():
+    """total = direct + (dollar's response to rates) x (gold's response to dollar)."""
+    from src import macrochain as mc
+    c = mc.chain()
+    d = c["decomposition_25bp_real"]
+    assert abs(d["direct_pct"] + d["via_dollar_pct"] - d["total_pct"]) < 1e-9
+    # The indirect leg must be reconstructible from its two factors.
+    g_dxy = c["gold"]["terms"]["dxy_pct"]["beta"]
+    assert abs(d["dollar_move_pct"] * g_dxy - d["via_dollar_pct"]) < 1e-9
+
+
+def test_no_level_anchor_between_gold_dollar_and_real_yields():
+    """There is a relationship between CHANGES and none between LEVELS.
+
+    The distinction matters because "a formula they stick to" is a claim about
+    levels. The level regression is not cointegrated (ADF -0.57 against -3.74) and
+    its dollar coefficient comes out POSITIVE where the change relationship is
+    firmly negative — the standard symptom of a spurious regression.
+    """
+    from src import macrochain as mc
+    la = mc.level_anchor()
+    assert not la["cointegrated"]
+    assert la["adf_t"] > la["critical_5pct"]
+    c = mc.chain()
+    assert c["gold"]["terms"]["dxy_pct"]["beta"] < 0 < la["beta_log_dxy"], \
+        "sign flip between levels and changes is the spurious-regression tell"

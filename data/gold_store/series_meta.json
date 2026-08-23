@@ -411,11 +411,11 @@
   },
   "LBMA_GOLD_AM_USD": {
     "bucket": "valuation",
-    "description": "LBMA Gold Price AM fix",
+    "description": "LBMA gold AM fix",
     "native_freq": "daily",
     "published_at_approximated": false,
     "series_id": "LBMA_GOLD_AM_USD",
-    "source_url": "https://prices.lbma.org.uk",
+    "source_url": "",
     "typical_lag_days": 0.0,
     "unit": "USD/oz"
   },
@@ -441,7 +441,7 @@
   },
   "LBMA_GOLD_PM_USD": {
     "bucket": "valuation",
-    "description": "LBMA Gold Price PM fix",
+    "description": "LBMA gold PM fix",
     "native_freq": "daily",
     "published_at_approximated": false,
     "series_id": "LBMA_GOLD_PM_USD",
@@ -491,11 +491,11 @@
   },
   "LBMA_SILVER_USD": {
     "bucket": "valuation",
-    "description": "LBMA Silver Price fix",
+    "description": "LBMA silver fix",
     "native_freq": "daily",
     "published_at_approximated": false,
     "series_id": "LBMA_SILVER_USD",
-    "source_url": "https://prices.lbma.org.uk",
+    "source_url": "",
     "typical_lag_days": 0.0,
     "unit": "USD/oz"
   },
