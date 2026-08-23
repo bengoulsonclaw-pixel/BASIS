@@ -122,16 +122,114 @@ BASIS_LABEL = {
     "crush":      ("Cane crushed", "Cane processed — each group splits it between sugar and ethanol."),
     "slaughter":  ("Processing share", "Share of animals slaughtered/processed, not of the herd or flock."),
     "export":     ("Export share", "Share of what leaves the country — NOT who grew it."),
+    "operated":   ("Operated production", "Output the company OPERATES — not its equity share. "
+                                          "An operator runs fields in which others hold interests."),
 }
 # How to finish the sentence "share of Brazil's ___" on the company chart's axis.
 BASIS_AXIS = {
     "production": "production", "equity": "output", "crush": "cane crush",
-    "slaughter": "processing", "export": "exports",
+    "slaughter": "processing", "export": "exports", "operated": "operated output",
 }
 CONFIDENCE_LABEL = {
     "reported":    ("Reported", "Straight off company production releases."),
     "association": ("Industry body", "Published by the sector association."),
     "estimate":    ("Desk estimate", "Approximate — verify before client use."),
+}
+
+# ── futures hedge equivalents ────────────────────────────────────────────────
+# How many lots it would take to hedge a year of output. Contracts are the ones
+# already in the desk's universe (src/universe.py), so nothing here quotes an
+# instrument the book cannot trade.
+#
+# `per_disp` is the number of CONTRACT UNITS in one of the commodity's display
+# units — the only place unit conversion happens, and the thing to check first if
+# a number looks wrong. Physical-commodity conversions used:
+#     1 t = 2204.62262 lb            1 t gold = 32,150.7466 troy oz
+#     soybeans 1 bu = 0.0272155 t    corn 1 bu = 0.0254012 t
+#     coffee 1 bag = 60 kg           cotton 1 bale = 480 lb
+#     1 US gal = 3.785411784 L       crude: kb/d x 365 calendar days
+#
+# `proxy` marks a CROSS hedge — the contract does not settle against the thing
+# Brazil actually produces, so basis risk is material and the page says so.
+_LB_PER_T = 2204.62262
+_OZ_PER_T = 32150.7466
+DRESSING_PCT = 57.0        # carcass weight as a % of liveweight — the beef proxy's assumption
+
+
+def _h(ticker, name, size, size_unit, per_disp, proxy=False, note="", verified=""):
+    # `verified` records how a contract SIZE was confirmed when volbt.POINT_VALUE has
+    # no entry to cross-check it against. Sizes drive every lot count, so provenance
+    # is worth carrying rather than remembering.
+    return {"ticker": ticker, "name": name, "size": size, "size_unit": size_unit,
+            "per_disp": per_disp, "proxy": proxy, "note": note, "verified": verified}
+
+
+HEDGE = {
+    "iron_ore":  _h("SCOA Comdty", "Iron Ore 62% Fe (SGX TSI)", 100, "t", 1e6,
+                    verified="100 metric tonnes/lot confirmed by Ben, 2026-08-21"),
+    "crude_oil": _h("COA Comdty", "Brent Crude (ICE)", 1000, "bbl", 1e6 * 365,
+                    note="Brazilian grades price against Brent; the differential is left unhedged."),
+    "gold":      _h("GCA Comdty", "Gold (COMEX)", 100, "troy oz", _OZ_PER_T),
+    "copper":    _h("HGA Comdty", "Copper (COMEX)", 25_000, "lb", 1000 * _LB_PER_T),
+    "sugar":     _h("SBA Comdty", "Sugar No.11 (ICE)", 112_000, "lb", 1e6 * _LB_PER_T),
+    "coffee":    _h("KCA Comdty", "Coffee 'C' Arabica (ICE)", 37_500, "lb",
+                    1e6 * 60 / 1000 * _LB_PER_T),
+    "soybeans":  _h("S A Comdty", "Soybeans (CBOT)", 5_000, "bu", 1e6 / 0.0272155),
+    "corn":      _h("C A Comdty", "Corn (CBOT)", 5_000, "bu", 1e6 / 0.0254012),
+    "cotton":    _h("CTA Comdty", "Cotton No.2 (ICE)", 50_000, "lb", 1e6 * 480),
+    "beef":      _h("LCA Comdty", "Live Cattle (CME)", 40_000, "lb",
+                    1e6 / (DRESSING_PCT / 100) * _LB_PER_T, proxy=True,
+                    note=f"CME cattle settle against US liveweight, not Brazilian carcass beef. "
+                         f"Carcass weight is grossed to liveweight at a {DRESSING_PCT:.0f}% "
+                         f"dressing yield. A directional proxy only — the basis is large."),
+    # CUAA is the Chicago Ethanol (PLATTS) swap future at 42,000 gal — i.e. 1,000
+    # barrels, sized like an oil contract. Not the 29,000 gal CBOT ethanol future (EH).
+    "ethanol":   _h("CUAA Comdty", "Chicago Ethanol (Platts) swap", 42_000, "gal",
+                    1e9 / 3.785411784, proxy=True,
+                    verified="42,000 gal/lot (= 1,000 bbl) confirmed by Ben, 2026-08-21",
+                    note="US corn ethanol against Brazilian cane ethanol — different feedstock, "
+                         "different market. Brazil's own hydrous contract trades on B3."),
+}
+# ── input hedges ─────────────────────────────────────────────────────────────
+# Some producers have no future on what they SELL but a large, liquid hedge on what
+# they BUY. A poultry integrator is the clear case: there is no chicken contract, but
+# feed is most of the cost of a bird and both feed grains trade deeply. Leaving those
+# names at zero lots would badly understate the brokerage they actually generate.
+#
+# Chicken chain, per tonne of ready-to-cook output:
+#   RTC -> liveweight at a 75% yield, liveweight -> feed at a 1.75 feed-conversion
+#   ratio, so 2.33 t of feed per tonne of meat; that ration is ~62% corn, ~30% meal.
+# CBOT soybean meal is 100 SHORT tons = 90.718474 t, not a metric contract.
+_T_PER_SHORT_TON = 0.90718474
+_FEED_PER_T_MEAT = (1 / 0.75) * 1.75
+INPUT_HEDGE = {
+    "chicken": {
+        "why": "No poultry future exists. Integrators hedge the INPUT — corn and soybean "
+               "meal are the bulk of the cost of a bird — so their brokerage sits in the "
+               "feed grains, not in the meat.",
+        "assumption": f"{_FEED_PER_T_MEAT:.2f}t of feed per tonne of meat (75% dressing, "
+                      f"1.75 feed-conversion ratio), a ration of 62% corn / 30% soybean meal.",
+        "legs": [
+            {"ticker": "C A Comdty", "name": "Corn (CBOT)", "size": 5_000, "size_unit": "bu",
+             "per_disp": 1e6 * _FEED_PER_T_MEAT * 0.62 / 0.0254012},
+            {"ticker": "SMA Comdty", "name": "Soybean Meal (CBOT)", "size": 100,
+             "size_unit": "short tons",
+             "per_disp": 1e6 * _FEED_PER_T_MEAT * 0.30 / _T_PER_SHORT_TON},
+        ],
+    },
+}
+
+# Deliberately absent, with the reason shown on the page rather than a blank cell.
+NO_HEDGE = {
+    "niobium":   "No niobium future exists anywhere — the market is priced by bilateral contract.",
+    "pulp":      "No liquid pulp future in the desk's universe. Pulp futures trade on SHFE and "
+                 "Norexeco, neither of them carried here.",
+    "nickel":    "Nickel hedges on the LME, which this book does not currently carry.",
+    "manganese": "No liquid manganese future.",
+    "bauxite":   "No bauxite future. The chain hedges downstream in alumina or aluminium, at "
+                 "roughly four tonnes of bauxite per tonne of aluminium.",
+    "chicken":   "No poultry future. Integrators hedge the INPUT instead — corn and soybean "
+                 "meal are the bulk of the cost of a bird.",
 }
 
 
@@ -226,7 +324,18 @@ def _psd_production(spec: dict) -> dict:
 
     cur = p[p["Market_Year"] == latest].groupby("Country_Name")["Value"].sum()
     values = {k: float(v) for k, v in cur.items() if v and v > 0}
+
+    # Brazil's EXPORTS as well as its production: a trade-house's share is a share of
+    # what leaves the country, so its hedgeable tonnage has to be struck off exports,
+    # not off the crop.
+    exp = df[(df["Commodity_Description"] == spec["psd_commodity"])
+             & (df["Attribute_Description"] == "Exports")
+             & (df["Country_Name"] == BRAZIL)]
+    exp = exp[pd.to_numeric(exp["Market_Year"], errors="coerce") == latest]
+    brazil_exports = float(exp["Value"].sum()) if not exp.empty else None
+
     return {"year": latest, "values": values, "history": sorted(hist, key=lambda r: r["year"]),
+            "brazil_exports": brazil_exports,
             "source_label": "USDA FAS PS&D", "year_label": f"{latest - 1}/{str(latest)[-2:]} MY"}
 
 
@@ -317,11 +426,81 @@ def _curated_production(spec: dict, curated: dict) -> dict:
 
 
 # ── company layer ────────────────────────────────────────────────────────────
+# Where a figure came from. Nothing is shown as a number unless it is live or keyed.
+PROVENANCE = {
+    "live":       ("Live feed", "Fetched this run from a machine-readable source."),
+    "keyed":      ("Keyed from source", "Typed in from a named published document you can re-check."),
+    "names_only": ("Volumes not sourced", "We know who produces it — not how much each one makes."),
+}
+
+
+def _anp_crude_block(brazil_share: float) -> dict | None:
+    """The crude company table, straight from ANP. Operated production, not equity —
+    the distinction is carried on the block so the page cannot mislabel it."""
+    try:
+        try:
+            from src import anpdata           # imported by the app, from the repo root
+        except ImportError:
+            import anpdata                    # run as `python src/brazilprod.py`
+        got = anpdata.by_operator()
+    except Exception as exc:
+        # Loud: falling back to the unsourced curated block without saying so is how a
+        # live feed quietly stops being live.
+        print(f"  ANP crude unavailable ({type(exc).__name__}: {exc}) — crude company "
+              f"table falls back to NOT SOURCED")
+        return None
+    ops = (got or {}).get("operators") or {}
+    total = float(got.get("total_bopd") or 0)
+    if not ops or total <= 0:
+        return None
+    top = sorted(ops.items(), key=lambda kv: -kv[1])[:12]
+    named = sum(v for _k, v in top)
+    rows = [{"company": k, "ticker": "", "volume": round(v / 1000.0, 3), "kind": "company"}
+            for k, v in top]
+    if total > named:
+        rows.append({"company": f"Other ({len(ops) - len(top)} smaller operators)",
+                     "ticker": "", "volume": round((total - named) / 1000.0, 3),
+                     "kind": "other"})
+    return {
+        "basis": "operated", "year": (got.get("last_month") or "")[:4],
+        "unit": "kb/d", "confidence": "reported", "provenance": "live",
+        "source": got.get("source"),
+        "note": (f"OPERATED production, not equity. ANP names who operates each well; "
+                 f"Petrobras operates most of the pre-salt including fields where Shell, "
+                 f"TotalEnergies, CNOOC, Equinor and Galp hold large working interests, so "
+                 f"its operated share is well above its equity share. Equity would need "
+                 f"ANP's consortium-participation data, which is not wired — so equity is "
+                 f"not something we currently know. Window: {got.get('first_month')} to "
+                 f"{got.get('last_month')} ({got.get('n_months')} months)."),
+        "rows": rows,
+    }
+
+
 def _company_block(key: str, spec: dict, brazil_raw: float, brazil_share: float,
                    curated: dict) -> dict | None:
     blk = (curated.get("companies") or {}).get(key)
+    if key == "crude_oil":
+        live = _anp_crude_block(brazil_share)
+        if live:
+            blk = live
     if not blk or not blk.get("rows"):
         return None
+
+    # No source, no numbers. The producers are still listed — knowing Vale mines iron
+    # ore is not a guess — but every volume, share and lot count is withheld and the
+    # page says why instead of printing something that looks measured.
+    if blk.get("provenance") == "names_only":
+        return {
+            "unsourced": True, "provenance": "names_only",
+            "provenance_label": PROVENANCE["names_only"][0],
+            "reason": blk.get("unsourced_reason") or "No source wired for company volumes.",
+            "basis": blk.get("basis", "production"),
+            "basis_label": BASIS_LABEL.get(blk.get("basis", "production"), ("", ""))[0],
+            "entity_label": "Producer",
+            "names": [r["company"] for r in blk["rows"]
+                      if not str(r.get("company", "")).lower().startswith(("other", "artisanal"))],
+            "rows": [],
+        }
     rows = [dict(r) for r in blk["rows"] if r.get("volume")]
     total = sum(float(r["volume"]) for r in rows)
     if total <= 0:
@@ -331,8 +510,19 @@ def _company_block(key: str, spec: dict, brazil_raw: float, brazil_share: float,
         r["volume"] = round(v, 3)
         r["share_brazil"] = round(v / total * 100, 2)
         r["share_world"] = round(v / total * brazil_share, 3)
-        r["is_other"] = str(r.get("company", "")).lower().startswith("other")
-    rows.sort(key=lambda r: (r["is_other"], -r["share_brazil"]))
+        # 'artisanal' is a real producer of Brazilian output but is NOT a company —
+        # Brazil's garimpo gold being the case that forced the distinction. Rows can
+        # declare their kind; anything undeclared falls back to the name convention.
+        r["kind"] = (r.get("kind")
+                     or ("other" if str(r.get("company", "")).lower().startswith("other")
+                         else "company"))
+        r["is_other"] = r["kind"] == "other"
+        r["is_artisanal"] = r["kind"] == "artisanal"
+        # 'group' = several companies on one line: a valid production figure, but not
+        # a single client, so the brokerage roll-up skips it.
+        r["is_group"] = r["kind"] == "group"
+    # Companies by size, then any non-corporate producer, then the Other bucket.
+    rows.sort(key=lambda r: (r["is_other"], r["is_artisanal"], -r["share_brazil"]))
 
     basis = blk.get("basis", "production")
     conf = blk.get("confidence", "estimate")
@@ -350,8 +540,98 @@ def _company_block(key: str, spec: dict, brazil_raw: float, brazil_share: float,
         # A "% of ..." block's volume column IS its share of Brazil, so the page drops it.
         "unit_is_pct": str(blk.get("unit", "")).strip().startswith("%"),
         "year": blk.get("year"), "unit": blk.get("unit"), "source": blk.get("source"),
+        "provenance": blk.get("provenance", "keyed"),
+        "provenance_label": PROVENANCE.get(blk.get("provenance", "keyed"), ("", ""))[0],
         "note": blk.get("note"), "total": round(total, 3), "coverage_pct": coverage,
-        "named_share": round(sum(r["share_brazil"] for r in rows if not r["is_other"]), 1),
+        "named_share": round(sum(r["share_brazil"] for r in rows
+                                 if not r["is_other"] and not r["is_artisanal"]), 1),
+        # A table carrying a non-corporate producer can't head its first column "Company".
+        "has_artisanal": any(r["is_artisanal"] for r in rows),
+        "entity_label": "Producer" if any(r["is_artisanal"] for r in rows) else "Company",
+        "artisanal_share": round(sum(r["share_brazil"] for r in rows if r["is_artisanal"]), 1),
+        "rows": rows,
+    }
+
+
+def _input_hedge_block(inp: dict, brazil_disp: float, blk: dict | None, unit: str) -> dict:
+    """A multi-leg hedge on what the producer BUYS rather than what it sells. Lots per
+    producer are the sum of the legs, since brokerage is earned on every one."""
+    legs, national_lots = [], 0.0
+    for leg in inp["legs"]:
+        lots = float(brazil_disp) * leg["per_disp"] / leg["size"]
+        national_lots += lots
+        legs.append({"ticker": leg["ticker"], "name": leg["name"],
+                     "size": leg["size"], "size_unit": leg["size_unit"],
+                     "lots": int(round(lots)), "lots_per_month": int(round(lots / 12.0))})
+    rows = []
+    for r in (blk or {}).get("rows", []):
+        lots = national_lots * r["share_brazil"] / 100.0
+        rows.append({"company": r["company"], "share_brazil": r["share_brazil"],
+                     "lots": int(round(lots)), "lots_per_month": int(round(lots / 12.0)),
+                     "units": None, "is_other": r["is_other"],
+                     "is_artisanal": r.get("is_artisanal", False),
+                     "is_group": r.get("is_group", False)})
+    return {
+        "available": True, "is_input": True, "proxy": True,
+        "ticker": " + ".join(l["ticker"].split()[0] for l in legs),
+        "name": " + ".join(l["name"] for l in legs),
+        "size": 0, "size_unit": "", "legs": legs,
+        "note": inp["why"] + " Assumes " + inp["assumption"],
+        "qty_basis": "production", "national_qty": round(float(brazil_disp), 3),
+        "national_unit": unit, "national_units": None,
+        "national_lots": int(round(national_lots)),
+        "national_lots_per_month": int(round(national_lots / 12.0)),
+        "rows": rows,
+    }
+
+
+def _hedge_block(key: str, brazil_disp: float, exports_disp: float | None,
+                 blk: dict | None, unit: str) -> dict | None:
+    """How many lots would hedge a year of Brazilian output, and each producer's slice.
+
+    One rule throughout: a producer's hedgeable volume is its SHARE OF BRAZIL applied to
+    Brazil's national quantity. That keeps volume and share on the same basis and makes
+    the company lots sum to the national lots. The national quantity is Brazil's EXPORTS
+    where the company table is an export share (a trade house hedges what it ships, not
+    the whole crop) and Brazil's PRODUCTION everywhere else.
+    """
+    spec = HEDGE.get(key)
+    if not spec:
+        inp = INPUT_HEDGE.get(key)
+        if inp and brazil_disp:
+            return _input_hedge_block(inp, brazil_disp, blk, unit)
+        return {"available": False, "reason": NO_HEDGE.get(
+            key, "No listed future for this commodity in the desk's universe.")}
+
+    if blk and blk.get("unsourced"):
+        return {"available": False,
+                "reason": "Company volumes are not sourced, so a hedge cannot be sized "
+                          "per producer. " + blk.get("reason", "")}
+    on_exports = bool(blk) and blk.get("basis") == "export"
+    national = exports_disp if on_exports else brazil_disp
+    if not national or national <= 0:
+        return {"available": False,
+                "reason": "No national quantity to strike the hedge against."}
+
+    total_units = float(national) * spec["per_disp"]
+    national_lots = total_units / spec["size"]
+    rows = []
+    for r in (blk or {}).get("rows", []):
+        lots = national_lots * r["share_brazil"] / 100.0
+        rows.append({"company": r["company"], "share_brazil": r["share_brazil"],
+                     "lots": int(round(lots)), "lots_per_month": int(round(lots / 12.0)),
+                     "units": round(total_units * r["share_brazil"] / 100.0, 1),
+                     "is_other": r["is_other"], "is_artisanal": r.get("is_artisanal", False),
+                     "is_group": r.get("is_group", False)})
+    return {
+        "available": True, "ticker": spec["ticker"], "name": spec["name"],
+        "size": spec["size"], "size_unit": spec["size_unit"],
+        "proxy": spec["proxy"], "note": spec["note"],
+        "qty_basis": "exports" if on_exports else "production",
+        "national_qty": round(float(national), 3), "national_unit": unit,
+        "national_units": round(total_units, 1),
+        "national_lots": int(round(national_lots)),
+        "national_lots_per_month": int(round(national_lots / 12.0)),
         "rows": rows,
     }
 
@@ -406,8 +686,15 @@ def build(force: bool = False, max_age_hours: float = 20.0) -> dict:
             "history": [{"year": h["year"], "brazil": round(h["brazil"] / div, 3),
                          "world": round(h["world"] / div, 3), "share": h["share"]}
                         for h in got["history"]],
-            "companies": _company_block(spec["key"], spec, brazil, share, curated),
+            "companies": None,      # filled below — the hedge block needs it
         }
+        cblk = _company_block(spec["key"], spec, brazil, share, curated)
+        exports_disp = (got.get("brazil_exports") / div
+                        if got.get("brazil_exports") else None)
+        out_c[spec["key"]]["companies"] = cblk
+        out_c[spec["key"]]["brazil_exports"] = (round(exports_disp, 3) if exports_disp else None)
+        out_c[spec["key"]]["hedge"] = _hedge_block(
+            spec["key"], brazil / div, exports_disp, cblk, spec["disp_unit"])
 
     store = {
         "built": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -442,6 +729,190 @@ def load_or_build(max_age_hours: float = 20.0) -> dict:
                           [{"key": "-", "label": "build", "error": "build failed and no cache"}]}
 
 
+# ── brokerage view: lots per CLIENT, across their whole book ─────────────────
+# The hedge blocks are per commodity, but a producer hedging "the whole business"
+# is one client trading several commodities — JBS is beef and poultry, Vale is iron
+# ore, copper and nickel, the Cosan complex is cane and crude. Brokerage is earned
+# per lot, so the number that matters commercially is the sum across a client's
+# entire production, not any single line.
+_GROUP_OVERRIDE = {
+    # ANP names each operating subsidiary; commercially they are one counterparty
+    "Prio Tigris": "PRIO", "Prio Bravo": "PRIO", "Petro Rio Jaguar": "PRIO",
+    "Petro Rio O&G": "PRIO", "3R Potiguar": "Brava Energia",
+    "3R Petroleum": "Brava Energia", "3R Petroleum Off": "Brava Energia",
+    "Equinor Brasil": "Equinor", "TotalEnergies EP": "TotalEnergies",
+    "Karoon Brasil": "Karoon", "Perenco Brasil": "Perenco",
+    # where stripping the bracket is not enough to land on one commercial entity
+    "Raizen (Cosan / Shell)": "Cosan / Raizen",
+    "Shell Brasil": "Shell",
+    "BP Bioenergy": "BP",
+    "CNPC / PetroChina": "CNPC",
+    "Olam / ofi": "Olam",
+}
+# Lines that are real production but not a client anyone can broker for.
+_NOT_A_CLIENT = ("other", "artisanal")
+
+
+def group_key(company: str) -> str:
+    """The commercial entity behind a production line: 'Vale (Salobo, Sossego)' and
+    'Vale' are one client; 'JBS (Friboi)' and 'JBS (Seara)' are one client. Samarco
+    stays its own name — it is a separate JV that trades in its own right."""
+    name = str(company).strip()
+    if name in _GROUP_OVERRIDE:
+        return _GROUP_OVERRIDE[name]
+    return name.split(" (")[0].strip() or name
+
+
+def broker_book(store: dict | None = None, turns: float = 1.0) -> pd.DataFrame:
+    """One row per prospective client: every commodity they produce, and the lots a
+    full hedge of a full year would require across all of them.
+
+    `turns` is round-turns per lot per year — 1.0 means the hedge is put on once and
+    held. A producer that rolls a strip trades the same position several times over,
+    and brokerage is earned each time, so raise it to model that. It is an ASSUMPTION,
+    not a measurement, and the page labels it as one.
+
+    Commodities with no listed hedge contribute nothing here: they generate no lots,
+    however much of them the company produces.
+    """
+    store = store or load() or {}
+    acc: dict = {}
+    for com in (store.get("commodities") or {}).values():
+        h = com.get("hedge") or {}
+        if not h.get("available"):
+            continue
+        for r in h.get("rows", []):
+            if r.get("is_other") or r.get("is_artisanal") or r.get("is_group"):
+                continue
+            if str(r["company"]).strip().lower().startswith(_NOT_A_CLIENT):
+                continue
+            g = acc.setdefault(group_key(r["company"]), {"lots": 0.0, "lines": [], "coms": []})
+            g["lots"] += float(r["lots"])
+            g["lines"].append(f"{com['label']}: {r['lots']:,} ({h['ticker'].split()[0]})")
+            g["coms"].append(com["label"])
+    rows = [{
+        "Client": name,
+        "Commodities": ", ".join(dict.fromkeys(v["coms"])),
+        "n_commodities": len(dict.fromkeys(v["coms"])),
+        "Lots (1 yr)": int(round(v["lots"] * turns)),
+        "Lots / month": int(round(v["lots"] * turns / 12.0)),
+        "detail": " · ".join(v["lines"]),
+    } for name, v in acc.items()]
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    return df.sort_values("Lots (1 yr)", ascending=False).reset_index(drop=True)
+
+
+HEDGE_RATIOS = (100, 75, 50, 25)
+# Each ratio breaks into year / month / day. Daily lots is the executability check —
+# it is what you hold against the contract's own daily volume. 252 = trading days,
+# not calendar days, so the daily figure is what could actually be worked.
+TRADING_DAYS = 252
+HEDGE_PERIODS = (("yr", 1), ("mth", 12), ("day", TRADING_DAYS))
+# One colour per period so the eye can track a row across twelve numeric columns.
+# Defined here rather than in each renderer — the page, the PDF and the email table all
+# read these, and three separate copies would drift. Distinguished by HUE, not by
+# lightness, so none of them is the "faint" one (house rule on readable text floors).
+PERIOD_COLOUR = {                    # light canvas: the PDF and the email table
+    "yr": "#1A1A1A", "mth": "#1F5FA8", "day": "#1F7A44",
+}
+PERIOD_COLOUR_DARK = {               # the app's dark canvas
+    "yr": "#E8ECF1", "mth": "#5B9BF0", "day": "#46C58A",
+}
+PERIOD_WORD = {"yr": "year", "mth": "month", "day": "trading day"}
+
+
+def hedge_matrix(store: dict | None = None, turns: float = 1.0,
+                 include_unhedgeable: bool = True,
+                 ratios: tuple = HEDGE_RATIOS) -> pd.DataFrame:
+    """One row per COMPANY x PRODUCT: annual volume and the lots needed at each hedge
+    ratio. A company that makes three things gets three rows, kept together and the
+    company's biggest line first.
+
+    Products with no listed future are still listed, with blank lot columns — a
+    producer missing from the table would read as overlooked rather than unhedgeable.
+    """
+    store = store or load() or {}
+    rows = []
+    for com in (store.get("commodities") or {}).values():
+        h = com.get("hedge") or {}
+        blk = com.get("companies")
+        if not blk or blk.get("unsourced"):
+            continue
+        avail = bool(h.get("available"))
+        if not avail and not include_unhedgeable:
+            continue
+        # Say what the volume actually measures whenever it is not plain production.
+        basis = blk.get("basis", "production")
+        # For exports the VOLUME is export tonnage, so "(exports)" describes both. For
+        # crush and slaughter the volume is finished product while only the SHARE comes
+        # from cane or headage — say so, or the tonnage reads as cane.
+        qual = {"export": "exports", "crush": "share by cane crush",
+                "slaughter": "share by processing", "equity": "equity share"}.get(basis)
+        product = com["label"] + (f" ({qual})" if qual else "")
+        if h.get("is_input"):
+            product = com["label"] + " (feed hedge)"
+        contract = (" + ".join(l["ticker"].split()[0] for l in h["legs"])
+                    if h.get("legs") else (h.get("ticker", "").split()[0] if avail else "—"))
+        by_co = {r["company"]: r for r in h.get("rows", [])}
+        for r in blk["rows"]:
+            if r["is_other"] or r.get("is_artisanal") or r.get("is_group"):
+                continue
+            lots = float(by_co.get(r["company"], {}).get("lots", 0)) * turns if avail else None
+            vol = (h["national_qty"] * r["share_brazil"] / 100.0) if avail else r["volume"]
+            unit = h["national_unit"] if avail else (blk.get("unit") or "")
+            row = {"Company": group_key(r["company"]), "Line": r["company"],
+                   "Product": product, "Contract": contract,
+                   "Annual production": round(vol, 2), "Unit": unit,
+                   "_lots": lots or 0.0, "_avail": avail}
+            for pct in ratios:
+                at_ratio = (lots * pct / 100.0) if avail else None
+                for suffix, divisor in HEDGE_PERIODS:
+                    row[f"{pct}% {suffix}"] = (int(round(at_ratio / divisor))
+                                               if avail else None)
+            rows.append(row)
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+
+    # A source may file one client under several operating entities — ANP lists PRIO as
+    # Prio Tigris, Prio Bravo and Petro Rio Jaguar. group_key merges the names, so the
+    # rows behind them have to be summed too or the client appears three times for one
+    # product with a third of its book on each line.
+    agg = {"Line": lambda v: " + ".join(dict.fromkeys(v)),
+           "Contract": "first", "Unit": "first", "_avail": "first",
+           "Annual production": "sum", "_lots": "sum"}
+    for pct in ratios:
+        for suffix, _d in HEDGE_PERIODS:
+            agg[f"{pct}% {suffix}"] = "sum"
+    df = df.groupby(["Company", "Product"], as_index=False, sort=False).agg(agg)
+    df["Annual production"] = df["Annual production"].round(2)
+
+    # Company blocks ordered by the company's whole book, biggest line first within it.
+    totals = df.groupby("Company")["_lots"].sum().rename("_co_total")
+    df = df.join(totals, on="Company")
+    return (df.sort_values(["_co_total", "Company", "_lots"], ascending=[False, True, False])
+              .drop(columns=["_co_total"]).reset_index(drop=True))
+
+
+def hedge_totals(mat: pd.DataFrame) -> dict:
+    """Column totals for the hedge matrix — the whole addressable book in one line.
+
+    Unhedgeable products hold NaN and drop out of the sum, so the total is lots that
+    could actually be traded, not a count inflated by production nobody can hedge.
+    """
+    if mat is None or mat.empty:
+        return {}
+    out = {"_n_rows": int(len(mat)), "_n_companies": int(mat["Company"].nunique()),
+           "_n_hedgeable": int(mat["_avail"].sum())}
+    for pct in HEDGE_RATIOS:
+        for suffix, _div in HEDGE_PERIODS:
+            col = f"{pct}% {suffix}"
+            out[col] = int(mat[col].sum(skipna=True)) if col in mat else 0
+    return out
+
+
 def headline_rows(store: dict | None = None) -> pd.DataFrame:
     """One row per commodity for the overview table — Brazil's volume, the world's,
     the share and the global rank, sorted by share descending."""
@@ -467,7 +938,13 @@ def main(argv: list[str]) -> int:
     print(f"built {store.get('built')} — {len(ok)} commodities, {len(store.get('errors') or [])} errors")
     for c in sorted(ok.values(), key=lambda x: -x["share"]):
         co = c.get("companies")
-        tag = f"  companies: {len(co['rows'])} ({co['basis_label']}, {co['confidence_label']})" if co else ""
+        if not co:
+            tag = ""
+        elif co.get("unsourced"):
+            tag = f"  companies: NOT SOURCED ({len(co.get('names', []))} producers named)"
+        else:
+            tag = (f"  companies: {len(co['rows'])} ({co['basis_label']}, "
+                   f"{co.get('confidence_label', '?')})")
         print(f"  {c['label']:<14} {c['year_label']:>9}  Brazil {c['brazil']:>10,.2f} / "
               f"world {c['world']:>10,.2f} {c['unit']:<14} = {c['share']:5.1f}%  #{c['rank']}{tag}")
     for e in store.get("errors") or []:

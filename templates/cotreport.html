@@ -9,6 +9,9 @@
   .chartbook .section { margin-top: 3mm; }
   .chartbook .cap { font-size: 6.5pt; color: #999; margin: 0 0 1mm; }
   .newpage { break-before: page; page-break-before: always; }
+  /* The final page carries the LAST product chart AND the disclaimer: the shared `.report-footer` is
+     a full-page flex column on its own page (disclaimer pinned to the bottom via margin-top:auto), so
+     the closing chart drops in at its top — see the closing markup. No chart-less disclaimer page. */
   p.outcomes { margin-top: 3mm; }
   p.outcomes b { color: #111; }
   table.fwd { font-size: 6.2pt; }                                  /* 11-col study table — keep tight */
@@ -105,7 +108,7 @@
     {% endif %}
 
     {% if fwd_rows %}
-    <div class="banner">Forward Returns After Positioning Extremes &mdash; study</div>
+    <div class="banner newpage">Forward Returns After Positioning Extremes &mdash; study</div>
     <p class="summary" style="margin-top:2mm">
       <b>What this shows.</b> For the markets flagged <b>crowded right now</b> (above): each past time a market's
       COT Index <i>entered</i> a crowded <b>long</b> (&ge; {{ hi }}) or <b>short</b> (&le; {{ lo }}) zone, we
@@ -163,7 +166,7 @@
     </p>
     <div class="chartbook">
       {% set ns = namespace(sec=None) %}
-      {% for p in products %}
+      {% for p in products[:-1] %}
       {% if p.sector != ns.sec %}<div class="sectorband">{{ p.sector }}</div>{% set ns.sec = p.sector %}{% endif %}
       <div class="section">
         <div class="chart"><img src="{{ p.img }}" alt="COT chart"></div>
@@ -172,7 +175,17 @@
       {% endfor %}
     </div>
 
+    {# The closing page carries the LAST product chart AND the disclaimer: `.report-footer` (shared
+       style) is a full-page flex column on its own page, so the last chart rides at the top while the
+       disclaimer stays pinned to the bottom (margin-top:auto) — no chart-less disclaimer page. #}
     <div class="report-footer">
+      {% if products %}{% set p = products[-1] %}
+      {% if p.sector != ns.sec %}<div class="sectorband">{{ p.sector }}</div>{% endif %}
+      <div class="section">
+        <div class="chart"><img src="{{ p.img }}" alt="COT chart"></div>
+        {% if p.seas %}<div class="chart"><img src="{{ p.seas }}" alt="positioning seasonality"></div>{% endif %}
+      </div>
+      {% endif %}
     <div class="foot-disclaimer">
     <hr class="rule">
     <div class="fine">

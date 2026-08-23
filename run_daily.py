@@ -59,6 +59,17 @@ def run() -> pd.DataFrame:
         hotsheet.stamp_today(log=print)
     except Exception as e:
         print(f"  (Hot Sheet refresh skipped: {e})")
+    # Gold Driver Model: eight external sources and a walk-forward fit, ~40s cold —
+    # far too slow to run on page-open, so it lands on disk here (gold_features.parquet
+    # + gold_model.json) like seasonality and the Hot Sheet. Never fails the rebuild;
+    # a dead source degrades to the last good cache inside golddata itself.
+    try:
+        from src import goldmodel
+        o = goldmodel.compute(rebuild=True)
+        print(f"  Gold model: R2 {o['explanatory']['r2_macro']:.2f}, "
+              f"fair-value gap {o['fair_value_gap_pct']:+.1f}%")
+    except Exception as e:
+        print(f"  (Gold model refresh skipped: {e})")
     return df
 
 

@@ -1,29 +1,35 @@
 {
- "generated_at": "20 Aug 2026 · 08:49 ET",
- "synopsis": "Energy is the story this morning. Brent surged 3% to $94.39 and WTI jumped 3.3% to $88.67 after Ukraine struck Russia's Taneco refinery deep inland and a Black Sea oil terminal, deepening Moscow's second wave of gasoline shortages, while European TTF gas rallied 3.2% through €65/MWh for the first time since March — EU storage at just 62% keeping the winter supply premium alive.",
- "commentary": "Energy is the story this morning. Brent surged 3% to $94.39 and WTI jumped 3.3% to $88.67 after Ukraine struck Russia's Taneco refinery deep inland and a Black Sea oil terminal, deepening Moscow's second wave of gasoline shortages, while European TTF gas rallied 3.2% through €65/MWh for the first time since March — EU storage at just 62% keeping the winter supply premium alive. The oil bid put inflation risk squarely back on the radar and unravelled the bond rally sparked by Treasury Secretary Bessent's buyback surprise: 30-year Treasuries erased all their gains, the long bond fell 0.8%, and the curve bear-steepened as investors judged buybacks a short-lived fix for structurally higher term premium.\n\nThe macro backdrop reinforces the hawkish read. Fed minutes showed officials saw a need to hike if inflation doesn't cool, jobless claims printed a firmer-than-expected 206k, and softer big-box retail earnings — Walmart's miss knocked the consumer complex — muddied the growth picture without offering rate relief. That combination sank equity futures across the board: S&P -0.45%, Nasdaq -0.7%, with the Nikkei and KOSPI off 1.3% as rising global yields and energy-driven inflation feed on each other, a loop Japan's bond market is flagging first.\n\nTransmission: stay wary of the long end — duration is the pressure point, not the front. Gold eased 0.75% and copper fell 1.2% on the firmer-yield, soft-China-demand mix, while grains caught a bid (corn and wheat +1%) on the energy pull-through. Watch refinery-strike escalation, EU storage builds, and whether yields force a deeper equity de-rating.",
+ "generated_at": "21 Aug 2026 · 09:01 ET",
+ "synopsis": "Risk appetite is firming into the weekend, with the story led by a weaker dollar and a roaring precious-metals bid. The US Treasury's plan to buy back longer-dated bonds has stabilised yields, knocked the greenback lower across the board, and sent hard assets flying: gold +1.8% at 4,654, silver +2.7%, platinum +3%, and copper +2.2% as the softer dollar and firm risk tone pull the industrial complex along.",
+ "commentary": "Risk appetite is firming into the weekend, with the story led by a weaker dollar and a roaring precious-metals bid. The US Treasury's plan to buy back longer-dated bonds has stabilised yields, knocked the greenback lower across the board, and sent hard assets flying: gold +1.8% at 4,654, silver +2.7%, platinum +3%, and copper +2.2% as the softer dollar and firm risk tone pull the industrial complex along. Bitcoin is on track for its best week in over three years, equity-index futures are higher with the Nasdaq 100 (+0.8%) set to snap a five-day slide, and AI-sector optimism got a fresh boost from Samsung's plan to return up to $80bn to shareholders.\n\nThe macro tension underneath is unresolved: buybacks cap the long end tactically, but structurally higher term premium — governments and AI hyperscalers competing for capital amid sticky inflation risk — argues against chasing duration, and Treasuries trimmed early gains. Fed Chair Warsh at Jackson Hole next week is the asymmetric risk for rates futures, according to reports; meanwhile traders are bracing for a more hawkish ECB and UK August PMIs beat handily, supporting sterling and capping Gilt upside. Crude is the outlier — Brent -0.4% near $93 — though Dec-Dec spreads at their strongest since mid-May signal a tight physical market, with Washington's plan to squeeze Iran's economy a lingering supply risk.\n\nHenry Hub and TTF gas are both up ~1.6% on German storage shortfalls. Ags are soft across wheat and the tropicals; hogs fell 1.6% on ground-beef tariff relief. Watch Jackson Hole and Nvidia's results as the next catalysts.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "EUROPEAN GAS PRICES HIT €65/MWH FOR THE FIRST TIME SINCE MARCH",
+   "title": "*TRUMP ALLOWS TARIFF RELIEF FOR SOME GROUND BEEF IMPORTS",
    "time": "",
    "tag": ""
   },
   {
    "source": "BBC News",
-   "title": "Jump in energy bills drives UK inflation to highest rate for four months",
+   "title": "Panama Canal to cut number of ships passing through due to El Niño",
+   "time": "",
+   "tag": ""
+  },
+  {
+   "source": "NPR",
+   "title": "Investors sell stocks and bonds as government efforts fail to soothe market",
+   "time": "",
+   "tag": ""
+  },
+  {
+   "source": "NPR",
+   "title": "The bond market is signaling trouble ahead. This is why you should pay attention",
    "time": "",
    "tag": ""
   },
   {
    "source": "Wall Street Journal",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "",
-   "tag": ""
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Ukraine Says It Hit Russia's Taneco Refinery, Small Oil Terminal",
+   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek",
    "time": "",
    "tag": ""
   },
@@ -34,20 +40,14 @@
    "tag": ""
   },
   {
+   "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "",
+   "tag": ""
+  },
+  {
    "source": "Financial Times",
-   "title": "Grain prices surge after Ukraine war chokes off seaborne exports",
-   "time": "",
-   "tag": ""
-  },
-  {
-   "source": "NPR",
-   "title": "The U.S. debt tops a record-shattering $40 trillion",
-   "time": "",
-   "tag": ""
-  },
-  {
-   "source": "Washington Post",
-   "title": "Bessent acts to break bond market fever, head off rising borrowing costs",
+   "title": "Japanese inflation rises as central bank weighs rate increase",
    "time": "",
    "tag": ""
   }

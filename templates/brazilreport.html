@@ -5,8 +5,18 @@
 {% include "_report_style.html" %}
 <style>
   table { font-size: 7.4pt; }
+  /* one commodity per page — the shared stylesheet has no such rule, only break-inside */
+  .page-break { break-before: page; }
+  /* the front-page ranking runs to every commodity, so it prints tighter than the
+     per-commodity company tables */
+  table.overview { font-size: 6.6pt; }
+  table.overview th, table.overview td { padding-top: .7mm; padding-bottom: .7mm; }
+  .solo { max-width: 108mm; margin: 0 auto; }
   td:first-child { white-space: nowrap; }
   tr.other td { color: #6b7280; }
+  /* a producer that is not a company — tinted so it never reads as another miner */
+  tr.artisanal td { background: #EDF3FA; color: #24455f; }
+  tr.artisanal td:first-child { font-style: italic; }
   .pair { display: flex; gap: 5mm; align-items: flex-start; }
   .pair .half { flex: 1 1 0; min-width: 0; }
   .pair .half img { width: 100%; }
@@ -18,6 +28,38 @@
   .chip.warn { border-color: var(--yellow, #F5C518); background: #FFFBEA; }
   .basisnote { font-size: 7pt; color: #444; margin: 0 0 2mm; }
   .basisnote.warn { border-left: 2px solid var(--yellow, #F5C518); padding-left: 2mm; }
+  .basisnote.arti { border-left: 2px solid #3C6E9F; padding-left: 2mm; }
+  /* the hedge maths is DERIVED, not measured — boxed off from the production table */
+  .hedgebox { margin-top: 3mm; padding: 2mm 2.5mm; background: #F7F7F4;
+              border: 1px solid #E2E2DC; font-size: 7pt; color: #333; }
+  /* 16 columns in a 5.92in content box. table-layout:fixed pins them to the column
+     widths below — with auto layout the nowrap numeric cells pushed the table past
+     the right margin. Percentages are of the content width, so they cannot overflow. */
+  table.matrix { font-size: 5.2pt; width: 100%; table-layout: fixed; }
+  table.matrix th, table.matrix td { padding: .4mm .5mm; }
+  table.matrix th.sub { font-weight: 400; font-size: 5pt; }
+  table.matrix .grp { border-left: 1px solid #C9C9C2; }
+  /* the global td:first-child nowrap above is what kept long company names from
+     wrapping, so they ran into the Product cell — override it here. */
+  table.matrix td.co { font-weight: 700; white-space: normal;
+                       overflow-wrap: break-word; }
+  table.matrix td.num { white-space: nowrap; }
+  table.matrix tr.cofirst td { border-top: 1px solid #D8D8D2; }
+  /* one hue per period so a row can be tracked across 12 numeric columns */
+  table.matrix .p-yr  { color: {{ col_yr }}; }
+  table.matrix .p-mth { color: {{ col_mth }}; }
+  table.matrix .p-day { color: {{ col_day }}; }
+  table.matrix th.sub { font-weight: 700; }
+  /* the header band is black, so the sub-headers take the dark-canvas hues —
+     same three colours, readable against the band instead of lost in it */
+  table.matrix th.sub.p-yr  { color: {{ hcol_yr }}; }
+  table.matrix th.sub.p-mth { color: {{ hcol_mth }}; }
+  table.matrix th.sub.p-day { color: {{ hcol_day }}; }
+  /* an unhedgeable line is an em dash — grey beats the period hue there */
+  table.matrix td.dim, table.matrix td.dim.p-yr,
+  table.matrix td.dim.p-mth, table.matrix td.dim.p-day { color: #9AA0A6; }
+  table.matrix tr.tot td { border-top: 1.2pt solid #1a1a1a; font-weight: 700;
+                                 padding-top: .8mm; }
 </style>
 </head>
 <body>
@@ -41,7 +83,9 @@
 
     <p class="summary">
       Where Brazil sits in the global supply of {{ n_com }} commodities, as of <b>{{ asof }}</b>,
-      and who produces its share. {{ lead }}. Country-level output is taken from the
+      and who produces its share. {{ lead }}. A page follows for each commodity, ranked as below;
+      {{ n_co }} of them carry a company-level breakdown of Brazil's own output. Country-level
+      output is taken from the
       <b>USDA Foreign Agricultural Service PS&amp;D</b> balance sheets and the
       <b>US Energy Information Administration</b>; metals, pulp and ethanol are compiled from the
       <b>USGS Mineral Commodity Summaries</b> and the relevant industry associations. Agricultural
@@ -54,7 +98,7 @@
       <div class="chart"><img src="{{ overview }}" alt="Brazil's share of world production"></div>
     </div>
 
-    <table>
+    <table class="overview">
       <thead>
         <tr><th>Commodity</th><th>Group</th><th>Year</th><th class="right">Brazil</th>
             <th class="right">World</th><th>Unit</th><th class="right">% of world</th>
@@ -85,6 +129,7 @@
         Source: {{ b.source }}.
       </p>
 
+      {% if b.has_co %}
       <div class="chips">
         <span class="chip">Company table measures: <b>{{ b.basis_label }}</b></span>
         <span class="chip{% if b.is_estimate %} warn{% endif %}">Data quality:
@@ -96,6 +141,9 @@
       {% if b.is_export %}
       <div class="basisnote warn"><b>This is an export share, not a production share.</b>
         {{ b.note }}</div>
+      {% elif b.has_artisanal %}
+      <div class="basisnote arti"><b>{{ b.artisanal_share }}% of Brazil's {{ b.label|lower }} has
+        no corporate producer.</b> {{ b.note }}</div>
       {% elif b.note %}
       <div class="basisnote">{{ b.note }}</div>
       {% endif %}
@@ -113,18 +161,20 @@
 
       <table>
         <thead>
-          <tr><th>Company</th>
+          <tr><th>{{ b.entity_label }}</th>
               {% if not b.unit_is_pct %}<th class="right">{{ b.co_unit }}</th>{% endif %}
               <th class="right">% of Brazil</th><th class="right">% of world</th>
+              {% if b.hedge.available %}<th class="right">Hedge lots</th>{% endif %}
               <th>Listing</th></tr>
         </thead>
         <tbody>
           {% for r in b.rows %}
-          <tr{% if r.is_other %} class="other"{% endif %}>
+          <tr{% if r.is_artisanal %} class="artisanal"{% elif r.is_other %} class="other"{% endif %}>
             <td>{{ r.company }}</td>
             {% if not b.unit_is_pct %}<td class="right">{{ r.volume }}</td>{% endif %}
             <td class="right"><b>{{ r.share_brazil }}</b></td>
             <td class="right">{{ r.share_world }}</td>
+            {% if b.hedge.available %}<td class="right">{{ r.lots }}</td>{% endif %}
             <td>{{ r.ticker }}</td>
           </tr>
           {% endfor %}
@@ -132,10 +182,133 @@
       </table>
       <div class="fine">{{ b.basis_note }} {{ b.co_year }} figures, compiled from
         {{ b.co_source }}. <b>% of world</b> chains each company's share of Brazil through Brazil's
-        share of world supply.{% if b.is_estimate %} These are estimates assembled from company
-        disclosures and sector bodies rather than a single audited source.{% endif %}</div>
+        share of world supply.{% if b.has_artisanal %} The tinted row is a producer, not a company,
+        and is shown in blue on the chart.{% endif %}{% if b.is_estimate %} These are estimates
+        assembled from company disclosures and sector bodies rather than a single audited
+        source.{% endif %}</div>
+      <div class="hedgebox">
+        {% if b.hedge.available %}
+        <b>Hedging a year of output.</b> Brazil's annual {{ b.hedge.basis_word }} of
+        {{ b.hedge.national_qty }} {{ b.hedge.national_unit }} equates to
+        <b>{{ b.hedge.lots }} lots</b> of {{ b.hedge.name }} ({{ b.hedge.size }}
+        {{ b.hedge.size_unit }} each), or about {{ b.hedge.per_month }} per month across a
+        12-month strip. Each producer's lots above are its share of Brazil applied to that
+        national figure.{% if b.hedge.proxy %} <b>This is a cross hedge.</b>
+        {{ b.hedge.note }}{% elif b.hedge.note %} {{ b.hedge.note }}{% endif %}
+        This is the size of a full hedge of a whole year: a producer would hedge a fraction,
+        roll a strip, and still carry quality, location and timing basis that flat price does
+        not cover.
+        {% else %}
+        <b>No listed hedge.</b> {{ b.hedge.reason }}
+        {% endif %}
+      </div>
+
+      {% else %}
+      <div class="caphead">WHO PRODUCES IT &mdash; BY COUNTRY</div>
+      <div class="chart solo"><img src="{{ b.country_chart }}" alt="{{ b.label }} by country"></div>
+      {% if b.unsourced %}
+      <div class="basisnote warn"><b>We do not know how much each company produces.</b>
+        {{ b.unsourced_reason }} The producers are named below; every volume is left blank
+        rather than estimated.</div>
+      <table>
+        <thead><tr><th>{{ b.entity_label }}</th><th class="right">Output</th>
+          <th class="right">% of Brazil</th><th class="right">% of world</th></tr></thead>
+        <tbody>
+          {% for n in b.producer_names.split(', ') %}
+          <tr><td>{{ n }}</td><td class="right">&mdash;</td><td class="right">&mdash;</td>
+              <td class="right">&mdash;</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="fine">Brazil's national total above IS sourced &mdash; it is only the split
+        between companies that is missing. A blank means we do not know, not that the producer
+        is small.</div>
+      {% else %}
+      <div class="basisnote"><b>No company breakdown for {{ b.label|lower }}.</b>
+        Brazilian output here is spread across operators with no published company-level split,
+        so a company table would be an invention rather than a measurement. The country picture
+        above is the reliable read.{% if b.com_note %} {{ b.com_note }}{% endif %}</div>
+      {% endif %}
+      <div class="hedgebox">
+        {% if b.hedge.available %}
+        <b>Hedging a year of output.</b> Brazil's annual {{ b.hedge.basis_word }} of
+        {{ b.hedge.national_qty }} {{ b.hedge.national_unit }} equates to
+        <b>{{ b.hedge.lots }} lots</b> of {{ b.hedge.name }} ({{ b.hedge.size }}
+        {{ b.hedge.size_unit }} each), or about {{ b.hedge.per_month }} per month across a
+        12-month strip. Each producer's lots above are its share of Brazil applied to that
+        national figure.{% if b.hedge.proxy %} <b>This is a cross hedge.</b>
+        {{ b.hedge.note }}{% elif b.hedge.note %} {{ b.hedge.note }}{% endif %}
+        This is the size of a full hedge of a whole year: a producer would hedge a fraction,
+        roll a strip, and still carry quality, location and timing basis that flat price does
+        not cover.
+        {% else %}
+        <b>No listed hedge.</b> {{ b.hedge.reason }}
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
+
+
+    {% if matrix_rows %}
+    <div class="section page-break">
+      <div class="banner">Appendix &mdash; hedge sizing by company and product</div>
+      <p class="summary">
+        Every named Brazilian producer, split by product, with the number of futures lots a
+        hedge of that year's output would require at four hedge ratios &mdash; each shown per
+        year, per month and per trading day ({{ trading_days }} days). {{ n_matrix_co }} companies.
+        A company that makes several things appears once per product, because each is a
+        different contract. Lots are the company's share of Brazil applied to Brazil's national
+        output, converted at each contract's size.
+      </p>
+      <table class="matrix">
+        <colgroup>
+          <col style="width:11.5%"><col style="width:10.5%"><col style="width:8%"><col style="width:4%">
+          <col style="width:6.9%"><col style="width:5.2%"><col style="width:4.4%"><col style="width:6.9%"><col style="width:5.2%"><col style="width:4.4%"><col style="width:6.9%"><col style="width:5.2%"><col style="width:4.4%"><col style="width:6.9%"><col style="width:5.2%"><col style="width:4.4%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th rowspan="2">Company</th><th rowspan="2">Product</th>
+            <th rowspan="2" class="right">Annual production</th><th rowspan="2">Contract</th>
+            {% for h in ratio_heads %}<th colspan="3" class="center grp">{{ h.pct }}%</th>{% endfor %}
+          </tr>
+          <tr>
+            {% for h in ratio_heads %}{% for p in h.periods %}
+            <th class="right sub p-{{ p }}{% if loop.first %} grp{% endif %}">{{ p }}</th>
+            {% endfor %}{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in matrix_rows %}
+          <tr{% if r.first %} class="cofirst"{% endif %}>
+            <td class="co">{{ r.company }}</td>
+            <td{% if r.nohedge %} class="dim"{% endif %}>{{ r.product }}</td>
+            <td class="right">{{ r.volume }}</td>
+            <td{% if r.nohedge %} class="dim"{% endif %}>{{ r.contract }}</td>
+            {% for c in r.cells %}
+            <td class="right num p-{{ periods[loop.index0 % 3] }}{% if r.nohedge %} dim{% endif %}{% if loop.index0 % 3 == 0 %} grp{% endif %}">{{ c }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+          {% if total_cells %}
+          <tr class="tot">
+            <td>TOTAL</td><td colspan="3">{{ total_hedgeable }} hedgeable lines</td>
+            {% for c in total_cells %}
+            <td class="right num p-{{ periods[loop.index0 % 3] }}{% if loop.index0 % 3 == 0 %} grp{% endif %}">{{ c }}</td>
+            {% endfor %}
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+      <div class="fine">Blank lot columns mean the product has <b>no listed future</b> &mdash;
+        pulp, niobium, nickel, manganese and bauxite &mdash; not that the producer was
+        overlooked. A qualifier in brackets says what the share measures: <i>exports</i> for the
+        trade houses, <i>share by processing</i> for the meat packers, <i>equity share</i> for
+        the oil partners. Poultry has no meat contract, so the integrators are sized on their
+        feed hedge (corn + soybean meal). These are the lots a full hedge would require, not a
+        forecast of what any producer will trade.</div>
+    </div>
+    {% endif %}
 
     <div class="report-footer">
     <div class="foot-disclaimer">

@@ -7873,6 +7873,52 @@ def _brazil_company_chart(blk: dict, cc: dict):
     ).properties(height=max(200, 27 * len(d)))
 
 
+def _brazil_hedge_section(com: dict, blk: dict | None) -> None:
+    """How many lots would hedge a year of this commodity's Brazilian output, nationally
+    and per producer. Deliberately a SEPARATE section from the production table: the
+    production numbers are measurements, these are a derived what-if built on a stack of
+    conversions, and the two shouldn't be read with the same confidence."""
+    h = com.get("hedge") or {}
+    st.markdown("##### Hedging a year of that output")
+    if not h.get("available"):
+        st.info(f"**No hedge sized for {com['label'].lower()}.** {h.get('reason', '')}")
+        return
+
+    basis_word = "exports" if h["qty_basis"] == "exports" else "production"
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Contract", h["ticker"].split()[0],
+              help=f"{h['name']} — {h['size']:,} {h['size_unit']} per lot.")
+    m2.metric("Lots to hedge all of Brazil", f"{h['national_lots']:,}",
+              help=f"Brazil's annual {basis_word} of {h['national_qty']:,.2f} "
+                   f"{h['national_unit']}, hedged in full.")
+    m3.metric("Spread over 12 months", f"{h['national_lots_per_month']:,} / mth",
+              help="The same hedge laid evenly across a 12-month strip, which is closer to "
+                   "how it would actually be executed than one giant front-month clip.")
+
+    if h["proxy"]:
+        st.warning(f"**Cross hedge — {h['name']} is a proxy, not a match.** {h['note']}")
+    elif h["note"]:
+        st.caption(h["note"])
+
+    if blk and h.get("rows"):
+        hd = pd.DataFrame(h["rows"])
+        show = hd.assign(**{
+            "% of Brazil": hd["share_brazil"].map("{:.1f}".format),
+            "Lots (1 yr)": hd["lots"].map("{:,}".format),
+            "Lots / month": hd["lots_per_month"].map("{:,}".format),
+        }).rename(columns={"company": blk.get("entity_label") or "Company"})
+        st.dataframe(show[[blk.get("entity_label") or "Company", "% of Brazil",
+                           "Lots (1 yr)", "Lots / month"]],
+                     use_container_width=True, hide_index=True)
+
+    st.caption(f"Each producer's hedgeable volume is its **share of Brazil applied to Brazil's "
+               f"national {basis_word}** ({h['national_qty']:,.2f} {h['national_unit']}), so the "
+               f"rows add back to the national figure. One lot is **{h['size']:,} "
+               f"{h['size_unit']}**. This is the notional size of a *full* hedge of a *whole* "
+               f"year — a producer would hedge a fraction of that, rolling a strip, and would "
+               f"still carry quality, location and timing basis the flat price does not cover.")
+
+
 def render_brazil_production() -> None:
     import altair as alt
     st.subheader("🇧🇷 Brazil Production")
@@ -7980,7 +8026,134 @@ def render_brazil_production() -> None:
                "2025/26 crop and a 2024 mining figure are not the same window — each row states "
                "its own. **Rank** counts every reporting country.")
 
-    # ── 2. one commodity in depth ───────────────────────────────────────────
+    # ── 2. the commercial view: lots per prospective client ─────────────────
+    # Brokerage is earned per lot, so the number that sizes the opportunity is the
+    # lot count a client would trade hedging its WHOLE production — summed across
+    # every commodity it produces, not read off one commodity's page. Internal only:
+    # this deliberately does not go in the client PDF.
+    st.divider()
+    st.markdown("#### Brokerage potential — lots by client")
+    st.caption("Every producer above, rolled up across all the commodities they make, sized as "
+               "the lots a **full hedge of a full year's output** would require. Brokerage is "
+               "per lot, so this is the addressable ticket count, not a notional. "
+               "‘Other’ buckets, non-corporate production and multi-company lines are excluded — "
+               "there is nobody to call.")
+
+    tc1, tc2, tc3 = st.columns([1, 1, 2])
+    turns = tc1.number_input("Round-turns per lot per year", min_value=0.5, max_value=12.0,
+                             value=1.0, step=0.5, key="brz_turns",
+                             help="1.0 = the hedge goes on once and is held to expiry. A producer "
+                                  "rolling a strip trades the same position again at every roll "
+                                  "and pays brokerage each time, so raise this to model that. "
+                                  "It is an assumption, not a measurement.")
+    book = brazilprod.broker_book(store, turns=float(turns))
+    if book.empty:
+        st.info("No hedgeable production in the store yet.")
+    else:
+        tc2.metric("Prospective clients", f"{len(book):,}")
+        tc3.metric("Total addressable lots / year", f"{book['Lots (1 yr)'].sum():,.0f}",
+                   help="Sum across every named producer. Commodities with no listed hedge "
+                        "(niobium, pulp, nickel, manganese, bauxite) contribute nothing.")
+
+        top = book.head(15).copy()
+        st.markdown("**Top 15 by annual lots**")
+        brand.show_chart(alt.Chart(top).mark_bar(color=cc["accent"]).encode(
+            x=alt.X("Lots (1 yr):Q", title="lots per year, full hedge of full output"),
+            y=alt.Y("Client:N", title=None, sort=top["Client"].tolist()),
+            tooltip=[alt.Tooltip("Client:N"), alt.Tooltip("Commodities:N"),
+                     alt.Tooltip("Lots (1 yr):Q", format=","),
+                     alt.Tooltip("Lots / month:Q", format=",")],
+        ).properties(height=max(240, 26 * len(top))))
+
+        st.dataframe(book.assign(**{
+            "Lots (1 yr)": book["Lots (1 yr)"].map("{:,}".format),
+            "Lots / month": book["Lots / month"].map("{:,}".format)})
+            [["Client", "Commodities", "Lots (1 yr)", "Lots / month", "detail"]],
+            use_container_width=True, hide_index=True,
+            column_config={"detail": st.column_config.TextColumn(
+                "Breakdown", help="Lots per commodity and the contract they trade in.")})
+        # Company x product detail — the call-sheet view. A company that makes three
+        # things gets three rows, because each is a different contract and a different
+        # conversation.
+        st.markdown("**By company and product** &nbsp;·&nbsp; lots at each hedge ratio")
+        h1, h2 = st.columns([1, 3])
+        show_unhedgeable = h1.checkbox("Include products with no future", value=True,
+                                       key="brz_show_nohedge",
+                                       help="Suzano's pulp, CBMM's niobium and Vale's nickel have "
+                                            "no listed hedge. Shown with blank lot columns so a "
+                                            "producer never looks overlooked when it is simply "
+                                            "unhedgeable.")
+        mat = brazilprod.hedge_matrix(store, turns=float(turns),
+                                      include_unhedgeable=show_unhedgeable)
+        if not mat.empty:
+            # Each ratio spans three sub-columns (yr / mth / day). Streamlit has no
+            # grouped headers, so the ratio is carried on the first of the three and
+            # the period on each — "100% · yr", "· mth", "· day".
+            _period_word = {"yr": "year", "mth": "month", "day": "trading day"}
+            # Labels must be UNIQUE — a shared "· mth" across the four ratio groups gives
+            # the frame duplicate column names, which breaks the Styler outright.
+            ratio_cols, col_cfg = [], {}
+            for pct in brazilprod.HEDGE_RATIOS:
+                for suffix, _div in brazilprod.HEDGE_PERIODS:
+                    label = f"{pct}% {suffix}"
+                    ratio_cols.append((f"{pct}% {suffix}", label))
+                    col_cfg[label] = st.column_config.TextColumn(
+                        label, help=f"Lots to hedge {pct}% of that year's output, "
+                                    f"per {_period_word[suffix]}.")
+            disp = mat.assign(**{
+                "Annual production": [f"{v:,.2f} {u}" for v, u in
+                                      zip(mat["Annual production"], mat["Unit"])]})
+            for src, label in ratio_cols:
+                disp[label] = mat[src].map(lambda x: "—" if pd.isna(x) else f"{x:,.0f}")
+            # TOTAL pinned to the foot — the whole addressable book in one line.
+            tot = brazilprod.hedge_totals(mat)
+            total_row = {"Company": "TOTAL", "Product": f"{tot['_n_hedgeable']} hedgeable lines",
+                         "Annual production": "", "Contract": ""}
+            for src, label in ratio_cols:
+                total_row[label] = f"{tot.get(src, 0):,.0f}"
+            disp = pd.concat([disp, pd.DataFrame([total_row])], ignore_index=True)
+            h2.metric("Company × product rows", f"{len(mat):,}",
+                      help=f"{mat['Company'].nunique()} companies; "
+                           f"{int((~mat['_avail']).sum())} lines have no listed hedge.")
+            # One hue per period (year / month / day) so a row can be tracked across
+            # twelve numeric columns. Colours come from brazilprod so the page, the PDF
+            # and the email table cannot drift apart.
+            pal = (brazilprod.PERIOD_COLOUR_DARK if brand.theme() == "dark"
+                   else brazilprod.PERIOD_COLOUR)
+            shown_cols = (["Company", "Product", "Annual production", "Contract"]
+                          + [lbl for _s, lbl in ratio_cols])
+            styler = disp[shown_cols].style
+            for (src, lbl) in ratio_cols:
+                suffix = src.split()[-1]
+                styler = styler.set_properties(subset=[lbl], **{"color": pal[suffix]})
+            st.dataframe(styler, use_container_width=True, hide_index=True,
+                         column_config=col_cfg)
+            st.caption(f"Colour marks the period, not the value: "
+                       f"<span style='color:{pal['yr']}'><b>per year</b></span> · "
+                       f"<span style='color:{pal['mth']}'><b>per month</b></span> · "
+                       f"<span style='color:{pal['day']}'><b>per trading day</b></span>.",
+                       unsafe_allow_html=True)
+            st.download_button(
+                "⬇️  Download as CSV", key="brz_matrix_csv",
+                data=mat.drop(columns=["_lots", "_avail"]).to_csv(index=False).encode("utf-8"),
+                file_name="Brazil_hedge_by_company_product.csv", mime="text/csv",
+                help="The full table, for working up a call list off-app.")
+            st.caption("**Contract** is the future each line would hedge in — a multi-product "
+                       "company trades several, which is the point of splitting the rows. "
+                       "A product qualifier in brackets says what the share measures: "
+                       "*exports* for the trade houses, *share by processing* for the meat "
+                       "packers, *equity share* for the oil partners. Poultry carries no meat "
+                       "future, so JBS and BRF are sized on the **feed** hedge (corn + soybean "
+                       "meal) against their bird output.")
+
+        st.caption("A client's lots are its share of Brazil applied to Brazil's national "
+                   "output, converted at each contract's size. Poultry has no meat future, so "
+                   "the integrators (JBS Seara, BRF) are sized on their **feed** hedge — corn "
+                   "and soybean meal — which is where their brokerage actually sits. Treat the "
+                   "whole table as an upper bound on ticket count: it assumes 100% of output is "
+                   "hedged, on-exchange, through one broker.")
+
+    # ── 3. one commodity in depth ───────────────────────────────────────────
     st.divider()
     st.markdown("#### A commodity in depth")
     ordered = [k for g in (store.get("group_order") or [])
@@ -8020,7 +8193,7 @@ def render_brazil_production() -> None:
     if com.get("note"):
         st.info(com["note"])
 
-    # ── 3. who inside Brazil produces it ────────────────────────────────────
+    # ── 4. who inside Brazil produces it ────────────────────────────────────
     st.divider()
     blk = com.get("companies")
     st.markdown(f"#### Who produces Brazil's {com['label'].lower()}")
@@ -8030,11 +8203,35 @@ def render_brazil_production() -> None:
                    "published company-level split worth charting."
                    if com["src"] == "curated" else
                    "Add one to `data/brazil_curated.json` under `companies` and it appears here."))
+        # The national hedge still stands even with no company split to apportion it across.
+        _brazil_hedge_section(com, None)
+        return
+
+    # Producers known, volumes not. Names are shown because knowing Vale mines iron ore
+    # is not a guess — but every number is withheld rather than estimated, and the page
+    # says exactly what would be needed to fill it in.
+    if blk.get("unsourced"):
+        st.warning(f"**We do not know how much each company produces.** "
+                   f"{blk.get('reason', '')}")
+        if blk.get("names"):
+            st.markdown("**Producers** &nbsp;·&nbsp; names only, no volumes")
+            st.dataframe(pd.DataFrame({
+                blk.get("entity_label", "Producer"): blk["names"],
+                f"Output ({com['unit']})": ["—"] * len(blk["names"]),
+                "% of Brazil": ["—"] * len(blk["names"]),
+                "% of WORLD": ["—"] * len(blk["names"])}),
+                use_container_width=True, hide_index=True)
+        st.caption(f"Brazil's national total — **{com['brazil']:,.2f} {com['unit']}**, "
+                   f"{com['share']:.1f}% of world — is sourced ({com['source_label']}). "
+                   f"It is only the split between companies that is missing. Nothing here is "
+                   f"estimated: a blank means we do not know, not that the producer is small.")
+        _brazil_hedge_section(com, blk)
         return
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Measures", blk["basis_label"], help=blk["basis_note"])
-    c2.metric("Data quality", blk["confidence_label"], help=blk["confidence_note"])
+    c2.metric("Source", blk.get("provenance_label") or blk.get("confidence_label", "—"),
+              help=(blk.get("source") or "") + "  " + blk.get("confidence_note", ""))
     c3.metric("Named companies cover", f"{blk['named_share']:.0f}%",
               help="Share of Brazil's total accounted for by the named companies; the "
                    "remainder sits in the 'Other' bucket"
@@ -8076,6 +8273,8 @@ def render_brazil_production() -> None:
     cols = [blk.get("entity_label") or "Company"] + ([] if blk.get("unit_is_pct") else [vol_col])
     st.dataframe(show[cols + ["% of Brazil", "% of WORLD", "Listing", "Last", "1d %"]],
                  use_container_width=True, hide_index=True)
+
+    _brazil_hedge_section(com, blk)
 
     foot = [f"**{blk['basis_label']}**, {blk['year']} — {blk['source']}"]
     if blk.get("coverage_pct") is not None:
