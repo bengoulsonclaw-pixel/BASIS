@@ -125,9 +125,7 @@
               {{ (b.ratio | num(2)) if b.ratio else "—" }}</td>
           {% endfor %}
           <td>
-            {% if e.too_short_to_judge %}<span class="flat">too short to judge</span>
-            {% elif e.always_elevated %}<span class="ratio">elevated in every period</span>
-            {% else %}<span class="flat">no consistent premium</span>{% endif %}
+            <span class="{{ 'ratio' if e.recent_run >= 4 else 'flat' }}">{{ e.verdict }}</span>
           </td>
         </tr>
       {% endfor %}
@@ -144,13 +142,7 @@
     <p class="histcap">
       <b>Read the row, not the number.</b> A relationship that is real barely moves when
       the period changes; one that wanders was never established, however convincing a
-      single cut looks. The <b>employment report</b> sits above 1.0 in all seven periods
-      and is the only release whose premium survives a multiple-comparison correction
-      across the five tested here. <b>CPI runs between 0.90 and 1.30 with no pattern</b>
-      and every confidence interval containing 1.0 — quoted alone its recent reading
-      looks like a premium, and across the full record it does not hold up. PCE and
-      retail sales show nothing in any period. PPI has usable history only from 2011,
-      which is too little to judge either way.
+      single cut looks. {{ behaviour_summary | safe }}
     </p>
 
     <h2>3 &nbsp;What each driver is worth</h2>

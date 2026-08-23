@@ -267,8 +267,14 @@ def era_table(ev_dates: pd.DatetimeIndex, ret: pd.Series,
     diagnostic a reader can apply without trusting any p-value: a real effect barely
     moves when you change the slicing, and an effect that wanders was never
     established however good one pass looked. On this data the employment report sits
-    between 1.09 and 2.03 in every bucket while CPI wanders around 1.1 with every
-    interval containing 1.0 — which is the whole answer about both."""
+    between roughly 1.1 and 2.0 in every bucket while CPI wanders around 1.1 — which
+    is the whole answer about both.
+
+    The baseline is MATCHED on (year, weekday), the same construction the headline
+    `ratio_matched` uses. It was an unmatched mean until an audit caught it: the
+    report's caption claimed matching while this function did not do it, and the two
+    are not interchangeable — payrolls is almost always a Friday, so an unmatched
+    baseline compares Friday releases against a week that is mostly not Friday."""
     out = {}
     end = ret.index.max()
     for i in range(n):
@@ -280,8 +286,21 @@ def era_table(ev_dates: pd.DatetimeIndex, ret: pd.Series,
         if m.sum() < 20:
             out[name] = {"n": int(m.sum()), "note": "too few to quote"}
             continue
+        # Matched baseline: mean |return| of NON-event days within each (year,
+        # weekday) stratum that carries an event, averaged with the event weights.
+        ev_abs = w.abs()[m]
+        strat = pd.Series(list(zip(w.index.year, w.index.weekday)), index=w.index)
+        base_by = w.abs()[~m].groupby(strat[~m]).mean()
+        wts = strat[m].value_counts()
+        common = [k for k in wts.index if k in base_by.index]
+        if common:
+            tot = sum(wts[k] for k in common)
+            base = sum(base_by[k] * wts[k] for k in common) / tot
+        else:
+            base = float(w.abs()[~m].mean())
         out[name] = {"n": int(m.sum()),
-                     "ratio": round(float(w.abs()[m].mean() / w.abs()[~m].mean()), 3),
+                     "ratio": round(float(ev_abs.mean() / base), 3) if base else None,
+                     "ratio_unmatched": round(float(ev_abs.mean() / w.abs()[~m].mean()), 3),
                      "share_up": round(float((w[m] > 0).mean()), 3),
                      "baseline_share_up": round(float((w[~m] > 0).mean()), 3)}
     return out

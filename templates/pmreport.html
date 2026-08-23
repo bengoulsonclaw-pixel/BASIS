@@ -163,9 +163,9 @@
     <div class="fine">
       Data as of {{ d.asof }}. Positioning: CFTC Commitments of Traders (managed money, futures &amp; options).
       Rates &amp; holdings: US 10y TIPS yield, dollar index and ETF holdings via Bloomberg. Inventories:
-      CME Group depository statistics. Physical flows: Swiss Federal Customs; Shanghai gold price vs
-      London (daily closes, Bloomberg); US Mint.
-      Official sector: IMF IFS / World Gold Council central-bank statistics. Market balances: WPIC Platinum
+      CME Group depository statistics. Physical flows: Swiss Federal Customs;
+      {{ d.series.sge_source or "Shanghai gold price vs London (daily closes, Bloomberg)" }}; US Mint.
+      Official sector: {{ d.series.cb_source or "IMF IFS" }} / World Gold Council central-bank statistics. Market balances: WPIC Platinum
       Quarterly, Johnson Matthey PGM Market Report, The Silver Institute / Metals Focus World Silver Survey
       (all figures cited with attribution to their publishers).
     </div>

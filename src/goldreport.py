@@ -182,6 +182,13 @@ def event_behaviour() -> list:
                     "min_bucket": min(vals) if vals else None,
                     "max_bucket": max(vals) if vals else None,
                     "n_buckets": len(vals),
+                    "n_above": sum(1 for v in vals if v > 1.0),
+                    # How far back the run of above-1 buckets extends from today. A
+                    # release elevated in the last five periods but not the oldest is
+                    # a different (and more useful) statement than one elevated
+                    # throughout, and the report must be able to say which.
+                    "recent_run": next((i for i, v in enumerate(vals) if v <= 1.0),
+                                       len(vals)),
                     # The headline test: above 1 in EVERY bucket — but only meaningful
                     # with enough buckets to be a test at all. PPI has ALFRED vintages
                     # only from 2011, so it fills two buckets; "elevated in both" is
@@ -190,10 +197,63 @@ def event_behaviour() -> list:
                     # evidence. It is not.
                     "always_elevated": bool(len(vals) >= MIN_BUCKETS_FOR_CLAIM
                                             and min(vals) > 1.0),
+                    "mostly_elevated": bool(len(vals) >= MIN_BUCKETS_FOR_CLAIM
+                                            and sum(1 for v in vals if v > 1.0)
+                                            >= len(vals) - 1),
                     "too_short_to_judge": len(vals) < MIN_BUCKETS_FOR_CLAIM,
                     "significant": bool((b.get("recent") or {}).get("significant")),
                     "window": b.get("window", "")})
+    for r in out:
+        r["verdict"] = verdict_for(r)
     return sorted(out, key=lambda r: -(r["recent"] or r["ratio"]))
+
+
+def verdict_for(e: dict) -> str:
+    """One phrase per release, DERIVED. Hardcoded prose asserting live numbers is how
+    a page silently goes false at the next refresh — an audit caught exactly that
+    here, where the template claimed 'above 1.0 in all seven periods' after a
+    baseline correction had moved the oldest bucket to 0.97."""
+    if e.get("too_short_to_judge"):
+        return "too short to judge"
+    if e.get("always_elevated"):
+        return f"elevated in all {e['n_buckets']} periods"
+    run = e.get("recent_run", 0)
+    if e.get("mostly_elevated") and run >= 4:
+        return f"elevated in the last {run}, not the earliest"
+    if e.get("n_above", 0) >= 1 and run >= 3:
+        return f"elevated in the last {run} periods only"
+    return "no consistent premium"
+
+
+def summary_sentence(rows: list) -> str:
+    """The section's takeaway, generated from what the data actually shows."""
+    if not rows:
+        return ""
+    strong = [r for r in rows if r.get("recent_run", 0) >= 4
+              and not r.get("too_short_to_judge")]
+    weak = [r for r in rows if r not in strong and not r.get("too_short_to_judge")]
+    bits = []
+    if strong:
+        names = ", ".join(f"<b>{r['label']}</b>" for r in strong)
+        # Range over the RUN being described, not the whole row. Quoting the full
+        # span alongside "every recent period" put 0.97 in a sentence whose whole
+        # point was that the recent periods are all above 1.0 — the number
+        # contradicted the claim it was supporting.
+        run_vals = [x["ratio"] for r in strong
+                    for x in r["buckets"][:r.get("recent_run", 0)] if x["ratio"]]
+        lo, hi = min(run_vals), max(run_vals)
+        bits.append(f"{names} carries a premium in every recent period "
+                    f"({lo:.2f}&ndash;{hi:.2f}&times;)")
+    if weak:
+        names = ", ".join(r["label"] for r in weak)
+        allv = [x["ratio"] for r in weak for x in r["buckets"] if x["ratio"]]
+        bits.append(f"{names} wander between {min(allv):.2f} and {max(allv):.2f}&times; "
+                    f"with no pattern")
+    sig = [r["label"] for r in rows if r.get("significant")]
+    tail = (f" Only {', '.join(sig)} survives a multiple-comparison correction across "
+            f"the {len(rows)} releases tested." if sig else
+            " None survives a multiple-comparison correction across the releases tested.")
+    return "; ".join(bits) + "." + tail
 
 
 def chart_event_ratio(rows: list) -> str | None:
@@ -208,7 +268,7 @@ def chart_event_ratio(rows: list) -> str | None:
     ratios = [(r.get("recent") or r["ratio"]) for r in rows]
     # Gold fill only where the premium is consistent across every period; everything
     # else is grey, so colour carries the verdict rather than just the magnitude.
-    cols = [GOLD if r.get("always_elevated") else GREY for r in rows]
+    cols = [GOLD if r.get("recent_run", 0) >= 4 else GREY for r in rows]
     ax.barh(labels, ratios, color=cols, edgecolor=GOLDEDGE, height=0.55)
     ax.axvline(1.0, color=INK, lw=1.0)
     ax.set_xlim(0, max(1.6, max(ratios) * 1.15))
@@ -289,6 +349,7 @@ def build_payload(asof: date) -> dict:
         "events": events,
         "calendar_ok": calendar_ok,
         "behaviour": behaviour,
+        "behaviour_summary": summary_sentence(behaviour),
         "sens": sens,
         "r2": f.get("r2") if f else None,
         "n_obs": f.get("n") if f else None,

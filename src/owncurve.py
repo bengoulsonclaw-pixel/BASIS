@@ -513,6 +513,31 @@ def fetch_product_marks(generic: str, log=print, max_futs: int | None = None) ->
             "curve": curve_pts}
 
 
+def _read_history_or_raise(path):
+    """Read an existing history file, or move it aside and RAISE.
+
+    The pattern these writers all had was `except Exception: pass` around the read,
+    followed by an unconditional overwrite — so a file that failed to parse for any
+    reason (a half-written parquet from a killed run, a schema change, a disk blip)
+    was silently replaced by ONE DAY of data. These archives are not regenerable:
+    the vol histories accrue a row per product per day and nothing can rebuild a day
+    that has passed. Losing them is worse than skipping a write.
+
+    So: unreadable file is renamed with a .corrupt-<n> suffix and the exception
+    propagates, leaving the caller to log and skip. Nothing is destroyed either way."""
+    if not path.exists():
+        return None
+    try:
+        return pd.read_parquet(path)
+    except Exception:
+        for i in range(1, 100):
+            alt = path.with_suffix(path.suffix + f".corrupt-{i}")
+            if not alt.exists():
+                path.rename(alt)
+                break
+        raise
+
+
 def save_curve_points(points: list, asof=None) -> int:
     """Append today's futures strip to the curve archive, idempotent per day."""
     if not points:
@@ -522,15 +547,12 @@ def save_curve_points(points: list, asof=None) -> int:
     new["date"] = day
     cols = ["date", "generic", "depth", "contract", "settle"]
     new = new[cols]
-    if CURVE_FILE.exists():
-        try:
-            old = pd.read_parquet(CURVE_FILE)
-            old["date"] = pd.to_datetime(old["date"])
-            keep = old[~((old["date"] == day) &
-                         (old["generic"].isin(new["generic"].unique())))]
-            new = pd.concat([keep, new], ignore_index=True)
-        except Exception:
-            pass
+    old = _read_history_or_raise(CURVE_FILE)      # raises rather than truncating
+    if old is not None:
+        old["date"] = pd.to_datetime(old["date"])
+        keep = old[~((old["date"] == day) &
+                     (old["generic"].isin(new["generic"].unique())))]
+        new = pd.concat([keep, new], ignore_index=True)
     CURVE_FILE.parent.mkdir(parents=True, exist_ok=True)
     new.sort_values(["date", "generic", "depth"]).to_parquet(CURVE_FILE, index=False)
     return int(len(points))
@@ -1255,13 +1277,11 @@ def skew_backfill_drip(max_products: int = 2, min_days_done: int = 120,
             continue
         rows = df.reset_index().rename(columns={"index": "date"})
         rows["ticker"] = t
-        try:
-            old = pd.read_parquet(SKEW_HISTORY_FILE)
+        old = _read_history_or_raise(SKEW_HISTORY_FILE)
+        if old is not None:
             old["date"] = pd.to_datetime(old["date"])
             rows = pd.concat([rows, old], ignore_index=True)   # live rows win on collision
             rows = rows.drop_duplicates(subset=["ticker", "date"], keep="last")
-        except Exception:
-            pass
         rows.sort_values(["ticker", "date"]).to_parquet(SKEW_HISTORY_FILE, index=False)
         done += 1
     log(f"    skew drip: {done}/{len(todo)} products backfilled this run")
@@ -1298,12 +1318,10 @@ def append_today(log=print, use_marks: bool = False) -> None:
         return
     stamp = _settle_date()
     rows = df[["ticker", "ours30", "ours90", "bbg30"]].assign(date=stamp)
-    try:
-        old = pd.read_parquet(HISTORY_FILE)
+    old = _read_history_or_raise(HISTORY_FILE)
+    if old is not None:
         old["date"] = pd.to_datetime(old["date"])
         rows = pd.concat([old[old["date"] != stamp], rows], ignore_index=True)
-    except Exception:
-        pass
     rows.sort_values(["ticker", "date"]).to_parquet(HISTORY_FILE, index=False)
 
     tcols = [f"own_{lab.lower()}" for lab, _ in OWN_TENORS if f"own_{lab.lower()}" in df.columns]
@@ -1312,12 +1330,10 @@ def append_today(log=print, use_marks: bool = False) -> None:
                        var_name="tenor", value_name="vol").dropna(subset=["vol"])
         long["tenor"] = long["tenor"].str.replace("own_", "", regex=False).str.upper()
         long["date"] = stamp
-        try:
-            old = pd.read_parquet(TERM_HISTORY_FILE)
+        old = _read_history_or_raise(TERM_HISTORY_FILE)
+        if old is not None:
             old["date"] = pd.to_datetime(old["date"])
             long = pd.concat([old[old["date"] != stamp], long], ignore_index=True)
-        except Exception:
-            pass
         long.sort_values(["ticker", "tenor", "date"]).to_parquet(TERM_HISTORY_FILE, index=False)
 
     # own skew — RECORDING ONLY for now (the Skew page stays on the vendor surface
@@ -1331,10 +1347,8 @@ def append_today(log=print, use_marks: bool = False) -> None:
                                     "own_skew30": "skew", "own_put80": "put80",
                                     "own_call120": "call120"}).assign(
                 atm=df.set_index("ticker").loc[sk["ticker"], "ours30"].values, date=stamp)
-            try:
-                old = pd.read_parquet(SKEW_HISTORY_FILE)
+            old = _read_history_or_raise(SKEW_HISTORY_FILE)
+            if old is not None:
                 old["date"] = pd.to_datetime(old["date"])
                 sk = pd.concat([old[old["date"] != stamp], sk], ignore_index=True)
-            except Exception:
-                pass
             sk.sort_values(["ticker", "date"]).to_parquet(SKEW_HISTORY_FILE, index=False)

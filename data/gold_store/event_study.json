@@ -109,25 +109,29 @@
         "by_era": {
           "0-10y ago": {
             "n": 117,
-            "ratio": 0.864,
+            "ratio": 0.877,
+            "ratio_unmatched": 0.864,
             "share_up": 0.59,
             "baseline_share_up": 0.523
           },
           "10-20y ago": {
             "n": 120,
-            "ratio": 1.027,
+            "ratio": 1.039,
+            "ratio_unmatched": 1.027,
             "share_up": 0.508,
             "baseline_share_up": 0.519
           },
           "20-30y ago": {
             "n": 120,
-            "ratio": 0.898,
+            "ratio": 0.906,
+            "ratio_unmatched": 0.898,
             "share_up": 0.567,
             "baseline_share_up": 0.494
           },
           "30-40y ago": {
             "n": 78,
-            "ratio": 0.922,
+            "ratio": 0.947,
+            "ratio_unmatched": 0.922,
             "share_up": 0.538,
             "baseline_share_up": 0.502
           }
@@ -135,43 +139,50 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 59,
-            "ratio": 0.839,
+            "ratio": 0.853,
+            "ratio_unmatched": 0.839,
             "share_up": 0.542,
             "baseline_share_up": 0.535
           },
           "5-10y ago": {
             "n": 58,
-            "ratio": 0.894,
+            "ratio": 0.908,
+            "ratio_unmatched": 0.894,
             "share_up": 0.638,
             "baseline_share_up": 0.511
           },
           "10-15y ago": {
             "n": 60,
-            "ratio": 1.007,
+            "ratio": 0.982,
+            "ratio_unmatched": 1.007,
             "share_up": 0.45,
             "baseline_share_up": 0.495
           },
           "15-20y ago": {
             "n": 60,
-            "ratio": 1.043,
+            "ratio": 1.08,
+            "ratio_unmatched": 1.043,
             "share_up": 0.567,
             "baseline_share_up": 0.544
           },
           "20-25y ago": {
             "n": 60,
-            "ratio": 0.988,
+            "ratio": 1.002,
+            "ratio_unmatched": 0.988,
             "share_up": 0.533,
             "baseline_share_up": 0.538
           },
           "25-30y ago": {
             "n": 60,
-            "ratio": 0.777,
+            "ratio": 0.784,
+            "ratio_unmatched": 0.777,
             "share_up": 0.6,
             "baseline_share_up": 0.449
           },
           "30-35y ago": {
             "n": 59,
-            "ratio": 1.073,
+            "ratio": 1.114,
+            "ratio_unmatched": 1.073,
             "share_up": 0.508,
             "baseline_share_up": 0.503
           }
@@ -255,19 +266,22 @@
         "by_era": {
           "0-10y ago": {
             "n": 112,
-            "ratio": 0.944,
+            "ratio": 0.925,
+            "ratio_unmatched": 0.944,
             "share_up": 0.455,
             "baseline_share_up": 0.529
           },
           "10-20y ago": {
             "n": 111,
-            "ratio": 1.019,
+            "ratio": 1.001,
+            "ratio_unmatched": 1.019,
             "share_up": 0.541,
             "baseline_share_up": 0.518
           },
           "20-30y ago": {
             "n": 66,
-            "ratio": 0.947,
+            "ratio": 0.891,
+            "ratio_unmatched": 0.947,
             "share_up": 0.561,
             "baseline_share_up": 0.495
           },
@@ -279,31 +293,36 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 56,
-            "ratio": 0.99,
+            "ratio": 0.955,
+            "ratio_unmatched": 0.99,
             "share_up": 0.464,
             "baseline_share_up": 0.538
           },
           "5-10y ago": {
             "n": 56,
-            "ratio": 0.886,
+            "ratio": 0.883,
+            "ratio_unmatched": 0.886,
             "share_up": 0.446,
             "baseline_share_up": 0.52
           },
           "10-15y ago": {
             "n": 56,
-            "ratio": 1.122,
+            "ratio": 1.135,
+            "ratio_unmatched": 1.122,
             "share_up": 0.446,
             "baseline_share_up": 0.495
           },
           "15-20y ago": {
             "n": 55,
-            "ratio": 0.934,
+            "ratio": 0.893,
+            "ratio_unmatched": 0.934,
             "share_up": 0.636,
             "baseline_share_up": 0.541
           },
           "20-25y ago": {
             "n": 57,
-            "ratio": 0.83,
+            "ratio": 0.878,
+            "ratio_unmatched": 0.83,
             "share_up": 0.614,
             "baseline_share_up": 0.534
           },
@@ -395,25 +414,29 @@
         "by_era": {
           "0-10y ago": {
             "n": 114,
-            "ratio": 1.11,
+            "ratio": 1.144,
+            "ratio_unmatched": 1.11,
             "share_up": 0.561,
             "baseline_share_up": 0.524
           },
           "10-20y ago": {
             "n": 116,
-            "ratio": 1.228,
+            "ratio": 1.216,
+            "ratio_unmatched": 1.228,
             "share_up": 0.448,
             "baseline_share_up": 0.522
           },
           "20-30y ago": {
             "n": 119,
-            "ratio": 1.091,
+            "ratio": 1.103,
+            "ratio_unmatched": 1.091,
             "share_up": 0.513,
             "baseline_share_up": 0.496
           },
           "30-40y ago": {
             "n": 77,
-            "ratio": 0.954,
+            "ratio": 1.023,
+            "ratio_unmatched": 0.954,
             "share_up": 0.636,
             "baseline_share_up": 0.497
           }
@@ -421,43 +444,50 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 56,
-            "ratio": 1.073,
+            "ratio": 1.049,
+            "ratio_unmatched": 1.073,
             "share_up": 0.625,
             "baseline_share_up": 0.531
           },
           "5-10y ago": {
             "n": 58,
-            "ratio": 1.161,
+            "ratio": 1.279,
+            "ratio_unmatched": 1.161,
             "share_up": 0.5,
             "baseline_share_up": 0.518
           },
           "10-15y ago": {
             "n": 58,
-            "ratio": 1.294,
+            "ratio": 1.305,
+            "ratio_unmatched": 1.294,
             "share_up": 0.466,
             "baseline_share_up": 0.494
           },
           "15-20y ago": {
             "n": 58,
-            "ratio": 1.173,
+            "ratio": 1.146,
+            "ratio_unmatched": 1.173,
             "share_up": 0.431,
             "baseline_share_up": 0.551
           },
           "20-25y ago": {
             "n": 60,
-            "ratio": 1.011,
+            "ratio": 1.095,
+            "ratio_unmatched": 1.011,
             "share_up": 0.533,
             "baseline_share_up": 0.538
           },
           "25-30y ago": {
             "n": 59,
-            "ratio": 1.197,
+            "ratio": 1.114,
+            "ratio_unmatched": 1.197,
             "share_up": 0.492,
             "baseline_share_up": 0.454
           },
           "30-35y ago": {
             "n": 58,
-            "ratio": 1.155,
+            "ratio": 1.143,
+            "ratio_unmatched": 1.155,
             "share_up": 0.655,
             "baseline_share_up": 0.496
           }
@@ -540,7 +570,8 @@
         "by_era": {
           "0-10y ago": {
             "n": 119,
-            "ratio": 1.099,
+            "ratio": 1.075,
+            "ratio_unmatched": 1.099,
             "share_up": 0.538,
             "baseline_share_up": 0.526
           },
@@ -560,13 +591,15 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 59,
-            "ratio": 1.14,
+            "ratio": 1.116,
+            "ratio_unmatched": 1.14,
             "share_up": 0.492,
             "baseline_share_up": 0.537
           },
           "5-10y ago": {
             "n": 60,
-            "ratio": 1.049,
+            "ratio": 1.021,
+            "ratio_unmatched": 1.049,
             "share_up": 0.583,
             "baseline_share_up": 0.514
           },
@@ -670,19 +703,22 @@
         "by_era": {
           "0-10y ago": {
             "n": 119,
-            "ratio": 0.952,
+            "ratio": 0.942,
+            "ratio_unmatched": 0.952,
             "share_up": 0.555,
             "baseline_share_up": 0.525
           },
           "10-20y ago": {
             "n": 120,
-            "ratio": 0.909,
+            "ratio": 0.911,
+            "ratio_unmatched": 0.909,
             "share_up": 0.542,
             "baseline_share_up": 0.518
           },
           "20-30y ago": {
             "n": 61,
-            "ratio": 1.332,
+            "ratio": 1.171,
+            "ratio_unmatched": 1.332,
             "share_up": 0.459,
             "baseline_share_up": 0.498
           },
@@ -694,31 +730,36 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 60,
-            "ratio": 0.958,
+            "ratio": 0.943,
+            "ratio_unmatched": 0.958,
             "share_up": 0.517,
             "baseline_share_up": 0.536
           },
           "5-10y ago": {
             "n": 59,
-            "ratio": 0.942,
+            "ratio": 0.939,
+            "ratio_unmatched": 0.942,
             "share_up": 0.593,
             "baseline_share_up": 0.513
           },
           "10-15y ago": {
             "n": 60,
-            "ratio": 0.827,
+            "ratio": 0.837,
+            "ratio_unmatched": 0.827,
             "share_up": 0.483,
             "baseline_share_up": 0.493
           },
           "15-20y ago": {
             "n": 60,
-            "ratio": 0.978,
+            "ratio": 0.974,
+            "ratio_unmatched": 0.978,
             "share_up": 0.6,
             "baseline_share_up": 0.542
           },
           "20-25y ago": {
             "n": 60,
-            "ratio": 1.176,
+            "ratio": 1.183,
+            "ratio_unmatched": 1.176,
             "share_up": 0.467,
             "baseline_share_up": 0.541
           },
@@ -813,25 +854,29 @@
         "by_era": {
           "0-10y ago": {
             "n": 117,
-            "ratio": 1.177,
+            "ratio": 1.162,
+            "ratio_unmatched": 1.177,
             "share_up": 0.607,
             "baseline_share_up": 0.48
           },
           "10-20y ago": {
             "n": 120,
-            "ratio": 1.057,
+            "ratio": 1.016,
+            "ratio_unmatched": 1.057,
             "share_up": 0.492,
             "baseline_share_up": 0.474
           },
           "20-30y ago": {
             "n": 120,
-            "ratio": 1.096,
+            "ratio": 1.052,
+            "ratio_unmatched": 1.096,
             "share_up": 0.6,
             "baseline_share_up": 0.439
           },
           "30-40y ago": {
             "n": 78,
-            "ratio": 1.002,
+            "ratio": 1.024,
+            "ratio_unmatched": 1.002,
             "share_up": 0.462,
             "baseline_share_up": 0.468
           }
@@ -839,43 +884,50 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 59,
-            "ratio": 1.297,
+            "ratio": 1.283,
+            "ratio_unmatched": 1.297,
             "share_up": 0.576,
             "baseline_share_up": 0.49
           },
           "5-10y ago": {
             "n": 58,
-            "ratio": 1.016,
+            "ratio": 0.996,
+            "ratio_unmatched": 1.016,
             "share_up": 0.638,
             "baseline_share_up": 0.471
           },
           "10-15y ago": {
             "n": 60,
-            "ratio": 0.999,
+            "ratio": 0.938,
+            "ratio_unmatched": 0.999,
             "share_up": 0.417,
             "baseline_share_up": 0.487
           },
           "15-20y ago": {
             "n": 60,
-            "ratio": 1.104,
+            "ratio": 1.07,
+            "ratio_unmatched": 1.104,
             "share_up": 0.567,
             "baseline_share_up": 0.461
           },
           "20-25y ago": {
             "n": 60,
-            "ratio": 1.236,
+            "ratio": 1.193,
+            "ratio_unmatched": 1.236,
             "share_up": 0.633,
             "baseline_share_up": 0.457
           },
           "25-30y ago": {
             "n": 60,
-            "ratio": 0.903,
+            "ratio": 0.833,
+            "ratio_unmatched": 0.903,
             "share_up": 0.567,
             "baseline_share_up": 0.422
           },
           "30-35y ago": {
             "n": 59,
-            "ratio": 0.977,
+            "ratio": 0.982,
+            "ratio_unmatched": 0.977,
             "share_up": 0.492,
             "baseline_share_up": 0.463
           }
@@ -959,19 +1011,22 @@
         "by_era": {
           "0-10y ago": {
             "n": 112,
-            "ratio": 0.896,
+            "ratio": 0.853,
+            "ratio_unmatched": 0.896,
             "share_up": 0.464,
             "baseline_share_up": 0.487
           },
           "10-20y ago": {
             "n": 111,
-            "ratio": 1.069,
+            "ratio": 1.041,
+            "ratio_unmatched": 1.069,
             "share_up": 0.468,
             "baseline_share_up": 0.475
           },
           "20-30y ago": {
             "n": 66,
-            "ratio": 1.265,
+            "ratio": 1.16,
+            "ratio_unmatched": 1.265,
             "share_up": 0.485,
             "baseline_share_up": 0.446
           },
@@ -983,31 +1038,36 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 56,
-            "ratio": 0.947,
+            "ratio": 0.876,
+            "ratio_unmatched": 0.947,
             "share_up": 0.464,
             "baseline_share_up": 0.495
           },
           "5-10y ago": {
             "n": 56,
-            "ratio": 0.83,
+            "ratio": 0.82,
+            "ratio_unmatched": 0.83,
             "share_up": 0.464,
             "baseline_share_up": 0.48
           },
           "10-15y ago": {
             "n": 56,
-            "ratio": 1.187,
+            "ratio": 1.172,
+            "ratio_unmatched": 1.187,
             "share_up": 0.482,
             "baseline_share_up": 0.483
           },
           "15-20y ago": {
             "n": 55,
-            "ratio": 0.974,
+            "ratio": 0.926,
+            "ratio_unmatched": 0.974,
             "share_up": 0.455,
             "baseline_share_up": 0.467
           },
           "20-25y ago": {
             "n": 57,
-            "ratio": 1.133,
+            "ratio": 1.179,
+            "ratio_unmatched": 1.133,
             "share_up": 0.526,
             "baseline_share_up": 0.462
           },
@@ -1099,25 +1159,29 @@
         "by_era": {
           "0-10y ago": {
             "n": 114,
-            "ratio": 1.54,
+            "ratio": 1.617,
+            "ratio_unmatched": 1.54,
             "share_up": 0.553,
             "baseline_share_up": 0.483
           },
           "10-20y ago": {
             "n": 116,
-            "ratio": 1.679,
+            "ratio": 1.552,
+            "ratio_unmatched": 1.679,
             "share_up": 0.5,
             "baseline_share_up": 0.473
           },
           "20-30y ago": {
             "n": 119,
-            "ratio": 1.284,
+            "ratio": 1.218,
+            "ratio_unmatched": 1.284,
             "share_up": 0.462,
             "baseline_share_up": 0.446
           },
           "30-40y ago": {
             "n": 77,
-            "ratio": 1.09,
+            "ratio": 1.094,
+            "ratio_unmatched": 1.09,
             "share_up": 0.468,
             "baseline_share_up": 0.468
           }
@@ -1125,43 +1189,50 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 56,
-            "ratio": 1.529,
+            "ratio": 1.554,
+            "ratio_unmatched": 1.529,
             "share_up": 0.571,
             "baseline_share_up": 0.49
           },
           "5-10y ago": {
             "n": 58,
-            "ratio": 1.561,
+            "ratio": 1.7,
+            "ratio_unmatched": 1.561,
             "share_up": 0.534,
             "baseline_share_up": 0.476
           },
           "10-15y ago": {
             "n": 58,
-            "ratio": 2.091,
+            "ratio": 1.992,
+            "ratio_unmatched": 2.091,
             "share_up": 0.517,
             "baseline_share_up": 0.482
           },
           "15-20y ago": {
             "n": 58,
-            "ratio": 1.356,
+            "ratio": 1.228,
+            "ratio_unmatched": 1.356,
             "share_up": 0.483,
             "baseline_share_up": 0.465
           },
           "20-25y ago": {
             "n": 60,
-            "ratio": 1.338,
+            "ratio": 1.288,
+            "ratio_unmatched": 1.338,
             "share_up": 0.5,
             "baseline_share_up": 0.464
           },
           "25-30y ago": {
             "n": 59,
-            "ratio": 1.203,
+            "ratio": 1.126,
+            "ratio_unmatched": 1.203,
             "share_up": 0.424,
             "baseline_share_up": 0.429
           },
           "30-35y ago": {
             "n": 58,
-            "ratio": 1.041,
+            "ratio": 0.973,
+            "ratio_unmatched": 1.041,
             "share_up": 0.483,
             "baseline_share_up": 0.464
           }
@@ -1244,7 +1315,8 @@
         "by_era": {
           "0-10y ago": {
             "n": 119,
-            "ratio": 1.146,
+            "ratio": 1.13,
+            "ratio_unmatched": 1.146,
             "share_up": 0.504,
             "baseline_share_up": 0.485
           },
@@ -1264,13 +1336,15 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 59,
-            "ratio": 1.054,
+            "ratio": 1.051,
+            "ratio_unmatched": 1.054,
             "share_up": 0.492,
             "baseline_share_up": 0.494
           },
           "5-10y ago": {
             "n": 60,
-            "ratio": 1.269,
+            "ratio": 1.242,
+            "ratio_unmatched": 1.269,
             "share_up": 0.517,
             "baseline_share_up": 0.477
           },
@@ -1374,19 +1448,22 @@
         "by_era": {
           "0-10y ago": {
             "n": 119,
-            "ratio": 0.988,
+            "ratio": 0.966,
+            "ratio_unmatched": 0.988,
             "share_up": 0.429,
             "baseline_share_up": 0.489
           },
           "10-20y ago": {
             "n": 120,
-            "ratio": 0.979,
+            "ratio": 0.953,
+            "ratio_unmatched": 0.979,
             "share_up": 0.483,
             "baseline_share_up": 0.474
           },
           "20-30y ago": {
             "n": 61,
-            "ratio": 1.122,
+            "ratio": 0.92,
+            "ratio_unmatched": 1.122,
             "share_up": 0.475,
             "baseline_share_up": 0.446
           },
@@ -1398,31 +1475,36 @@
         "by_era_fine": {
           "0-5y ago": {
             "n": 60,
-            "ratio": 0.922,
+            "ratio": 0.903,
+            "ratio_unmatched": 0.922,
             "share_up": 0.45,
             "baseline_share_up": 0.496
           },
           "5-10y ago": {
             "n": 59,
-            "ratio": 1.073,
+            "ratio": 1.047,
+            "ratio_unmatched": 1.073,
             "share_up": 0.407,
             "baseline_share_up": 0.482
           },
           "10-15y ago": {
             "n": 60,
-            "ratio": 0.923,
+            "ratio": 0.915,
+            "ratio_unmatched": 0.923,
             "share_up": 0.55,
             "baseline_share_up": 0.48
           },
           "15-20y ago": {
             "n": 60,
-            "ratio": 1.024,
+            "ratio": 0.984,
+            "ratio_unmatched": 1.024,
             "share_up": 0.417,
             "baseline_share_up": 0.469
           },
           "20-25y ago": {
             "n": 60,
-            "ratio": 0.968,
+            "ratio": 0.93,
+            "ratio_unmatched": 0.968,
             "share_up": 0.467,
             "baseline_share_up": 0.465
           },

@@ -74,6 +74,12 @@ data/wgc_inbox/
 # Local server logs (written by launch_basis.ps1)
 logs/
 
+# Calendar feed cache — a transient copy of an external feed, and committing it is
+# actively dangerous: a fresh checkout (the VPS) with a dead feed would serve
+# whatever was frozen in it as though it were this week's schedule. A test fixture
+# once reached this file and would have printed a fabricated release in a client PDF.
+data/econ_calendar_cache.json
+
 # runtime locks / guard markers - never version these (a stale lock on main made the VPS think a pull was running)
 data/snapshot/.eq_pull.lock
 data/snapshot/.pull_driver.lock

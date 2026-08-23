@@ -338,10 +338,19 @@ def fetch_central_banks(force: bool = False, max_age_hours: float = 72.0) -> dic
 
     ~6-week lag either way, and it understates true buying (China reports partially,
     Russia not at all), so the fine print continues to cite WGC alongside."""
+    # R3 (audit): prefer the store only when it is FRESH. Nothing schedules the gold
+    # ingest, so preferring it on length alone meant preferring the one path that
+    # never refreshes — while still reporting live: True. Reproduced by the audit: a
+    # store stale by four months printed 108t of Dec-Feb buying in the client bullet
+    # where the truth was 177.6t of Apr-Jun. Fall through to the self-refreshing IMF
+    # pull when the store has gone quiet.
     gs = _from_goldstore("CB_GOLD_WORLD")
     if gs is not None and len(gs) > 24:
-        return {"live": True, "net_purchases": gs.diff().dropna(),
-                "source": "IMF via gold store (2010-, point-in-time)"}
+        lag_days = (pd.Timestamp.today().normalize() - gs.index.max()).days
+        if lag_days <= 120:          # IMF runs ~6 weeks late; 120d allows for that
+            return {"live": True, "net_purchases": gs.diff().dropna(),
+                    "source": f"IMF via gold store (from {gs.index.min():%Y}, "
+                              f"point-in-time)"}
     if not force and _is_fresh(PM_CB_FILE, max_age_hours):
         hold = pd.read_parquet(PM_CB_FILE)["tonnes"]
         return {"live": True, "net_purchases": hold.diff().dropna()}
@@ -632,8 +641,10 @@ def build(force: bool = False) -> dict:
                             f"excludes unreported official-sector buying).")(
                      cb["net_purchases"].iloc[-3:].sum()),
                  f"The Shanghai gold price last stood {prem['sge'].iloc[-1]:+,.0f} $/oz vs London"
-                 + (f"; the Indian market {prem['india'].iloc[-1]:+,.0f} $/oz." if len(prem["india"])
-                    else " (daily closes).")],
+                 + (f"; the Indian market {prem['india'].iloc[-1]:+,.0f} $/oz."
+                    if len(prem["india"]) else
+                    (" (5-day average, weekly)" if "SGE" in prem.get("source", "")
+                     else " (daily closes)") + ".")],
         "silver": [f"The gold/silver ratio stands at {ratio.iloc[-1]:,.1f}." if len(ratio) else ""],
         "platinum": [_pgm_bullet("platinum", pgm["pt_balance"],
                                  "WPIC" if "WPIC" in pgm.get("pt_source", "") else None)],
@@ -683,7 +694,21 @@ def build(force: bool = False) -> dict:
             "swiss": {"dests": list(swiss["exports"].columns),
                       "d": [d_.strftime("%Y-%m-%d") for d_ in swiss["exports"].index],
                       "rows": [[round(float(x), 1) for x in swiss["exports"][c]] for c in swiss["exports"].columns]},
-            "cb": _ser(cb["net_purchases"], 1),
+            # R1 (audit 2026-08-23): the chart window, NOT the whole series. Repointing
+            # this at the gold store took it from 46 bars over four years to 437 bars
+            # back to 1990, and a single +2,644t print in Dec-1998 rescaled the y-axis
+            # so recent official-sector buying — the entire point of the page — became a
+            # hairline at zero. Deeper history is right for the ENGINE and wrong for
+            # this chart; slice here rather than shortening the source.
+            "cb": _ser(cb["net_purchases"].iloc[-48:], 1),
+            # R2 (audit): the fine print credited "London (daily closes, Bloomberg)"
+            # for a series that had silently become a 5-day-smoothed, weekly-resampled
+            # SGE-vs-LBMA-AM construction — correlating only 0.33 with the Bloomberg
+            # leg it displaced. The attribution must follow the data, so the fetchers'
+            # own source strings are carried through instead of discarded.
+            "cb_source": cb.get("source", "IMF international liquidity"),
+            "sge_source": prem.get("source",
+                                   "Shanghai vs London (daily closes, Bloomberg)"),
             "sge": _ser(prem["sge"], 1), "india": _ser(prem["india"], 1),
             "mint_gold": _ser(mint["gold_oz"], 0), "mint_silver": _ser(mint["silver_oz"], 0),
             "pt_balance": pgm["pt_balance"], "pd_balance": pgm["pd_balance"],
