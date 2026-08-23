@@ -195,6 +195,68 @@ def stability(start: str = "1990-01-01", window: int = WINDOW) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def fed_scenario(repricing_bp: float, window: int = WINDOW) -> dict:
+    """What a given amount of POLICY REPRICING is worth to gold and the dollar.
+
+    THE INPUT IS A SURPRISE, NOT A HIKE. This is the whole point and it is the
+    easiest thing in the world to get wrong. If the strip already prices two hikes
+    by December and the Fed delivers two hikes, the expected impact is ZERO — the
+    move happened when the pricing changed, not when the cheque cleared. What this
+    function takes is the gap between a view and what is already in the curve.
+
+    So the first question to a client who says "two hikes by December" is not what
+    that does to gold. It is: how many is the market already carrying? Read it off
+    the SOFR strip (src/fedpath.implied_path) and price the DIFFERENCE.
+
+    Two estimates are returned deliberately.
+
+      reduced_form  gold regressed directly on policy repricing. One coefficient,
+                    no compounding of estimation error, and it captures every
+                    channel including ones not modelled here.
+      structural    the same effect rebuilt from its parts: repricing -> real
+                    yields -> gold, plus repricing -> dollar -> gold, plus the
+                    breakeven leg. Useful because it shows WHERE the move comes
+                    from, but it multiplies three estimates together and drifts.
+
+    They will not agree exactly. Quote the range, not either endpoint.
+    """
+    d = _changes(panel(), window)
+    k = repricing_bp / 25.0
+
+    rf_gold = link(d, "gold_pct", ["policy_bp"])
+    rf_dxy = link(d, "dxy_pct", ["policy_bp"])
+    pt_real = link(d, "real10_bp", ["policy_bp"])
+    pt_be = link(d, "breakeven_bp", ["policy_bp"])
+    gold = link(d, "gold_pct", ["dxy_pct", "real10_bp", "breakeven_bp"])
+
+    g = gold["terms"]
+    dxy_move = rf_dxy["terms"]["policy_bp"]["beta"] * repricing_bp
+    real_move = pt_real["terms"]["policy_bp"]["beta"] * repricing_bp
+    be_move = pt_be["terms"]["policy_bp"]["beta"] * repricing_bp
+
+    via_real = g["real10_bp"]["beta"] * real_move
+    via_dxy = g["dxy_pct"]["beta"] * dxy_move
+    via_be = g["breakeven_bp"]["beta"] * be_move
+    structural = via_real + via_dxy + via_be
+    reduced = rf_gold["terms"]["policy_bp"]["beta"] * repricing_bp
+
+    lo, hi = sorted((reduced, structural))
+    return {
+        "repricing_bp": repricing_bp,
+        "dollar_pct": dxy_move,
+        "real10_bp": real_move,
+        "breakeven_bp": be_move,
+        "gold_reduced_form_pct": reduced,
+        "gold_structural_pct": structural,
+        "gold_range_pct": (lo, hi),
+        "gold_parts": {"via_real_yield": via_real, "via_dollar": via_dxy,
+                       "via_breakeven": via_be},
+        # The number that decides whether any of the above is actionable.
+        "unexplained_1sd_pct": gold["resid_sd"],
+        "r2": gold["r2"],
+    }
+
+
 def level_anchor(start: str = "2003-01-01", lags: int = 21) -> dict:
     """Is there a LEVEL the three stick to, or only a relationship between changes?
 

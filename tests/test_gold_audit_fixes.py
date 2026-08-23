@@ -643,3 +643,35 @@ def test_no_level_anchor_between_gold_dollar_and_real_yields():
     c = mc.chain()
     assert c["gold"]["terms"]["dxy_pct"]["beta"] < 0 < la["beta_log_dxy"], \
         "sign flip between levels and changes is the spurious-regression tell"
+
+
+def test_fed_scenario_takes_a_surprise_not_a_hike():
+    """The input must be REPRICING. If the strip already carries the hikes, the
+    expected impact of delivering them is zero, and a function keyed on "number of
+    hikes" would hand a client a move that has already happened."""
+    from src import macrochain as mc
+    import inspect
+    doc = inspect.getdoc(mc.fed_scenario)
+    assert "SURPRISE, NOT A HIKE" in doc
+    assert mc.fed_scenario(0)["gold_reduced_form_pct"] == 0.0
+
+
+def test_fed_scenario_reports_a_range_not_a_point():
+    """Reduced-form and structural estimates disagree by design; quoting either
+    endpoint alone is false precision."""
+    from src import macrochain as mc
+    s = mc.fed_scenario(50)
+    lo, hi = s["gold_range_pct"]
+    assert lo <= hi
+    assert {round(lo, 6), round(hi, 6)} == {round(s["gold_reduced_form_pct"], 6),
+                                            round(s["gold_structural_pct"], 6)}
+    # the structural legs must reconstruct the structural total
+    p = s["gold_parts"]
+    assert abs(sum(p.values()) - s["gold_structural_pct"]) < 1e-9
+
+
+def test_fed_scenario_carries_its_own_error_band():
+    """The unexplained band is several times the effect. It must travel with it."""
+    from src import macrochain as mc
+    s = mc.fed_scenario(50)
+    assert s["unexplained_1sd_pct"] > abs(s["gold_reduced_form_pct"])
