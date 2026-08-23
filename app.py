@@ -1088,6 +1088,7 @@ _GROUP_TABS = {
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
                            ("🛢️ OPEC Report", "OPEC Report"),
                            ("🥇 Precious Metals", "Precious Metals"),
+                           ("🥇 Gold Engine", "Gold Engine"),
                            ("🇧🇷 Brazil Production", "Brazil Production")],
     "Seasonality":        [("📅 Product Seasonality", "Seasonality"),
                            ("🔀 Spread Seasonality", "Seasonality Spreads")],
@@ -14727,6 +14728,11 @@ if active == "OPEC Report":
     render_opec(); st.stop()
 if active == "Precious Metals":
     render_precious_metals(); st.stop()
+if active == "Gold Engine":
+    # Body lives in src/goldpage.py — app.py is already 16k lines and this page
+    # carries four tabs of real content.
+    from src import goldpage
+    goldpage.render(); st.stop()
 if active == "Brazil Production":
     render_brazil_production(); st.stop()
 if active == "Release Calendar":
