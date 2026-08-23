@@ -509,3 +509,65 @@ def test_metal_targets_cut_the_forward_filled_tail():
     import inspect
     src = inspect.getsource(mf.build_targets)
     assert "last_reference" in src and "px.index <= last_real" in src
+
+
+# ---------------------------------------------------------------------------
+# Track C — auditing BASIS's own strategies
+# ---------------------------------------------------------------------------
+def test_unpriceable_contracts_are_dropped_not_counted_as_losses():
+    """A contract with no point value is missing data, never a loss.
+
+    volbt.POINT_VALUE had no entry for five of twenty-four sampled contracts, so both
+    the strategy P&L and the benchmark came out as exactly 0.0 and `0 > 0` scored
+    False — handing every strategy five automatic losses and moving the headline from
+    ~42% to 33%. tabt warns about this plainly; the first version of this module threw
+    the warning away.
+    """
+    from src import sigaudit as sa
+    d = pd.DataFrame({
+        "strategy": ["Trend"] * 4,
+        "ticker": ["A", "B", "C", "D"],
+        "priceable": [True, True, False, False],
+        "beats_bh": pd.Series([True, False, np.nan, np.nan], dtype="object"),
+        "n_trades": [10, 10, 0, 0],
+        "win_rate": [50.0, 50.0, np.nan, np.nan],
+    })
+    card = sa.strategy_scorecard(d)
+    assert int(card.iloc[0]["contracts"]) == 2, "unpriceable contracts were counted"
+    assert int(card.iloc[0]["beat_bh"]) == 1
+
+
+def test_scorecard_records_which_contracts_it_dropped():
+    """Silent truncation reads as full coverage."""
+    from src import sigaudit as sa
+    d = pd.DataFrame({
+        "strategy": ["Trend"] * 3, "ticker": ["A", "B", "KOSPI2 Index"],
+        "priceable": [True, True, False],
+        "beats_bh": pd.Series([True, False, np.nan], dtype="object"),
+        "n_trades": [5, 5, 0], "win_rate": [50.0, 50.0, np.nan]})
+    card = sa.strategy_scorecard(d)
+    assert "KOSPI2 Index" in card.attrs.get("dropped_unpriceable", [])
+
+
+def test_audit_verdict_will_not_claim_an_edge_below_half():
+    """`survives` requires BOTH significance and a share above one half.
+
+    Bollinger Squeeze cleared Holm at 2 of 19 — significant, and significantly WORSE.
+    A rule keyed on p alone would have reported it as a surviving strategy.
+    """
+    from src import sigaudit as sa
+    worse = pd.DataFrame([{"strategy": "Bollinger Squeeze", "contracts": 19,
+                           "beat_bh": 2, "share": 2 / 19, "ci_low": 0.03,
+                           "ci_high": 0.31, "p_raw": 0.001, "p_holm": 0.012,
+                           "median_trades": 78.0, "median_win_rate": 23.8}])
+    worse["survives"] = (worse["p_holm"] < 0.05) & (worse["share"] > 0.5)
+    assert not worse["survives"].any()
+    assert "No strategy beats" in sa.verdict(worse)
+
+
+def test_binomial_and_wilson_match_known_values():
+    from src import sigaudit as sa
+    assert abs(sa.binom_p_two_sided(10, 10) - 0.001953125) < 1e-9
+    assert sa.binom_p_two_sided(5, 10) == 1.0
+    lo, hi = sa.wilson_ci(55, 100)
+    assert 0.45 < lo < 0.46 and 0.64 < hi < 0.65

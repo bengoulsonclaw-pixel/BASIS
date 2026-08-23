@@ -50,14 +50,33 @@ HOW EACH GAP IS CLOSED
   Selection — Holm across the sixteen variants, and the number of variants tested is
   carried into the output so a winner can never be quoted without it.
 
-WHAT THIS CANNOT SETTLE
+EXPOSURE IS NOT THE EXPLANATION — MEASURED, NOT ASSUMED
 
-Beating buy-and-hold is not the only reason to run a strategy: a signal with lower
-drawdown, or one that is flat when you want to be flat, has value this test does not
-score. Time in market is reported alongside so that a strategy which is out of the
-market most of the time is not judged as though it were fully invested. What the test
-does settle is the specific claim a P&L column invites — that running the strategy
-beat not running it.
+The obvious objection to benchmarking against buy-and-hold is that a strategy which
+sits flat much of the time cannot be judged against a fully-invested position. That
+objection does not apply here, and it was checked rather than waved away.
+
+Under the default `exit_rule="reversal"` these strategies do not go flat at all: they
+FLIP from long to short on a reversal signal. Measured directly on CLA over
+2020-2026 — 21 trades, 2,138 calendar days held out of 2,138 spanned, median gap
+between trades 0.0 days — the position is on 100% of the time.
+
+So both sides of the comparison carry full exposure for the whole window and the
+strategy is choosing DIRECTION alone. That is exactly the comparison a P&L column
+invites, and it is fair.
+
+(An earlier estimate of exposure from n_trades x avg_holding_days returned 125-144%,
+which is impossible and was discarded rather than reported. avg_holding_days is
+calendar days against a business-day window. The direct measurement above replaced
+it.)
+
+WHAT THIS STILL CANNOT SETTLE
+
+Beating buy-and-hold is not the only reason to run a signal. Lower drawdown, or being
+short in the drawdowns that matter to a client, has value this test does not score.
+And 12 of the 19 priceable contracts ROSE over 2020-2026, so long-only is a moderately
+strong benchmark in this window — not an overwhelming one, but the window is not
+neutral and a different six years could rank differently.
 """
 from __future__ import annotations
 
@@ -174,14 +193,34 @@ def audit_ticker(scope: str, ticker: str, start: date = DEFAULT_START,
     from src import tabt
     end = end or date.today()
     res = tabt.compare_strategies(scope, ticker, start=start, end=end, **kw)
+    warns = list(res.attrs.get("warnings") or [])
     bh = buy_and_hold(scope, ticker, start, end, size=kw.get("size", 1.0))
+    warns += [w for w in bh.get("warnings", []) if w not in warns]
+
+    # PRICEABLE? tabt says so plainly — "No point value on file for X — P&L will read
+    # as 0" — and the first version of this function threw those warnings away. Five
+    # of twenty-four sampled contracts had no point value, so BOTH their strategy P&L
+    # and their benchmark came out as exactly 0.0, `0 > 0` scored False, and every
+    # strategy silently collected five automatic losses. That alone moved the
+    # headline from "about half" to "21-33%", and would have been reported as the
+    # strategies underperforming.
+    #
+    # This is not a defect in tabt. It warned. This module ignored it — the same
+    # mistake the gold page made with the backtest run warnings.
+    unpriceable = any("No point value on file" in w for w in warns)
     res = res.copy()
     res["ticker"] = ticker
     res["bh_pnl"] = bh["pnl"]
     res["excess_pnl"] = res["total_pnl"] - bh["pnl"]
-    res["beats_bh"] = res["total_pnl"] > bh["pnl"]
+    res["priceable"] = not unpriceable
+    # NaN, not False. A contract we cannot price is missing data, not a loss, and the
+    # binomial test must drop it rather than count it against every strategy.
+    res["beats_bh"] = (np.nan if unpriceable else None)
+    if not unpriceable:
+        res["beats_bh"] = res["total_pnl"] > bh["pnl"]
     res["n_variants_tested"] = len(res)
     res["bh_drawdown"] = bh.get("max_drawdown", np.nan)
+    res["warnings"] = "; ".join(warns)[:500]
     return res
 
 
@@ -246,6 +285,11 @@ def strategy_scorecard(stacked: pd.DataFrame) -> pd.DataFrame:
     """
     if stacked.empty:
         return pd.DataFrame()
+    if "priceable" in stacked.columns:
+        dropped = sorted(stacked.loc[~stacked["priceable"], "ticker"].unique())
+        stacked = stacked[stacked["priceable"]]
+    else:
+        dropped = []
     rows = []
     for strat, g in stacked.groupby("strategy"):
         n = int(g["beats_bh"].notna().sum())
@@ -263,7 +307,9 @@ def strategy_scorecard(stacked: pd.DataFrame) -> pd.DataFrame:
     adj = holm({r.strategy: r.p_raw for r in out.itertuples()})
     out["p_holm"] = out["strategy"].map(adj)
     out["survives"] = (out["p_holm"] < 0.05) & (out["share"] > 0.5)
-    return out.sort_values("share", ascending=False).reset_index(drop=True)
+    out = out.sort_values("share", ascending=False).reset_index(drop=True)
+    out.attrs["dropped_unpriceable"] = dropped
+    return out
 
 
 def verdict(card: pd.DataFrame) -> str:
