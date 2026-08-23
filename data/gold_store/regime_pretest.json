@@ -1,0 +1,380 @@
+{
+  "built": "2026-08-23T07:06:14",
+  "sample": {
+    "from": "1990-01-01",
+    "to": "2026-08-21",
+    "rows": 9560
+  },
+  "states": {
+    "high_vol/downtrend": 1799,
+    "low_vol/downtrend": 1851,
+    "low_vol/uptrend": 1664,
+    "high_vol/uptrend": 3956
+  },
+  "n_tests": 6588,
+  "median_n_per_test": 1748,
+  "threshold_raw_5pct": 0.0468542229780365,
+  "threshold_bonferroni": 0.10652053400719821,
+  "n_clearing_adjusted": 10,
+  "n_coincident_adjusted": 8,
+  "n_LEADING_external": 0,
+  "n_LEADING_price_derived_excluded": 2,
+  "leading_detail": [],
+  "leading_excluded_as_circular": [
+    {
+      "feature": "gold_mom_12m_1m",
+      "lag": 3,
+      "r": 0.1131936583,
+      "n": 1664,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.109147917,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "gold_dist_200d",
+      "lag": 1,
+      "r": 0.110583909,
+      "n": 1664,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.109147917,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    }
+  ],
+  "peaks": [
+    {
+      "feature": "gold_dist_50d",
+      "lag": 0,
+      "r": 0.2493943278,
+      "n": 1664,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.109147917,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "gold_dist_50d",
+      "lag": 0,
+      "r": 0.2491916625,
+      "n": 1851,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1035438467,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "gold_dist_50d",
+      "lag": 0,
+      "r": 0.2254566216,
+      "n": 3956,
+      "state": "high_vol/uptrend",
+      "own_threshold": 0.0710096527,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "gold_dist_50d",
+      "lag": 0,
+      "r": 0.195710551,
+      "n": 1799,
+      "state": "high_vol/downtrend",
+      "own_threshold": 0.1050150042,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "gold_dist_200d",
+      "lag": 0,
+      "r": 0.1736926783,
+      "n": 1664,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.109147917,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "cot_mm_net_pct_oi",
+      "lag": 0,
+      "r": -0.1571663157,
+      "n": 626,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1763914325,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "shanghai_premium_z_1y",
+      "lag": 0,
+      "r": -0.1378106909,
+      "n": 831,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.1536277664,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gld_flow_z_1y",
+      "lag": 0,
+      "r": 0.1305857058,
+      "n": 2733,
+      "state": "high_vol/uptrend",
+      "own_threshold": 0.0853463766,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": false
+    },
+    {
+      "feature": "gld_flow_z_1y",
+      "lag": 0,
+      "r": 0.1179213646,
+      "n": 1147,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.1311484841,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "cot_mm_net_pct_3y",
+      "lag": 0,
+      "r": -0.1176202181,
+      "n": 626,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1763914325,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gold_cpi_ratio_z_10y",
+      "lag": 0,
+      "r": 0.1166147935,
+      "n": 1629,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.1103015314,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "cot_mm_net_pct_oi",
+      "lag": 0,
+      "r": -0.1158020437,
+      "n": 1064,
+      "state": "high_vol/downtrend",
+      "own_threshold": 0.1360855634,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "cot_mm_net_chg_4w",
+      "lag": 2,
+      "r": -0.1148599939,
+      "n": 626,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1763914325,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "shanghai_premium_usd",
+      "lag": 0,
+      "r": -0.1133622783,
+      "n": 1006,
+      "state": "high_vol/uptrend",
+      "own_threshold": 0.1398863277,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gold_mom_12m_1m",
+      "lag": 3,
+      "r": 0.1131936583,
+      "n": 1664,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.109147917,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "shanghai_premium_usd",
+      "lag": 0,
+      "r": -0.1095063986,
+      "n": 831,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.1536277664,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gld_flow_z_1y",
+      "lag": 0,
+      "r": 0.108298331,
+      "n": 669,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1707823033,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "shanghai_premium_z_1y",
+      "lag": 0,
+      "r": -0.1058052274,
+      "n": 1006,
+      "state": "high_vol/uptrend",
+      "own_threshold": 0.1398863277,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gold_m2_ratio_z_10y",
+      "lag": 0,
+      "r": 0.1042557521,
+      "n": 1633,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.1101678357,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": true
+    },
+    {
+      "feature": "real_yield_10y_z_1y",
+      "lag": 34,
+      "r": 0.1027247367,
+      "n": 669,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1707823033,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "cot_mm_net_pct_3y",
+      "lag": 0,
+      "r": -0.1022116594,
+      "n": 1024,
+      "state": "high_vol/downtrend",
+      "own_threshold": 0.1386728782,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "etf_tonnage_chg_4w",
+      "lag": 0,
+      "r": -0.0986409128,
+      "n": 1066,
+      "state": "high_vol/downtrend",
+      "own_threshold": 0.1359599698,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gold_fx_breadth",
+      "lag": 0,
+      "r": 0.0980421814,
+      "n": 1664,
+      "state": "low_vol/uptrend",
+      "own_threshold": 0.109147917,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": true
+    },
+    {
+      "feature": "etf_tonnage_chg_4w",
+      "lag": 17,
+      "r": 0.0971936943,
+      "n": 669,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1707823033,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gold_dist_200d",
+      "lag": 0,
+      "r": 0.0966921651,
+      "n": 1851,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1035438467,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": true
+    },
+    {
+      "feature": "gld_flow_z_1y",
+      "lag": 0,
+      "r": 0.0896267143,
+      "n": 1064,
+      "state": "high_vol/downtrend",
+      "own_threshold": 0.1360855634,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "gold_dist_200d",
+      "lag": 0,
+      "r": 0.0836631807,
+      "n": 3956,
+      "state": "high_vol/uptrend",
+      "own_threshold": 0.0710096527,
+      "clears_raw": true,
+      "clears_adj": true,
+      "price_derived": true
+    },
+    {
+      "feature": "breakeven_10y_chg_20d",
+      "lag": 14,
+      "r": -0.0755050274,
+      "n": 669,
+      "state": "low_vol/downtrend",
+      "own_threshold": 0.1707823033,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "spx_dist_200d",
+      "lag": 21,
+      "r": -0.0734104359,
+      "n": 1779,
+      "state": "high_vol/downtrend",
+      "own_threshold": 0.1055977654,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    },
+    {
+      "feature": "etf_tonnage_chg_12w",
+      "lag": 0,
+      "r": -0.0714143605,
+      "n": 1064,
+      "state": "high_vol/downtrend",
+      "own_threshold": 0.1360855634,
+      "clears_raw": true,
+      "clears_adj": false,
+      "price_derived": false
+    }
+  ],
+  "verdict": "STAGE 4 DEAD \u2014 no external driver leads gold in any regime, at any lag, once each test is judged at its own sample size and price-derived features are excluded as circular"
+}

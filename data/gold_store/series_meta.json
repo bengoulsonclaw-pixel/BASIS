@@ -1,0 +1,632 @@
+{
+  "BREAKEVEN_10Y": {
+    "bucket": "monetary",
+    "description": "10y breakeven inflation",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "BREAKEVEN_10Y",
+    "source_url": "https://fred.stlouisfed.org/series/T10YIE",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "CB_GOLD_BRA": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 BRA",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_BRA",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_CHE": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 CHE",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_CHE",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_CHN": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 CHN",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_CHN",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_DEU": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 DEU",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_DEU",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_FRA": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 FRA",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_FRA",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_IND": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 IND",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_IND",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_ITA": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 ITA",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_ITA",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_JPN": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 JPN",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_JPN",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_KAZ": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 KAZ",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_KAZ",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_NLD": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 NLD",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_NLD",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_POL": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 POL",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_POL",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_QAT": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 QAT",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_QAT",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_RUS": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 RUS",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_RUS",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_SGP": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 SGP",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_SGP",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_THA": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 THA",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_THA",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_TUR": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 TUR",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_TUR",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_USA": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 USA",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_USA",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_UZB": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 UZB",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_UZB",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "CB_GOLD_WORLD": {
+    "bucket": "physical",
+    "description": "Official gold holdings \u2014 world aggregate",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "CB_GOLD_WORLD",
+    "source_url": "https://api.imf.org",
+    "typical_lag_days": 45.0,
+    "unit": "tonnes"
+  },
+  "COMEX_GOLD_ADJ": {
+    "bucket": "valuation",
+    "description": "COMEX gold, panama-adjusted",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "COMEX_GOLD_ADJ",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "USD/oz"
+  },
+  "COMEX_GOLD_FRONT": {
+    "bucket": "valuation",
+    "description": "COMEX gold front settle",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "COMEX_GOLD_FRONT",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "USD/oz"
+  },
+  "COMEX_GOLD_SECOND": {
+    "bucket": "valuation",
+    "description": "COMEX gold 2nd month settle",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "COMEX_GOLD_SECOND",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "USD/oz"
+  },
+  "COMEX_SILVER_FRONT": {
+    "bucket": "valuation",
+    "description": "COMEX silver front settle",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "COMEX_SILVER_FRONT",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "USD/oz"
+  },
+  "CORE_CPI": {
+    "bucket": "risk",
+    "description": "Core CPI",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "CORE_CPI",
+    "source_url": "https://fred.stlouisfed.org/series/CPILFESL",
+    "typical_lag_days": 14.0,
+    "unit": "index"
+  },
+  "CORE_PCE": {
+    "bucket": "risk",
+    "description": "Core PCE price index",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "CORE_PCE",
+    "source_url": "https://fred.stlouisfed.org/series/PCEPILFE",
+    "typical_lag_days": 30.0,
+    "unit": "index"
+  },
+  "COT_MM_LONG": {
+    "bucket": "flows",
+    "description": "CFTC gold \u2014 Managed money long",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "COT_MM_LONG",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "COT_MM_NET": {
+    "bucket": "flows",
+    "description": "CFTC gold \u2014 Managed money net",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "COT_MM_NET",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "COT_MM_SHORT": {
+    "bucket": "flows",
+    "description": "CFTC gold \u2014 Managed money short",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "COT_MM_SHORT",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "COT_OI": {
+    "bucket": "flows",
+    "description": "CFTC gold \u2014 Open interest",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "COT_OI",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "CPI": {
+    "bucket": "risk",
+    "description": "Headline CPI",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "CPI",
+    "source_url": "https://fred.stlouisfed.org/series/CPIAUCSL",
+    "typical_lag_days": 14.0,
+    "unit": "index"
+  },
+  "CREDIT_BAA": {
+    "bucket": "risk",
+    "description": "Moody's Baa over 10y",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "CREDIT_BAA",
+    "source_url": "https://fred.stlouisfed.org/series/BAA10Y",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "DOLLAR_BROAD": {
+    "bucket": "monetary",
+    "description": "Broad dollar index",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "DOLLAR_BROAD",
+    "source_url": "https://fred.stlouisfed.org/series/DTWEXBGS",
+    "typical_lag_days": 7.0,
+    "unit": "index"
+  },
+  "DXY": {
+    "bucket": "monetary",
+    "description": "Dollar index",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "DXY",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "index"
+  },
+  "EURUSD": {
+    "bucket": "monetary",
+    "description": "EUR/USD",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "EURUSD",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "rate"
+  },
+  "FED_DEBT": {
+    "bucket": "valuation",
+    "description": "Federal debt outstanding",
+    "native_freq": "quarterly",
+    "published_at_approximated": false,
+    "series_id": "FED_DEBT",
+    "source_url": "https://fred.stlouisfed.org/series/GFDEBTN",
+    "typical_lag_days": 60.0,
+    "unit": "USD mn"
+  },
+  "FED_FUNDS": {
+    "bucket": "monetary",
+    "description": "Effective fed funds rate",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "FED_FUNDS",
+    "source_url": "https://fred.stlouisfed.org/series/DFF",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "FWD_5Y5Y": {
+    "bucket": "monetary",
+    "description": "5y5y forward breakeven",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "FWD_5Y5Y",
+    "source_url": "https://fred.stlouisfed.org/series/T5YIFR",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "GDX_PX": {
+    "bucket": "valuation",
+    "description": "VanEck Gold Miners ETF",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "GDX_PX",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "USD"
+  },
+  "GLD_PX": {
+    "bucket": "flows",
+    "description": "SPDR Gold Shares price",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "GLD_PX",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "USD"
+  },
+  "GLD_TONNES": {
+    "bucket": "flows",
+    "description": "SPDR Gold Shares tonnage",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "GLD_TONNES",
+    "source_url": "https://www.spdrgoldshares.com",
+    "typical_lag_days": 1.0,
+    "unit": "tonnes"
+  },
+  "LBMA_GOLD_AM_USD": {
+    "bucket": "valuation",
+    "description": "LBMA gold AM fix",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "LBMA_GOLD_AM_USD",
+    "source_url": "",
+    "typical_lag_days": 0.0,
+    "unit": "USD/oz"
+  },
+  "LBMA_GOLD_PM_EUR": {
+    "bucket": "valuation",
+    "description": "LBMA gold PM fix, EUR",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "LBMA_GOLD_PM_EUR",
+    "source_url": "",
+    "typical_lag_days": 0.0,
+    "unit": "EUR/oz"
+  },
+  "LBMA_GOLD_PM_GBP": {
+    "bucket": "valuation",
+    "description": "LBMA gold PM fix, GBP",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "LBMA_GOLD_PM_GBP",
+    "source_url": "",
+    "typical_lag_days": 0.0,
+    "unit": "GBP/oz"
+  },
+  "LBMA_GOLD_PM_USD": {
+    "bucket": "valuation",
+    "description": "LBMA gold PM fix",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "LBMA_GOLD_PM_USD",
+    "source_url": "https://prices.lbma.org.uk",
+    "typical_lag_days": 0.0,
+    "unit": "USD/oz"
+  },
+  "LBMA_SILVER_USD": {
+    "bucket": "valuation",
+    "description": "LBMA silver fix",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "LBMA_SILVER_USD",
+    "source_url": "",
+    "typical_lag_days": 0.0,
+    "unit": "USD/oz"
+  },
+  "M2": {
+    "bucket": "valuation",
+    "description": "M2 money supply",
+    "native_freq": "monthly",
+    "published_at_approximated": true,
+    "series_id": "M2",
+    "source_url": "https://fred.stlouisfed.org/series/M2SL",
+    "typical_lag_days": 30.0,
+    "unit": "USD bn"
+  },
+  "NOMINAL_10Y": {
+    "bucket": "monetary",
+    "description": "10y Treasury yield",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "NOMINAL_10Y",
+    "source_url": "https://fred.stlouisfed.org/series/DGS10",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "NOMINAL_2Y": {
+    "bucket": "monetary",
+    "description": "2y Treasury yield",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "NOMINAL_2Y",
+    "source_url": "https://fred.stlouisfed.org/series/DGS2",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "PAYROLLS": {
+    "bucket": "risk",
+    "description": "Nonfarm payrolls",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "PAYROLLS",
+    "source_url": "https://fred.stlouisfed.org/series/PAYEMS",
+    "typical_lag_days": 7.0,
+    "unit": "thousands"
+  },
+  "PCE": {
+    "bucket": "risk",
+    "description": "Headline PCE price index",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "PCE",
+    "source_url": "https://fred.stlouisfed.org/series/PCEPI",
+    "typical_lag_days": 30.0,
+    "unit": "index"
+  },
+  "PPI": {
+    "bucket": "risk",
+    "description": "PPI final demand",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "PPI",
+    "source_url": "https://fred.stlouisfed.org/series/WPSFD49207",
+    "typical_lag_days": 14.0,
+    "unit": "index"
+  },
+  "REAL_10Y": {
+    "bucket": "monetary",
+    "description": "10y TIPS real yield",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "REAL_10Y",
+    "source_url": "https://fred.stlouisfed.org/series/DFII10",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "REAL_10Y_SPLICED": {
+    "bucket": "monetary",
+    "description": "10y real yield (DFII10 from 2003; before that 10y nominal less trailing 12m CPI)",
+    "native_freq": "daily",
+    "published_at_approximated": true,
+    "series_id": "REAL_10Y_SPLICED",
+    "source_url": "https://fred.stlouisfed.org/series/DFII10",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "REAL_5Y": {
+    "bucket": "monetary",
+    "description": "5y TIPS real yield",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "REAL_5Y",
+    "source_url": "https://fred.stlouisfed.org/series/DFII5",
+    "typical_lag_days": 1.0,
+    "unit": "pct"
+  },
+  "RETAIL_SALES": {
+    "bucket": "risk",
+    "description": "Retail sales",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "RETAIL_SALES",
+    "source_url": "https://fred.stlouisfed.org/series/RSAFS",
+    "typical_lag_days": 16.0,
+    "unit": "USD mn"
+  },
+  "SGE_AU9999": {
+    "bucket": "physical",
+    "description": "SGE Au99.99 close",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "SGE_AU9999",
+    "source_url": "https://www.sge.com.cn",
+    "typical_lag_days": 0.0,
+    "unit": "CNY/g"
+  },
+  "SPX": {
+    "bucket": "risk",
+    "description": "S&P 500",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "SPX",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "index"
+  },
+  "UNEMPLOYMENT": {
+    "bucket": "risk",
+    "description": "Unemployment rate",
+    "native_freq": "monthly",
+    "published_at_approximated": false,
+    "series_id": "UNEMPLOYMENT",
+    "source_url": "https://fred.stlouisfed.org/series/UNRATE",
+    "typical_lag_days": 7.0,
+    "unit": "pct"
+  },
+  "USDCNY": {
+    "bucket": "monetary",
+    "description": "USD/CNY",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "USDCNY",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "rate"
+  },
+  "USDINR": {
+    "bucket": "monetary",
+    "description": "USD/INR",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "USDINR",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "rate"
+  },
+  "USDJPY": {
+    "bucket": "monetary",
+    "description": "USD/JPY",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "USDJPY",
+    "source_url": "",
+    "typical_lag_days": 1.0,
+    "unit": "rate"
+  },
+  "VIX": {
+    "bucket": "risk",
+    "description": "VIX",
+    "native_freq": "daily",
+    "published_at_approximated": false,
+    "series_id": "VIX",
+    "source_url": "https://fred.stlouisfed.org/series/VIXCLS",
+    "typical_lag_days": 1.0,
+    "unit": "index"
+  }
+}

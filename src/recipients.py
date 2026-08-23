@@ -32,6 +32,7 @@ REPORTS = {
     "seasonality": "Seasonality Monitor report",
     "precious_metals": "Precious Metals Fundamentals monitor",
     "pm_releases": "Precious Metals release synopses (WGC / WPIC)",
+    "gold_week": "Gold — Week Ahead (weekly)",
 }
 
 

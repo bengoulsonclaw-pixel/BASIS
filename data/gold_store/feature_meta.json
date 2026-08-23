@@ -1,0 +1,180 @@
+{
+  "built_from": 30,
+  "features": {
+    "real_yield_10y_chg_20d": {
+      "bucket": "monetary",
+      "n": 9250,
+      "first": "1991-03-11 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "real_yield_10y_z_1y": {
+      "bucket": "monetary",
+      "n": 6104,
+      "first": "2003-04-01 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "breakeven_10y_chg_20d": {
+      "bucket": "monetary",
+      "n": 6146,
+      "first": "2003-01-31 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "dxy_dist_50d": {
+      "bucket": "monetary",
+      "n": 9540,
+      "first": "1990-01-29 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "dxy_chg_20d": {
+      "bucket": "monetary",
+      "n": 9539,
+      "first": "1990-01-30 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "curve_2s10s": {
+      "bucket": "monetary",
+      "n": 9558,
+      "first": "1990-01-03 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "fed_cut_odds_chg_20d": {
+      "bucket": "monetary",
+      "n": 9538,
+      "first": "1990-01-31 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "cot_mm_net_pct_3y": {
+      "bucket": "flows",
+      "n": 5077,
+      "first": "2007-03-08 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "cot_mm_net_chg_4w": {
+      "bucket": "flows",
+      "n": 5245,
+      "first": "2006-07-17 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "cot_mm_net_pct_oi": {
+      "bucket": "flows",
+      "n": 5265,
+      "first": "2006-06-19 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "etf_tonnage_chg_4w": {
+      "bucket": "flows",
+      "n": 5656,
+      "first": "2004-12-17 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "etf_tonnage_chg_12w": {
+      "bucket": "flows",
+      "n": 5616,
+      "first": "2005-02-11 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gld_flow_z_1y": {
+      "bucket": "flows",
+      "n": 5613,
+      "first": "2005-02-16 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "shanghai_premium_usd": {
+      "bucket": "physical",
+      "n": 2523,
+      "first": "2016-12-21 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "shanghai_premium_z_1y": {
+      "bucket": "physical",
+      "n": 2461,
+      "first": "2017-03-17 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "cb_net_purchases_12m": {
+      "bucket": "physical",
+      "n": 9253,
+      "first": "1991-03-06 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "cb_net_purchases_yoy_chg": {
+      "bucket": "physical",
+      "n": 9001,
+      "first": "1992-02-21 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "vix_z_1y": {
+      "bucket": "risk",
+      "n": 9496,
+      "first": "1990-03-30 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "hy_spread_chg_20d": {
+      "bucket": "risk",
+      "n": 9538,
+      "first": "1990-01-31 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "spx_dist_200d": {
+      "bucket": "risk",
+      "n": 9509,
+      "first": "1990-03-13 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "real_rate_vol_20d": {
+      "bucket": "risk",
+      "n": 9260,
+      "first": "1991-02-25 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gold_dist_200d": {
+      "bucket": "valuation",
+      "n": 9510,
+      "first": "1990-03-12 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gold_dist_50d": {
+      "bucket": "valuation",
+      "n": 9540,
+      "first": "1990-01-29 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gold_mom_12m_1m": {
+      "bucket": "valuation",
+      "n": 9307,
+      "first": "1990-12-20 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gold_silver_ratio_z_5y": {
+      "bucket": "valuation",
+      "n": 9245,
+      "first": "1991-03-18 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gold_cpi_ratio_z_10y": {
+      "bucket": "valuation",
+      "n": 8894,
+      "first": "1992-07-21 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gold_m2_ratio_z_10y": {
+      "bucket": "valuation",
+      "n": 8909,
+      "first": "1992-06-30 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    },
+    "gold_fx_breadth": {
+      "bucket": "valuation",
+      "n": 9560,
+      "first": "1990-01-01 00:00:00",
+      "last": "2026-08-21 00:00:00"
+    }
+  },
+  "missing": {
+    "risk_reversal_25d": "gold options archive starts 2025-08 (252 rows) \u2014 too short",
+    "india_imports_yoy": "UN Comtrade identified (1 call/month) but not yet ingested",
+    "wgc_bar_coin_yoy": "WGC GDT parsed but ingestion pending",
+    "gold_aisc_ratio": "no free AISC feed \u2014 hand-seed pending"
+  },
+  "winsorised": true
+}

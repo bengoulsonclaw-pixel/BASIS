@@ -36,7 +36,35 @@ Three tiers, and `series_meta` records which applies so nothing is silently opti
            approximation. `published_at_approximated` is set True and any backtest
            leaning on these series must be described as optimistic.
 
-CLI:  python src/goldstore.py [--coverage] [--stale]
+Release cadence decides which horizon a series can serve
+--------------------------------------------------------
+Every series is registered with its `native_freq` and `typical_lag_days`, and
+`horizon_role` turns those two facts into a verdict per forecast horizon:
+**drives / marginal / static**. The rule it encodes is easy to state and easy to
+forget in the middle of a feature list:
+
+    A series cannot drive a forecast over a window shorter than its own
+    release cycle.
+
+WGC quarterly demand lands four times a year on a six-week lag. Across a 5-day
+window it is, with probability ~0.95, the identical number on the last day and the
+first — a constant. Constants say nothing about variation, so no matter how much
+the underlying economics matter, that series cannot inform the 5-day call. It earns
+its keep at 250 days, where it refreshes three or four times.
+
+Cadence and lag are tested separately because they fail differently. India's import
+volumes refresh twice inside a 60-day window (cadence says "drives") but arrive
+about 150 days late, so the window they would have informed has already closed —
+demoted to marginal. Central bank reserves, monthly on a 45-day lag, survive the
+same test and drive the 60-day horizon.
+
+None of this is hand-typed per series: it falls out of the two metadata fields, so
+it cannot drift out of date the way a comment would. `horizon_matrix()` prints the
+whole picture and `horizon_inputs(horizon)` is what the model layer should build
+its feature set from — which makes the rule a guard rather than a note, since a
+quarterly feed then cannot quietly end up in the 5-day fit.
+
+CLI:  python src/goldstore.py [--coverage] [--stale] [--horizons]
 """
 from __future__ import annotations
 
@@ -63,6 +91,12 @@ COLUMNS = ["series_id", "reference_date", "published_at", "value",
 KEY = ["series_id", "reference_date", "revision"]
 
 BUCKETS = ("monetary", "flows", "physical", "risk", "valuation")
+
+# Spec §1 horizons, in calendar days.
+HORIZONS = {"5d": 5, "60d": 60, "250d": 250}
+
+# How often each frequency actually refreshes, in calendar days.
+FREQ_DAYS = {"daily": 1, "weekly": 7, "monthly": 30, "quarterly": 91, "annual": 365}
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +250,79 @@ def get_frame(series_ids, as_of=None) -> pd.DataFrame:
     return pd.DataFrame(cols).sort_index() if cols else pd.DataFrame()
 
 
+def as_known_series(series_id: str, dates: pd.DatetimeIndex) -> pd.Series:
+    """The value **in force on each calendar date**, forward-filled from
+    `published_at` — never from `reference_date`.
+
+    This is spec §4.1's rule, and the distinction is the whole ball game. CPI for
+    January is *about* January but is not knowable until mid-February. Filling from
+    the reference date puts January's number on a January calendar row and hands the
+    model three weeks of the future, every month, silently.
+
+    Built by replaying publications in order rather than by querying per date, which
+    would be O(days x rows). Walking once and snapshotting is O(n log n):
+
+      * maintain {reference_date: value in force}, updated at each publication;
+      * the level a trader would quote is the value at the LATEST reference date
+        seen so far — so a revision to an *older* reference date does not move the
+        current level, but a revision to the current one does;
+      * `max_ref` only ever grows, so it is tracked rather than recomputed.
+    """
+    df = _read_obs()
+    df = df[df["series_id"] == series_id]
+    if df.empty:
+        return pd.Series(index=dates, dtype=float, name=series_id)
+    df = df.sort_values(["published_at", "reference_date", "revision"])
+
+    values: dict = {}
+    max_ref = None
+    stamps, levels = [], []
+    for pub, ref, val in zip(df["published_at"], df["reference_date"], df["value"]):
+        values[ref] = val
+        if max_ref is None or ref > max_ref:
+            max_ref = ref
+        stamps.append(pub)
+        levels.append(values[max_ref])
+    walk = pd.Series(levels, index=pd.DatetimeIndex(stamps))
+    walk = walk[~walk.index.duplicated(keep="last")].sort_index()
+    return walk.reindex(walk.index.union(dates)).ffill().reindex(dates).rename(series_id)
+
+
+def daily_panel(series_ids, start=None, end=None) -> pd.DataFrame:
+    """Several series as a point-in-time daily panel, business-day indexed.
+
+    Every column answers "what would a trader have had on this date?", so feature
+    code can treat it as an ordinary frame without having to remember the vintage
+    rules on every line."""
+    obs = _read_obs()
+    if obs.empty:
+        return pd.DataFrame()
+    start = pd.Timestamp(start) if start is not None else obs["reference_date"].min()
+    end = pd.Timestamp(end) if end is not None else pd.Timestamp.today().normalize()
+    dates = pd.bdate_range(start, end)
+    cols = {sid: as_known_series(sid, dates) for sid in series_ids}
+    return pd.DataFrame(cols, index=dates)
+
+
+def first_publication(series_id: str) -> pd.Series:
+    """First publication timestamp per reference_date — i.e. the real release dates.
+
+    A sanctioned accessor for a question the point-in-time walk answers only slowly:
+    "when did the world first see each reference month?" Doing it by stepping
+    `get_series(as_of=d)` across every business day is O(days x rows), which is why
+    a caller was tempted to monkeypatch `_read_obs` for speed. Reaching into the
+    store's internals to go faster is exactly what the §3 lint rule exists to catch,
+    so the fast path belongs here instead — same answer, one pass, no private access.
+
+    Returns a Series indexed by reference_date holding the earliest published_at."""
+    df = _read_obs()
+    df = df[df["series_id"] == series_id]
+    if df.empty:
+        return pd.Series(dtype="datetime64[ns]")
+    return (df.groupby("reference_date")["published_at"].min()
+              .sort_values().rename(series_id))
+
+
 def last_published(series_id: str, as_of=None):
     """When this series was last updated, as known at `as_of`. Drives staleness."""
     df = _read_obs()
@@ -226,23 +333,118 @@ def last_published(series_id: str, as_of=None):
 
 
 def stale_flags(as_of=None) -> list:
-    """Spec §8: flag any series more stale than twice its typical publication lag.
+    """Flag series whose NEXT release should already have arrived.
 
-    Silent staleness is worse than a missing model — a frozen feed keeps feeding the
-    model a confident number that stopped being true weeks ago."""
+    Spec §8 words this as "more stale than twice its typical publication lag", but
+    taken literally that is wrong for anything but a daily series: a monthly figure
+    with a 7-day lag would be "stale" a fortnight after every release, for ever. The
+    question that matters is whether the next print is overdue, so the tolerance is
+    `cadence + lag` rather than `2 x lag`.
+
+    Measured in BUSINESS days. The calendar-day version flagged every daily market
+    series as stale each weekend — on a Saturday, Friday's close is two calendar days
+    old against a one-day tolerance. That produced 20 false flags in the §8 payload
+    and buried the one series that is genuinely dead (Russia stopped reporting its
+    reserves in 2025-11). Noisy staleness is worse than none: it trains a reader to
+    ignore the field."""
     now = pd.Timestamp(as_of) if as_of is not None else pd.Timestamp.now().normalize()
     out = []
     for sid, m in meta().items():
-        lp = last_published(sid, as_of)
+        # as_of=now, not None: the LAGGED tier stamps published_at as
+        # reference_date + lag, which for a fresh monthly observation lands in the
+        # future. Counting those would make a dead feed look alive.
+        lp = last_published(sid, now)
         if lp is None:
             out.append(f"missing_series:{sid}")
             continue
-        lag = float(m.get("typical_lag_days") or 0.0)
-        limit = max(2.0 * lag, 1.0)
-        overdue = (now - lp) / pd.Timedelta(days=1)
-        if overdue > limit:
+        cadence = FREQ_DAYS.get(m.get("native_freq", ""), 1.0)
+        lag = max(float(m.get("typical_lag_days") or 0.0), 1.0)
+        limit_bdays = int(np.ceil((cadence + lag) * 5.0 / 7.0))
+        overdue_bdays = int(np.busday_count(lp.date(), now.date())) if now > lp else 0
+        if overdue_bdays > limit_bdays:
             out.append(f"stale_series:{sid}")
     return sorted(out)
+
+
+def horizon_role(series_id: str) -> dict:
+    """Which forecast horizons this series can actually move, derived from its
+    release cadence and publication lag.
+
+    The point, and it is easy to lose: **a series cannot drive a forecast over a
+    window shorter than its own release cycle.** WGC quarterly demand lands four
+    times a year on a six-week lag. Across a 5-day forecast window it is, with
+    probability ~0.95, exactly the same number on the last day as on the first —
+    a constant. Constants carry no information about variation, so however
+    important the underlying economics, that series cannot inform the 5-day call.
+    It informs the 250-day one, where it refreshes three or four times.
+
+    Two independent tests, because they fail differently:
+
+      REFRESH  horizon / cadence. Below ~0.5 the series is static across the
+               window; above ~2 it refreshes enough to carry signal.
+      LAG      typical_lag > horizon means that by the time the figure is
+               published the window it would have informed has already closed.
+               A quarterly print arriving six weeks late is news about a period
+               that a 5-day forecast has long since lived through.
+
+    Returns {horizon: {"role", "refresh_ratio", "why"}} with role in
+    drives | marginal | static. Nothing here is hand-typed per series — it falls
+    out of native_freq and typical_lag_days, so it cannot drift out of date the
+    way a comment in a docstring would."""
+    m = meta(series_id)
+    if not m:
+        return {}
+    cadence = FREQ_DAYS.get(m.get("native_freq", ""), 1.0)
+    lag = float(m.get("typical_lag_days") or 0.0)
+    out = {}
+    for label, days in HORIZONS.items():
+        ratio = days / cadence
+        if ratio >= 2.0:
+            role, why = "drives", f"refreshes ~{ratio:.0f}x per window"
+        elif ratio >= 0.5:
+            role, why = "marginal", f"refreshes ~{ratio:.1f}x per window"
+        else:
+            role = "static"
+            why = (f"refreshes ~{ratio:.2f}x per window — effectively constant "
+                   f"across {label}")
+        if role != "static" and lag > days:
+            role = "static" if role == "marginal" else "marginal"
+            why += f"; published {lag:.0f}d late vs a {days}d window"
+        out[label] = {"role": role, "refresh_ratio": round(ratio, 3), "why": why}
+    return out
+
+
+def horizon_matrix() -> pd.DataFrame:
+    """Every registered series against every horizon — the table that says, in one
+    place, what each feed can and cannot be expected to move.
+
+    This is the answer to 'why is central bank buying not in the 5-day model?'
+    without anyone having to remember the argument."""
+    rows = []
+    for sid, m in sorted(meta().items()):
+        roles = horizon_role(sid)
+        row = {"series_id": sid, "bucket": m.get("bucket", ""),
+               "freq": m.get("native_freq", ""),
+               "lag_days": m.get("typical_lag_days"),
+               "approx_pub": m.get("published_at_approximated")}
+        row.update({h: roles.get(h, {}).get("role", "") for h in HORIZONS})
+        rows.append(row)
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows).set_index("series_id")
+    order = {"monetary": 0, "flows": 1, "physical": 2, "risk": 3, "valuation": 4}
+    return df.sort_values(["bucket", "freq"], key=lambda s: s.map(order).fillna(9)
+                          if s.name == "bucket" else s)
+
+
+def horizon_inputs(horizon: str, roles=("drives",)) -> list:
+    """Series ids admissible at `horizon`. The model layer should build its feature
+    set from this rather than from a hand-kept list, so a feed whose cadence makes
+    it useless at 5d cannot quietly end up in the 5d fit."""
+    if horizon not in HORIZONS:
+        raise ValueError(f"horizon must be one of {list(HORIZONS)}, got {horizon!r}")
+    return sorted(sid for sid in meta()
+                  if horizon_role(sid).get(horizon, {}).get("role") in roles)
 
 
 def coverage() -> pd.DataFrame:
@@ -325,6 +527,10 @@ def parse_vintage_matrix(rows: list) -> pd.DataFrame:
 
 
 def main() -> int:
+    if "--horizons" in sys.argv:
+        m = horizon_matrix()
+        print(m.to_string() if not m.empty else "no series registered yet")
+        return 0
     if "--stale" in sys.argv:
         flags = stale_flags()
         print("\n".join(flags) if flags else "no stale series")

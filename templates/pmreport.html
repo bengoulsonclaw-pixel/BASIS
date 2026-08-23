@@ -82,7 +82,20 @@
     {% endif %}
     {% if charts.real_yield %}
     <div class="section"><div class="banner">Gold vs 10y real yield — the macro anchor</div>
-      <div class="chart"><img src="{{ charts.real_yield }}" alt="gold vs real yield"></div></div>
+      <div class="chart"><img src="{{ charts.real_yield }}" alt="gold vs real yield"></div>
+      {% if d.fair_value and d.fair_value.gap_pct is not none %}
+      <p class="summary" style="font-size:7.4pt;margin-top:1.5mm">
+        <b>Unexplained by the macro anchor:</b> over the twelve months to
+        {{ d.fair_value.asof }}, gold moved <b>{{ "%+.1f%%" | format(d.fair_value.gap_pct) }}</b>
+        more than real yields, the dollar, credit spreads and risk appetite together
+        account for — the {{ d.fair_value.pctile }}th percentile of that gap since {{ d.fair_value.since or "the start of the sample" }}.
+        The chart above shows the anchor; the pages that follow show the official-sector
+        buying and physical flows that are the usual candidates for the residual.
+        Measured on a walk-forward fit, so each month is scored only against
+        relationships estimated before it.
+      </p>
+      {% endif %}
+    </div>
     {% endif %}
 
     <!-- ================================ PAGE 2 — GOLD ================================ -->

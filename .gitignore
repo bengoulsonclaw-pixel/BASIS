@@ -62,6 +62,14 @@ desktop.ini
 
 # ── Browser automation profile (cookies / session data — never commit) ───────
 data/.pm_chrome_profile/
+# Goldhub session. This one holds a LIVE authenticated Google session for
+# basisreports@gmail.com — the same account the Morning Coffee mailer sends from.
+# This repo pushes to GitHub and syncs to the VPS, so committing it would put a
+# working login for that mailbox in two places it has no business being.
+data/.wgc_chrome_profile/
+# WGC downloads are licensed data — kept local until the redistribution terms are
+# settled (see docs/gold-signal-engine.md).
+data/wgc_inbox/
 
 # Local server logs (written by launch_basis.ps1)
 logs/

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  table { font-size: 8pt; }
+  .cal td, .cal th { padding: 1.6mm 2mm; }
+  .cal .day { color: #666; white-space: nowrap; }
+  .cal .watched { font-weight: 700; color: #111; }
+  .cal .ratio { color: var(--pos-tx); font-weight: 700; }
+  .cal .flat { color: #888; }
+  .lead { font-size: 8.6pt; line-height: 1.5; color: #222; margin: 1.5mm 0 3mm; }
+  .lead b { color: #111; }
+  .kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 2mm 0 3mm; }
+  .kpi .box { border: 0.3mm solid #DDD; border-left: 1.2mm solid var(--yellow);
+              padding: 2mm 3mm; }
+  .kpi .lbl { font-size: 7pt; color: #777; text-transform: uppercase;
+              letter-spacing: 0.03em; }
+  .kpi .val { font-size: 13pt; font-weight: 700; color: #111; line-height: 1.2; }
+  .kpi .sub { font-size: 7.2pt; color: #666; }
+  .histcap { font-size: 8pt; color: #333; line-height: 1.45; margin: 0.5mm 0 3mm; }
+  .histcap b { color: #111; }
+  .scen td.n { font-weight: 700; color: #111; }
+  .backpage { break-before: page; display: flex; flex-direction: column;
+              min-height: calc(100vh - 0.04in); }
+  .backpage .pagefoot { margin-top: auto; }
+  .gloss { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 6mm; margin-top: 3mm;
+           font-size: 8pt; color: #222; line-height: 1.5; }
+  .gloss b { color: #111; }
+  .notclaim { border: 0.3mm solid #E3C97A; background: #FFFBEF; padding: 2.5mm 3mm;
+              font-size: 8pt; line-height: 1.5; margin-top: 3mm; }
+  .notclaim b { color: #111; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Gold — Week Ahead</h1>
+      <div class="sub">{{ asof_pretty }} to {{ window_to }}</div>
+    </div>
+
+    <p class="lead">
+      What is scheduled, how gold has behaved around those releases historically, and
+      what a given move in rates or the dollar would be worth. <b>This report does not
+      forecast the gold price</b> — see the methodology note overleaf.
+    </p>
+
+    <div class="kpi">
+      <div class="box">
+        <div class="lbl">Explained by drivers</div>
+        <div class="val">{{ (r2 * 100) | round(0) | int }}%</div>
+        <div class="sub">of a typical one-month move</div>
+      </div>
+      <div class="box">
+        <div class="lbl">Unexplained band</div>
+        <div class="val">±{{ resid_sd | round(1) }}%</div>
+        <div class="sub">1 s.d. of what drivers miss</div>
+      </div>
+      <div class="box">
+        <div class="lbl">Gold vs drivers, 12m</div>
+        <div class="val">{{ fv_gap | pct(1) }}</div>
+        <div class="sub">{{ fv_pctile | round(0) | int }}th percentile of that gap</div>
+      </div>
+    </div>
+
+    <h2>1 &nbsp;Scheduled this week</h2>
+    {% if events %}
+    <table class="cal">
+      <thead><tr><th>Day</th><th>Time</th><th></th><th>Release</th>
+        <th>Consensus</th><th>Previous</th><th>Gold's typical reaction</th></tr></thead>
+      <tbody>
+      {% for e in events %}
+        <tr>
+          <td class="day">{{ e.day }}</td>
+          <td class="day">{{ e.time }}</td>
+          <td class="day">{{ e.country }}</td>
+          <td class="{{ 'watched' if e.kind else '' }}">{{ e.title }}</td>
+          <td>{{ e.forecast or "—" }}</td>
+          <td>{{ e.previous or "—" }}</td>
+          <td>
+            {% if e.ratio and e.ratio > 1.15 %}
+              <span class="ratio">{{ e.ratio | num(2) }}× an ordinary day</span>
+            {% elif e.ratio %}
+              <span class="flat">no measurable premium</span>
+            {% else %}<span class="flat">—</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% elif calendar_ok %}
+    <p class="histcap">No high-impact US releases scheduled in this window.</p>
+    {% else %}
+    <p class="histcap"><b>The economic calendar was unreachable when this report was
+      built</b>, so the schedule above is not shown. This is a data-availability note,
+      not an indication that the week is empty.</p>
+    {% endif %}
+
+    <h2>2 &nbsp;What the record actually shows</h2>
+    {% if charts.events %}<div class="chart"><img src="{{ charts.events }}"></div>{% endif %}
+    <table class="cal">
+      <thead><tr><th>Release</th><th>Last 10y</th>
+        {% for b in behaviour[0].buckets %}<th>{{ b.label.replace('y ago','') }}</th>{% endfor %}
+        <th>Verdict</th></tr></thead>
+      <tbody>
+      {% for e in behaviour %}
+        <tr>
+          <td class="{{ 'watched' if e.always_elevated else '' }}">{{ e.label }}</td>
+          <td class="{{ 'ratio' if e.always_elevated else 'flat' }}">{{ e.recent | num(2) }}×</td>
+          {% for b in e.buckets %}
+            <td class="{{ 'flat' if not b.ratio or b.ratio <= 1.0 else '' }}">
+              {{ (b.ratio | num(2)) if b.ratio else "—" }}</td>
+          {% endfor %}
+          <td>
+            {% if e.too_short_to_judge %}<span class="flat">too short to judge</span>
+            {% elif e.always_elevated %}<span class="ratio">elevated in every period</span>
+            {% else %}<span class="flat">no consistent premium</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="histcap">
+      Gold's average absolute move in the release window (London AM to PM fix, which
+      brackets the 08:30 ET print) divided by the same figure on ordinary days matched
+      for year and weekday. Columns are <b>equal-width, non-overlapping five-year
+      periods counting back from today</b> — so the leftmost describes the market you
+      are trading now, and each is an independent sample rather than a rolling window
+      of largely the same data.
+    </p>
+    <p class="histcap">
+      <b>Read the row, not the number.</b> A relationship that is real barely moves when
+      the period changes; one that wanders was never established, however convincing a
+      single cut looks. The <b>employment report</b> sits above 1.0 in all seven periods
+      and is the only release whose premium survives a multiple-comparison correction
+      across the five tested here. <b>CPI runs between 0.90 and 1.30 with no pattern</b>
+      and every confidence interval containing 1.0 — quoted alone its recent reading
+      looks like a premium, and across the full record it does not hold up. PCE and
+      retail sales show nothing in any period. PPI has usable history only from 2011,
+      which is too little to judge either way.
+    </p>
+
+    <h2>3 &nbsp;What each driver is worth</h2>
+    {% if charts.sens %}<div class="chart"><img src="{{ charts.sens }}"></div>{% endif %}
+    <table>
+      <thead><tr><th>Driver</th><th>Move</th><th>Implied gold</th><th>t</th></tr></thead>
+      <tbody>
+      {% for s in sens %}
+        <tr><td>{{ s.driver }}</td><td>{{ s.move }}</td>
+            <td>{{ s.gold_pct | pct(2) }}</td>
+            <td>{{ s.t_stat | num(1) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="histcap">
+      Fitted jointly on {{ "{:,}".format(n_obs) }} daily observations of point-in-time
+      data, with Newey-West standard errors at the one-month horizon. Faded bars in the
+      chart are coefficients that do not clear |t| = 2 and should be read as noise.
+    </p>
+
+    <h2>4 &nbsp;Scenarios</h2>
+    <table class="scen">
+      <thead><tr><th>Scenario</th><th>Assumes</th><th>Implied gold</th></tr></thead>
+      <tbody>
+      {% for s in scenarios %}
+        <tr><td><b>{{ s.name }}</b></td><td>{{ s.desc }}</td>
+            <td class="n">{{ s.gold_pct | pct(1) }} &nbsp;<span class="flat">±{{ s.band | num(1) }}%</span></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="histcap">
+      Each scenario states its own assumptions; every driver not named is held
+      unchanged rather than set to a historical average. The band is one standard
+      deviation of the move the drivers do <i>not</i> explain, and it is wide — larger
+      than most of the scenario effects themselves.
+    </p>
+
+    <h2>5 &nbsp;The month just gone</h2>
+    <p class="histcap">
+      Gold moved <b>{{ attrib.actual_pct | pct(2) }}</b> over the last
+      {{ attrib.window_days }} trading days. The drivers account for
+      <b>{{ attrib.explained_pct | pct(2) }}</b>; the remaining
+      <b>{{ attrib.unexplained_pct | pct(2) }}</b> is not explained by rates, the
+      dollar, credit or risk appetite. Over twelve months that unexplained component
+      now stands at <b>{{ fv_gap | pct(1) }}</b> — the portion of gold's run that the
+      measurable macro drivers do not account for, and the usual candidates for it are
+      official-sector buying and the debasement trade, neither of which this report
+      attempts to quantify.
+    </p>
+
+    <div class="pagefoot">{% include "_disclaimer.html" %}</div>
+  </div>
+
+  <div class="content backpage">
+    <div class="titleband"><h1>Methodology</h1><div class="sub">and what this report does not claim</div></div>
+
+    <div class="notclaim">
+      <b>This report contains no forecast of the gold price.</b> The underlying research
+      tested whether the standard gold drivers — real yields, the dollar, Fed pricing,
+      ETF flows, positioning, official-sector demand and Asian physical premia — can
+      predict gold's direction over 5, 60 and 250 days. Across 21 years, using
+      point-in-time data with no look-ahead, <b>they cannot</b>. Every driver that shows
+      a statistically robust relationship with gold moves <i>at the same time</i> as
+      gold, not before it, in every volatility and trend regime tested. No model built
+      in that work beat simply holding the metal. What follows is therefore a
+      description of measured relationships and historical behaviour only.
+    </div>
+
+    <div class="gloss">
+      <div><b>Gold benchmark.</b> LBMA Gold Price PM, USD/oz, the London auction print.
+        A fix is a single auction, not a continuous tradeable price.</div>
+      <div><b>Release window.</b> London AM to PM fix, which brackets the 08:30 ET
+        release. The 24-hour fix-to-fix measure is weaker and is not shown.</div>
+      <div><b>Baseline.</b> Ordinary days matched on year and weekday, so a Friday
+        release is compared with other Fridays from the same era.</div>
+      <div><b>Significance.</b> Stratified permutation test with Holm correction across
+        event types. Absolute returns are not normal, so a t-test would not do.</div>
+      <div><b>Sensitivities.</b> Ridge on same-period driver changes; the penalty keeps
+        the collinear rates and dollar block readable. Newey-West errors at one month.</div>
+      <div><b>Exogenous drivers only.</b> ETF tonnage and positioning are excluded —
+        they rise <i>because</i> gold rallied as much as the reverse, and including
+        them halves the measured real-yield effect.</div>
+      <div><b>Point-in-time.</b> Every input is read as it stood on the day, including
+        the revision then in force. Macro series carry their true first-release dates.</div>
+      <div><b>Surprise, not measured.</b> No free source carries a history of consensus
+        forecasts, so only the <i>fact</i> of a release is known, never whether it
+        surprised. Nothing here conditions on the size or sign of a surprise.</div>
+    </div>
+
+    <p class="histcap" style="margin-top:3mm">
+      Sources: LBMA (benchmark), FRED and ALFRED (rates, inflation, credit, activity —
+      with full revision history), Yahoo Finance (dollar index, equities), CFTC
+      (positioning), SPDR Gold Trust (ETF tonnage), IMF (official reserves), Shanghai
+      Gold Exchange (Asian premium), FairEconomy (calendar).
+      Built {{ stamp.built if stamp and stamp.built else asof }}.
+    </p>
+
+    <div class="pagefoot">{% include "_disclaimer.html" %}</div>
+  </div>
+</body>
+</html>

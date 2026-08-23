@@ -311,11 +311,37 @@ _IMF_URL = ("https://api.imf.org/external/sdmx/2.1/data/IMF.STA,IL/"
 _OZT_TO_T = 31.1034768 / 1e6
 
 
+def _from_goldstore(series_id: str):
+    """A series out of the Gold Signal Engine's point-in-time store, or None.
+
+    Preferred over this module's own pulls where the store carries the same series,
+    because it holds real publication timestamps and revision history rather than a
+    single latest-vintage snapshot. Returns None on any problem — a machine that has
+    never run the gold ingest must keep producing this report exactly as before, so
+    every caller falls back to its original path."""
+    try:
+        from src import goldstore
+        s = goldstore.get_series(series_id)
+        return s if len(s) else None
+    except Exception:
+        return None
+
+
 def fetch_central_banks(force: bool = False, max_age_hours: float = 72.0) -> dict:
-    """Reported official gold holdings from the IMF data API (International
-    Liquidity dataset, world aggregate GX010, fine troy oz → tonnes); monthly
-    net purchases = the diff. ~6-week lag; understates true buying (China
-    partial, Russia not reporting) so the fine print cites WGC alongside."""
+    """Reported official gold holdings, monthly net purchases = the diff.
+
+    Reads the gold store first: it holds the same IMF series from 2010 with genuine
+    publication timestamps, where this module's own call asks for a fixed FOUR-YEAR
+    window — enough for a monthly chart, but it silently truncates any longer view and
+    cannot say when a figure became knowable. Falls back to the original IMF pull, and
+    then to the cache, so nothing here depends on the gold engine having been run.
+
+    ~6-week lag either way, and it understates true buying (China reports partially,
+    Russia not at all), so the fine print continues to cite WGC alongside."""
+    gs = _from_goldstore("CB_GOLD_WORLD")
+    if gs is not None and len(gs) > 24:
+        return {"live": True, "net_purchases": gs.diff().dropna(),
+                "source": "IMF via gold store (2010-, point-in-time)"}
     if not force and _is_fresh(PM_CB_FILE, max_age_hours):
         hold = pd.read_parquet(PM_CB_FILE)["tonnes"]
         return {"live": True, "net_purchases": hold.diff().dropna()}
@@ -351,10 +377,36 @@ PM_PREM_FILE = SIGNALS / "pm_prem.parquet"
 
 
 def fetch_premiums() -> dict:
-    """Shanghai physical premium/discount vs London, $/oz, from the pm_bbg
-    cache (Ben's .SHGOLDOZ CIX minus XAU spot, daily closes → weekly). The
-    India leg has no clean feed yet and is simply absent when live (the chart
-    and bullets adapt). Mock fallback (both legs) while no cache exists."""
+    """Shanghai physical premium/discount vs London, $/oz.
+
+    Computed from the gold store where possible — SGE Au99.99 converted at USD/CNY
+    against the LBMA AM fix. That is preferred over the Bloomberg leg for two
+    reasons: the CIX (.SHGOLDOZ) resolves only under one Terminal login, so the
+    figure is unavailable to anyone else and to any unattended run; and the free SGE
+    feed carries history to 2016 where the CIX cache starts whenever it was first
+    pulled.
+
+    The AM fix is the right reference leg, not PM: SGE's day session closes ~08:30
+    London and the AM fix is 10:30, so against the 15:00 PM fix the series carries a
+    whole London session of drift that has nothing to do with Chinese demand.
+
+    Falls back to the Bloomberg cache, then to mock, so nothing regresses."""
+    try:
+        from src import golddata, goldstore
+        sge = _from_goldstore("SGE_AU9999")
+        am = _from_goldstore("LBMA_GOLD_AM_USD")
+        cny = _from_goldstore("USDCNY")
+        if sge is not None and am is not None and cny is not None:
+            prem = golddata.sge_premium(
+                pd.DataFrame({"sge_cny_g": sge}),
+                pd.DataFrame({"lbma_am_usd": am}), cny)
+            if len(prem) > 52:
+                return {"live": True,
+                        "sge": prem.resample("W-FRI").last().dropna(),
+                        "india": pd.Series(dtype=float),
+                        "source": "SGE Au99.99 vs LBMA AM fix (free, 2016-)"}
+    except Exception:
+        pass
     if PM_PREM_FILE.exists():
         raw = pd.read_parquet(PM_PREM_FILE)
         sge = raw["premium"].resample("W-FRI").last().dropna()
@@ -509,6 +561,29 @@ def build(force: bool = False) -> dict:
     # the downloadable stats, so the chart is out of the report until a clean
     # source appears — WPIC/JM synopsis bullets carry the auto-demand story.
 
+    # The FAIR-VALUE GAP: how much of gold's twelve-month move is NOT explained by
+    # real yields, the dollar, credit and risk appetite. It belongs on this report
+    # rather than only in the weekly one, because it is slow-moving by construction
+    # and it closes the question these pages otherwise leave open — the real-yield
+    # chart and the official-sector chart sit side by side, and the gap is the number
+    # that connects them. Never fails the build: a machine without the gold engine
+    # simply omits the line.
+    fv = {}
+    try:
+        from src import goldfeatures, goldsens
+        feats, _t = goldfeatures.load()
+        gap = goldsens.fair_value(feats, goldsens.DEFAULT_H)
+        if len(gap):
+            # Carry the actual span rather than letting the template assert a start
+            # year — the gap series begins wherever the walk-forward fit had enough
+            # training data, which moves when the feature history changes.
+            fv = {"gap_pct": round(float(gap.iloc[-1]), 1),
+                  "pctile": round(float((gap <= gap.iloc[-1]).mean() * 100)),
+                  "asof": str(gap.index[-1].date()),
+                  "since": str(gap.index[0].year)}
+    except Exception:
+        fv = {}
+
     mock_blocks = [name for name, blk in [
         ("prices (datafeed %s)" % datafeed.MODE, prices), ("COT", cot), ("FRED", fred),
         ("ETF holdings", etf), ("COMEX stocks", comex), ("Swiss exports", swiss),
@@ -588,6 +663,7 @@ def build(force: bool = False) -> dict:
         "headline": headline,
         "month": today.strftime("%B %Y"),
         "asof": today.strftime("%d %b %Y"),
+        "fair_value": fv,
         "mock_blocks": mock_blocks,
         "metals": metals,
         "macro": {

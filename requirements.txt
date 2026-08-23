@@ -36,3 +36,4 @@ google-api-python-client==2.198.0  # Gmail API client (send/modify) — same, wa
 --extra-index-url https://blpapi.bloomberg.com/repository/releases/python/simple/
 xbbg==1.2.6
 blpapi==3.26.4.2
+scikit-learn==1.9.0   # Stage 2 elastic net for the Gold Signal Engine (src/goldmodels.py); pulls in scipy. Approved 2026-08-22 — the repo was deliberately numpy-only before this.

@@ -1,0 +1,191 @@
+{
+  "target": "fwd_ret_60d",
+  "alpha": 0.3,
+  "l1_ratio": 0.9,
+  "n_selected": 0,
+  "nw_lag": 60,
+  "coefficients": {
+    "breakeven_10y_chg_20d": {
+      "coef": 0.0,
+      "nw_se": 0.0691856371,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "cb_net_purchases_12m": {
+      "coef": 0.0,
+      "nw_se": 0.2042138288,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "cb_net_purchases_yoy_chg": {
+      "coef": 0.0,
+      "nw_se": 0.1916040059,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "cot_mm_net_chg_4w": {
+      "coef": 0.0,
+      "nw_se": 0.090696108,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "cot_mm_net_pct_3y": {
+      "coef": 0.0,
+      "nw_se": 0.1648627832,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "cot_mm_net_pct_oi": {
+      "coef": 0.0,
+      "nw_se": 0.2287289663,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "curve_2s10s": {
+      "coef": 0.0,
+      "nw_se": 0.1882119664,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 0
+    },
+    "dxy_chg_20d": {
+      "coef": 0.0,
+      "nw_se": 0.0695752531,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "dxy_dist_50d": {
+      "coef": 0.0,
+      "nw_se": 0.1152726322,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "etf_tonnage_chg_12w": {
+      "coef": 0.0,
+      "nw_se": 0.0972706114,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "etf_tonnage_chg_4w": {
+      "coef": 0.0,
+      "nw_se": 0.0792422238,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "fed_cut_odds_chg_20d": {
+      "coef": 0.0,
+      "nw_se": 0.0489714787,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "gld_flow_z_1y": {
+      "coef": 0.0,
+      "nw_se": 0.029963618,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "gold_cpi_ratio_z_10y": {
+      "coef": 0.0,
+      "nw_se": 0.2727608345,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "gold_dist_200d": {
+      "coef": 0.0,
+      "nw_se": 0.19289074,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "gold_dist_50d": {
+      "coef": 0.0,
+      "nw_se": 0.1086612969,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "gold_fx_breadth": {
+      "coef": 0.0,
+      "nw_se": 0.1053065749,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "gold_m2_ratio_z_10y": {
+      "coef": 0.0,
+      "nw_se": 0.3029591875,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "gold_mom_12m_1m": {
+      "coef": 0.0,
+      "nw_se": 0.1314053834,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "gold_silver_ratio_z_5y": {
+      "coef": 0.0,
+      "nw_se": 0.117787261,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "hy_spread_chg_20d": {
+      "coef": 0.0,
+      "nw_se": 0.0667482008,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    },
+    "real_rate_vol_20d": {
+      "coef": 0.0,
+      "nw_se": 0.0938246216,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 0
+    },
+    "real_yield_10y_chg_20d": {
+      "coef": 0.0,
+      "nw_se": 0.0904590032,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "real_yield_10y_z_1y": {
+      "coef": 0.0,
+      "nw_se": 0.1602921495,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "spx_dist_200d": {
+      "coef": 0.0,
+      "nw_se": 0.1173130997,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": -1
+    },
+    "vix_z_1y": {
+      "coef": 0.0,
+      "nw_se": 0.1251008587,
+      "nw_t": 0.0,
+      "selected": false,
+      "prior": 1
+    }
+  }
+}

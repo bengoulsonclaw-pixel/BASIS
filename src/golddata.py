@@ -78,7 +78,12 @@ _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 _TIMEOUT = 90
 OZ_PER_GRAM = 31.1034768
 
-START = "2010-01-01"        # LBMA/GLD reach further; FRED TIPS and the store gate us anyway
+# 1990, not 2010. The original 2010 cap was a guess that quietly became the binding
+# constraint on the whole project: it left a 6.2-year evaluable window (~27 independent
+# 60-day observations), on which nothing can be validated. The sources go far deeper —
+# DXY to 1971, S&P to 1970, LBMA to 1968, VIX to 1990, Baa to 1986 — and the genuine
+# limits are elsewhere (TIPS 2003, GLD 2004, COT 2006, SGE 2016).
+START = "1990-01-01"
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +231,7 @@ def spdr_gld(force: bool = False, max_age_hours: float = 20.0) -> tuple[pd.DataF
 # ---------------------------------------------------------------------------
 LBMA_AM = "https://prices.lbma.org.uk/json/gold_am.json"
 LBMA_PM = "https://prices.lbma.org.uk/json/gold_pm.json"
+LBMA_SILVER = "https://prices.lbma.org.uk/json/silver.json"
 
 
 def _lbma_one(url: str, tag: str) -> pd.DataFrame:
@@ -249,8 +255,17 @@ def lbma(force: bool = False, max_age_hours: float = 20.0) -> tuple[pd.DataFrame
         if c is not None:
             return c, True
     try:
-        df = _lbma_one(LBMA_AM, "am").join(_lbma_one(LBMA_PM, "pm"), how="outer")
-        df = df[df.index >= pd.Timestamp("2005-01-01")].astype(float)
+        df = (_lbma_one(LBMA_AM, "am")
+              .join(_lbma_one(LBMA_PM, "pm"), how="outer")
+              # Silver from the same benchmark family. The deep store's SIA contract
+              # only reaches 2016, which capped the gold/silver ratio — a 5y z-score
+              # of a series that starts in 2016 has barely two usable years. LBMA
+              # silver runs to 1968 and is free.
+              .join(_lbma_one(LBMA_SILVER, "silver"), how="outer"))
+        # 1990, not 2005 — another self-imposed cap. The LBMA feed carries the fix
+        # back to 1968; there is no reason to throw away fifteen years of the target
+        # series and the only long-history silver leg we have.
+        df = df[df.index >= pd.Timestamp(START)].astype(float)
         if df.empty:
             raise RuntimeError("LBMA parsed empty")
         df.to_parquet(LBMA_FILE)
@@ -306,6 +321,9 @@ YF_SYMBOLS = {
     "usdjpy": "JPY=X",
     "usdinr": "INR=X",
     "eurusd": "EURUSD=X",
+    # Risk-appetite cross-check (spec §2.5). FRED's SP500 is licence-limited to a
+    # rolling 10 years; ^GSPC runs to 1927 and is free.
+    "spx": "^GSPC",
 }
 
 

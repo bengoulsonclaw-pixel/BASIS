@@ -38,6 +38,17 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_FILE = ROOT / "data" / "snapshot" / "own30_curve.parquet"
+# The futures strip this module ALREADY fetches, kept instead of thrown away.
+#
+# Building a vol pillar needs the underlying settle for each expiry, so every run
+# already pulls PX_SETTLE for the first MAX_FUTS contracts of every optionable
+# product — a real 4-5 point futures curve, crossing the wire daily and discarded
+# once the vols were inverted. The deep store keeps only the 1st and 2nd generic, so
+# curve work (implied financing rates, calendar structure) had no history to run on.
+# Persisting costs no Bloomberg request: it is a write of data already in hand.
+# APPEND-ONLY and keyed on (date, ticker, contract) — a same-day re-run replaces that
+# day, never duplicates it.
+CURVE_FILE = ROOT / "data" / "snapshot" / "futures_curve_history.parquet"
 
 MIN_DTE = 7                  # a dying front option prints noise, not vol
 MAX_FUTS = 6                 # ceiling: futures contracts to walk per product
@@ -451,13 +462,18 @@ def fetch_product_marks(generic: str, log=print, max_futs: int | None = None) ->
                          "atm": atm_pts, "smile": smile})
         return recs, bracketed
 
-    series_recs = []
-    for fut in futs:
+    series_recs, curve_pts = [], []
+    for depth, fut in enumerate(futs, start=1):
         F = _field(fmap, fut, "PX_SETTLE")
         F = _field(fmap, fut, "PX_LAST") if F is None else F
         if F is None:
             continue
         F = float(F)
+        # Keep the strip. `depth` is position along the curve (1 = front), and the
+        # contract code is retained so a later reader can recover the real expiry
+        # month rather than assuming a fixed spacing between contracts.
+        curve_pts.append({"generic": generic, "depth": depth, "contract": fut,
+                          "settle": F})
         chain, cached = _chain_for(fut)
         recs, ok = _series_recs(F, chain)
         # Force-refresh the cached ladder when the settle has walked off it — either
@@ -493,7 +509,31 @@ def fetch_product_marks(generic: str, log=print, max_futs: int | None = None) ->
             for p in pts:
                 v = _field(wmap, p["tk"], "PX_SETTLE")
                 p["px"] = float(v) if v is not None else None
-    return {"asof": str(pd.Timestamp.today().date()), "series": series_recs}
+    return {"asof": str(pd.Timestamp.today().date()), "series": series_recs,
+            "curve": curve_pts}
+
+
+def save_curve_points(points: list, asof=None) -> int:
+    """Append today's futures strip to the curve archive, idempotent per day."""
+    if not points:
+        return 0
+    day = pd.Timestamp(asof or pd.Timestamp.today().date()).normalize()
+    new = pd.DataFrame(points)
+    new["date"] = day
+    cols = ["date", "generic", "depth", "contract", "settle"]
+    new = new[cols]
+    if CURVE_FILE.exists():
+        try:
+            old = pd.read_parquet(CURVE_FILE)
+            old["date"] = pd.to_datetime(old["date"])
+            keep = old[~((old["date"] == day) &
+                         (old["generic"].isin(new["generic"].unique())))]
+            new = pd.concat([keep, new], ignore_index=True)
+        except Exception:
+            pass
+    CURVE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    new.sort_values(["date", "generic", "depth"]).to_parquet(CURVE_FILE, index=False)
+    return int(len(points))
 
 
 def _interp_marker(pts, target_px: float, F: float, scale: float, dte: float):
@@ -639,10 +679,15 @@ def fetch_marks(tickers=None, log=print) -> dict:
     except Exception:
         prior_products = {}
 
-    out = {}
+    out, all_curve = {}, []
     for t in (tickers or _book_tickers()):
         try:
             m = fetch_product_marks(t, log=log, max_futs=_walk_depth(prior_products.get(t)))
+            # Keep the strip even when no option series came back — the futures
+            # settles are valid curve data regardless of whether the vol inversion
+            # found usable strikes, and a product with thin options is exactly the
+            # one whose curve history is otherwise unobtainable.
+            all_curve.extend(m.get("curve") or [])
             if m.get("series"):
                 out[t] = m
                 log(f"  {name(t):24s} marks: {len(m['series'])} series fetched")
@@ -654,6 +699,13 @@ def fetch_marks(tickers=None, log=print) -> dict:
     MARKS_FILE.parent.mkdir(parents=True, exist_ok=True)
     MARKS_FILE.write_text(_json.dumps(payload), encoding="utf-8")
     log(f"  marks cached for {len(out)} products -> {MARKS_FILE.name}")
+    try:
+        n = save_curve_points(all_curve)
+        prods = len({c["generic"] for c in all_curve})
+        log(f"  futures curve archived: {n} contracts across {prods} products "
+            f"-> {CURVE_FILE.name}")
+    except Exception as e:
+        log(f"  (curve archive skipped: {type(e).__name__}: {e})")
     return payload
 
 

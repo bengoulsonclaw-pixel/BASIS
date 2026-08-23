@@ -45,6 +45,75 @@ DEFAULT_TEXT = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Third-party source restrictions — WHAT MAY NOT GO IN A REPORT
+# ---------------------------------------------------------------------------
+# Some data BASIS holds is licensed for internal analysis but NOT for
+# redistribution. That distinction is invisible once a number is sitting in a
+# dataframe, so it is recorded here — next to the disclaimer, which is where
+# report work already looks — rather than in a comment near the fetcher.
+#
+# `publication_check()` is the gate to call before a source's numbers reach a PDF
+# or an email. Nothing calls it yet; report templates are not built. It exists now
+# so that when they are, the restriction is a failing check rather than something
+# somebody has to remember.
+#
+# Per source:
+#   internal_ok      analysis, modelling, dashboards — never leaves the building
+#   client_ok        may appear in a client PDF / email
+#   citation         text that MUST accompany any published figure
+#   never_publish    fields that may not be disclosed under any circumstances
+#   note             the operative licence wording, so the reason survives
+SOURCE_RESTRICTIONS = {
+    "wgc": {
+        "label": "World Gold Council / Goldhub",
+        "internal_ok": True,
+        "client_ok": False,          # pending XP compliance — see note
+        "citation": "Source: World Gold Council; Metals Focus",
+        "never_publish": ("WGC-supplied LBMA Gold Price columns",),
+        "note": (
+            "Workbook disclaimers permit 'review and commentary ... in line with fair "
+            "industry practice' on two pre-conditions: limited extracts only, and a "
+            "citation to World Gold Council (and Metals Focus). But gold.org's site "
+            "terms say 'personal and educational purposes only ... personal, "
+            "non-commercial use'. A broker distributing client research is not "
+            "obviously that, so client_ok stays False until XP compliance rules. "
+            "SEPARATELY AND ABSOLUTELY: the LBMA Gold Price *as supplied by WGC* "
+            "'may not be disclosed by you to anyone else' — wgc_fetch strips those "
+            "columns at ingest. This does NOT restrict our own prices.lbma.org.uk "
+            "feed, which is a different source under different terms."),
+        "reviewed": "2026-08-22",
+    },
+}
+
+
+def publication_check(*sources: str) -> list:
+    """Blockers preventing these sources from appearing in a client deliverable.
+
+    Empty list = clear to publish. Call this from report builders; an unknown
+    source is reported rather than waved through, because the failure mode we care
+    about is a licensed number reaching a client, and silence is how that happens."""
+    out = []
+    for src in sources:
+        rule = SOURCE_RESTRICTIONS.get(src.lower())
+        if rule is None:
+            out.append(f"{src}: no publication rule registered — check the licence "
+                       f"before publishing")
+            continue
+        if not rule.get("client_ok"):
+            out.append(f"{rule['label']}: not approved for client-facing use "
+                       f"({rule.get('note', '')[:80]}...)")
+        for field in rule.get("never_publish", ()):
+            out.append(f"{rule['label']}: must never publish — {field}")
+    return out
+
+
+def required_citations(*sources: str) -> list:
+    """Citation lines that must appear alongside any published figure."""
+    return [r["citation"] for s in sources
+            if (r := SOURCE_RESTRICTIONS.get(s.lower())) and r.get("citation")]
+
+
 def _normalise(text: str) -> str:
     """Collapse editor line breaks / doubled spaces into one flowing paragraph."""
     return re.sub(r"\s+", " ", (text or "")).strip()

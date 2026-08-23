@@ -63,6 +63,25 @@ def run() -> pd.DataFrame:
     # far too slow to run on page-open, so it lands on disk here (gold_features.parquet
     # + gold_model.json) like seasonality and the Hot Sheet. Never fails the rebuild;
     # a dead source degrades to the last good cache inside golddata itself.
+    # Economic-surprise accrual. This is the ONLY store in the repo that cannot be
+    # backfilled: the free calendar feed carries the current week alone, and no free
+    # source has consensus-forecast history. A week the machine never runs is a
+    # permanent hole, so this goes first and never raises.
+    try:
+        from src import macrosurprise
+        r = macrosurprise.refresh()
+        print(f"  Surprise accrual: +{r['added']} new, {r['total_stored']} stored "
+              f"({r['not_yet_printed']} awaiting print)")
+    except Exception as e:
+        print(f"  (Surprise accrual skipped: {e})")
+    try:
+        from src import goldfeatures, goldingest
+        goldingest.ingest_market()
+        goldingest.ingest_cot()
+        feats, _ = goldfeatures.build()
+        print(f"  Gold features: {feats.shape[1]} x {feats.shape[0]} dates")
+    except Exception as e:
+        print(f"  (Gold store ingest skipped: {e})")
     try:
         from src import goldmodel
         o = goldmodel.compute(rebuild=True)
