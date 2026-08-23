@@ -288,3 +288,80 @@ def test_spliced_real_yield_is_never_used_for_a_level_feature():
     # otherwise the 1990-2002 depth this whole exercise added is silently dropped.
     assert '_chg(g("REAL_10Y_SPLICED")' in src.replace(" ", "")  \
         or '_chg(g("REAL_10Y_SPLICED")' in src
+
+
+# ---------------------------------------------------------------------------
+# Metals relative value
+# ---------------------------------------------------------------------------
+def test_lag_choice_materially_changes_the_adf_verdict():
+    """The augmentation must be on by default, because the lag count moves the answer.
+
+    On the real gold/silver ratio the unaugmented test gives about -3.95 and the
+    21-lag version about -3.23 — the difference between "clearly mean-reverting" and
+    "fails a multiple-comparison correction".
+
+    This deliberately does NOT assert a direction. The sign of the augmentation
+    effect depends on the process: an earlier version of this test asserted that
+    lags always make the statistic less negative, and a synthetic near-unit-root
+    series with positively autocorrelated increments falsified it immediately
+    (-0.61 unaugmented, -1.56 augmented). What is defensible is that the choice
+    matters and that the module makes the conservative one by default.
+    """
+    from src import metalrv
+    assert metalrv.DEFAULT_LAGS >= 21
+    rng = np.random.default_rng(7)
+    n = 4000
+    e = pd.Series(rng.normal(size=n)).rolling(5).mean().fillna(0).to_numpy()
+    x = np.zeros(n)
+    for i in range(1, n):
+        x[i] = 0.999 * x[i - 1] + e[i]
+    s = pd.Series(x, index=pd.bdate_range("2000-01-03", periods=n))
+    plain, aug = metalrv.adf(s, lags=0)["t"], metalrv.adf(s, lags=21)["t"]
+    assert abs(plain - aug) > 0.3, "lag choice should move the statistic materially"
+    # ...and pair_report must use the augmented default, never the raw one.
+    import inspect
+    assert "lags: int = DEFAULT_LAGS" in inspect.signature(
+        metalrv.pair_report).__str__().replace("lags=21", "lags: int = DEFAULT_LAGS")         or metalrv.pair_report.__defaults__[1] == metalrv.DEFAULT_LAGS
+
+
+def test_engle_granger_reports_the_weaker_direction():
+    """EG is not symmetric; quoting the better ordering is picking your own winner."""
+    from src import metalrv
+    rng = np.random.default_rng(3)
+    n = 2500
+    idx = pd.bdate_range("2005-01-03", periods=n)
+    b = pd.Series(np.exp(np.cumsum(rng.normal(0, 0.01, n))) * 100, index=idx)
+    a = b * np.exp(pd.Series(rng.normal(0, 0.05, n), index=idx))   # cointegrated
+    r = metalrv.pair_report("A", "B", pd.DataFrame({"A": a, "B": b}))
+    assert r["eg_t"] == max(r["eg_t_ab"], r["eg_t_ba"]), "reported the stronger side"
+
+
+def test_rv_verdicts_are_derived_and_refuse_to_overstate():
+    """The verdict must not claim a pattern the numbers do not support.
+
+    Written after I described platinum/palladium as narrowing 'below 50% in all
+    three eras' when the middle era is 51.0%. The derived verdict declined to call
+    it a consistent trend and was right.
+    """
+    from src import metalrv
+    borderline = [{"period": "a", "corr": 0.06, "hit_rate": 0.46, "signals": 8},
+                  {"period": "b", "corr": 0.06, "hit_rate": 0.51, "signals": 7},
+                  {"period": "c", "corr": 0.18, "hit_rate": 0.44, "signals": 7}]
+    assert "TRENDS" not in metalrv.signal_verdict(borderline)
+
+    trending = [dict(r, hit_rate=h) for r, h in zip(borderline, (0.46, 0.48, 0.44))]
+    assert "TRENDS" in metalrv.signal_verdict(trending)
+
+    recent_only = [dict(r, hit_rate=h) for r, h in zip(borderline, (0.42, 0.60, 0.87))]
+    v = metalrv.signal_verdict(recent_only)
+    assert "one era" in v and "not a regularity" in v
+
+
+def test_silver_has_no_intraday_fix_window():
+    """The LBMA Silver Price is a single auction. The gold event study's only
+    surviving effect lived in the AM->PM window, so silver cannot be tested the one
+    way that detected anything — and the flag must be derived, not hand-listed."""
+    from src import metals
+    assert "SILVER" not in metals.HAS_INTRADAY_WINDOW
+    assert {"GOLD", "PLATINUM", "PALLADIUM"} <= metals.HAS_INTRADAY_WINDOW
+    assert len(metals.METALS["SILVER"]["fixes"]) == 1
