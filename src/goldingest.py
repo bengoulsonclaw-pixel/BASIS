@@ -304,8 +304,19 @@ COT_FIELDS = {
 }
 
 
-def ingest_cot(ticker: str = "GCA Comdty") -> int:
-    """COT with real release timestamps, read off the archive the app maintains."""
+def ingest_cot(ticker: str = "GCA Comdty", prefix: str = "", metal: str = "gold") -> int:
+    """COT with real release timestamps, read off the archive the app maintains.
+
+    `prefix` NAMESPACES the series so a second metal cannot overwrite the first.
+    Without it every call wrote COT_MM_NET regardless of ticker, so ingesting silver
+    would have silently replaced gold's positioning with silver's — and because the
+    reference dates match exactly, put() would have taken each one as a revision of
+    the last. Gold's features would then have been reading whichever metal was
+    ingested most recently, with nothing in the store to show it.
+
+    Default is empty, so gold keeps the unprefixed IDs the feature layer already
+    references and no existing series moves.
+    """
     hist = _ROOT / "data" / "signals" / "cot_history.parquet"
     if not hist.exists():
         print("  cot_history.parquet missing — run the COT pull first")
@@ -318,10 +329,11 @@ def ingest_cot(ticker: str = "GCA Comdty") -> int:
     g["reference_date"] = pd.to_datetime(g["date"])
     g["published_at"] = g["reference_date"].map(cot_published_at)
     n = 0
-    for sid, (col, desc, unit) in COT_FIELDS.items():
+    for base, (col, desc, unit) in COT_FIELDS.items():
         if col not in g.columns:
             continue
-        goldstore.register(sid, description=f"CFTC gold — {desc}", unit=unit,
+        sid = f"{prefix}{base}"
+        goldstore.register(sid, description=f"CFTC {metal} — {desc}", unit=unit,
                            native_freq="weekly", typical_lag_days=3, bucket="flows",
                            source_url="https://publicreporting.cftc.gov",
                            published_at_approximated=False)

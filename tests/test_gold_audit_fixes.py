@@ -443,3 +443,69 @@ def test_silver_is_excluded_from_the_release_study():
     measured one way against metals measured another."""
     from src import metalevents as me
     assert "SILVER" not in me.STUDY_METALS
+
+
+# ---------------------------------------------------------------------------
+# Track D — per-metal features
+# ---------------------------------------------------------------------------
+def test_cot_series_are_namespaced_per_metal():
+    """Every metal must land on its OWN COT series IDs.
+
+    goldingest.ingest_cot writes COT_MM_NET/COT_OI from a fixed table regardless of
+    which ticker it was handed. Without a prefix, ingesting silver would have written
+    over gold's positioning — and because the CFTC reference dates match exactly,
+    put() would have accepted each metal as a REVISION of the last, leaving gold's
+    features reading whatever was ingested most recently with nothing in the store to
+    show it. Gold keeps the bare IDs its feature layer already references.
+    """
+    from src import metals, goldstore
+    ids = set()
+    for m in metals.METALS:
+        prefix = "" if m == "GOLD" else f"{m}_"
+        ids.add(f"{prefix}COT_MM_NET")
+    assert len(ids) == len(metals.METALS), "two metals share a COT series id"
+    assert "COT_MM_NET" in ids, "gold must keep the unprefixed id"
+
+    # ...and the live store must actually hold them separately.
+    seen = {}
+    for m in metals.METALS:
+        prefix = "" if m == "GOLD" else f"{m}_"
+        s = goldstore.get_series(f"{prefix}COT_MM_NET")
+        if len(s):
+            seen[m] = float(s.iloc[-1])
+    if len(seen) > 1:
+        assert len(set(seen.values())) == len(seen), \
+            f"metals share an identical COT value — overwrite suspected: {seen}"
+
+
+def test_ingest_cot_defaults_leave_gold_untouched():
+    """The prefix must default to empty so the existing gold series never move."""
+    from src import goldingest
+    import inspect
+    sig = inspect.signature(goldingest.ingest_cot)
+    assert sig.parameters["prefix"].default == ""
+
+
+def test_metal_feature_blocks_declare_what_is_missing():
+    """A thinner search must not be reportable as a thinner market.
+
+    Only gold has ETF tonnage, the Shanghai premium and central-bank demand. If those
+    silently returned True for the PGMs the result would read as "we looked at
+    everything and found less" rather than "we had less to look at".
+    """
+    from src import metalfeatures as mf
+    for metal in ("SILVER", "PLATINUM", "PALLADIUM"):
+        b = mf.available_blocks(metal)
+        assert b["macro"] and b["cot"]
+        assert not b["etf_flows"], f"{metal} has no ETF tonnage feed"
+        assert not b["shanghai_premium"]
+        assert not b["central_bank"]
+    assert all(mf.available_blocks("GOLD").values())
+
+
+def test_metal_targets_cut_the_forward_filled_tail():
+    """Same guard as the gold layer: a stalled feed must not produce 0.0 returns."""
+    from src import metalfeatures as mf
+    import inspect
+    src = inspect.getsource(mf.build_targets)
+    assert "last_reference" in src and "px.index <= last_real" in src

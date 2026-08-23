@@ -529,6 +529,46 @@
     "typical_lag_days": 1.0,
     "unit": "pct"
   },
+  "PALLADIUM_COT_MM_LONG": {
+    "bucket": "flows",
+    "description": "CFTC palladium \u2014 Managed money long",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PALLADIUM_COT_MM_LONG",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "PALLADIUM_COT_MM_NET": {
+    "bucket": "flows",
+    "description": "CFTC palladium \u2014 Managed money net",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PALLADIUM_COT_MM_NET",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "PALLADIUM_COT_MM_SHORT": {
+    "bucket": "flows",
+    "description": "CFTC palladium \u2014 Managed money short",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PALLADIUM_COT_MM_SHORT",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "PALLADIUM_COT_OI": {
+    "bucket": "flows",
+    "description": "CFTC palladium \u2014 Open interest",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PALLADIUM_COT_OI",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
   "PAYROLLS": {
     "bucket": "risk",
     "description": "Nonfarm payrolls",
@@ -548,6 +588,46 @@
     "source_url": "https://fred.stlouisfed.org/series/PCEPI",
     "typical_lag_days": 30.0,
     "unit": "index"
+  },
+  "PLATINUM_COT_MM_LONG": {
+    "bucket": "flows",
+    "description": "CFTC platinum \u2014 Managed money long",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PLATINUM_COT_MM_LONG",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "PLATINUM_COT_MM_NET": {
+    "bucket": "flows",
+    "description": "CFTC platinum \u2014 Managed money net",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PLATINUM_COT_MM_NET",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "PLATINUM_COT_MM_SHORT": {
+    "bucket": "flows",
+    "description": "CFTC platinum \u2014 Managed money short",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PLATINUM_COT_MM_SHORT",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "PLATINUM_COT_OI": {
+    "bucket": "flows",
+    "description": "CFTC platinum \u2014 Open interest",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "PLATINUM_COT_OI",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
   },
   "PPI": {
     "bucket": "risk",
@@ -608,6 +688,46 @@
     "source_url": "https://www.sge.com.cn",
     "typical_lag_days": 0.0,
     "unit": "CNY/g"
+  },
+  "SILVER_COT_MM_LONG": {
+    "bucket": "flows",
+    "description": "CFTC silver \u2014 Managed money long",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "SILVER_COT_MM_LONG",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "SILVER_COT_MM_NET": {
+    "bucket": "flows",
+    "description": "CFTC silver \u2014 Managed money net",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "SILVER_COT_MM_NET",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "SILVER_COT_MM_SHORT": {
+    "bucket": "flows",
+    "description": "CFTC silver \u2014 Managed money short",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "SILVER_COT_MM_SHORT",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
+  },
+  "SILVER_COT_OI": {
+    "bucket": "flows",
+    "description": "CFTC silver \u2014 Open interest",
+    "native_freq": "weekly",
+    "published_at_approximated": false,
+    "series_id": "SILVER_COT_OI",
+    "source_url": "https://publicreporting.cftc.gov",
+    "typical_lag_days": 3.0,
+    "unit": "contracts"
   },
   "SPX": {
     "bucket": "risk",

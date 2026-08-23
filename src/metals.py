@@ -164,8 +164,15 @@ def ingest_cot(metals=None) -> int:
     wrote = 0
     for metal in (metals or [m for m in METALS if m != "GOLD"]):
         tkr = METALS[metal]["ticker"]
+        # NAMESPACED. goldingest.ingest_cot writes COT_MM_NET and friends, and
+        # without a prefix every metal would land on the same four series IDs —
+        # silver over gold, platinum over silver — with matching reference dates, so
+        # put() would record each as a revision and the corruption would be invisible.
+        # Gold keeps the bare IDs its feature layer already reads.
+        prefix = "" if metal == "GOLD" else f"{metal}_"
         try:
-            wrote += goldingest.ingest_cot(ticker=tkr)
+            wrote += goldingest.ingest_cot(ticker=tkr, prefix=prefix,
+                                           metal=metal.lower())
         except Exception as e:
             print(f"  COT {metal:12s} FAILED: {type(e).__name__}: {e}")
     return wrote
