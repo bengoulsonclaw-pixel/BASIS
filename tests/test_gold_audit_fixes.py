@@ -365,3 +365,55 @@ def test_silver_has_no_intraday_fix_window():
     assert "SILVER" not in metals.HAS_INTRADAY_WINDOW
     assert {"GOLD", "PLATINUM", "PALLADIUM"} <= metals.HAS_INTRADAY_WINDOW
     assert len(metals.METALS["SILVER"]["fixes"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# Track B — supply signature
+# ---------------------------------------------------------------------------
+def test_country_factor_never_regresses_a_currency_on_itself():
+    """The control basket must exclude the country's own currency.
+
+    Leaving USDZAR in the basket used to residualise USDZAR would produce a residual
+    of zero and a factor that measures nothing, while still looking like a working
+    pipeline.
+    """
+    from src import metalsupply as ms
+    for country, spec in ms.COUNTRY_FX.items():
+        assert spec["fx"] not in spec["basket"], f"{country} controls on itself"
+
+
+def test_supply_thesis_records_its_own_controls():
+    """The metals with NO supply exposure must be declared, or the test cannot fail.
+
+    Silver and gold are the controls. Without them on record, a loading on the ZA
+    factor reads as confirmation; with them, silver's larger loading falsifies it.
+    """
+    from src import metalsupply as ms
+    assert ms.EXPECTED_EXPOSURE["SILVER"] == []
+    assert ms.EXPECTED_EXPOSURE["GOLD"] == []
+    assert "ZA" in ms.EXPECTED_EXPOSURE["PLATINUM"]
+    assert "RU" in ms.EXPECTED_EXPOSURE["PALLADIUM"]
+
+
+def test_lead_lag_flags_the_contemporaneous_row_as_unusable():
+    """Lag 0 pairs a New York FX close with a 15:00 London fix and is not forecasting
+    evidence. It is reported for context but must be marked."""
+    from src import metalsupply as ms
+    import inspect
+    src = inspect.getsource(ms.lead_lag)
+    assert '"usable_as_forecast": L >= 1' in src
+
+
+def test_inverse_normal_matches_known_quantiles():
+    """Bonferroni thresholds are computed from this, so it has to be right."""
+    from src import metalsupply as ms
+    assert abs(abs(ms._two_sided_z(0.05)) - 1.9600) < 1e-3
+    assert abs(abs(ms._two_sided_z(0.01)) - 2.5758) < 1e-3
+
+
+def test_fx_is_stamped_a_day_late_against_the_london_fix():
+    """A New York close did not exist when the 15:00 London fix was struck."""
+    from src import metalsupply as ms
+    import inspect
+    src = inspect.getsource(ms.ingest_fx)
+    assert "typical_lag_days=1" in src, "FX stamped lag 0 would leak into forecasts"

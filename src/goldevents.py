@@ -81,6 +81,11 @@ import goldstore as gs          # noqa: E402  the ONLY read path into the store
 import fedpath                  # noqa: E402  forward FOMC calendar
 
 PM, AM = "LBMA_GOLD_PM_USD", "LBMA_GOLD_AM_USD"
+# The study is metal-agnostic: everything below operates on two fix series and a
+# set of release dates. Platinum and palladium carry LBMA AM and PM fixes from
+# 1990 exactly as gold does, so the same test runs on them unchanged — which is
+# the whole point, because a difference in the RESULT then cannot be a difference
+# in method. Silver has a single noon auction and no intraday window at all.
 SEED = 20260823
 DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -390,7 +395,8 @@ def block(ev_dates: pd.DatetimeIndex, ret: pd.Series,
 
 # ---------------------------------------------------------------------------
 def compute(draws: int = 20000, verbose: bool = False,
-            write: bool = True) -> dict:
+            write: bool = True, pm: str = PM, am: str = AM,
+            out_file=None) -> dict:
     """Run the release study and persist it to OUT_FILE.
 
     Split out of main() so the daily pull can refresh the file the client report
@@ -402,17 +408,19 @@ def compute(draws: int = 20000, verbose: bool = False,
 
     # as_of=None is the reporting read: LBMA fixes are EXACT-tier and never
     # revised, so there is no vintage to respect and nothing to look ahead into.
-    pm = gs.get_series(PM)
-    am = gs.get_series(AM)
+    pm_id, am_id = pm, am
+    pm = gs.get_series(pm_id)
+    am = gs.get_series(am_id)
     pm = pm[pm > 0].sort_index()
     am = am[am > 0].sort_index()
-    both = pd.concat([am, pm], axis=1).dropna()
+    both = pd.concat([am.rename(am_id), pm.rename(pm_id)],
+                     axis=1).dropna()
 
     windows = {
         "fix_to_fix_24h": np.log(pm).diff().dropna(),
-        "am_to_pm_intraday": np.log(both[PM] / both[AM]).dropna(),
+        "am_to_pm_intraday": np.log(both[pm_id] / both[am_id]).dropna(),
     }
-    _say(f"{PM}: {len(pm)} fixes {pm.index.min():%Y-%m-%d}..{pm.index.max():%Y-%m-%d}; "
+    _say(f"{pm_id}: {len(pm)} fixes {pm.index.min():%Y-%m-%d}..{pm.index.max():%Y-%m-%d}; "
          f"AM+PM overlap {len(both)} days")
 
     scan_days = pd.bdate_range(pm.index.min(), pm.index.max())
@@ -504,7 +512,8 @@ def compute(draws: int = 20000, verbose: bool = False,
         fomc_row["next_day_abs_pct"] = round(float(nxt.abs().mean()) * 100, 4)
         fomc_row["share_up_next_day"] = round(float((nxt > 0).mean()), 4)
 
-    out = {"gold_series": PM,
+    out = {"gold_series": pm_id, "metal_series": pm_id,
+           "am_series": am_id,
            "sample": f"{r24.index.min():%Y-%m-%d} to {r24.index.max():%Y-%m-%d}",
            "n_trading_days": int(len(r24)),
            "draws": draws,
@@ -515,7 +524,7 @@ def compute(draws: int = 20000, verbose: bool = False,
 
     out["built"] = datetime.now().isoformat(timespec="seconds")
     if write:
-        OUT_FILE.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
+        (Path(out_file) if out_file else OUT_FILE).write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
     return out
 
 
