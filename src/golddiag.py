@@ -188,16 +188,35 @@ def cross_correlations(feats: pd.DataFrame, price: pd.Series,
     return xc, pd.Series(counts)
 
 
-def lead_lag_summary(xc: pd.DataFrame, counts: pd.Series, n_tests: int) -> pd.DataFrame:
-    """Peak lag and peak correlation per feature, each judged at ITS OWN sample size."""
+def lead_lag_summary(xc: pd.DataFrame, counts: pd.Series, n_tests: int,
+                     count_lags: bool = True) -> pd.DataFrame:
+    """Peak lag and peak correlation per feature, each judged at ITS OWN sample size.
+
+    THE CORRECTION MUST COUNT THE LAGS, NOT JUST THE FEATURES. `peak_corr` is the
+    largest of `n_lags` correlations, so the search that produced it is
+    features x lags wide, and correcting for features alone understates the bar. On
+    the four-metal run the as-coded threshold was |r| > 0.0323 and the lag-aware one
+    is 0.0435; palladium's single "leading" feature scored 0.0315, so it cleared the
+    weak bar and fails the right one.
+
+    This did not change any conclusion reached so far — every scan returned zero
+    leading features, and under-correction can only manufacture findings, never hide
+    them — but it would have mattered the first time something positive appeared.
+
+    Adjacent lags are strongly dependent, so a full Bonferroni over features x lags is
+    conservative; the honest threshold sits between the two. `count_lags=False`
+    restores the old behaviour for reproducing an earlier run.
+    """
     n_med = int(counts.median())
+    n_lags = max(int(xc.shape[1]), 1)
+    k = max(n_tests, 1) * (n_lags if count_lags else 1)
     raw = r_threshold(n_med, 0.05)
-    adj = r_threshold(n_med, 0.05 / max(n_tests, 1))
+    adj = r_threshold(n_med, 0.05 / k)
     rows = []
     for f in xc.index:
         n_f = int(counts.get(f, n_med))
         raw_f = r_threshold(n_f, 0.05)
-        adj_f = r_threshold(n_f, 0.05 / max(n_tests, 1))
+        adj_f = r_threshold(n_f, 0.05 / k)
         s = xc.loc[f].dropna()
         if s.empty:
             continue

@@ -514,13 +514,19 @@ def read_log() -> list:
 # ---------------------------------------------------------------------------
 def run(models=BENCHMARKS, targets=None, use_holdout: bool = False,
         scaled: bool = True, note: str = "", feature_set=None,
-        min_train: int = MIN_TRAIN_DAYS) -> dict:
+        min_train: int = MIN_TRAIN_DAYS, panel=None) -> dict:
     """Score models across the horizons and write a run record.
 
     `use_holdout=False` (the default) stops the evaluation window at the start of the
     locked three-year holdout. Passing True is the one-time final evaluation and is
-    recorded as such in the log, with its date."""
-    feats, targs = goldfeatures.load()
+    recorded as such in the log, with its date.
+
+    `panel` is an optional (features, targets) pair, so the identical harness — the
+    purge and embargo in index positions, the phase-averaged metrics, the paired
+    McNemar, the buy-and-hold comparison — can be pointed at another metal without
+    cloning any of it. Omitted, it loads gold as before.
+    """
+    feats, targs = panel if panel is not None else goldfeatures.load()
     if feature_set:
         # A named subset (e.g. goldfeatures.DEEP_FEATURES) trades breadth for depth.
         # Restricting columns also drops any BUCKET that has no surviving feature,
