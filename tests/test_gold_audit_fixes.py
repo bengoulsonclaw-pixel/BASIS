@@ -417,3 +417,29 @@ def test_fx_is_stamped_a_day_late_against_the_london_fix():
     import inspect
     src = inspect.getsource(ms.ingest_fx)
     assert "typical_lag_days=1" in src, "FX stamped lag 0 would leak into forecasts"
+
+
+def test_cross_metal_verdict_requires_a_tested_difference():
+    """Significant-vs-not-significant is not a difference. The verdict must rest on
+    a confidence interval that excludes zero, not on comparing asterisks."""
+    from src import metalevents as me
+    # CI straddling zero: no claim, even though p looks smallish.
+    straddle = {"reference": "GOLD", "comparisons": [
+        {"vs": "PLATINUM", "diff": 0.4, "ci_low": -0.05, "ci_high": 0.8,
+         "p": 0.06, "survives_correction": False}]}
+    assert "differ" in me.verdict(straddle).lower() or "only" not in me.verdict(straddle)
+    assert "different assets" not in me.verdict(straddle)
+
+    tested = {"reference": "GOLD", "comparisons": [
+        {"vs": "PLATINUM", "diff": 0.456, "ci_low": 0.140, "ci_high": 0.777,
+         "p": 0.0038, "survives_correction": True},
+        {"vs": "PALLADIUM", "diff": 0.539, "ci_low": 0.222, "ci_high": 0.860,
+         "p": 0.0011, "survives_correction": True}]}
+    assert "different assets" in me.verdict(tested)
+
+
+def test_silver_is_excluded_from_the_release_study():
+    """No AM fix means no intraday window; including it would compare a metal
+    measured one way against metals measured another."""
+    from src import metalevents as me
+    assert "SILVER" not in me.STUDY_METALS
