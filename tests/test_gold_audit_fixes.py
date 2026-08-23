@@ -571,3 +571,29 @@ def test_binomial_and_wilson_match_known_values():
     assert sa.binom_p_two_sided(5, 10) == 1.0
     lo, hi = sa.wilson_ci(55, 100)
     assert 0.45 < lo < 0.46 and 0.64 < hi < 0.65
+
+
+def test_positive_excess_pnl_is_not_sufficient_on_its_own():
+    """A model can beat buy-and-hold on P&L while calling direction WORSE than
+    always-long. Four of the five Track D 'wins' were exactly that shape: positive
+    excess_vs_buyhold, hit rate below the base rate, McNemar nowhere near
+    significant, and an edge phase spread that straddled or sat below zero. Reading
+    the P&L column alone would have reported momentum beating platinum by 39%.
+    """
+    cell = {"excess_vs_buyhold": 0.33, "hit_rate": 0.508,
+            "always_long_hit": 0.520, "edge_phase_spread": (-0.018, -0.008),
+            "mcnemar": {"p_value": 0.542}}
+
+    def is_credible(m):
+        lo, hi = m.get("edge_phase_spread") or (float("nan"),) * 2
+        p = (m.get("mcnemar") or {}).get("p_value")
+        return bool(
+            (m.get("excess_vs_buyhold") or 0) > 0
+            and m.get("hit_rate", 0) > m.get("always_long_hit", 1)
+            and lo > 0
+            and isinstance(p, float) and p < 0.05)
+
+    assert not is_credible(cell), "P&L alone was treated as evidence"
+    good = dict(cell, hit_rate=0.60, edge_phase_spread=(0.02, 0.05),
+                mcnemar={"p_value": 0.01})
+    assert is_credible(good)
