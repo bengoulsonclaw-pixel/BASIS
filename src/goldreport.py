@@ -153,6 +153,14 @@ def event_behaviour() -> list:
         return []
     d = json.loads(EVENT_STUDY.read_text(encoding="utf-8"))
     blocks = (d.get("results") or {}).get("am_to_pm_intraday") or {}
+    # The SAME releases measured fix-to-fix. The report used to publish only the
+    # intraday window, where the employment premium is 1.67x and significant; over
+    # the full 24 hours it is 1.17x and does NOT survive the correction. Leading
+    # with the first and never showing the second overstates how durable the effect
+    # is — the premium is an intraday-window phenomenon that has largely gone by the
+    # next fix, and a reader is entitled to see that in the table rather than infer
+    # it from a methodology footnote.
+    day = (d.get("results") or {}).get("fix_to_fix_24h") or {}
     key = {"employment": "Employment report", "cpi": "CPI", "pce": "PCE",
            "ppi": "PPI", "retail": "Retail sales"}
     out = []
@@ -165,15 +173,28 @@ def event_behaviour() -> list:
         if kind not in PUBLISHABLE:
             continue
         ev = b.get("mean_abs_event_pct")
-        base = b.get("mean_abs_baseline_matched_pct") or b.get("mean_abs_baseline_pct")
+        # Prefer the baseline that EXCLUDES the other releases. Matching on year and
+        # weekday alone leaves the other four release days in the comparison set, and
+        # those are themselves elevated — so the denominator was inflated and every
+        # published ratio slightly understated. Falls back through the older keys so a
+        # store written before this change still renders.
+        base = (b.get("mean_abs_baseline_matched_clean_pct")
+                or b.get("mean_abs_baseline_matched_pct")
+                or b.get("mean_abs_baseline_pct"))
         if not ev or not base:
             continue
         fine = b.get("by_era_fine") or {}
         buckets = [{"label": k, "ratio": v.get("ratio"), "n": v.get("n")}
                    for k, v in fine.items()]
         vals = [x["ratio"] for x in buckets if x["ratio"]]
-        recent = (b.get("recent") or {}).get("ratio_matched")
+        _r = b.get("recent") or {}
+        recent = _r.get("ratio_matched_clean") or _r.get("ratio_matched")
+        db = day.get(name) or {}
+        _dr = db.get("recent") or {}
+        day_recent = _dr.get("ratio_matched_clean") or _dr.get("ratio_matched")
         out.append({"kind": kind, "label": key.get(kind, name),
+                    "recent_24h": day_recent,
+                    "sig_24h": bool((db.get("recent") or {}).get("significant")),
                     "n": int(b.get("n_events", 0)),
                     "event_pct": float(ev), "base_pct": float(base),
                     "ratio": float(ev) / float(base),
@@ -191,10 +212,10 @@ def event_behaviour() -> list:
                                        len(vals)),
                     # The headline test: above 1 in EVERY bucket — but only meaningful
                     # with enough buckets to be a test at all. PPI has ALFRED vintages
-                    # only from 2011, so it fills two buckets; "elevated in both" is
-                    # a coin flip dressed as consistency, and shown beside the
-                    # employment report's seven-for-seven it would read as equivalent
-                    # evidence. It is not.
+                    # only from 2015-04 (184 releases), so it fills two buckets;
+                    # "elevated in both" is a coin flip dressed as consistency, and
+                    # shown beside the employment report's seven periods it would read
+                    # as equivalent evidence. It is not.
                     "always_elevated": bool(len(vals) >= MIN_BUCKETS_FOR_CLAIM
                                             and min(vals) > 1.0),
                     "mostly_elevated": bool(len(vals) >= MIN_BUCKETS_FOR_CLAIM
@@ -242,8 +263,18 @@ def summary_sentence(rows: list) -> str:
         run_vals = [x["ratio"] for r in strong
                     for x in r["buckets"][:r.get("recent_run", 0)] if x["ratio"]]
         lo, hi = min(run_vals), max(run_vals)
+        # Say what the 24h column shows rather than leaving the reader to notice it.
+        fades = [r for r in strong if r.get("recent_24h") and not r.get("sig_24h")]
+        tail = ""
+        if len(fades) == len(strong):
+            tail = (", though it does not survive to the next fix ("
+                    + ", ".join(f"{r['recent_24h']:.2f}&times;" for r in fades)
+                    + ", not significant)")
         bits.append(f"{names} carries a premium in every recent period "
-                    f"({lo:.2f}&ndash;{hi:.2f}&times;)")
+                    f"({lo:.2f}&ndash;{hi:.2f}&times;){tail}")
+        if fades and len(fades) != len(strong):
+            nm = ", ".join(r["label"] for r in fades)
+            bits.append(f"for {nm} that premium does not survive to the next fix")
     if weak:
         names = ", ".join(r["label"] for r in weak)
         allv = [x["ratio"] for r in weak for x in r["buckets"] if x["ratio"]]
@@ -270,6 +301,9 @@ def chart_event_ratio(rows: list) -> str | None:
     # else is grey, so colour carries the verdict rather than just the magnitude.
     cols = [GOLD if r.get("recent_run", 0) >= 4 else GREY for r in rows]
     ax.barh(labels, ratios, color=cols, edgecolor=GOLDEDGE, height=0.55)
+    # barh puts the first item at the bottom, so the chart ran in the opposite
+    # order to the table it sits beside — the eye pairs the top bar with the top row.
+    ax.invert_yaxis()
     ax.axvline(1.0, color=INK, lw=1.0)
     ax.set_xlim(0, max(1.6, max(ratios) * 1.15))
     ax.set_xlabel("release-window move ÷ an ordinary day, last 10 years", fontsize=7.5)
@@ -312,7 +346,7 @@ SCENARIOS = [
       "breakeven_10y_chg_20d": 0.10}),
     ("Hawkish", "Real yields +25bp, dollar +2%",
      {"real_yield_10y_chg_20d": 0.25, "dxy_chg_20d": 0.02}),
-    ("Risk-off", "VIX +1sd, credit +50bp, real yields −15bp, dollar +1%",
+    ("Risk-off", "VIX +1sd vs its 1y range, credit +50bp, real yields −15bp, dollar +1%",
      {"vix_z_1y": 1.0, "hy_spread_chg_20d": 0.50,
       "real_yield_10y_chg_20d": -0.15, "dxy_chg_20d": 0.01}),
 ]
@@ -325,6 +359,10 @@ def build_payload(asof: date) -> dict:
     sens = json.loads(goldsens.sensitivities(f).to_json(orient="records")) if f else []
     attrib = goldsens.attribution(f, feats) if f else {}
     gap = goldsens.fair_value(feats, goldsens.DEFAULT_H)
+    # Phase-averaged, and NaN-free in the percentile denominator. Reading the last
+    # point of one sampling published +15.2%/82nd when the same statistic spans
+    # 13.7-23.3% across the other offsets.
+    fvs = goldsens.fair_value_summary(feats, goldsens.DEFAULT_H)
 
     scen = []
     for name, desc, moves in SCENARIOS:
@@ -339,7 +377,14 @@ def build_payload(asof: date) -> dict:
     by_kind = {b["kind"]: b for b in behaviour}
     for e in events:
         b = by_kind.get(e["kind"])
-        e["ratio"] = b["ratio"] if b else None
+        # The RECENT ratio, matching the column section 2 leads with. Section 1 used
+        # the full-sample figure, so the same release appeared as 1.43x on page one
+        # and 1.67x on page two, with neither number labelled by period. And a
+        # premium is only called out if it survived the multiple-comparison
+        # correction — otherwise the calendar was flagging noise in bold.
+        e["ratio"] = (b.get("recent") or b.get("ratio")) if b else None
+        e["ratio_sig"] = bool(b.get("significant")) if b else False
+        e["ratio_24h"] = b.get("recent_24h") if b else None
 
     stamp = reportkit.snapshot_stamp()
     return {
@@ -356,8 +401,9 @@ def build_payload(asof: date) -> dict:
         "resid_sd": (f.get("resid_sd") or 0) * 100 if f else None,
         "scenarios": scen,
         "attrib": attrib,
-        "fv_gap": float(gap.iloc[-1]) if len(gap) else None,
-        "fv_pctile": float((gap <= gap.iloc[-1]).mean() * 100) if len(gap) else None,
+        "fv_gap": fvs.get("gap_pct"),
+        "fv_pctile": fvs.get("pctile"),
+        "fv": fvs,
         "charts": {"events": chart_event_ratio(behaviour),
                    "sens": chart_sensitivities(sens)},
         "stamp": stamp,
@@ -372,6 +418,8 @@ def render_html(payload: dict) -> str:
                       autoescape=select_autoescape(["html"]))
     env.filters["pct"] = lambda v, d=2: ("—" if v is None else f"{v:+.{d}f}%")
     env.filters["num"] = lambda v, d=2: ("—" if v is None else f"{v:.{d}f}")
+    # House ordinal — the template hardcoded "th" and printed "82th percentile".
+    env.filters["ord"] = lambda v: ("—" if v is None else reportkit.ordinal(v))
     return env.get_template("goldreport.html").render(**payload)
 
 

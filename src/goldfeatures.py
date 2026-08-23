@@ -273,6 +273,14 @@ def build_targets(p: pd.DataFrame) -> pd.DataFrame:
     capacity learning the volatility cycle instead of the direction. Scale first,
     convert to a probability afterwards."""
     px = p[TARGET_PRICE]
+    # Cut the forward-filled tail. daily_panel() carries the last known fix forward to
+    # today, so if the LBMA feed stalls the shift(-h) ratio is 1.0 and every forward
+    # return in the stalled window comes out as exactly 0.0 — a fabricated "gold did
+    # not move" that then trains and scores models as though it were an observation.
+    # Anything after the last genuine fix is NaN, which is what missing means.
+    last_real = goldstore.last_reference(TARGET_PRICE)
+    if last_real is not None:
+        px = px.where(px.index <= last_real)
     out = pd.DataFrame(index=p.index)
     rv = np.log(px / px.shift(1)).rolling(VOL_WINDOW, min_periods=30).std()
     for name, h in TARGET_HORIZONS.items():

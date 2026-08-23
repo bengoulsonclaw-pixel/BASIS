@@ -86,13 +86,21 @@
       {% if d.fair_value and d.fair_value.gap_pct is not none %}
       <p class="summary" style="font-size:7.4pt;margin-top:1.5mm">
         <b>Unexplained by the macro anchor:</b> over the twelve months to
-        {{ d.fair_value.asof }}, gold moved <b>{{ "%+.1f%%" | format(d.fair_value.gap_pct) }}</b>
+        {{ d.fair_value.asof_pretty or d.fair_value.asof }}, gold moved
+        <b>{{ "%+.1f%%" | format(d.fair_value.gap_pct) }}</b>
         more than real yields, the dollar, credit spreads and risk appetite together
-        account for — the {{ d.fair_value.pctile }}th percentile of that gap since {{ d.fair_value.since or "the start of the sample" }}.
+        account for — around the {{ d.fair_value.pctile | ord }} percentile of that gap
+        since {{ d.fair_value.since or "the start of the sample" }}.
         The chart above shows the anchor; the pages that follow show the official-sector
         buying and physical flows that are the usual candidates for the residual.
         Measured on a walk-forward fit, so each month is scored only against
-        relationships estimated before it.
+        relationships estimated before it{% if d.fair_value.r2 %}, and those
+        relationships explain {{ (d.fair_value.r2 * 100) | round(0) | int }}% of a
+        typical one-month move{% endif %}.{% if d.fair_value.spread_pct %}
+        The figure is the average of {{ d.fair_value.n_phases }} equally valid
+        samplings, which span {{ "%+.1f" | format(d.fair_value.lo_pct) }}% to
+        {{ "%+.1f%%" | format(d.fair_value.hi_pct) }} — read it as a range, not a
+        point.{% endif %}
       </p>
       {% endif %}
     </div>

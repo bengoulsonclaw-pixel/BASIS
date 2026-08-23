@@ -66,6 +66,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from math import comb
 from pathlib import Path
 
@@ -236,6 +237,11 @@ def holm(pvals: dict) -> dict:
 # permutation test to have power (n ~ 127 releases) and recent enough to describe the
 # regime a reader is actually trading.
 RECENT_FROM = "2016-01-01"
+# The file the weekly PDF and the BASIS Evidence tab read. Nothing rebuilt it
+# until the audit: the study was a CLI that wrote wherever --json pointed, so
+# section 2 of a "week ahead" report was served from whatever had last been run
+# by hand, under a caption reading "counting back from today".
+OUT_FILE = Path(__file__).resolve().parents[1] / "data" / "gold_store" / "event_study.json"
 
 # Buckets ANCHORED TO TODAY, not to calendar decades. Three reasons, and the third
 # is the one that actually bit:
@@ -325,6 +331,18 @@ def block(ev_dates: pd.DatetimeIndex, ret: pd.Series,
     # size: does the day move MORE?
     p_y, _ = _perm(a, mask, year, draws, np.random.default_rng(SEED))
     p_yd, matched_yd = _perm(a, mask, yd, draws, np.random.default_rng(SEED + 1))
+    # ...more than an ORDINARY day. The matched baseline above compares against every
+    # non-event day of the same year and weekday, and those include the OTHER four
+    # releases — which are themselves elevated, so the denominator is inflated and the
+    # ratio understated. Conservative, but the caption says "ordinary days" and this
+    # is what that phrase has to mean. Restricting to days carrying no high-impact US
+    # release makes the comparison the one being described.
+    keep = mask | clean
+    if int(mask.sum()) and int((clean & ~mask).sum()) > 30:
+        p_yd_clean, matched_clean = _perm(a[keep], mask[keep], yd[keep], draws,
+                                          np.random.default_rng(SEED + 4))
+    else:
+        p_yd_clean, matched_clean = float("nan"), float("nan")
     # direction: does it move UP more often, / drift further, than a matched day?
     p_up, matched_up = _perm(up_ind, mask, yd, draws, np.random.default_rng(SEED + 2))
     p_sgn, matched_sgn = _perm(sgn, mask, yd, draws, np.random.default_rng(SEED + 3))
@@ -341,11 +359,18 @@ def block(ev_dates: pd.DatetimeIndex, ret: pd.Series,
         "mean_abs_baseline_pct": round(base * 100, 4),
         "mean_abs_baseline_clean_pct": round(float(a[clean].mean()) * 100, 4),
         "mean_abs_baseline_matched_pct": round(matched_yd * 100, 4),
+        "mean_abs_baseline_matched_clean_pct": (round(matched_clean * 100, 4)
+                                                if matched_clean == matched_clean else None),
         "median_abs_event_pct": round(float(np.median(a[mask])) * 100, 4),
         "median_abs_baseline_pct": round(float(np.median(a[~mask])) * 100, 4),
         "ratio": round(ev / base, 4),
         "ratio_vs_clean": round(ev / float(a[clean].mean()), 4),
         "ratio_matched": round(ev / matched_yd, 4),
+        # The published ratio: matched on year+weekday AND excluding other releases.
+        "ratio_matched_clean": (round(ev / matched_clean, 4)
+                                if matched_clean == matched_clean and matched_clean
+                                else None),
+        "p_perm_year_weekday_clean": p_yd_clean,
         "share_up": round(up / n, 4),
         "baseline_share_up": round(base_up, 4),
         "baseline_share_up_matched": round(matched_up, 4),
@@ -364,11 +389,16 @@ def block(ev_dates: pd.DatetimeIndex, ret: pd.Series,
 
 
 # ---------------------------------------------------------------------------
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--draws", type=int, default=20000)
-    ap.add_argument("--json", default="")
-    args = ap.parse_args()
+def compute(draws: int = 20000, verbose: bool = False,
+            write: bool = True) -> dict:
+    """Run the release study and persist it to OUT_FILE.
+
+    Split out of main() so the daily pull can refresh the file the client report
+    reads. Everything below is unchanged CLI logic; only the printing is gated.
+    """
+    def _say(*a):
+        if verbose:
+            print(*a)
 
     # as_of=None is the reporting read: LBMA fixes are EXACT-tier and never
     # revised, so there is no vintage to respect and nothing to look ahead into.
@@ -382,8 +412,8 @@ def main() -> int:
         "fix_to_fix_24h": np.log(pm).diff().dropna(),
         "am_to_pm_intraday": np.log(both[PM] / both[AM]).dropna(),
     }
-    print(f"{PM}: {len(pm)} fixes {pm.index.min():%Y-%m-%d}..{pm.index.max():%Y-%m-%d}; "
-          f"AM+PM overlap {len(both)} days")
+    _say(f"{PM}: {len(pm)} fixes {pm.index.min():%Y-%m-%d}..{pm.index.max():%Y-%m-%d}; "
+         f"AM+PM overlap {len(both)} days")
 
     scan_days = pd.bdate_range(pm.index.min(), pm.index.max())
 
@@ -392,8 +422,8 @@ def main() -> int:
         for sid in sids:
             per_series[sid], audits[sid] = release_dates(sid, scan_days)
             d = per_series[sid]
-            print(f"  {sid:14s} releases={len(d):4d} "
-                  f"{d.min():%Y-%m-%d}..{d.max():%Y-%m-%d} audit={audits[sid]}")
+            _say(f"  {sid:14s} releases={len(d):4d} "
+                 f"{d.min():%Y-%m-%d}..{d.max():%Y-%m-%d} audit={audits[sid]}")
 
     ev_dates = {name: pd.DatetimeIndex(sorted(set().union(*[set(per_series[s])
                                                             for s in sids])))
@@ -405,7 +435,7 @@ def main() -> int:
 
     results = {}
     for wname, ret in windows.items():
-        blocks = {name: block(d, ret, all_event_days, args.draws)
+        blocks = {name: block(d, ret, all_event_days, draws)
                   for name, d in ev_dates.items()}
         hy = holm({k: v["p_perm_year"] for k, v in blocks.items()})
         hyd = holm({k: v["p_perm_year_weekday"] for k, v in blocks.items()})
@@ -438,7 +468,7 @@ def main() -> int:
         recent_ret = ret[ret.index >= pd.Timestamp(RECENT_FROM)]
         recent_all = all_event_days[all_event_days >= pd.Timestamp(RECENT_FROM)]
         rblocks = {name: block(d[d >= pd.Timestamp(RECENT_FROM)], recent_ret,
-                               recent_all, args.draws)
+                               recent_all, draws)
                    for name, d in ev_dates.items()}
         rhy = holm({k: v["p_perm_year"] for k, v in rblocks.items()})
         rhyd = holm({k: v["p_perm_year_weekday"] for k, v in rblocks.items()})
@@ -477,12 +507,24 @@ def main() -> int:
     out = {"gold_series": PM,
            "sample": f"{r24.index.min():%Y-%m-%d} to {r24.index.max():%Y-%m-%d}",
            "n_trading_days": int(len(r24)),
-           "draws": args.draws,
+           "draws": draws,
            "release_audit": audits,
            "event_overlap_days": overlap,
            "results": results,
            "fomc": fomc_row}
 
+    out["built"] = datetime.now().isoformat(timespec="seconds")
+    if write:
+        OUT_FILE.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
+    return out
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--draws", type=int, default=20000)
+    ap.add_argument("--json", default="")
+    args = ap.parse_args()
+    out = compute(draws=args.draws, verbose=True, write=not args.json)
     print(json.dumps(out, indent=2, default=str))
     if args.json:
         Path(args.json).write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")

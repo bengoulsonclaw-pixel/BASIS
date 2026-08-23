@@ -148,28 +148,55 @@ def scenario(f: dict, moves: dict) -> dict:
 
 
 def attribution(f: dict, feats: pd.DataFrame) -> dict:
-    """Decompose the h-day move just realised into per-driver contributions."""
+    """Decompose the h-day move just realised into per-driver contributions.
+
+    DRIFT IS ITS OWN LINE. `ymu` is the training-sample mean forward return — gold's
+    unconditional tendency to rise, which is not a driver and is not something any of
+    the named inputs did. Folding it into "the drivers account for" inflated that
+    figure by 0.88pp on the published run (3.49% quoted against 2.60% of actual
+    driver contributions) and left a decomposition that visibly did not add up: the
+    reader could sum the parts table and be short by a percentage point with nothing
+    to attribute it to.
+
+    Everything is summed in LOG space and converted once at the end. Converting each
+    part with expm1 individually and summing those is a second, smaller reason the
+    old arithmetic did not close.
+    """
     row = feats.iloc[-1][f["cols"]]
     z = ((row - f["mu"]) / f["sd"]).fillna(0.0)
     contrib = z * f["beta"]
     actual = float(trailing_return(f["price"], f["h"]).iloc[-1])
-    explained = float(contrib.sum() + f["ymu"])
+    drivers = float(contrib.sum())
+    drift = float(f["ymu"])
     return {"window_days": f["h"],
             "actual_pct": float(np.expm1(actual) * 100),
-            "explained_pct": float(np.expm1(explained) * 100),
-            "unexplained_pct": float(np.expm1(actual - explained) * 100),
+            # What the NAMED drivers did, drift excluded.
+            "explained_pct": float(np.expm1(drivers) * 100),
+            "drift_pct": float(np.expm1(drift) * 100),
+            "unexplained_pct": float(np.expm1(actual - drivers - drift) * 100),
             "parts_pct": {UNITS.get(c, (c,))[0]: float(np.expm1(v) * 100)
-                          for c, v in contrib.items()}}
+                          for c, v in contrib.items()},
+            # Log-space components, which DO add to `actual` exactly. Anything that
+            # needs the decomposition to close should use these.
+            "log_parts": {"drivers": drivers, "drift": drift,
+                          "unexplained": actual - drivers - drift, "actual": actual}}
 
 
 def fair_value(feats: pd.DataFrame, h: int = DEFAULT_H, min_train: int = 750,
-               months: int = 12) -> pd.Series:
+               months: int = 12, phase: int = 0) -> pd.Series:
     """Cumulative unexplained move over the trailing `months` windows, walk-forward.
 
     Each point is the residual of one h-day window fitted only on data that closed
     before that window opened, sampled h days apart so no return is counted twice.
     This is the number that answers the question the framework raises but cannot
-    price: how much of gold's run is NOT explained by rates, the dollar and risk."""
+    price: how much of gold's run is NOT explained by rates, the dollar and risk.
+
+    `phase` picks which of the h equally valid non-overlapping samplings to use.
+    Sampling from row `min_train` alone is an accident of where the index starts, and
+    the audit measured the published gap swinging from +13.7% to +23.3% across the 60
+    phases — the same defect goldbacktest.metrics() already corrects for. Use
+    fair_value_summary() for anything client-facing; this stays single-phase because
+    the chart needs one series."""
     from src import goldstore
     panel = goldstore.daily_panel([goldfeatures.TARGET_PRICE],
                                   start=str(feats.index.min().date()))
@@ -180,7 +207,7 @@ def fair_value(feats: pd.DataFrame, h: int = DEFAULT_H, min_train: int = 750,
     if len(d) <= min_train + h:
         return pd.Series(dtype=float)
     out, idx = {}, d.index
-    for i in range(min_train, len(idx), h):
+    for i in range(min_train + (phase % h), len(idx), h):
         tr = d.iloc[:max(i - h + 1, 1)]
         if len(tr) < min_train:
             continue
@@ -195,6 +222,42 @@ def fair_value(feats: pd.DataFrame, h: int = DEFAULT_H, min_train: int = 750,
             ).rename("fair_value_gap_pct")
 
 
+def fair_value_summary(feats: pd.DataFrame, h: int = DEFAULT_H, min_train: int = 750,
+                       months: int = 12, max_phases: int = 12) -> dict:
+    """Phase-averaged fair-value gap, with the spread that made averaging necessary.
+
+    Returns the mean of the latest gap over up to `max_phases` samplings, the range
+    across them, and the percentile of the mean within its own phase-0 history. A
+    number that moves 10 points on an arbitrary offset must never be published as a
+    point estimate, so `spread_pct` travels with it and the report prints it.
+    """
+    step = max(1, h // max_phases)
+    lasts, series0 = [], None
+    for ph in range(0, h, step):
+        g = fair_value(feats, h, min_train, months, phase=ph).dropna()
+        if not len(g):
+            continue
+        if series0 is None:
+            series0 = g
+        lasts.append(float(g.iloc[-1]))
+    if not lasts:
+        return {}
+    mean = float(np.mean(lasts))
+    # Percentile against the DROPPED-NA history. The leading rolling-window NaNs used
+    # to sit in the denominator as False, which quietly understated every percentile
+    # this number has ever been published with.
+    hist = series0.dropna()
+    return {
+        "gap_pct": round(mean, 1),
+        "lo_pct": round(float(min(lasts)), 1),
+        "hi_pct": round(float(max(lasts)), 1),
+        "spread_pct": round(float(max(lasts) - min(lasts)), 1),
+        "n_phases": len(lasts),
+        "pctile": round(float((hist <= mean).mean() * 100)),
+        "asof": str(series0.index[-1].date()),
+        "since": str(series0.index[0].year),
+    }
+
 def compute(h: int = DEFAULT_H) -> dict:
     feats, targs = goldfeatures.load()
     f = fit(feats, targs, h)
@@ -203,6 +266,7 @@ def compute(h: int = DEFAULT_H) -> dict:
     full = fit(feats, targs, h,
                cols=[c for c in MACRO_DRIVERS + FLOW_DRIVERS if c in feats.columns])
     gap = fair_value(feats, h)
+    fvs = fair_value_summary(feats, h)
     out = {
         "asof": str(feats.index[-1].date()),
         "horizon_days": h,
@@ -211,9 +275,9 @@ def compute(h: int = DEFAULT_H) -> dict:
         "unexplained_sd_pct": f["resid_sd"] * 100,
         "sensitivities": json.loads(sensitivities(f).to_json(orient="records")),
         "attribution": attribution(f, feats),
-        "fair_value_gap_pct": float(gap.iloc[-1]) if len(gap) else None,
-        "fair_value_gap_pctile": (float((gap <= gap.iloc[-1]).mean() * 100)
-                                  if len(gap) else None),
+        "fair_value_gap_pct": fvs.get("gap_pct"),
+        "fair_value_gap_pctile": fvs.get("pctile"),
+        "fair_value": fvs,
         "built": datetime.now().isoformat(timespec="seconds"),
     }
     OUT_FILE.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")

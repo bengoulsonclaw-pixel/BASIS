@@ -173,6 +173,7 @@ def mcnemar_p(model_correct: np.ndarray, base_correct: np.ndarray) -> tuple:
 # benchmark models — the bar every real model must clear (spec §7)
 # ---------------------------------------------------------------------------
 class _Base:
+    benchmark_only = False
     name = "base"
     needs = ()                      # feature columns required; () = none
 
@@ -194,11 +195,27 @@ class RandomWalk(_Base):
 
 class AlwaysLong(_Base):
     """Gold drifted up for the whole sample. Plenty of models fail to beat this, and
-    a 250-day hit rate that looks spectacular is usually just this in disguise."""
+    a 250-day hit rate that looks spectacular is usually just this in disguise.
+
+    This is a POSITION benchmark, not a probability forecast, and it has to be held
+    long unconditionally or it is not the thing its name claims. It used to emit the
+    trailing mean of the vol-scaled target, which the harness then put through
+    Phi(): at the 5-day horizon that is about 0.52, below the 0.55 entry threshold,
+    so the "always long" benchmark sat in CASH for the whole sample and booked a
+    time_in_market of 0.0 while the page displayed its hit rate as a strategy result.
+
+    Emitting a large positive constant makes Phi() saturate and the position stick at
+    1.0. Its Brier score is meaningless by construction (it forecasts P(up)=1 every
+    day) and `benchmark_only` tells the reporting layer not to score it as a forecast.
+    The hit-rate benchmark is `base_rate`, computed separately from the realised
+    up-frequency, and buy-and-hold P&L is measured directly off `actual` — so neither
+    the headline comparison nor `excess_vs_buyhold` ever depended on this class."""
     name = "always_long"
+    benchmark_only = True
 
     def predict(self, X):
-        return np.full(len(X), max(self.mu_, 1e-9))
+        # 8 sd: Phi(8) rounds to 1.0, so the position is long on every date.
+        return np.full(len(X), 8.0)
 
 
 class Momentum12m(_Base):
@@ -576,8 +593,30 @@ def main() -> int:
     if use_holdout:
         print("\n  *** UNLOCKING THE THREE-YEAR HOLDOUT ***")
         print("  Spec §7.5: run against it ONCE, at the end. This is being logged.\n")
-    rec = run(use_holdout=use_holdout,
-              note="holdout evaluation" if use_holdout else "benchmark baseline")
+    # --full adds the candidate models to the four benchmarks; --deep runs them on
+    # the long-history feature subset. Both configurations existed only as
+    # hand-assembled one-off calls, so the run the BASIS page displays could not be
+    # reproduced from the CLI — and a plain `python goldbacktest.py` silently replaced
+    # a 7-model record with a 4-model one.
+    models, feature_set, bits = list(BENCHMARKS), None, []
+    if "--full" in sys.argv or "--deep" in sys.argv:
+        try:
+            from goldmodels import ElasticNetModel
+            from goldbuckets import bucket_model_for
+            models += [ElasticNetModel,
+                       bucket_model_for(60, "equal", False),
+                       bucket_model_for(60, "equal", True)]
+            bits.append("candidate models")
+        except Exception as e:
+            print(f"  (candidate models unavailable: {e})")
+    if "--deep" in sys.argv:
+        import goldfeatures
+        feature_set = goldfeatures.DEEP_FEATURES
+        bits.append(f"DEEP feature set ({len(feature_set)} features)")
+    note = ("holdout evaluation" if use_holdout else
+            (" + ".join(bits) if bits else "benchmark baseline"))
+    rec = run(models=tuple(models), use_holdout=use_holdout,
+              feature_set=feature_set, note=note)
 
     print(f"Gold backtest — {rec['window']}, holdout starts {rec['holdout_start']}")
     print(f"  git {rec['git']}  features {rec['feature_version']} "
@@ -597,7 +636,11 @@ def main() -> int:
             sp = m.get("edge_phase_spread", [np.nan, np.nan])
             sps = (f"{sp[0]:+.1%}..{sp[1]:+.1%}" if np.isfinite(sp[0]) else "        -")
             mc_ = m.get("mcnemar") or {}
-            ps = f"{mc_['p_value']:8.3f}" if mc_.get("p_value") == mc_.get("p_value")                 else "       -"
+            _pv = mc_.get("p_value")
+            # `x == x` was the NaN test, but it is also True for None==None, so a
+            # McNemar block that never ran (no common dates) passed the guard and
+            # KeyError'd on the subscript. Test for a real number instead.
+            ps = f"{_pv:8.3f}" if isinstance(_pv, float) and _pv == _pv else "       -"
             # P&L against BUY-AND-HOLD, not against a benchmark that never traded.
             print(f"    {name:18s} {m['n_independent']:6d} {hrs} {ed} {sps:>14s} "
                   f"{ps} {m['ic']:+7.3f} {m['strategy_sum_logret']:+8.3f} "

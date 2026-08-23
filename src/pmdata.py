@@ -581,15 +581,22 @@ def build(force: bool = False) -> dict:
     try:
         from src import goldfeatures, goldsens
         feats, _t = goldfeatures.load()
-        gap = goldsens.fair_value(feats, goldsens.DEFAULT_H)
-        if len(gap):
-            # Carry the actual span rather than letting the template assert a start
-            # year — the gap series begins wherever the walk-forward fit had enough
-            # training data, which moves when the feature history changes.
-            fv = {"gap_pct": round(float(gap.iloc[-1]), 1),
-                  "pctile": round(float((gap <= gap.iloc[-1]).mean() * 100)),
-                  "asof": str(gap.index[-1].date()),
-                  "since": str(gap.index[0].year)}
+        # Phase-averaged. Reading the last point of a single sampling published
+        # +15.2%/82nd percentile when the same statistic ranged 13.7-23.3% across
+        # the other 20 offsets; the mean is +18.5% and the 91st. `since` carries the
+        # actual span rather than letting the template assert a start year — the gap
+        # series begins wherever the walk-forward fit had enough training data.
+        fv = goldsens.fair_value_summary(feats, goldsens.DEFAULT_H)
+        if fv:
+            from src import reportkit
+            fv["asof_pretty"] = reportkit.pretty_date(fv["asof"])
+            # R2 of the same fit, so the gap is never published without the quality
+            # of the anchor it is measured against.
+            try:
+                _f = goldsens.fit(feats, _t, goldsens.DEFAULT_H)
+                fv["r2"] = round(float(_f["r2"]), 2) if _f else None
+            except Exception:
+                fv["r2"] = None
     except Exception:
         fv = {}
 

@@ -66,7 +66,8 @@
     <div class="fine">
       Synopsis of "{{ d.label }}" ({{ d.edition }} edition), published by {{ d.publisher }}{% if d.built %},
       prepared {{ d.built }}{% endif %}. All figures are the publisher's own, quoted with attribution;
-      full report at {{ d.url }}. Fair-use summary &mdash; &copy; the publisher.
+      full report at {{ d.url }}. Fair-use summary &mdash; &copy; the publisher.{% if d.citations %}
+      {{ d.citations | join('. ') }}.{% endif %}
     </div>
     {% include "_disclaimer.html" %}
     </div>

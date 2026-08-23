@@ -6,6 +6,10 @@
 <style>
   table { font-size: 8pt; }
   .cal td, .cal th { padding: 1.6mm 2mm; }
+  /* Keep a release's row whole, and keep the behaviour table off a page boundary:
+     the two window columns widened it enough to orphan a single row onto page 3. */
+  .cal tr { break-inside: avoid; }
+  .behav { break-inside: avoid; }
   .cal .day { color: #666; white-space: nowrap; }
   .cal .watched { font-weight: 700; color: #111; }
   .cal .ratio { color: var(--pos-tx); font-weight: 700; }
@@ -60,9 +64,9 @@
 
     <div class="kpi">
       <div class="box">
-        <div class="lbl">Explained by drivers</div>
+        <div class="lbl">Variance explained</div>
         <div class="val">{{ (r2 * 100) | round(0) | int }}%</div>
-        <div class="sub">of a typical one-month move</div>
+        <div class="sub">of one-month moves, by the drivers</div>
       </div>
       <div class="box">
         <div class="lbl">Unexplained band</div>
@@ -72,7 +76,8 @@
       <div class="box">
         <div class="lbl">Gold vs drivers, 12m</div>
         <div class="val">{{ fv_gap | pct(1) }}</div>
-        <div class="sub">{{ fv_pctile | round(0) | int }}th percentile of that gap</div>
+        <div class="sub">{{ fv_pctile | ord }} pctile{% if fv and fv.spread_pct %} ·
+          {{ fv.lo_pct | pct(1) }} to {{ fv.hi_pct | pct(1) }} across samplings{% endif %}</div>
       </div>
     </div>
 
@@ -91,10 +96,11 @@
           <td>{{ e.forecast or "—" }}</td>
           <td>{{ e.previous or "—" }}</td>
           <td>
-            {% if e.ratio and e.ratio > 1.15 %}
+            {% if e.ratio and e.ratio_sig %}
               <span class="ratio">{{ e.ratio | num(2) }}× an ordinary day</span>
+              <span class="flat">(AM&rarr;PM; {{ e.ratio_24h | num(2) }}× to next fix)</span>
             {% elif e.ratio %}
-              <span class="flat">no measurable premium</span>
+              <span class="flat">no premium that survives correction</span>
             {% else %}<span class="flat">—</span>{% endif %}
           </td>
         </tr>
@@ -110,16 +116,22 @@
     {% endif %}
 
     <h2>2 &nbsp;What the record actually shows</h2>
+    {% if not behaviour %}
+    <p class="histcap"><b>The release study was not available when this report was
+      built</b>, so this section is omitted. It is a data-availability note, not a
+      finding.</p>
+    {% else %}
     {% if charts.events %}<div class="chart"><img src="{{ charts.events }}"></div>{% endif %}
-    <table class="cal">
-      <thead><tr><th>Release</th><th>Last 10y</th>
+    <table class="cal behav">
+      <thead><tr><th>Release</th><th>AM&rarr;PM</th><th>To next fix</th>
         {% for b in behaviour[0].buckets %}<th>{{ b.label.replace('y ago','') }}</th>{% endfor %}
         <th>Verdict</th></tr></thead>
       <tbody>
       {% for e in behaviour %}
         <tr>
           <td class="{{ 'watched' if e.always_elevated else '' }}">{{ e.label }}</td>
-          <td class="{{ 'ratio' if e.always_elevated else 'flat' }}">{{ e.recent | num(2) }}×</td>
+          <td class="{{ 'ratio' if e.significant else 'flat' }}">{{ e.recent | num(2) }}×</td>
+          <td class="{{ 'ratio' if e.sig_24h else 'flat' }}">{{ e.recent_24h | num(2) }}×</td>
           {% for b in e.buckets %}
             <td class="{{ 'flat' if not b.ratio or b.ratio <= 1.0 else '' }}">
               {{ (b.ratio | num(2)) if b.ratio else "—" }}</td>
@@ -132,10 +144,15 @@
       </tbody>
     </table>
     <p class="histcap">
-      Gold's average absolute move in the release window (London AM to PM fix, which
-      brackets the 08:30 ET print) divided by the same figure on ordinary days matched
-      for year and weekday. Columns are <b>equal-width, non-overlapping five-year
-      periods counting back from today</b> — so the leftmost describes the market you
+      Gold's average absolute move divided by the same figure on ordinary days &mdash;
+      matched for year and weekday, and excluding days carrying any of the other
+      releases in this table &mdash; over the last ten years. <b>AM&rarr;PM</b> is the London
+      morning-to-afternoon fix window, which brackets the 08:30 ET print;
+      <b>to next fix</b> is the full 24 hours. The gap between the two columns is the
+      point: what premium exists is an intraday-window effect that has largely gone by
+      the next fix, and only the bold figures survive the multiple-comparison
+      correction. The dated columns are <b>equal-width, non-overlapping five-year
+      periods counting back from today</b>, measured on the AM&rarr;PM window — so the leftmost describes the market you
       are trading now, and each is an independent sample rather than a rolling window
       of largely the same data.
     </p>
@@ -144,6 +161,7 @@
       the period changes; one that wanders was never established, however convincing a
       single cut looks. {{ behaviour_summary | safe }}
     </p>
+    {% endif %}
 
     <h2>3 &nbsp;What each driver is worth</h2>
     {% if charts.sens %}<div class="chart"><img src="{{ charts.sens }}"></div>{% endif %}
@@ -183,14 +201,25 @@
     <h2>5 &nbsp;The month just gone</h2>
     <p class="histcap">
       Gold moved <b>{{ attrib.actual_pct | pct(2) }}</b> over the last
-      {{ attrib.window_days }} trading days. The drivers account for
-      <b>{{ attrib.explained_pct | pct(2) }}</b>; the remaining
-      <b>{{ attrib.unexplained_pct | pct(2) }}</b> is not explained by rates, the
-      dollar, credit or risk appetite. Over twelve months that unexplained component
-      now stands at <b>{{ fv_gap | pct(1) }}</b> — the portion of gold's run that the
-      measurable macro drivers do not account for, and the usual candidates for it are
-      official-sector buying and the debasement trade, neither of which this report
-      attempts to quantify.
+      {{ attrib.window_days }} trading days. The named drivers account for
+      <b>{{ attrib.explained_pct | pct(2) }}</b> and gold's unconditional drift over
+      the fitting sample for a further <b>{{ attrib.drift_pct | pct(2) }}</b>; the
+      remaining <b>{{ attrib.unexplained_pct | pct(2) }}</b> is not explained by
+      rates, the dollar, credit or risk appetite. Drift is shown separately because it
+      is not something any driver did — counting it as explanatory overstates what the
+      inputs account for.
+    </p>
+    <p class="histcap">
+      Measured over twelve months rather than one, the unexplained component stands at
+      <b>{{ fv_gap | pct(1) }}</b>{% if fv and fv.spread_pct %} (the average of
+      {{ fv.n_phases }} equally valid samplings, which span {{ fv.lo_pct | pct(1) }} to
+      {{ fv.hi_pct | pct(1) }}){% endif %} — the portion of gold's move that the
+      measurable macro drivers do not account for. <b>It is a residual, not a
+      valuation.</b> A wide gap is a statement about what these drivers explain, and
+      the research behind this report found no evidence that the gap predicts gold's
+      subsequent direction. Official-sector purchases and reserve-diversification
+      flows are frequently cited in connection with the residual; this report does not
+      measure them and takes no view on the attribution.
     </p>
 
     <div class="pagefoot">{% include "_disclaimer.html" %}</div>
@@ -217,7 +246,9 @@
       <div><b>Release window.</b> London AM to PM fix, which brackets the 08:30 ET
         release. The 24-hour fix-to-fix measure is weaker and is not shown.</div>
       <div><b>Baseline.</b> Ordinary days matched on year and weekday, so a Friday
-        release is compared with other Fridays from the same era.</div>
+        release is compared with other Fridays from the same era &mdash; and days
+        carrying another of the tested releases are removed, since leaving them in
+        inflates the denominator with days that are themselves eventful.</div>
       <div><b>Significance.</b> Stratified permutation test with Holm correction across
         event types. Absolute returns are not normal, so a t-test would not do.</div>
       <div><b>Sensitivities.</b> Ridge on same-period driver changes; the penalty keeps
@@ -233,10 +264,13 @@
     </div>
 
     <p class="histcap" style="margin-top:3mm">
-      Sources: LBMA (benchmark), FRED and ALFRED (rates, inflation, credit, activity —
-      with full revision history), Yahoo Finance (dollar index, equities), CFTC
-      (positioning), SPDR Gold Trust (ETF tonnage), IMF (official reserves), Shanghai
-      Gold Exchange (Asian premium), FairEconomy (calendar).
+      Sources <b>used in this report</b>: LBMA (benchmark), FRED and ALFRED (rates,
+      inflation, credit and the release calendar's revision history), Yahoo Finance
+      (dollar index, equity volatility), FairEconomy (forward schedule). CFTC
+      positioning, SPDR ETF tonnage, IMF official reserves and the Shanghai premium
+      are held in the same store but are <i>deliberately excluded</i> from every
+      figure printed here — see &ldquo;exogenous drivers only&rdquo; above — and were
+      previously credited in this line despite contributing to nothing in it.
       Built {{ stamp.built if stamp and stamp.built else asof }}.
     </p>
 

@@ -54,9 +54,13 @@ DEFAULT_TEXT = (
 # report work already looks — rather than in a comment near the fetcher.
 #
 # `publication_check()` is the gate to call before a source's numbers reach a PDF
-# or an email. Nothing calls it yet; report templates are not built. It exists now
-# so that when they are, the restriction is a failing check rather than something
-# somebody has to remember.
+# or an email. Called by pmrelreport.build_pdf(client_facing=True). The audit found
+# this registry had NO caller while the WGC/WPIC synopsis report was auto-sending,
+# which is exactly the failure it was written to prevent.
+#
+# Approval is Ben's call, not the code's: the per-source switch lives on the
+# Compliance page and persists to data/source_approvals.json. `client_ok` below is
+# the DEFAULT for a source nobody has ruled on, and it is False.
 #
 # Per source:
 #   internal_ok      analysis, modelling, dashboards — never leaves the building
@@ -84,7 +88,54 @@ SOURCE_RESTRICTIONS = {
             "feed, which is a different source under different terms."),
         "reviewed": "2026-08-22",
     },
+    "wpic": {
+        "label": "World Platinum Investment Council",
+        "internal_ok": True,
+        "client_ok": False,         # pending XP compliance — see note
+        "citation": "Source: World Platinum Investment Council, Platinum Quarterly",
+        "never_publish": (),
+        "note": (
+            "Registered during the audit because the WGC/WPIC synopsis report was "
+            "auto-sending with no rule on file, so publication_check() reported it as "
+            "unknown rather than waving it through. WPIC publishes Platinum Quarterly "
+            "free and its press terms are more permissive than WGC's, but nobody at XP "
+            "has actually read them against a redistributed broker PDF. Treat this "
+            "entry as 'not yet reviewed' rather than 'refused' — approve it on the "
+            "Compliance page once the terms have been checked."),
+        "reviewed": "",
+    },
 }
+
+# Ben's per-source approvals, set on the Compliance page. Kept out of SOURCE_RESTRICTIONS
+# so the licence NOTE (what the terms actually say) never gets overwritten by a toggle.
+APPROVALS_PATH = ROOT / "data" / "source_approvals.json"
+
+
+def approvals() -> dict:
+    try:
+        import json
+        return json.loads(APPROVALS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def set_approval(source: str, approved: bool, who: str = "") -> None:
+    import json
+    from datetime import date
+    d = approvals()
+    d[source.lower()] = {"client_ok": bool(approved), "by": who,
+                         "on": date.today().isoformat()}
+    APPROVALS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    APPROVALS_PATH.write_text(json.dumps(d, indent=2), encoding="utf-8")
+
+
+def is_client_ok(source: str) -> bool:
+    """Approved for client distribution? Ben's toggle wins over the code default."""
+    ov = approvals().get(source.lower())
+    if ov is not None:
+        return bool(ov.get("client_ok"))
+    rule = SOURCE_RESTRICTIONS.get(source.lower())
+    return bool(rule and rule.get("client_ok"))
 
 
 def publication_check(*sources: str) -> list:
@@ -100,7 +151,7 @@ def publication_check(*sources: str) -> list:
             out.append(f"{src}: no publication rule registered — check the licence "
                        f"before publishing")
             continue
-        if not rule.get("client_ok"):
+        if not is_client_ok(src):
             out.append(f"{rule['label']}: not approved for client-facing use "
                        f"({rule.get('note', '')[:80]}...)")
         for field in rule.get("never_publish", ()):
@@ -241,3 +292,44 @@ def render_page() -> None:
             "The report partial (`templates/_disclaimer.html`) does not match the stored "
             "text — unlock and press **Save** (or Revert) to regenerate it."
         )
+
+    render_source_approvals()
+
+
+def render_source_approvals() -> None:
+    """Per-source client-distribution approvals (called from render_page)."""
+    import streamlit as st
+
+    st.divider()
+    st.markdown("#### Third-party data — cleared for client distribution?")
+    st.caption(
+        "Some sources BASIS holds are licensed for internal analysis but not for "
+        "redistribution. A report that carries a source marked **No** here will refuse "
+        "to build a client copy and its scheduled email is skipped — the number stays "
+        "on the dashboard, it just does not leave the building. Approve a source once "
+        "its terms have actually been checked against a redistributed XP PDF."
+    )
+    ov = approvals()
+    for src, rule in SOURCE_RESTRICTIONS.items():
+        cur = is_client_ok(src)
+        c_lbl, c_tog = st.columns([0.78, 0.22], vertical_alignment="center")
+        with c_lbl:
+            st.markdown(f"**{rule['label']}**")
+            st.caption(rule.get("note", ""))
+            if rule.get("never_publish"):
+                st.caption("⛔ Never publishable under any approval: "
+                           + "; ".join(rule["never_publish"]))
+            stamp = ov.get(src)
+            if stamp:
+                st.caption(f"Set to **{'Yes' if stamp.get('client_ok') else 'No'}** "
+                           f"on {stamp.get('on', '?')}"
+                           + (f" by {stamp['by']}" if stamp.get("by") else ""))
+            elif rule.get("reviewed"):
+                st.caption(f"Licence reviewed {rule['reviewed']}; no override set.")
+            else:
+                st.caption("⚠️ Licence not yet reviewed.")
+        with c_tog:
+            new = st.toggle("Client-approved", value=cur, key=f"srcok_{src}")
+            if new != cur:
+                set_approval(src, new, who=st.session_state.get("auth_user", ""))
+                st.rerun()

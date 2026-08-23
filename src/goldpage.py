@@ -30,12 +30,14 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+from src import reportkit
 
 ROOT = Path(__file__).resolve().parents[1]
 STORE = ROOT / "data" / "gold_store"
@@ -55,8 +57,12 @@ def _load(name: str):
 def _stale_note(path: Path) -> str:
     if not path.exists():
         return "never built"
-    age = (pd.Timestamp.now() - pd.Timestamp(path.stat().st_mtime, unit="s")).days
-    return "built today" if age == 0 else f"built {age}d ago"
+    # pd.Timestamp(epoch, unit="s") is UTC; pd.Timestamp.now() is local. On this
+    # machine (UTC-5) the difference for a file written two hours ago was -3h,
+    # whose .days is -1, so the page read "built -1d ago".
+    built = datetime.fromtimestamp(path.stat().st_mtime)
+    age = (datetime.now() - built).days
+    return "built today" if age <= 0 else f"built {age}d ago"
 
 
 # ---------------------------------------------------------------------------
@@ -117,18 +123,42 @@ def _tab_drivers() -> None:
         st.info("No sensitivities yet — run `python src/goldsens.py`.")
         return
 
+    # F18/F31: say WHEN this was computed. The tabs read JSON on disk that nothing
+    # refreshed until the daily pull was wired up, so a reader had no way to tell a
+    # figure computed this morning from one left over from a hand-run weeks ago.
+    if s.get("asof"):
+        st.caption(f"Fit as of **{s['asof']}**"
+                   + (f" · rebuilt {s['built'][:16].replace('T', ' ')}"
+                      if s.get("built") else "")
+                   + " · refreshed by the daily pull.")
+
     a, b, c = st.columns(3)
-    a.metric("Explained by drivers", f"{s['r2_macro'] * 100:.0f}%",
-             help="Share of a typical one-month move attributable to the exogenous "
-                  "drivers. Adding ETF and positioning flows raises this, but they "
-                  "are co-movers — they rise because gold rallied as much as the "
-                  "reverse — so they are excluded.")
+    # R-squared is the share of VARIANCE explained, not of a move. The old wording
+    # invited reading 28% as "gold moves 28% with the drivers".
+    a.metric("Variance explained", f"{s['r2_macro'] * 100:.0f}%",
+             help="R-squared: the share of the VARIANCE of one-month gold moves that "
+                  "the exogenous drivers account for — not the share of any given "
+                  "move. Adding ETF and positioning flows raises it, but they are "
+                  "co-movers — they rise because gold rallied as much as the reverse "
+                  "— so they are excluded.")
     b.metric("Unexplained band", f"±{s['unexplained_sd_pct']:.1f}%",
              help="One standard deviation of the move the drivers do not explain. "
                   "Wider than most of the scenario effects below.")
     gap = s.get("fair_value_gap_pct")
+    fvs = s.get("fair_value") or {}
+    # delta_color="off": the arrow rendered green-up on a positive gap, which reads
+    # as bullish on a page whose stated rule is never to imply a directional view.
+    # This is a residual, not a signal.
     c.metric("Gold vs drivers, 12m", f"{gap:+.1f}%" if gap is not None else "—",
-             f"{s.get('fair_value_gap_pctile', 0):.0f}th pctile" if gap else "")
+             (f"{reportkit.ordinal(s.get('fair_value_gap_pctile') or 0)} pctile"
+              + (f" · spans {fvs['lo_pct']:+.1f}% to {fvs['hi_pct']:+.1f}%"
+                 if fvs.get("spread_pct") else "")) if gap is not None else "",
+             delta_color="off",
+             help="The part of gold's twelve-month move the drivers do NOT account "
+                  "for. It is a residual, not a valuation and not a signal — the "
+                  "research behind this page found no evidence that the gap predicts "
+                  "gold's subsequent direction. Averaged over every non-overlapping "
+                  "sampling; the span is how much it moves with that arbitrary choice.")
 
     st.markdown("##### What each driver is worth")
     d = pd.DataFrame(s["sensitivities"])
@@ -147,15 +177,28 @@ def _tab_drivers() -> None:
                "Anything left at zero is assumed unchanged, not set to an average.")
     cols = st.columns(3)
     moves, labels = {}, {r["feature"]: r for r in s["sensitivities"]}
-    presets = [("10y real yield", "real_yield_10y_chg_20d", -0.50, 0.50, 0.0, 0.05, "%.2fpp"),
-               ("Dollar (DXY)", "dxy_chg_20d", -0.05, 0.05, 0.0, 0.005, "%.1f%%"),
-               ("VIX (sd)", "vix_z_1y", -2.0, 2.0, 0.0, 0.25, "%.2f")]
-    for i, (lbl, feat, lo, hi, dflt, step, fmt) in enumerate(presets):
+    # (label, feature, lo, hi, default, step, format, to_native)
+    #
+    # `to_native` converts what the SLIDER shows into the units the FEATURE is
+    # measured in. dxy_chg_20d is a fractional 20-day change, so a 5% dollar move is
+    # 0.05 — and a slider running -0.05..0.05 formatted "%.1f%%" printed that as
+    # "0.1%". Every dollar scenario on this page was labelled 100x too small: the
+    # user dragged to what read as a tenth of a percent and priced a five-percent
+    # move. The slider now runs in percent and converts on the way in.
+    presets = [
+        ("10y real yield", "real_yield_10y_chg_20d", -0.50, 0.50, 0.0, 0.05, "%.2fpp", 1.0),
+        ("Dollar (DXY)",   "dxy_chg_20d",           -5.0,  5.0,  0.0, 0.25, "%.2f%%", 0.01),
+        ("VIX (sd)",       "vix_z_1y",              -2.0,  2.0,  0.0, 0.25, "%.2f",   1.0),
+    ]
+    native = {}
+    for i, (lbl, feat, lo, hi, dflt, step, fmt, conv) in enumerate(presets):
         if feat in labels:
-            moves[feat] = cols[i % 3].slider(lbl, lo, hi, dflt, step, format=fmt,
-                                             key=f"gold_sc_{feat}")
+            shown = cols[i % 3].slider(lbl, lo, hi, dflt, step, format=fmt,
+                                       key=f"gold_sc_{feat}")
+            moves[feat] = shown
+            native[feat] = shown * conv
     total = 0.0
-    for f, v in moves.items():
+    for f, v in native.items():
         row = labels.get(f)
         if row and row["gold_pct"]:
             per_unit_step = {"real_yield_10y_chg_20d": 0.10, "dxy_chg_20d": 0.01,
@@ -169,10 +212,12 @@ def _tab_drivers() -> None:
         st.markdown("##### The month just gone")
         st.write(
             f"Gold moved **{at['actual_pct']:+.2f}%** over the last "
-            f"{at['window_days']} trading days. The drivers account for "
-            f"**{at['explained_pct']:+.2f}%**; the remaining "
+            f"{at['window_days']} trading days. The named drivers account for "
+            f"**{at['explained_pct']:+.2f}%**, gold's unconditional drift for a further "
+            f"**{at.get('drift_pct', 0):+.2f}%**, and the remaining "
             f"**{at['unexplained_pct']:+.2f}%** is not explained by rates, the dollar, "
-            f"credit or risk appetite.")
+            f"credit or risk appetite. Drift is listed separately because it is not "
+            f"something a driver did.")
 
 
 # ---------------------------------------------------------------------------
@@ -185,18 +230,18 @@ def _tab_evidence() -> None:
     ev = _load("event_study.json")
     if ev:
         st.markdown("##### Release-day premium, by period")
-        blocks = ev.get("results", {}).get("am_to_pm_intraday") or {}
+        # Built by goldreport.event_behaviour() — the SAME function the client PDF
+        # uses. This tab had its own copy of the rule ("elevated in every period" if
+        # min > 1.0), and when the era baseline was corrected the two drifted apart:
+        # the page went on making a claim the report had already stopped making.
+        # There is one verdict rule in this codebase and it lives in goldreport.
+        from src import goldreport
         rows = []
-        for name, b in blocks.items():
-            fine = b.get("by_era_fine") or {}
-            row = {"Release": name.split(" (")[0]}
-            for k, v in fine.items():
-                row[k.replace("y ago", "")] = v.get("ratio")
-            vals = [v for v in row.values() if isinstance(v, float)]
-            row["Verdict"] = ("elevated in every period" if len(vals) >= 4
-                              and min(vals) > 1.0 else
-                              "too short to judge" if len(vals) < 4 else
-                              "no consistent premium")
+        for e in goldreport.event_behaviour():
+            row = {"Release": e["label"]}
+            for b in e["buckets"]:
+                row[b["label"].replace("y ago", "")] = b["ratio"]
+            row["Verdict"] = e["verdict"]
             rows.append(row)
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
         st.caption("Equal-width, non-overlapping five-year periods counting back from "
@@ -240,20 +285,49 @@ def _tab_evidence() -> None:
                 for nm, m in per.items():
                     if m.get("insufficient"):
                         continue
-                    rows.append({"Horizon": tgt.replace("fwd_ret_", ""), "Model": nm,
-                                 "Hit": m.get("hit_rate"),
-                                 "vs always-long": m.get("edge_vs_always_long"),
-                                 "vs buy & hold": m.get("excess_vs_buyhold")})
+                    tim = m.get("time_in_market")
+                    hit = m.get("hit_rate")
+                    # A row that never opened a position is not a strategy result. The
+                    # harness knew this — it prints "never entered the market" on the
+                    # CLI and logs a warning — but the page dropped both and rendered
+                    # the row as an ordinary competitor, with "nan%" where the hit rate
+                    # would be. Say it in the table instead.
+                    flat = (tim is not None and tim == 0)
+                    note = ("never entered the market" if flat else
+                            "no directional calls" if hit != hit else "")
+                    xs = m.get("excess_vs_buyhold")
+                    rows.append({
+                        "Horizon": tgt.replace("fwd_ret_", ""), "Model": nm,
+                        "Hit": hit,
+                        "In market": tim,
+                        "vs always-long": m.get("edge_vs_always_long"),
+                        # excess_vs_buyhold is a difference of CUMULATIVE LOG returns,
+                        # which the page printed as a bare 3-decimal number beside two
+                        # percentages. exp() of it is the ratio of terminal wealth, so
+                        # expm1() states it as the percentage it actually is.
+                        "vs buy & hold": (float(np.expm1(xs)) if xs is not None
+                                          and np.isfinite(xs) else None),
+                        "Note": note})
             if rows:
                 st.dataframe(pd.DataFrame(rows).style.format(
-                    {"Hit": "{:.1%}", "vs always-long": "{:+.1%}",
-                     "vs buy & hold": "{:+.3f}"}),
+                    {"Hit": "{:.1%}", "In market": "{:.0%}",
+                     "vs always-long": "{:+.1%}", "vs buy & hold": "{:+.1%}"},
+                    na_rep="—"),
                     hide_index=True, use_container_width=True)
                 st.caption("Walk-forward, development window only. The three-year "
                            "holdout has never been opened — there is no candidate "
-                           "worth spending it on.")
-        except Exception:
-            pass
+                           "worth spending it on. **vs buy & hold** is terminal wealth "
+                           "against holding the metal over the same dates; "
+                           "**In market** is the share of days holding a position.")
+                for w in dict.fromkeys(last.get("warnings") or []):
+                    st.caption(f"⚠️ {w}")
+        except Exception as e:
+            # Was `pass`. A malformed run record erased this whole section with no
+            # trace, so the page looked like a design that omits backtests rather
+            # than one whose backtest block just failed to read.
+            st.warning(f"Backtest results could not be read: {e}")
+            st.caption(f"Source: `{runs.relative_to(ROOT)}` — rerun "
+                       "`python src/goldbacktest.py --deep` to rebuild it.")
 
 
 # ---------------------------------------------------------------------------
@@ -285,8 +359,11 @@ def _tab_health() -> None:
                  use_container_width=True, height=300)
     st.caption("A series cannot drive a forecast over a window shorter than its own "
                "release cycle. Derived from cadence and publication lag, so it cannot "
-               "drift out of date — and it is what the model layer builds feature sets "
-               "from, so a quarterly feed cannot end up in a 5-day fit.")
+               "drift out of date. **This is a diagnostic, not a constraint the model "
+               "layer enforces** — the backtest fits the same 28-feature frame at "
+               "every horizon, so features built from monthly releases do sit in the "
+               "5-day fit and this table is how you see that. It is listed here as "
+               "something to read, not something already applied.")
 
 
 # ---------------------------------------------------------------------------

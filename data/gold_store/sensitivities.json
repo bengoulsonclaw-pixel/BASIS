@@ -52,7 +52,8 @@
   "attribution": {
     "window_days": 21,
     "actual_pct": 13.280921654429045,
-    "explained_pct": 3.4852101831202758,
+    "explained_pct": 2.6118485441459853,
+    "drift_pct": 0.8511313765081913,
     "unexplained_pct": 9.465808161354607,
     "parts_pct": {
       "10y real yield": 0.19894195407751392,
@@ -61,9 +62,25 @@
       "Dollar (DXY)": 2.103776846344084,
       "Baa credit spread": 0.05283767135016867,
       "VIX (vs 1y range)": -0.22339278139187935
+    },
+    "log_parts": {
+      "drivers": 0.0257832229673557,
+      "drift": 0.008475296757812275,
+      "unexplained": 0.09044206027275534,
+      "actual": 0.12470057999792332
     }
   },
-  "fair_value_gap_pct": 15.192743840722528,
-  "fair_value_gap_pctile": 81.640625,
-  "built": "2026-08-23T08:26:40"
+  "fair_value_gap_pct": 18.5,
+  "fair_value_gap_pctile": 91,
+  "fair_value": {
+    "gap_pct": 18.5,
+    "lo_pct": 13.7,
+    "hi_pct": 23.3,
+    "spread_pct": 9.7,
+    "n_phases": 21,
+    "pctile": 91,
+    "asof": "2026-07-27",
+    "since": "2006"
+  },
+  "built": "2026-08-23T13:47:27"
 }

@@ -60,7 +60,8 @@ def _defaults() -> dict:
             "weekreview": [desk[0]],
             # proofread flow: the monitor goes to the desk only; Ben forwards
             # the checked copy to clients himself.
-            "precious_metals": [desk[0]], "pm_releases": [desk[0]]}
+            "precious_metals": [desk[0]], "pm_releases": [desk[0]],
+            "gold_week": [desk[0]]}
 
 
 def load_all() -> dict:

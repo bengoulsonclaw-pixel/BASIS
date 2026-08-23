@@ -199,10 +199,24 @@ def put(series_id: str, obs, *, source: str, is_synthetic: bool = False,
             return 0
         # ...and drop restatements that restate nothing: same reference date, later
         # publication, identical value.
-        latest = (have.sort_values("published_at")
-                      .groupby("reference_date")["value"].last())
-        keep = [not (r in latest.index and np.isclose(v, latest[r], rtol=0, atol=1e-12))
-                for r, v in zip(new["reference_date"], new["value"])]
+        #
+        # The in-force value has to be tracked THROUGH the incoming batch, not read
+        # once from what was already stored. ALFRED hands over a whole vintage history
+        # at a time, so a batch routinely contains several publications for the same
+        # reference date; comparing every one of them against the pre-batch value
+        # meant a genuine revert (A published, revised to B, restated back to A) had
+        # its final A dropped, because A still matched the stale in-force reading.
+        # The store then claimed B was current when the agency had gone back to A.
+        latest = dict((have.sort_values("published_at")
+                           .groupby("reference_date")["value"].last()).items())
+        new = new.sort_values("published_at")
+        keep = []
+        for r, v in zip(new["reference_date"], new["value"]):
+            prev = latest.get(r)
+            dup = prev is not None and np.isclose(v, prev, rtol=0, atol=1e-12)
+            keep.append(not dup)
+            if not dup:
+                latest[r] = v          # this row is now the value in force
         new = new[keep]
         if new.empty:
             return 0
@@ -302,6 +316,21 @@ def daily_panel(series_ids, start=None, end=None) -> pd.DataFrame:
     dates = pd.bdate_range(start, end)
     cols = {sid: as_known_series(sid, dates) for sid in series_ids}
     return pd.DataFrame(cols, index=dates)
+
+
+def last_reference(series_id: str, as_of=None):
+    """Newest reference_date actually observed for this series (None if absent).
+
+    daily_panel() forward-fills to today, which is right for a FEATURE (you hold the
+    last known value) and wrong for a TARGET: a stalled price feed makes every
+    forward return in the ffilled tail exactly zero, which is not missing data, it is
+    a fabricated claim that the price did not move. Callers building forward-looking
+    quantities use this to cut the panel back to observed history."""
+    df = _read_obs()
+    df = df[df["series_id"] == series_id]
+    if as_of is not None:
+        df = df[df["published_at"] <= pd.Timestamp(as_of)]
+    return None if df.empty else df["reference_date"].max()
 
 
 def first_publication(series_id: str) -> pd.Series:
@@ -453,12 +482,21 @@ def coverage() -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
     m = meta()
+    now = pd.Timestamp.now()
+    # The LAGGED tier stamps published_at as reference_date + lag, so a fresh monthly
+    # observation legitimately carries a FUTURE publication date — it is on file but
+    # not yet knowable. stale_flags() already accounts for that; this table did not,
+    # and showed those stamps in `last_published` as though they had been released.
+    pub = df[df["published_at"] <= now]
     g = df.groupby("series_id")
+    gp = pub.groupby("series_id")
     out = pd.DataFrame({
         "rows": g.size(),
         "first": g["reference_date"].min().dt.date,
         "last": g["reference_date"].max().dt.date,
-        "last_published": g["published_at"].max().dt.date,
+        "last_published": gp["published_at"].max().dt.date,
+        # Observations held but not yet knowable at `now`.
+        "pending": g["published_at"].apply(lambda s: int((s > now).sum())),
         "revised_points": g["revision"].apply(lambda s: int((s > 0).sum())),
         "synthetic": g["is_synthetic"].any(),
     })

@@ -74,11 +74,22 @@ def main():
             print(f"{pub}: {info['edition']} already emailed — skipping.")
             continue
 
+        # Source licence gate. Refusing here, BEFORE the build, means an unapproved
+        # source costs a log line rather than a crash mail — and the marker is left
+        # untouched, so the edition sends itself the moment Ben approves the source
+        # on the Compliance page.
+        blockers = pmrelreport.licence_blockers(pub)
+        if blockers and not args.dry_run:
+            print(f"{pub}: NOT SENT — {'; '.join(blockers)}")
+            print(f"{pub}: approve this source on the BASIS Compliance page "
+                  f"(SYSTEM -> 🛡️ Compliance -> Third-party data) to release it.")
+            continue
+
         print(f"{pub}: building the {info['edition']} synopsis…")
         d = pmrel.build(pub, info)
         ed_tag = d["edition"].replace(" ", "_")
         out_pdf = REL_DIR / PDF_NAME[pub].format(ed=ed_tag)
-        pmrelreport.build_pdf(d, out_pdf)
+        pmrelreport.build_pdf(d, out_pdf, client_facing=not args.dry_run)
 
         from cot_scheduled_email import send_report_email
         intro = (f"<p>Please find a one-page synopsis of <b>{d['label']}</b> "

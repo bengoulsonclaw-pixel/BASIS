@@ -84,3 +84,12 @@ data/econ_calendar_cache.json
 data/snapshot/.eq_pull.lock
 data/snapshot/.pull_driver.lock
 data/signal_cache/ledger_guard_*.json
+
+# Gold-engine scratch: debug rasterisations and pickled intermediates written
+# during development. 1.7 MB of these reached the repo (and therefore the VPS)
+# before the audit caught them.
+data/gold_store/_*
+tmp_*.pkl
+
+# Generated report PDFs (rebuilt on demand / by the scheduled sender)
+reports/*.pdf
