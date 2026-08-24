@@ -5127,6 +5127,25 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
                     on_click=_hs_go, args=(it["page"],))
 
 
+def _hs_flow_section(flow: list, pal: dict) -> None:
+    """Unusual option activity — its OWN section, deliberately outside the ranked sheet
+    (Ben, 2026-08-23). Every other Hot Sheet row is a dislocation: something is out of
+    line and there's a trade in it, ranked by how extreme. These rows claim nothing —
+    a lot of contracts changed hands in one product yesterday, go and look. Mixing the
+    two would put an activity number on the same heat scale as a signal, which it isn't."""
+    if not flow:
+        return
+    st.markdown(f'<div style="border-top:1px solid {pal["border"]};margin:1.1rem 0 .55rem"></div>',
+                unsafe_allow_html=True)
+    st.markdown("##### 📣 Unusual option activity")
+    st.caption("Products that traded far more puts or calls in the last session than they "
+               "normally do, measured against each contract's own recent daily volume. "
+               "This is an **activity** flag, not a signal — it carries no direction and no "
+               "view, it just marks where the flow went.")
+    for i, it in enumerate(flow):
+        _hs_row(it, f"flow{i}", pal)
+
+
 def _hs_refresh_button(host) -> None:
     """↻ — re-run every provider now and re-persist the sheet. Ordinary opens read
     the morning stamp's file; this is for intraday freshness after an ad-hoc pull."""
@@ -5186,10 +5205,17 @@ def render_hotsheet(book: str = "ficc") -> None:
                     f'color:{pal["text_dim"]};margin-bottom:.6rem">⚠️ {_cav}</div>',
                     unsafe_allow_html=True)
 
+    # Unusual option activity is NOT part of the ranked sheet — it gets its own section
+    # below (Ben, 2026-08-23). Split it out before the strip so it can neither take a
+    # strip slot nor be buried among the "rest of the sheet" expanders.
+    flow_items = [it for it in items if it["tag"] == "FLOW"]
+    items = [it for it in items if it["tag"] != "FLOW"]
+
     if not items:
         st.info(f"No {_desk} module is clearing its bar right now — either genuinely quiet "
                 "markets, or the morning snapshot hasn't run yet (see the provider roll-call "
                 "below).")
+        _hs_flow_section(flow_items, pal)      # activity can still be worth showing
         _hs_refresh_button(st)
         _hs_footer(report)
         return
@@ -5218,6 +5244,8 @@ def render_hotsheet(book: str = "ficc") -> None:
             break
     for i, it in enumerate(top):
         _hs_row(it, f"top{i}", pal)
+
+    _hs_flow_section(flow_items, pal)
 
     _top_ids = {id(it) for it in top}
     rest = [it for it in items if id(it) not in _top_ids]

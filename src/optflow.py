@@ -12,10 +12,16 @@ look. So:
 
   • the prose is pure OBSERVATION — no direction, no rich/cheap, no buy/sell (it flows
     into client PDFs, see [[client-commentary-not-advice]]);
+  • they render in their OWN section on the page (Ben, 2026-08-23: "not within the
+    current section, in a separate section as we have spoken about"), below the ranked
+    strip — see `_hs_flow_section` in app.py;
   • heat is capped at FLOW_HEAT_CEIL so a flow row can never push a dislocation row out
     of the sheet's top 10 (measured: the tightest observed day needs heat > 99.2 to
     enter the strip, and 27-29 FICC rows already sit above 45 every day);
   • at most MAX_ROWS a day, one per product.
+
+The volumes are the PREVIOUS session's — the morning pull settles the prior day — so the
+row names its session rather than saying "today".
 
 WHY THE GATE IS A PERCENTILE AND THE DISPLAY IS A MULTIPLE (measured 2026-08-23 over
 400 sessions x 89 tickers). "N times normal" is what a broker wants to read, but it
@@ -68,7 +74,11 @@ MIN_PRINTS_60 = 45       # of the last 60 sessions — a mechanical liveness tes
 MAX_GAP = 3              # sessions since the product's previous print
 PARTIAL_FRAC = 0.25      # a session whose panel volume is below this share of its
                          # trailing median is a partial morning capture, not a session
-MAX_ROWS = 2             # hard per-day cap
+MAX_ROWS = 5             # hard per-day cap. Was 2 while these rows shared the ranked
+                         # sheet; Ben moved them to their OWN section 2026-08-23, so they
+                         # no longer compete for strip slots and the section can carry a
+                         # fuller list (5 = the engine's PROVIDER_CAP, and the measured
+                         # busiest session produced 5 candidates)
 
 # ── heat: bounded so a flow row never displaces a dislocation row ───────────────
 FLOW_HEAT_CEIL = 45.0    # 3x -> 16.5, 5x -> 24.2, 10x -> 34.6, 20x+ -> 45.0
@@ -163,7 +173,7 @@ def _score_side(s: pd.Series, day: pd.Timestamp) -> dict | None:
     if pctl < MIN_PCTL:
         return None
     return {"vol": vol_now, "base": base_now, "ratio": ratio, "pctl": pctl,
-            "spark": s.iloc[-SPARK_N:].tolist()}
+            "day": day, "spark": s.iloc[-SPARK_N:].tolist()}
 
 
 def candidates(day: pd.Timestamp | None = None) -> list[dict]:
@@ -221,7 +231,9 @@ def radar_items() -> list:
                       f"contracts — **{c['ratio']:.1f}x** its normal daily {c['side']} "
                       f"volume ({ordinal(int(round(c['pctl'])))} percentile of the year)."),
                 heat=heat, metric=f"{c['ratio']:.1f}x normal",
-                sub=f"vs {c['base']:,.0f}/day, 60-session median",
+                # the session is named because this is LAST session's traded volume —
+                # the morning pull settles the prior day, so "today" would be wrong
+                sub=f"{c['day']:%a %d %b} · vs {c['base']:,.0f}/day, 60-session median",
                 value=float(c["vol"]), ticker=c["ticker"],
                 page="Put/Call Ratios", book="ficc", spark=c["spark"]))
         return out
