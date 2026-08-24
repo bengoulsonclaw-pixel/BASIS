@@ -1,5 +1,7 @@
 {
   "gold_series": "LBMA_GOLD_PM_USD",
+  "metal_series": "LBMA_GOLD_PM_USD",
+  "am_series": "LBMA_GOLD_AM_USD",
   "sample": "1990-01-03 to 2026-08-21",
   "n_trading_days": 9188,
   "draws": 20000,
@@ -1635,5 +1637,5 @@
     "next_day_abs_pct": 2.9324,
     "share_up_next_day": 0.6
   },
-  "built": "2026-08-23T14:17:27"
+  "built": "2026-08-24T07:07:05"
 }

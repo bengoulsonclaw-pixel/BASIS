@@ -1,55 +1,55 @@
 {
- "generated_at": "21 Aug 2026 · 09:01 ET",
- "synopsis": "Risk appetite is firming into the weekend, with the story led by a weaker dollar and a roaring precious-metals bid. The US Treasury's plan to buy back longer-dated bonds has stabilised yields, knocked the greenback lower across the board, and sent hard assets flying: gold +1.8% at 4,654, silver +2.7%, platinum +3%, and copper +2.2% as the softer dollar and firm risk tone pull the industrial complex along.",
- "commentary": "Risk appetite is firming into the weekend, with the story led by a weaker dollar and a roaring precious-metals bid. The US Treasury's plan to buy back longer-dated bonds has stabilised yields, knocked the greenback lower across the board, and sent hard assets flying: gold +1.8% at 4,654, silver +2.7%, platinum +3%, and copper +2.2% as the softer dollar and firm risk tone pull the industrial complex along. Bitcoin is on track for its best week in over three years, equity-index futures are higher with the Nasdaq 100 (+0.8%) set to snap a five-day slide, and AI-sector optimism got a fresh boost from Samsung's plan to return up to $80bn to shareholders.\n\nThe macro tension underneath is unresolved: buybacks cap the long end tactically, but structurally higher term premium — governments and AI hyperscalers competing for capital amid sticky inflation risk — argues against chasing duration, and Treasuries trimmed early gains. Fed Chair Warsh at Jackson Hole next week is the asymmetric risk for rates futures, according to reports; meanwhile traders are bracing for a more hawkish ECB and UK August PMIs beat handily, supporting sterling and capping Gilt upside. Crude is the outlier — Brent -0.4% near $93 — though Dec-Dec spreads at their strongest since mid-May signal a tight physical market, with Washington's plan to squeeze Iran's economy a lingering supply risk.\n\nHenry Hub and TTF gas are both up ~1.6% on German storage shortfalls. Ags are soft across wheat and the tropicals; hogs fell 1.6% on ground-beef tariff relief. Watch Jackson Hole and Nvidia's results as the next catalysts.",
+ "generated_at": "24 Aug 2026 · 08:01 ET",
+ "synopsis": "Markets open the week risk-off ahead of a stacked macro calendar: Nasdaq futures are down 0.6% with tech leading global equities lower — an Alibaba $10.2bn share placement to fund AI capex added to jitters around the AI trade — as traders brace for PCE inflation data, Nvidia earnings and Fed Chair Kevin Warsh's Jackson Hole debut, where the stakes are elevated by simmering bond-market anxiety over debt supply and…",
+ "commentary": "Markets open the week risk-off ahead of a stacked macro calendar: Nasdaq futures are down 0.6% with tech leading global equities lower — an Alibaba $10.2bn share placement to fund AI capex added to jitters around the AI trade — as traders brace for PCE inflation data, Nvidia earnings and Fed Chair Kevin Warsh's Jackson Hole debut, where the stakes are elevated by simmering bond-market anxiety over debt supply and term premium. That anxiety has the dollar pinned near multi-month lows, and the overnight oil dip is offering relief to Treasuries, with the long bond and ultras bid while the front end sits still.\n\nEnergy is the day's talking point, and the direction is counterintuitive: despite Iran threatening 46 ships in a Strait of Hormuz transit crackdown, Brent is off 1.4% to $93 and WTI down 1.9%, with products hit harder still, as reports show the UAE, Iraq, Kuwait and now Saudi Arabia keeping barrels flowing across the waterway even as the war drags on — the supply-disruption premium is deflating. Watch Treasury Secretary Bessent's Iran press conference today for the next catalyst. European TTF gas bucked the move, up 2.5%, with carbon following.\n\nElsewhere, grains are firm — corn up 2.7%, wheat 1.9% — while arabica coffee extended its record run on the US-Colombia tariff spat, and sugar and cocoa gave back ground. Iron ore's 2.3% pop tracks China's $119bn policy-financing tool moving to project applications. CAD is the FX laggard, off 0.6%, as Ottawa signals little chance of trade talks resuming before the US midterms. Into Warsh and PCE, expect curve steepeners and the dollar to stay the pressure points.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "*TRUMP ALLOWS TARIFF RELIEF FOR SOME GROUND BEEF IMPORTS",
-   "time": "",
-   "tag": ""
+   "title": "Treasury's Bessent to Detail US Plan to Economically Isolate Iran",
+   "time": "07:34 ET",
+   "tag": "Geopolitics"
   },
   {
-   "source": "BBC News",
-   "title": "Panama Canal to cut number of ships passing through due to El Niño",
-   "time": "",
-   "tag": ""
+   "source": "FT",
+   "title": "Iran threatens 46 ships in Strait of Hormuz transit crackdown",
+   "time": "07:14 ET",
+   "tag": "Geopolitics"
   },
   {
-   "source": "NPR",
-   "title": "Investors sell stocks and bonds as government efforts fail to soothe market",
-   "time": "",
-   "tag": ""
+   "source": "Bloomberg",
+   "title": "Hormuz Oil Flows Are Going Strong as War Drags On",
+   "time": "07:56 ET",
+   "tag": "Energy"
   },
   {
-   "source": "NPR",
-   "title": "The bond market is signaling trouble ahead. This is why you should pay attention",
-   "time": "",
-   "tag": ""
+   "source": "Al Jazeera",
+   "title": "Ukraine's offensive against Russia causes petrol panic across Central Asia",
+   "time": "06:11 ET",
+   "tag": "Energy"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek",
-   "time": "",
-   "tag": ""
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
-   "time": "",
-   "tag": ""
-  },
-  {
-   "source": "Wall Street Journal",
+   "source": "WSJ",
    "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "",
-   "tag": ""
+   "time": "09:05 ET",
+   "tag": "Energy"
   },
   {
-   "source": "Financial Times",
-   "title": "Japanese inflation rises as central bank weighs rate increase",
-   "time": "",
-   "tag": ""
+   "source": "WSJ",
+   "title": "Comex Gold, Silver Settle Lower",
+   "time": "14:01 ET",
+   "tag": "Metals"
+  },
+  {
+   "source": "WSJ",
+   "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
+   "time": "12:20 ET",
+   "tag": "Agriculture"
+  },
+  {
+   "source": "NPR",
+   "title": "As Canada readies retaliatory tariffs, Mark Carney says his nation is 'at war' with U.S.",
+   "time": "00:36 ET",
+   "tag": "Geopolitics"
   }
  ]
 }

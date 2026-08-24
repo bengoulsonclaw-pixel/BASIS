@@ -13034,6 +13034,13 @@ def _seas_spread_screener(mode: str):
     return seasmon.spread_screener_cached()      # daily disk store, ms on open
 
 
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_open_windows(mode: str):
+    """Whole-book open/upcoming windows — the SEAS radar's source list (JSON scan
+    cache per data day + ISO week, so this is normally a disk read)."""
+    return seasmon.open_windows()
+
+
 def _seas_fmt(unit: str) -> str:
     """Signed number format for a seasonality unit — bp whole, % one decimal."""
     return "{:+,.0f}" if unit == "bp" else "{:+,.1f}"
@@ -13125,6 +13132,68 @@ def render_seasonality() -> None:
         f"{seasmon.HIT_STRONG:.0%} agreement or better; the centre bar pictures the same "
         "hit rate. Fixed income is the change in the benchmark yield / STIR rate — for a "
         "bond future, a ↑ month means yields typically rose (futures fell).")
+
+    # ---- seasonal windows board: the Hot Sheet's SEAS radar, in full ---------
+    st.divider()
+    with st.spinner("Scanning the book's seasonal windows… (first open of the day "
+                    "pays the scan; the morning pull normally has it cached)"):
+        wb = _seas_open_windows(MODE)
+    if wb is not None and not wb.empty:
+        n_open = int((wb["status"] == "open").sum())
+        brand.panel_header("Seasonal windows — open now & opening soon",
+                           right=f"whole book · {n_open} open · hit ≥ {seasmon.HIT_STRONG:.0%}")
+        wc0, wc1 = st.columns([1.6, 2.4])
+        w_show = wc0.radio("Show", ["Entering now & soon", "Everything open or upcoming"],
+                           horizontal=True, key="seas_wb_show", label_visibility="collapsed",
+                           help="Entering = windows in their first ~3 weeks or starting within "
+                                "the next fortnight (the Hot Sheet's framing). Everything = "
+                                "every window currently running or starting within a month.")
+        w_hit = wc1.radio("Agreement", ["≥ 80% of years", f"All (≥ {seasmon.HIT_STRONG:.0%})",
+                                        "Perfect record"],
+                          horizontal=True, key="seas_wb_hit", label_visibility="collapsed")
+        if w_show == "Entering now & soon":
+            wb = wb[((wb["status"] == "open") & (wb["into"] <= 3)) |
+                    ((wb["status"] == "upcoming") & (wb["ahead"] <= 2))]
+        if w_hit == "≥ 80% of years":
+            wb = wb[wb["hit"] >= 0.80]
+        elif w_hit == "Perfect record":
+            wb = wb[wb["hit"] >= 0.999]
+        if wb.empty:
+            st.caption("No window clears these filters right now — widen either control.")
+        w_rows = []
+        for _, r in wb.iterrows():
+            w_rows.append({
+                "st": (f"open · wk {int(r['into'])} of {int(r['weeks'])}"
+                       if r["status"] == "open" else
+                       ("opens next week" if int(r["ahead"]) == 1
+                        else f"opens in {int(r['ahead'])}w")),
+                "name": r["name"], "win": r["label"],
+                "dir": "↑ higher" if r["dir"] == "Higher" else "↓ lower",
+                "hit": f"{int(r['wins'])}/{int(r['n'])}",
+                "med": float(r["med"]), "worst": float(r["worst"]), "unit": r["unit"],
+            })
+        brand.terminal_table(w_rows, [
+            {"key": "st", "label": "Status"},
+            {"key": "name", "label": "Product"},
+            {"key": "win", "label": "Window"},
+            {"key": "dir", "label": "Direction"},
+            {"key": "hit", "label": "Years", "align": "right"},
+            {"key": "med", "label": "Med", "color": True, "fmt": "{:+,.1f}"},
+            {"key": "worst", "label": "Worst", "align": "right", "fmt": "{:+,.1f}"},
+            {"key": "unit", "label": "Unit"},
+        ])
+        st.caption(
+            "**This is the list the Hot Sheet's SEAS stories come from** — calendar windows "
+            "across the **whole book** (deliberately ignoring the sector filter above, so a "
+            "Hot Sheet story always has its row here). A *window* is a 4–16-week calendar "
+            f"stretch this product moved one way in ≥ {seasmon.HIT_STRONG:.0%} of the stored "
+            "years (≥ 5 complete years; overlapping echoes collapsed to the strongest — the "
+            "same finder that fills the per-product tables under the detail below). "
+            "**Med / Worst** = the median and most adverse single-year move over the window, "
+            "in the product's own unit (% of price, bp of yield for FI). The left control "
+            "narrows to windows just entering (the Hot Sheet's framing) or widens to every "
+            "window running; the right one sets the agreement bar. Windows found by "
+            "searching a decade of history are descriptive, not a signal.")
 
     # ---- product detail -----------------------------------------------------
     st.divider()
