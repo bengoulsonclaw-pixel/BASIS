@@ -212,6 +212,31 @@ def candidates(day: pd.Timestamp | None = None) -> list[dict]:
     return out
 
 
+EXPORT_FILE = ROOT / "data" / "signals" / "optflow.json"
+
+
+def export_today() -> int:
+    """Write the day's unusual activity for OTHER report pipelines (the Morning Coffee
+    PDF prints it on page 1). Same shape as the Hot Sheet export: written by the morning
+    compute, read as a plain file by anything downstream. Returns the row count."""
+    import json
+    from src.universe import name, asset
+
+    rows, day = [], None
+    for c in candidates()[:MAX_ROWS]:
+        day = c["day"]
+        rows.append({"market": name(c["ticker"]), "ticker": c["ticker"],
+                     "asset": asset(c["ticker"]), "side": c["side"],
+                     "vol": int(round(c["vol"])), "base": int(round(c["base"])),
+                     "ratio": round(c["ratio"], 1), "pctl": int(round(c["pctl"]))})
+    EXPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    EXPORT_FILE.write_text(json.dumps(
+        {"date": (day.date().isoformat() if day is not None else ""),
+         "label": (f"{day:%a %d %b %Y}" if day is not None else ""),
+         "rows": rows}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return len(rows)
+
+
 def radar_items() -> list:
     """Hot Sheet provider — the day's unusual option activity. Cache-only; returns []
     rather than raising on any missing or malformed store."""

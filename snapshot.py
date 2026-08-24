@@ -600,6 +600,15 @@ def _compute_phase(include_equities: bool = False) -> dict:
     except Exception as e:
         print(f"  (Desk calendar export skipped: {e})")
 
+    # Unusual option activity — the day's put/call volume outliers, for the Morning
+    # Coffee PDF's page 1 (data/signals/optflow.json). Pure disk read of the put/call
+    # stores the pull already wrote.
+    try:
+        from src import optflow
+        print(f"  Option flow export: {optflow.export_today()} row(s)")
+    except Exception as e:
+        print(f"  (Option flow export skipped: {e})")
+
     # Manifest from the ON-DISK snapshot (the fetch phase's files) — works whether the
     # compute phase runs seconds or hours after the fetch. `created` = the pull moment
     # (live.parquet's write time), not when the math happened to run.

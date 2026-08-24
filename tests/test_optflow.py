@@ -190,6 +190,36 @@ def test_prose_is_client_safe():
     assert "**" in txt
 
 
+def test_export_shape_for_downstream_reports(tmp_path, monkeypatch):
+    """The Morning Coffee PDF reads this file, so its shape is a contract: a label it can
+    print, an ISO date it can re-format into Portuguese, and rows with the fields the
+    table renders."""
+    import json
+    s = _series(); s.iloc[-1] = s.iloc[-61:-1].median() * 9
+    _stores(tmp_path, monkeypatch, put=s)
+    monkeypatch.setattr(optflow, "EXPORT_FILE", tmp_path / "optflow.json")
+    n = optflow.export_today()
+    assert n >= 1
+    d = json.loads((tmp_path / "optflow.json").read_text(encoding="utf-8"))
+    assert d["date"] and d["label"]
+    assert len(d["date"]) == 10 and d["date"][4] == "-"        # ISO, for the PT re-format
+    for r in d["rows"]:
+        assert {"market", "side", "vol", "base", "ratio", "pctl"} <= set(r)
+        assert r["side"] in ("put", "call") and r["ratio"] >= optflow.MIN_RATIO
+
+
+def test_export_is_empty_not_broken_on_a_quiet_day(tmp_path, monkeypatch):
+    """Most days nothing qualifies. The export must still be a valid file with zero rows
+    — the report falls back to its movers table on that signal."""
+    import json
+    s = _series()                                              # no spike at all
+    _stores(tmp_path, monkeypatch, put=s)
+    monkeypatch.setattr(optflow, "EXPORT_FILE", tmp_path / "optflow.json")
+    assert optflow.export_today() == 0
+    d = json.loads((tmp_path / "optflow.json").read_text(encoding="utf-8"))
+    assert d["rows"] == []
+
+
 def test_provider_never_raises(tmp_path, monkeypatch):
     """A provider that raises is isolated by the engine, but one that drops off the
     sheet silently is a bug — an empty store returns [], not an exception."""
