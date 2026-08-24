@@ -13060,10 +13060,22 @@ def _seas_window_years(ticker: str, start: int, weeks: int, mode: str):
         seasmon.date_check(ticker, start, weeks)
 
 
-def _render_window_detail(ticker: str, row, unit: str) -> None:
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_window_weeks(ticker: str, year: int, start: int, weeks: int, mode: str):
+    return seasmon.window_weeks(ticker, year, start, weeks)
+
+
+def _seas_lvl_fmt(v: float) -> str:
+    """Adaptive level format: 41,653 / 96.04 / 1.1042 — indices to FX alike."""
+    a = abs(float(v))
+    return f"{v:,.0f}" if a >= 1000 else (f"{v:,.2f}" if a >= 10 else f"{v:,.4f}")
+
+
+def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
     """The drill-down behind any windows-table row: every stored year's move over
     the window, scored on the week span AND the fixed dates, as a two-row table
-    plus grouped bars — the streak itself, one bar per year per basis."""
+    plus grouped bars — the streak itself, one bar per year per basis — then a
+    year picker that unpacks one year into its Friday-by-Friday walk."""
     import altair as alt
 
     with st.spinner("Scoring the window year by year…"):
@@ -13112,6 +13124,30 @@ def _render_window_detail(ticker: str, row, unit: str) -> None:
         "SEAG-style read anyone can reproduce on a terminal; blue = the finder's weekly "
         "alignment. Years where the two bars disagree in sign are the drift-fragile ones — "
         "the window's edges, not its middle, decided them.")
+
+    # one year, Friday by Friday — the addends behind that year's streak entry
+    yr_opts = sorted((int(y) for y in wy.index), reverse=True)
+    yc0, yc1 = st.columns([1.0, 3.0])
+    yr_sel = yc0.selectbox("Year", yr_opts,
+                           key=f"seas_wdyr_{ns}_{ticker}_{int(row['start'])}_{int(row['weeks'])}")
+    wkt = _seas_window_weeks(ticker, int(yr_sel), int(row["start"]), int(row["weeks"]), MODE)
+    if wkt is None or wkt.empty:
+        yc1.caption("No weekly data inside this window for that year.")
+        return
+    lvl_hdr = "Yield %" if seasmon.unit_of(ticker) == "bp" else "Level"
+    brand.terminal_table(
+        [{"fri": d.strftime("%d %b %y").lstrip("0"), "lvl": _seas_lvl_fmt(lv),
+          "mv": float(m)} for d, lv, m in zip(wkt["date"], wkt["level"], wkt["move"])],
+        [{"key": "fri", "label": "Friday"},
+         {"key": "lvl", "label": lvl_hdr, "align": "right"},
+         {"key": "mv", "label": f"Weekly move ({unit})", "color": True, "fmt": fmt}])
+    st.caption(
+        f"{yr_sel}'s walk through the window, Friday close to Friday close — these "
+        f"{len(wkt)} weekly moves sum to **{fmt.format(wkt['move'].sum())}{unit}**, the "
+        f"{yr_sel} bar above (week basis). Levels are the actual front settles "
+        "(benchmark yield for FI); moves are roll-adjusted point changes over the prior "
+        "Friday's level, so on a roll week the move won't equal the raw levels' own "
+        "change — that gap is the roll, not a price move.")
 
 
 def render_seasonality() -> None:
@@ -13351,7 +13387,7 @@ def render_seasonality() -> None:
                                   f"{bw.loc[i, 'label']}  ·  "
                                   f"{_seas_wspan(bw.loc[i, 'start'], bw.loc[i, 'weeks'])}",
             key=f"seas_windetail_{tkr}", label_visibility="collapsed")
-        _render_window_detail(tkr, bw.loc[_wd_sel], unit)
+        _render_window_detail(tkr, bw.loc[_wd_sel], unit, ns="pp")
 
     # ---- seasonal windows board: the Hot Sheet's SEAS radar, in full ---------
     st.divider()
@@ -13438,7 +13474,7 @@ def render_seasonality() -> None:
                                       f"{_seas_wspan(wb.loc[i, 'start'], wb.loc[i, 'weeks'])}",
                 key="seas_board_windetail", label_visibility="collapsed")
             _render_window_detail(wb.loc[_bd_sel, "ticker"], wb.loc[_bd_sel],
-                                  wb.loc[_bd_sel, "unit"])
+                                  wb.loc[_bd_sel, "unit"], ns="bd")
 
         with st.expander("❓ What is a seasonal window — and how do I read one?"):
             st.markdown(

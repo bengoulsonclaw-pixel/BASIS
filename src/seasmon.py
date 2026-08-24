@@ -759,6 +759,40 @@ def window_years(weekly: pd.DataFrame, ticker: str, start: int, weeks: int) -> p
     return block.sum(axis=1, min_count=max(2, weeks - 2)).dropna()
 
 
+def window_weeks(ticker: str, year: int, start: int, weeks: int) -> pd.DataFrame:
+    """One year's walk through one window, week by week: every Friday inside the
+    window with the ACTUAL level (raw front settle; benchmark yield % for FI) and
+    that week's move in the engine's units — the exact addends behind that year's
+    entry in the streak table. Moves are roll-adjusted point changes over the
+    prior Friday's actual level, so a roll week's move won't equal the raw
+    levels' own % change — that gap IS the roll."""
+    fr = _daily()
+    fi = universe.is_fixed_income(ticker)
+    lvl_d = (fr["fi"] if fi else fr["raw"]).get(ticker)
+    adj_d = None if fi else fr["adj"].get(ticker)
+    if lvl_d is None or (not fi and adj_d is None):
+        return pd.DataFrame()
+    lvlW = lvl_d.dropna().resample("W-FRI").last()
+    if fi:
+        mvW = lvlW.diff() * 100.0
+    else:
+        adjW = adj_d.dropna().resample("W-FRI").last()
+        den = lvlW.shift()
+        mvW = adjW.diff() / den.where(den > 0) * 100.0
+    iso = lvlW.index.isocalendar()
+    woy = np.minimum(iso["week"].astype(int).to_numpy(), 52)
+    yr = iso["year"].astype(int).to_numpy()
+    span = [(int(start) + i - 1) % 52 + 1 for i in range(int(weeks))]
+    wrap_at = span.index(1) if (1 in span and span[0] != 1) else None
+    first, second = (span, []) if wrap_at is None else (span[:wrap_at], span[wrap_at:])
+    mask = ((yr == year) & np.isin(woy, first)) | \
+           ((yr == year + 1) & np.isin(woy, second))
+    idx = lvlW.index[mask]
+    out = pd.DataFrame({"date": idx, "level": lvlW.reindex(idx).to_numpy(),
+                        "move": mvW.reindex(idx).to_numpy()})
+    return out.dropna(subset=["move"]).reset_index(drop=True)
+
+
 def open_windows(horizon: int = 4) -> pd.DataFrame:
     """The page's windows board: every strong window across the WHOLE book that
     is running right now (start ≤ this ISO week < start + length, wrapping the
