@@ -1068,7 +1068,7 @@ _GROUP_TABS = {
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield"),
-                           ("⚖️ Move Translator", "Move Translator")],
+                           ("🧭 Macro Compass", "Macro Compass")],
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
                            ("Fed", "Fed Path"),      # flags ride in via CSS ::before
                            ("ECB", "ECB Path"),      # (_STIR_TAB_FLAG_CSS) — emoji here
@@ -14729,7 +14729,7 @@ if active == "OPEC Report":
     render_opec(); st.stop()
 if active == "Precious Metals":
     render_precious_metals(); st.stop()
-if active == "Move Translator":
+if active == "Macro Compass":
     # Body in src/crossmovepage.py — one macro move translated into the others.
     from src import crossmovepage
     crossmovepage.render(); st.stop()

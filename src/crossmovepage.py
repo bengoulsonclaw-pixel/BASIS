@@ -1,4 +1,8 @@
-"""crossmovepage.py — the BASIS page for crossmove.py.
+"""crossmovepage.py — 🧭 Macro Compass, the BASIS page for crossmove.py.
+
+Named for what it does and does not do: it orients you against the rest of the
+complex, it does not point at where anything is going. Everything on it is
+contemporaneous.
 
 Pick a driver, a move, a change horizon and a lookback; get the average co-movement
 in everything else, each row carrying its t-statistic, its R-squared and the band of
@@ -24,7 +28,7 @@ def _fmt(v: float, unit: str, dp: int = 2) -> str:
 
 
 def render() -> None:
-    st.subheader("⚖️ Move Translator")
+    st.subheader("🧭 Macro Compass")
     st.caption(
         "A move in one macro instrument, translated into the average move in the "
         "others over a window you choose. **Contemporaneous** — this sizes a move "
