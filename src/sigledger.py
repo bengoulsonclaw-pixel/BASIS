@@ -196,22 +196,29 @@ def _confluence_rows(flagged: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # rebuild — flag everything, measure everything, persist
 # ---------------------------------------------------------------------------
-def _frame_flip_rate(prior: pd.DataFrame, fresh: pd.DataFrame) -> tuple[float, int] | None:
+def _frame_flip_rate(prior: pd.DataFrame, fresh: pd.DataFrame) -> tuple[float, int, object] | None:
     """Fraction of SETTLED prior hits the fresh frame disagrees with (and how many were
     checked), or None when the overlap is too thin to judge. Settled = evaluated rows at
     least GUARD_SETTLE_DAYS before the prior build's end — recent rows can move for real
     reasons (revised settles inside the deep store's 10-day re-pull buffer), old ones
     cannot: a healthy panama re-anchor shifts LEVELS by a constant but never a move's
     sign, so settled hits recompute identically off a healthy frame."""
-    hcol = f"hit{HORIZONS[-1]}"
+    hcol, mcol = f"hit{HORIZONS[-1]}", f"move{HORIZONS[-1]}"
     cut = prior["date"].max() - pd.Timedelta(days=GUARD_SETTLE_DAYS)
-    p = prior.loc[prior["date"] <= cut].set_index(KEY)[hcol].dropna()
-    f = fresh.set_index(KEY)[hcol].dropna()
+    cols = [hcol] + ([mcol] if mcol in prior.columns and mcol in fresh.columns else [])
+    p = prior.loc[prior["date"] <= cut].set_index(KEY)[cols].dropna(subset=[hcol])
+    f = fresh.set_index(KEY)[cols].dropna(subset=[hcol])
     p, f = p[~p.index.duplicated()], f[~f.index.duplicated()]
     common = p.index.intersection(f.index)
+    # A move of EXACTLY 0.0 scores a MISS under `hit = move > 0`, so pure float noise can
+    # flip it either way. 0.68% of settled rows sit exactly on zero — more than the whole
+    # 0.5% budget — so they are excluded rather than left able to manufacture a refusal.
+    if mcol in cols:
+        common = common[(p.loc[common, mcol] != 0) & (f.loc[common, mcol] != 0)]
     if len(common) < GUARD_MIN_OVERLAP:
         return None
-    return float((p.loc[common] != f.loc[common]).mean()), len(common)
+    disagree = p.loc[common, hcol] != f.loc[common, hcol]
+    return float(disagree.mean()), len(common), disagree[disagree].index
 
 
 def _merge_frozen(prior: pd.DataFrame, fresh: pd.DataFrame, rescore=(),
@@ -226,19 +233,32 @@ def _merge_frozen(prior: pd.DataFrame, fresh: pd.DataFrame, rescore=(),
     chk = _frame_flip_rate(prior[~prior["strategy"].isin(rescore)] if rescore else prior,
                            core_fresh)
     if chk is not None and chk[0] > GUARD_MAX_FLIP:
-        flips, n = chk
+        flips, n, bad = chk
+        # Name the products doing the flipping. Without this the 2026-08 refusal read as a
+        # generic "corrupt frame" for 10 days; the culprit was 14 columns keeping their RAW
+        # roll-gapped series, which one line of this would have printed on morning one.
+        try:
+            worst = pd.Series([k[2] for k in bad]).value_counts()
+            top = ", ".join(f"{t} {c:,}" for t, c in worst.head(6).items())
+        except Exception:
+            worst, top = pd.Series(dtype=int), "?"
         msg = (f"  signal ledger[{scope}]: REFUSED to touch the ledger — today's signal-space "
-               f"frame re-marks {flips:.1%} of {n:,} settled historical outcomes. Settled hits "
-               f"never legitimately change (a healthy roll re-anchor shifts levels, not moves), "
-               f"so the day's price frame is corrupt (partial deep store / wedged pull — see "
-               f"2026-08-13). The track record on disk is UNCHANGED; today's new signals will "
-               f"be appended by the next clean rebuild. If a re-mark is truly intended, run "
-               f"backfill_signals.py --rebaseline-ledger.")
+               f"frame re-marks {flips:.1%} of {n:,} settled historical outcomes, across "
+               f"{len(worst)} product(s). Settled hits never legitimately change (a healthy "
+               f"roll re-anchor shifts levels, not moves), so the frame TODAY'S RUN BUILT "
+               f"disagrees with the one the track record was measured on. Usual cause is the "
+               f"measuring stick, not the data: a product left on its RAW roll-gapped series "
+               f"instead of the panama-adjusted deep store (see deepstore.overlay's depth "
+               f"test, and 2026-08-14). Worst: {top}. The track record on disk is UNCHANGED. "
+               f"Do NOT rebaseline to clear this — check the listed products' series first; "
+               f"--rebaseline-ledger re-measures 10 years irreversibly and skips this guard.")
         log(msg)
         try:
             _guard_path(scope).write_text(json.dumps(
                 {"when": pd.Timestamp.now().isoformat(timespec="seconds"),
-                 "flips": flips, "checked": n}), encoding="utf-8")
+                 "flips": flips, "checked": n,
+                 "by_product": {str(k): int(v) for k, v in worst.head(30).items()},
+                 "sample_keys": [[str(x) for x in k] for k in list(bad)[:25]]}), encoding="utf-8")
         except Exception:
             pass
         return None
@@ -331,6 +351,14 @@ def rebuild(log=print, scope: str = "ficc", full: bool = False, rescore=()) -> p
             if merged is None:
                 return prior                       # refused — ledger file untouched
             out = merged
+    else:
+        # A deliberate rebaseline supersedes any standing refusal; leaving the marker would
+        # keep the Hot Sheet paging the caveat at heat 60 forever against a ledger that has
+        # just been re-measured on purpose.
+        try:
+            _guard_path(scope).unlink(missing_ok=True)
+        except Exception:
+            pass
     out = out.sort_values(KEY)
     _write_outcomes(out, scope)
     _write_votes(axis_votes(out), scope)

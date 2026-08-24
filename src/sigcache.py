@@ -156,11 +156,22 @@ def book_frames(refresh: bool = False, scope: str = "ficc"):
     else:
         uni = sorted(universe.INSTRUMENTS)
         today = pd.Timestamp.today().normalize()
+        # These frames are the Signal Ledger's MEASURING STICK, so they must be a function
+        # of the deep store alone — identical whether the process runs in snapshot or
+        # bloomberg mode. Two things enforce that (both added 2026-08-24 after the ledger
+        # sat frozen for 10 days): never ask for history the store cannot serve, and require
+        # the panama upgrade rather than letting a deeper live feed veto it. Asking for
+        # `today − 10y − 30d` against a store floored at 2016-08-08 tripped deepstore's
+        # depth heuristic in bloomberg mode only, leaving 14 products on their RAW
+        # roll-gapped series whose roll gaps then re-marked ~6% of settled outcomes.
         start = today - pd.DateOffset(years=deepstore.STORE_YEARS, days=30)
+        floor = deepstore.first_date()
+        if floor is not None:
+            start = max(start, floor)
         sig = get_history_ta(uni, start=start, end=today)
         pnl = get_history(uni, start=start, end=today)
         vol = get_volume_history(uni, start=start, end=today)
-        _, _, sig, vol = deepstore.overlay(uni, start, today, pnl, sig, vol)
+        _, _, sig, vol = deepstore.overlay(uni, start, today, pnl, sig, vol, require_deep=True)
     _FRAMES_CACHE[scope] = (sig, vol)
     return sig, vol
 

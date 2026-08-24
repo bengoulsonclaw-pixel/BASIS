@@ -385,6 +385,15 @@ def get_yields(tickers, start=None, end=None) -> pd.DataFrame:
     return _slice(ylds[cols].dropna(how="all"), start, end) if cols else pd.DataFrame()
 
 
+def first_date():
+    """The store's earliest date, or None when there is no store. Callers that MEASURE off
+    the store (rather than backtest on it) clamp their request to this — asking for history
+    the store cannot serve is what tripped overlay's depth heuristic and froze the Signal
+    Ledger for 10 days in Aug 2026."""
+    px = _read("prices")
+    return None if px.empty else px.index.min()
+
+
 def coverage() -> pd.DataFrame:
     """Per-ticker diagnostics: first/last date, days held, rolls detected."""
     px, p2, ct = _read("prices"), _read("front2"), _read("contract")
@@ -403,13 +412,22 @@ def coverage() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # tabt seam — column-wise upgrade of the live-feed frames to deep history
 # ---------------------------------------------------------------------------
-def overlay(tickers, start, end, pnl_hist, signal_hist, vol_hist):
+def overlay(tickers, start, end, pnl_hist, signal_hist, vol_hist, require_deep: bool = False):
     """Swap each ticker's feed columns for the deep-store versions where the store
     genuinely helps: it must reach at least as far back as the feed AND be no more than
     FRESH_TOLERANCE_DAYS staler at the recent end (a lapsed store must never silently
     truncate a backtest's right edge — fall back to the live feed instead). Columns are
     swapped whole, never mixed: feed 'A' prices and adjusted '1' prices are different
     series and splicing them would re-introduce exactly the gaps this store removes.
+
+    `require_deep=True` skips the DEPTH test only (never the freshness test): the caller
+    is measuring rather than backtesting, and for a measurement a raw roll-gapped series
+    is never the right answer however far back the feed reaches. This exists because that
+    heuristic silently froze the Signal Ledger for 10 days (2026-08-14 → 08-24): the
+    ledger asked for `today − 10y − 30d` while the store's floor is fixed at 2016-08-08,
+    so in bloomberg mode the live 'A' generic reached back PAST the store, the depth test
+    refused the panama upgrade for 14 products, and their raw roll gaps re-marked ~6% of
+    settled outcomes every morning. See [[project-signal-ledger]].
 
     Returns (deep_used, pnl_hist, signal_hist, vol_hist); no-ops to the inputs when the
     store is absent (VPS / demo / pre-backfill)."""
@@ -427,7 +445,7 @@ def overlay(tickers, start, end, pnl_hist, signal_hist, vol_hist):
             continue
         if t not in ta.columns:
             continue                                        # no deep SIGNAL series (bond w/o yields)
-        if deep.index.min() > feed.index.min():
+        if deep.index.min() > feed.index.min() and not require_deep:
             continue                                        # store adds no depth here
         if (feed.index.max() - deep.index.max()).days > FRESH_TOLERANCE_DAYS:
             continue                                        # store gone stale — keep the feed
