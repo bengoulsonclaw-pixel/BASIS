@@ -675,3 +675,57 @@ def test_fed_scenario_carries_its_own_error_band():
     from src import macrochain as mc
     s = mc.fed_scenario(50)
     assert s["unexplained_1sd_pct"] > abs(s["gold_reduced_form_pct"])
+
+
+# ---------------------------------------------------------------------------
+# Move Translator
+# ---------------------------------------------------------------------------
+def test_dollar_index_reproduces_its_own_largest_component():
+    """EURUSD is ~58% of DXY, so a +1% dollar move must imply about -1% on EURUSD
+    with a very high R-squared. If this pair ever comes out wrong the units or the
+    sign convention are broken and nothing else on the page can be trusted."""
+    from src import crossmove as cm
+    t = cm.translate("Dollar (DXY)", 1.0, horizon=20, years=5)
+    e = t[t["instrument"] == "EURUSD"].iloc[0]
+    assert -1.3 < e["implied"] < -0.6, f"EURUSD implied {e['implied']}"
+    assert e["r_squared"] > 0.7
+    assert e["t"] < -10
+
+
+def test_units_are_declared_and_carried():
+    """Yields must come back in bp and prices in %, or a slider ends up 100x wrong."""
+    from src import crossmove as cm
+    t = cm.translate("Dollar (DXY)", 1.0, horizon=20, years=5)
+    by = dict(zip(t["instrument"], t["unit"]))
+    assert by["Gold"] == "%" and by["US 10y yield"] == "bp" and by["VIX"] == "pts"
+    assert cm.unit_of("US 10y real") == "bp"
+    assert cm.default_move("US 10y real") == 25.0
+    assert cm.default_move("Gold") == 1.0
+
+
+def test_every_row_carries_its_unexplained_band():
+    """The band is what decides whether a number is usable and must never be
+    optional — gold's response to the dollar is about -1.1% with a 4% band."""
+    from src import crossmove as cm
+    t = cm.translate("Dollar (DXY)", 1.0, horizon=20, years=5)
+    assert (t["band_1sd"] > 0).all()
+    g = t[t["instrument"] == "Gold"].iloc[0]
+    assert g["band_1sd"] > abs(g["implied"]), \
+        "gold's monthly noise should dwarf a 1% dollar move"
+
+
+def test_lookback_actually_changes_the_estimate():
+    """A window selector that returns the same answer everywhere is decoration."""
+    from src import crossmove as cm
+    out = {}
+    for label, yrs in (("2 years", 2), ("20 years", 20)):
+        t = cm.translate("Dollar (DXY)", 1.0, horizon=20, years=yrs)
+        out[label] = float(t[t["instrument"] == "Gold"].iloc[0]["implied"])
+    assert abs(out["2 years"] - out["20 years"]) > 0.1
+
+
+def test_caveat_states_it_is_contemporaneous():
+    """The one claim the page must never imply is that this forecasts anything."""
+    from src import crossmove as cm
+    c = cm.caveat("Dollar (DXY)", 20, 5).lower()
+    assert "contemporaneous" in c and "not forecast" in c

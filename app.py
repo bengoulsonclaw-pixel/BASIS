@@ -1067,7 +1067,8 @@ _GROUP_TABS = {
     "Market Information": [("📅 Reports Calendar", "Release Calendar"),
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
-                           ("🧮 Fut / Yield", "Fut Yield")],
+                           ("🧮 Fut / Yield", "Fut Yield"),
+                           ("⚖️ Move Translator", "Move Translator")],
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
                            ("Fed", "Fed Path"),      # flags ride in via CSS ::before
                            ("ECB", "ECB Path"),      # (_STIR_TAB_FLAG_CSS) — emoji here
@@ -14728,6 +14729,10 @@ if active == "OPEC Report":
     render_opec(); st.stop()
 if active == "Precious Metals":
     render_precious_metals(); st.stop()
+if active == "Move Translator":
+    # Body in src/crossmovepage.py — one macro move translated into the others.
+    from src import crossmovepage
+    crossmovepage.render(); st.stop()
 if active == "Gold Engine":
     # Body lives in src/goldpage.py — app.py is already 16k lines and this page
     # carries four tabs of real content.
