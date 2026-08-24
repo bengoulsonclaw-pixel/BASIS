@@ -13195,6 +13195,63 @@ def render_seasonality() -> None:
             "window running; the right one sets the agreement bar. Windows found by "
             "searching a decade of history are descriptive, not a signal.")
 
+        with st.expander("❓ What is a seasonal window — and how do I read one?"):
+            st.markdown(
+                "**The rule.** For every product the finder tests every possible calendar "
+                "stretch — starting any week of the year, lasting 4 to 16 weeks, about 676 "
+                "stretches — and asks one question of each year on the store: *did this "
+                "stretch finish higher or lower than it started?* If at least "
+                f"**{seasmon.HIT_STRONG:.0%} of the years agreed** on the direction (over at "
+                "least 5 complete years), it's a window. 6-of-10 is barely better than a "
+                "coin flip, so it isn't one. Nearly-identical overlapping stretches collapse "
+                "into the single strongest, so one pattern shows once.")
+            if not wb.empty:
+                _top = wb.iloc[0]
+                _wy = seasmon.window_years(weekly, _top["ticker"], int(_top["start"]),
+                                           int(_top["weeks"]))
+                if not _wy.empty:
+                    _wfmt = _seas_fmt(_top["unit"])
+                    st.markdown(
+                        f"**A live example — {_top['name']}, {_top['label']}** (the "
+                        "strongest window on the board right now). The same stretch, "
+                        "measured in every stored year:")
+                    brand.terminal_table(
+                        [{str(int(y)): float(v) for y, v in _wy.items()}],
+                        [{"key": str(int(y)), "label": str(int(y)), "color": True,
+                          "fmt": _wfmt} for y in _wy.index])
+                    st.caption(
+                        f"That table **is** the window: {int(_top['wins'])} of "
+                        f"{int(_top['n'])} years one way, median "
+                        f"{_wfmt.format(_top['med'])}{_top['unit']} — the board's Med column "
+                        "is the middle value of exactly these numbers, and Worst is the "
+                        "most adverse one.")
+            st.markdown(
+                "**Why they exist.** For physical commodities the *cause* repeats on the "
+                "calendar, so the price pattern does too: natural gas prices the storage "
+                "cycle (injection vs withdrawal), RBOB's February collapse is the "
+                "winter→summer grade switch written into refinery regulation, grains fade "
+                "into harvest, cattle and hogs follow the feedlot cycle. **Financial "
+                "products have seasonal patterns too, but flow- and behaviour-driven** — "
+                "the *Sell-in-May / Halloween* effect, September's long record as the weak "
+                "equity month, year-end rallies, tax-loss and fund year-end flows, index "
+                "calendars dominated by dividends and carry. Those mechanisms are real but "
+                "weaker than a storage cycle, and a decade of equity drift flatters every "
+                "long-side equity window — read them with an extra grain of salt.\n\n"
+                "**How a desk uses one.** (1) *Timing an existing intention* — establish "
+                "length you wanted anyway ahead of the strong stretch, not into the weak "
+                "one. (2) *A yardstick for current price action* — a market rallying "
+                "through its seasonally weak window is fighting the tide, which is "
+                "information; a rally inside the strong window is partly 'just the "
+                "season'. (3) *Risk framing* — same hit rate, different stakes: a window "
+                "whose worst year was flat is a different proposition from one whose worst "
+                "year lost 20%.\n\n"
+                "**The caveat that keeps this honest.** ~676 stretches are tested per "
+                "product, so a few 8- or 9-of-10 records will exist by pure luck — the way "
+                "someone in a room of 676 coin-flippers flips eight heads. Before reading "
+                "anything into a window, ask *is there a story?* A storage cycle is a "
+                "story; 'this index went up in most Octobers' may just be the decade. "
+                "Windows describe history — they promise nothing about year eleven.")
+
     # ---- product detail -----------------------------------------------------
     st.divider()
     tickers = list(scr["ticker"]) if not scr.empty else []

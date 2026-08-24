@@ -657,6 +657,25 @@ def radar_items() -> list:
     return _radar_payload().get("items", [])
 
 
+def window_years(weekly: pd.DataFrame, ticker: str, start: int, weeks: int) -> pd.Series:
+    """The per-year outcomes behind ONE window — cumulative change over `weeks`
+    weeks from ISO week `start` (year-end wrap included), indexed by year. Exactly
+    the finder's arithmetic (same pivot, same min_count), so the numbers reconcile
+    with the board's hit / med / worst: this is the table a '10/10, median +2.8%'
+    claim summarises."""
+    if weekly is None or weekly.empty or ticker not in weekly.columns:
+        return pd.Series(dtype=float)
+    piv = _year_pivot(weekly[ticker])
+    if piv.empty:
+        return pd.Series(dtype=float)
+    yrs = sorted(piv.columns)
+    nxt = piv.reindex(columns=[y + 1 for y in yrs])
+    nxt.columns = yrs
+    ext = pd.concat([piv, nxt.iloc[:WIN_MAX]], axis=0).T
+    block = ext.iloc[:, start - 1:start - 1 + weeks]
+    return block.sum(axis=1, min_count=max(2, weeks - 2)).dropna()
+
+
 def open_windows(horizon: int = 4) -> pd.DataFrame:
     """The page's windows board: every strong window across the WHOLE book that
     is running right now (start ≤ this ISO week < start + length, wrapping the
