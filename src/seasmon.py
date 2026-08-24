@@ -714,8 +714,9 @@ def _radar_payload() -> dict:
             heat=max(0.0, (w["hit"] - 0.5) * 200.0),
             # the fixed-date record joins the card whenever it reads softer than the
             # weekly one — a 10/10 that is 7/10 by dates must never present as 10/10
+            # (naming matches the page columns: Hit (weeks) / Hit (dates))
             metric=(f"{w['wins']}/{w['n']} yrs" if _dr(w) >= w["hit"] - 0.05 else
-                    f"{w['wins']}/{w['n']} wk · {w['date_wins']}/{w['date_n']} by dates"),
+                    f"weeks {w['wins']}/{w['n']} · dates {w['date_wins']}/{w['date_n']}"),
             sub="observed sample",
             value=w["med"], ticker=w["ticker"], page="Seasonality", book="ficc",
             spark=_avg_year_spark(weekly, w["ticker"])))
