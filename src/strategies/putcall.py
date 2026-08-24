@@ -37,6 +37,22 @@ SPIKE_Z = 2.0            # |z| of the 1-day OI P/C change → flag a fresh shift
 DIVERGENCE = 35.0        # |vol %ile − OI %ile| ≥ this → flow running away from positioning
 HISTORY_WINDOW = 252     # days of P/C history cached for the report charts
 
+# ── Data-quality guards (2026-08-23) ────────────────────────────────────────────
+# A ratio is only meaningful when BOTH legs carry real size. The old guard masked
+# exact zeros only, which never fired once — the store holds no exact zeros at all —
+# while the real failure mode is a 1-to-5-contract leg: Coffee (Arabica) published
+# 17,385.00 (= 52,155 puts ÷ 3 calls, the put leg stale-filled) and Brazilian Real
+# published 0.01 (= 10 ÷ 2,000, its put leg frozen at 10.0 for 271 sessions). Both
+# reached the client PDF. Floors are symmetric because BRL fails on the NUMERATOR —
+# a denominator-only guard misses it.
+MIN_LEG_OI = 100         # contracts of open interest required on each leg
+MIN_LEG_VOL = 100        # same floor on traded volume: measured 2026-08-23, dropping it to
+                         # 25 buys 3 more products priced but doubles the implausible
+                         # volume ratios (8 vs 4), and the volume ratio is the secondary read
+MAX_STALE = 5            # sessions: a ratio older than this is dropped, not carried forward
+PARTIAL_FRAC = 0.55      # a session printing < this share of its recent product count is
+                         # a partial capture (the 06:45 pull) — not a real session
+
 DATA = Path(__file__).resolve().parents[2] / "data" / "signals"
 DETAIL_FILE = DATA / "putcall.parquet"
 HISTORY_FILE = DATA / "putcall_history.parquet"
@@ -54,15 +70,23 @@ HISTORY_COLUMNS = ["date", "ticker", "market", "asset", "pc_oi", "pc_vol",
                    "call_vol", "put_vol", "oi_pctl", "price"]
 
 
-def _ratio(num: pd.DataFrame, den: pd.DataFrame, tickers) -> pd.DataFrame:
-    """puts ÷ calls, element-wise, guarding divide-by-zero."""
-    return num.reindex(columns=tickers) / den.reindex(columns=tickers).replace(0, np.nan)
+def _ratio(num: pd.DataFrame, den: pd.DataFrame, tickers, min_leg: float = MIN_LEG_OI) -> pd.DataFrame:
+    """puts ÷ calls, element-wise, blanking any cell where EITHER leg is below
+    `min_leg` contracts — a ratio off a 3-contract leg is arithmetic, not positioning."""
+    n = num.reindex(columns=tickers)
+    d = den.reindex(columns=tickers)
+    thin = (n < min_leg) | (d < min_leg) | n.isna() | d.isna()
+    return (n / d).mask(thin)
 
 
 def _pctl_now(series: pd.Series) -> float:
-    """Percentile rank (0–100) of the latest value within the trailing STAT_WINDOW."""
+    """Percentile rank (0–100) of the latest value within the trailing STAT_WINDOW.
+
+    A frozen series has no percentile: `(s <= s.iloc[-1]).mean()` is 1.0 when every
+    value is identical, which stamped dead tickers 100th-percentile "Put-heavy"
+    indefinitely (3M SONIA sat there for 51 sessions after its feed died)."""
     s = series.dropna().iloc[-STAT_WINDOW:]
-    if len(s) < MINP:
+    if len(s) < MINP or s.nunique() <= 1:
         return float("nan")
     return float((s <= s.iloc[-1]).mean() * 100.0)
 
@@ -78,9 +102,29 @@ def _z_now(series: pd.Series) -> float:
 
 def _rolling_pctl(series: pd.Series, window: int = STAT_WINDOW, minp: int = MINP) -> pd.Series:
     """Trailing percentile rank (0–100) of each point within its prior `window` — the
-    series that drives the heatmap and the per-product oscillator in the report."""
+    series that drives the heatmap and the per-product oscillator in the report.
+    A frozen window yields NaN rather than a spurious 100 (see `_pctl_now`)."""
     return series.rolling(window, min_periods=minp).apply(
-        lambda w: (w <= w[-1]).mean() * 100.0, raw=True)
+        lambda w: np.nan if np.nanmin(w) == np.nanmax(w) else (w <= w[-1]).mean() * 100.0,
+        raw=True)
+
+
+def _last_complete(comp: dict) -> pd.Timestamp | None:
+    """The last session that is a REAL session rather than a partial capture.
+
+    The morning pull runs at ~06:45 and the final row can be a fraction of a session
+    (2026-08-21 printed 2% of normal panel volume across 30 of 89 products). Such a row
+    would read as a collapse in flow, so anchor on the last date that (a) carries open
+    interest and (b) prints for a normal share of the panel."""
+    oi = comp.get("put_oi")
+    if oi is None or getattr(oi, "empty", True):
+        return None
+    counts = oi.notna().sum(axis=1)
+    typical = float(counts.tail(40).median() or 0)
+    if typical <= 0:
+        return oi.index[-1]
+    ok = counts[counts >= PARTIAL_FRAC * typical]
+    return ok.index[-1] if len(ok) else oi.index[-1]
 
 
 def _persist_history(oi: pd.DataFrame, vol: pd.DataFrame, cv: pd.DataFrame, pv: pd.DataFrame,
@@ -123,9 +167,13 @@ def compute_table() -> pd.DataFrame:
     the dashboard rows and the visual report."""
     tickers = list(INSTRUMENTS)
     comp = get_putcall(tickers)
+    cutoff = _last_complete(comp)                     # ignore a partial morning capture
+    if cutoff is not None:
+        comp = {k: v.loc[:cutoff] for k, v in comp.items() if v is not None}
     oi = _ratio(comp["put_oi"], comp["call_oi"], tickers)
-    vol = _ratio(comp["put_vol"], comp["call_vol"], tickers)
+    vol = _ratio(comp["put_vol"], comp["call_vol"], tickers, min_leg=MIN_LEG_VOL)
     call_vol, put_vol = comp["call_vol"], comp["put_vol"]   # raw traded volumes (for the totals)
+    n_sessions = len(oi.index)
     try:
         _persist_history(oi, vol, call_vol, put_vol, get_history(tickers))
     except Exception:
@@ -136,6 +184,10 @@ def compute_table() -> pd.DataFrame:
         oi_s = oi[t].dropna() if t in oi.columns else pd.Series(dtype=float)
         vol_s = vol[t].dropna() if t in vol.columns else pd.Series(dtype=float)
         if oi_s.empty:
+            continue
+        # Staleness: `dropna` would otherwise republish a ratio from weeks ago as today's
+        # — which is how a dead feed keeps printing (3M SONIA froze for 51 sessions).
+        if n_sessions - 1 - oi.index.get_loc(oi_s.index[-1]) > MAX_STALE:
             continue
         pc_oi = float(oi_s.iloc[-1])
         pc_vol = float(vol_s.iloc[-1]) if not vol_s.empty else float("nan")
