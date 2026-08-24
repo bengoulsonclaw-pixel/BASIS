@@ -13052,6 +13052,68 @@ def _seas_wspan(start, weeks) -> str:
     return f"W{int(start)} → W{(int(start) + int(weeks) - 2) % 52 + 1}"
 
 
+@st.cache_data(show_spinner=False, ttl=1800)
+def _seas_window_years(ticker: str, start: int, weeks: int, mode: str):
+    """Per-year moves of one window on BOTH bases: (weekly-aligned, fixed-date)."""
+    _mo, wk = _seas_changes(mode)
+    return seasmon.window_years(wk, ticker, start, weeks), \
+        seasmon.date_check(ticker, start, weeks)
+
+
+def _render_window_detail(ticker: str, row, unit: str) -> None:
+    """The drill-down behind any windows-table row: every stored year's move over
+    the window, scored on the week span AND the fixed dates, as a two-row table
+    plus grouped bars — the streak itself, one bar per year per basis."""
+    import altair as alt
+
+    with st.spinner("Scoring the window year by year…"):
+        wy, dy = _seas_window_years(ticker, int(row["start"]), int(row["weeks"]), MODE)
+    if wy is None or wy.empty:
+        st.caption("No per-year history for this window.")
+        return
+    fmt = _seas_fmt(unit)
+    years = sorted({int(y) for y in wy.index} | {int(y) for y in dy.index})
+    t_rows = []
+    for lbl, ser in (("Dates", dy), ("Weeks", wy)):
+        t_rows.append({"lbl": lbl} | {str(y): (float(ser[y]) if y in ser.index else None)
+                                      for y in years})
+    brand.terminal_table(t_rows, [{"key": "lbl", "label": ""}] + [
+        {"key": str(y), "label": f"'{str(y)[2:]}", "color": True, "fmt": fmt}
+        for y in years])
+    long = pd.concat([
+        pd.DataFrame({"year": [int(y) for y in dy.index], "basis": "dates (SEAG)",
+                      "move": dy.to_numpy()}),
+        pd.DataFrame({"year": [int(y) for y in wy.index], "basis": "weeks (W-span)",
+                      "move": wy.to_numpy()}),
+    ])
+    cc = brand.chart_colors()
+    bars = alt.Chart(long).mark_bar().encode(
+        x=alt.X("year:O", title=None, axis=alt.Axis(labelAngle=0, labelFontSize=12)),
+        xOffset=alt.XOffset("basis:N"),
+        y=alt.Y("move:Q", title=f"move ({unit})"),
+        color=alt.Color("basis:N",
+                        scale=alt.Scale(domain=["dates (SEAG)", "weeks (W-span)"],
+                                        range=[cc["accent"], cc["series"]]),
+                        legend=alt.Legend(orient="top", title=None)),
+        tooltip=[alt.Tooltip("year:O"), alt.Tooltip("basis:N"),
+                 alt.Tooltip("move:Q", title=f"move ({unit})", format="+,.1f")])
+    zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+        color=cc["muted"], strokeWidth=1).encode(y="y:Q")
+    brand.show_chart((bars + zero).properties(height=230))
+    up = row["dir"] == "Higher"
+    wh = int((wy > 0).sum() if up else (wy < 0).sum())
+    dh = int((dy > 0).sum() if up else (dy < 0).sum())
+    st.caption(
+        f"**{universe.yield_name(ticker)} · {row['label']}** "
+        f"({_seas_wspan(row['start'], row['weeks'])}) — each stored year's move over this "
+        f"window, both bases side by side: fixed dates **{dh}/{len(dy)}** "
+        f"{'higher' if up else 'lower'} (median {fmt.format(dy.median())}{unit}) · week "
+        f"span **{wh}/{len(wy)}** (median {fmt.format(wy.median())}{unit}). Gold = the "
+        "SEAG-style read anyone can reproduce on a terminal; blue = the finder's weekly "
+        "alignment. Years where the two bars disagree in sign are the drift-fragile ones — "
+        "the window's edges, not its middle, decided them.")
+
+
 def render_seasonality() -> None:
     import altair as alt
 
@@ -13279,7 +13341,17 @@ def render_seasonality() -> None:
             "numbered weeks of each year (edges drift a few days year to year). Trust the "
             "windows where the two scores agree. **Worst** = the most adverse single year "
             "inside the window — even a 9-of-10 pattern has an exception. Descriptive "
-            "history, not a signal.")
+            "history, not a signal. Pick any row below to unpack its streak year by year.")
+
+        brand.panel_header("Window detail", right="the streak, year by year")
+        _wd_opts = list(bw.index)
+        _wd_sel = st.selectbox(
+            "Window", _wd_opts,
+            format_func=lambda i: f"{'↑' if bw.loc[i, 'dir'] == 'Higher' else '↓'} "
+                                  f"{bw.loc[i, 'label']}  ·  "
+                                  f"{_seas_wspan(bw.loc[i, 'start'], bw.loc[i, 'weeks'])}",
+            key=f"seas_windetail_{tkr}", label_visibility="collapsed")
+        _render_window_detail(tkr, bw.loc[_wd_sel], unit)
 
     # ---- seasonal windows board: the Hot Sheet's SEAS radar, in full ---------
     st.divider()
@@ -13352,7 +13424,21 @@ def render_seasonality() -> None:
             "example. Trust windows where the two scores agree. The left control narrows to "
             "windows just entering (the Hot Sheet's framing) or widens to every window "
             "running; the right one sets the agreement bar. Windows found by searching a "
-            "decade of history are descriptive, not a signal.")
+            "decade of history are descriptive, not a signal. Pick any row below to unpack "
+            "its streak year by year.")
+
+        if not wb.empty:
+            brand.panel_header("Window detail", right="the streak, year by year")
+            _bd_opts = list(wb.index)
+            _bd_sel = st.selectbox(
+                "Board window", _bd_opts,
+                format_func=lambda i: f"{wb.loc[i, 'name']}  ·  "
+                                      f"{'↑' if wb.loc[i, 'dir'] == 'Higher' else '↓'} "
+                                      f"{wb.loc[i, 'label']}  ·  "
+                                      f"{_seas_wspan(wb.loc[i, 'start'], wb.loc[i, 'weeks'])}",
+                key="seas_board_windetail", label_visibility="collapsed")
+            _render_window_detail(wb.loc[_bd_sel, "ticker"], wb.loc[_bd_sel],
+                                  wb.loc[_bd_sel, "unit"])
 
         with st.expander("❓ What is a seasonal window — and how do I read one?"):
             st.markdown(
