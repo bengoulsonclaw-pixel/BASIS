@@ -13264,19 +13264,19 @@ def render_seasonality() -> None:
                                if int(r.get("date_n", 0) or 0) else "—"),
                       "med": float(r["med"]), "worst": float(r["worst"])}
                      for _, r in sub.iterrows()],
-                    [{"key": "wspan", "label": "Week x → y"},
-                     {"key": "hit", "label": "Hit (weeks)", "align": "right"},
-                     {"key": "win", "label": "Date x → y"},
+                    [{"key": "win", "label": "Date x → y"},
                      {"key": "dhit", "label": "Hit (dates)", "align": "right"},
+                     {"key": "wspan", "label": "Week x → y"},
+                     {"key": "hit", "label": "Hit (weeks)", "align": "right"},
                      {"key": "med", "label": f"Med {unit}", "color": True, "fmt": fmt},
                      {"key": "worst", "label": "Worst", "align": "right", "fmt": fmt}])
         st.caption(
             "Every 4–16-week calendar stretch (year-end wrap included) screened for the "
             f"windows this product moved one way in ≥ {seasmon.HIT_STRONG:.0%} of the stored "
             "years; overlapping echoes collapse to the strongest. Each window is scored "
-            "twice: **Week x → y / Hit (weeks)** replays the same numbered weeks of each "
-            "year (edges drift a few days year to year); **Date x → y / Hit (dates)** "
-            "replays the fixed calendar dates (the Bloomberg-SEAG convention). Trust the "
+            "twice: **Date x → y / Hit (dates)** replays the fixed calendar dates (the "
+            "Bloomberg-SEAG convention); **Week x → y / Hit (weeks)** replays the same "
+            "numbered weeks of each year (edges drift a few days year to year). Trust the "
             "windows where the two scores agree. **Worst** = the most adverse single year "
             "inside the window — even a 9-of-10 pattern has an exception. Descriptive "
             "history, not a signal.")
@@ -13327,10 +13327,10 @@ def render_seasonality() -> None:
             {"key": "st", "label": "Status"},
             {"key": "name", "label": "Product"},
             {"key": "dir", "label": "Direction"},
-            {"key": "wspan", "label": "Week x → y"},
-            {"key": "hit", "label": "Hit (weeks)", "align": "right"},
             {"key": "win", "label": "Date x → y"},
             {"key": "dhit", "label": "Hit (dates)", "align": "right"},
+            {"key": "wspan", "label": "Week x → y"},
+            {"key": "hit", "label": "Hit (weeks)", "align": "right"},
             {"key": "med", "label": "Med", "color": True, "fmt": "{:+,.1f}"},
             {"key": "worst", "label": "Worst", "align": "right", "fmt": "{:+,.1f}"},
             {"key": "unit", "label": "Unit"},
@@ -13344,10 +13344,10 @@ def render_seasonality() -> None:
             "same finder that fills the per-product tables under the detail below). "
             "**Med / Worst** = the median and most adverse single-year move over the window, "
             "in the product's own unit (% of price, bp of yield for FI). Every window is "
-            "scored twice: **Week x → y / Hit (weeks)** replays the same numbered weeks of "
-            "each year, whose edges drift up to ±6 days against the calendar; **Date x → y "
-            "/ Hit (dates)** replays the fixed calendar dates (the Bloomberg-SEAG "
-            "convention). A record that softens badly under fixed dates was riding whatever "
+            "scored twice: **Date x → y / Hit (dates)** replays the fixed calendar dates "
+            "(the Bloomberg-SEAG convention); **Week x → y / Hit (weeks)** replays the "
+            "same numbered weeks of each year, whose edges drift up to ±6 days against "
+            "the calendar. A record that softens badly under fixed dates was riding whatever "
             "the drifting week-edges caught — early-November election weeks, in one live "
             "example. Trust windows where the two scores agree. The left control narrows to "
             "windows just entering (the Hot Sheet's framing) or widens to every window "
