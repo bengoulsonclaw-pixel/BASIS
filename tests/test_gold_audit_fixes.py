@@ -729,3 +729,44 @@ def test_caveat_states_it_is_contemporaneous():
     from src import crossmove as cm
     c = cm.caveat("Dollar (DXY)", 20, 5).lower()
     assert "contemporaneous" in c and "not forecast" in c
+
+
+def test_macro_compass_page_renders_all_three_tabs(tmp_path):
+    """The page must actually render, not just import.
+
+    Three tabs, each hitting a different engine (crossmove, macrochain,
+    metalevents). An import-only check would pass while a tab raised on first draw.
+    """
+    from streamlit.testing.v1 import AppTest
+    repo = Path(__file__).resolve().parents[1]
+    script = tmp_path / "render_compass.py"
+    script.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, r'{repo}')\n"
+        f"sys.path.insert(0, r'{repo / 'src'}')\n"
+        "from src import crossmovepage\n"
+        "crossmovepage.render()\n", encoding="utf-8")
+    at = AppTest.from_file(str(script), default_timeout=400)
+    at.run()
+    assert not at.exception, f"page raised: {at.exception}"
+    assert [s.value for s in at.subheader] == ["🧭 Macro Compass"]
+    assert len(at.tabs) == 3
+    assert len(at.dataframe) >= 3
+
+
+def test_fed_tab_refuses_to_imply_a_move_from_a_priced_view():
+    """Zero repricing must imply zero. The page short-circuits before calling, and
+    the engine agrees — a client view that matches the curve moves nothing."""
+    from src import macrochain as mc
+    s = mc.fed_scenario(0)
+    assert s["gold_reduced_form_pct"] == 0.0
+    assert s["dollar_pct"] == 0.0
+
+
+def test_release_tab_excludes_silver_structurally():
+    """Silver has no AM->PM window; it must not appear in the release table as
+    though it had been tested and found wanting."""
+    from src import metalevents as me
+    tab = me.comparison_table()
+    assert "SILVER" not in tab.columns
+    assert "SILVER" not in me.STUDY_METALS
