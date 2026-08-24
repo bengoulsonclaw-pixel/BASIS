@@ -14625,7 +14625,12 @@ with st.sidebar:
                     type="primary" if (_side == "Equities" and not _on_landing) else "secondary",
                     on_click=_set_side, args=("Equities",))
     snap = _load_snap()
-    _data_badge(snap, _side)
+    # Today's date + ISO week sit where the snapshot chip used to (Ben, 2026-08-24) — the
+    # chip moved to the sidebar foot, next to the SIGNALS/FEED/DATA rows it belongs with.
+    _tdy = datetime.now(ZoneInfo("America/New_York"))
+    st.markdown(f'<div class="bt-today"><span class="d">{_tdy:%d %b %Y}</span>'
+                f'<span class="w">Week {_tdy.isocalendar().week} of {_tdy.year}</span></div>',
+                unsafe_allow_html=True)
     df, meta = load_signals()
     try:        # desk scope row (desk-aware): FICC = markets/signals, Equities = stocks/indices
         if _side == "Equities":
@@ -14716,6 +14721,7 @@ with st.sidebar:
         ("feed", _feed[0], _feed[1]),
         ("data", _data_s, ""),
     ])
+    _data_badge(snap, _side)      # the snapshot/pull chip, moved down to sit with those rows
 
 # ----- fixed top bar (same on every page, stays while scrolling): world clocks
 # over the masthead row (logo left · module breadcrumb · ET clock · theme toggle).

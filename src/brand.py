@@ -377,6 +377,7 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] { gap:.3rem;
 [data-testid="stMarkdownContainer"]:has(> .bt-sect),
 [data-testid="stMarkdownContainer"]:has(> .seat-chip),
 [data-testid="stMarkdownContainer"]:has(> .hsr),
+[data-testid="stMarkdownContainer"]:has(> .bt-today),
 [data-testid="stMarkdownContainer"]:has(> .dk-vc) { margin-bottom:0 !important; }
 /* sidebar nav rows (handoff): flat text rows, not buttons. Normal case, left-aligned;
    hover = surface step; ACTIVE (Streamlit type=primary) = surface2 fill + inset 2px
@@ -894,6 +895,13 @@ div.st-key-home_rerun button p, div.st-key-eq_refresh button p {
 /* sidebar micro section labels + footer */
 .bt-sect { font-size:.74rem; letter-spacing:.04em; font-weight:600;
            text-transform:uppercase; color:$caption; margin:.9rem 0 .25rem .35rem; }
+/* today's date under the desk switch (Ben, 2026-08-24 — the snapshot chip moved to the
+   foot, where SIGNALS/FEED/DATA already live). Date reads first, ISO week beneath it. */
+.bt-today { padding:.1rem 0 0 .35rem; line-height:1.25; }
+.bt-today .d { display:block; font-size:.92rem; font-weight:700; letter-spacing:.01em;
+               color:$text; }
+.bt-today .w { display:block; font-size:.68rem; font-weight:600; letter-spacing:.06em;
+               text-transform:uppercase; color:$caption; margin-top:.1rem; }
 .bt-sbfoot { border-top:1px solid $border; margin-top:1rem; padding:.6rem .35rem 0; }
 .bt-sbfoot div { display:flex; justify-content:space-between; align-items:center;
                  font-size:.74rem; color:$caption;
