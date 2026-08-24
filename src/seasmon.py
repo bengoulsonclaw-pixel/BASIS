@@ -262,6 +262,67 @@ def _wk_label(woy: int) -> str:
     return d.strftime("%d %b").lstrip("0")
 
 
+def _wk_end_label(woy: int) -> str:
+    """END label = the week's FRIDAY (start labels quote the Monday). The first
+    labels quoted the Monday at both ends, understating every window's close by
+    ~4 days — which hid that the Dow flagship's 'to 5 Nov' actually ran through
+    Nov 6–12 and swept US election weeks (Ben's BBG SEAG catch, 2026-08-24)."""
+    d = pd.Timestamp("2001-01-01") + pd.Timedelta(days=(int(woy) - 1) * 7 + 4)
+    return d.strftime("%d %b").lstrip("0")
+
+
+_DAILY: dict | None = None
+
+
+def _daily() -> dict:
+    """Daily level frames for the fixed-date cross-check — one load per process."""
+    global _DAILY
+    if _DAILY is None:
+        _DAILY = load_frames(universe.TREND_UNIVERSE)
+    return _DAILY
+
+
+def date_check(ticker: str, start: int, weeks: int) -> pd.Series:
+    """Per-year moves of one window measured SEAG-style: FIXED calendar dates (the
+    label's reference dates mapped into each year, nearest prior session) instead
+    of ISO-week alignment. The honest cross-check for every flagged window — the
+    weekly-aligned edges drift up to ±6 days across years, and a record that
+    collapses under fixed dates was riding whatever the drifting edge caught
+    (US election weeks, for the Dow's late-Aug window)."""
+    fr = _daily()
+    fi = universe.is_fixed_income(ticker)
+    lvl = (fr["fi"] if fi else fr["adj"]).get(ticker)
+    den = None if fi else fr["raw"].get(ticker)
+    if lvl is None:
+        return pd.Series(dtype=float)
+    lvl = lvl.dropna()
+    if lvl.empty:
+        return pd.Series(dtype=float)
+    d0 = pd.Timestamp("2001-01-01") + pd.Timedelta(days=(int(start) - 1) * 7)
+    d1 = d0 + pd.Timedelta(days=(int(weeks) - 1) * 7 + 4)
+    wrap = d1.year > 2001
+    out = {}
+    for y in range(lvl.index[0].year, lvl.index[-1].year + 1):
+        sd = d0.replace(year=y)
+        ed = d1.replace(year=y + 1 if wrap else y)
+        s_ix = lvl.index[lvl.index <= sd]
+        e_ix = lvl.index[lvl.index <= ed]
+        if not len(s_ix) or not len(e_ix):
+            continue
+        s_, e_ = s_ix[-1], e_ix[-1]
+        # both edges must be genuinely covered (skips partial first/current years)
+        if (sd - s_).days > 10 or (ed - e_).days > 10 or e_ <= s_:
+            continue
+        if fi:
+            out[y] = float(lvl[e_] - lvl[s_]) * 100.0
+        else:
+            dsn = float(den[s_]) if den is not None and s_ in den.index else float("nan")
+            if not dsn > 0:
+                continue
+            out[y] = float(lvl[e_] - lvl[s_]) / dsn * 100.0
+    return pd.Series(out)
+
+
 def best_windows(weekly: pd.DataFrame, ticker: str, top: int = 4) -> pd.DataFrame:
     """Scan every start-week × 4–16-week window (year-end wrap included) for the
     calendar stretches this product moved one way most consistently. Windows must
@@ -292,7 +353,7 @@ def best_windows(weekly: pd.DataFrame, ticker: str, top: int = 4) -> pd.DataFram
                 "hit": hit if up else 1 - hit, "wins": int((vals > 0).sum() if up else (vals < 0).sum()),
                 "n": int(len(vals)), "med": float(vals.median()), "mean": float(vals.mean()),
                 "worst": float(vals.min() if up else vals.max()),
-                "label": f"{_wk_label(s)} → {_wk_label((s + L - 2) % 52 + 1)}",
+                "label": f"{_wk_label(s)} → {_wk_end_label((s + L - 2) % 52 + 1)}",
             })
     if not cands:
         return pd.DataFrame()
@@ -310,7 +371,17 @@ def best_windows(weekly: pd.DataFrame, ticker: str, top: int = 4) -> pd.DataFram
         if sum(k["dir"] == "Higher" for k in keep) >= top and \
            sum(k["dir"] == "Lower" for k in keep) >= top:
             break
-    out = pd.DataFrame([{k: v for k, v in r.items() if k != "_wk"} for r in keep])
+    rows = []
+    for r in keep:
+        # SEAG-style fixed-date record alongside the weekly one — a wide gap between
+        # the two means the drifting week-edges were doing the work (see date_check)
+        dc = date_check(ticker, int(r["start"]), int(r["weeks"]))
+        up = r["dir"] == "Higher"
+        rows.append({**{k: v for k, v in r.items() if k != "_wk"},
+                     "date_wins": int((dc > 0).sum() if up else (dc < 0).sum()),
+                     "date_n": int(len(dc)),
+                     "date_med": float(dc.median()) if len(dc) else float("nan")})
+    out = pd.DataFrame(rows)
     out = pd.concat([out[out["dir"] == "Higher"].head(top),
                      out[out["dir"] == "Lower"].head(top)])
     return out.reset_index(drop=True)
@@ -587,8 +658,8 @@ def _radar_payload() -> dict:
     this_wk = _this_iso_week()
     try:
         _mt = int((deepstore.STORE_DIR / "deep_prices.parquet").stat().st_mtime)
-        # v3 = payload carries the full windows list alongside the radar items
-        _ck = f"v3|{_mt}|{this_wk}"            # invalidates on a new data day or week roll
+        # v4 = windows carry the fixed-date cross-check + Friday end labels
+        _ck = f"v4|{_mt}|{this_wk}"            # invalidates on a new data day or week roll
     except Exception:
         _ck = None
     if _ck:
@@ -613,12 +684,19 @@ def _radar_payload() -> dict:
                 "dir": r.dir, "start": int(r.start), "weeks": int(r.weeks),
                 "hit": float(r.hit), "wins": int(r.wins), "n": int(r.n),
                 "med": float(r.med), "mean": float(r.mean), "worst": float(r.worst),
-                "label": r.label,
+                "label": r.label, "date_wins": int(r.date_wins),
+                "date_n": int(r.date_n),
+                "date_med": None if r.date_med != r.date_med else float(r.date_med),
             })
+    def _dr(w):
+        return w["date_wins"] / w["date_n"] if w.get("date_n") else 0.0
+
+    # equal weekly records tie-break on the fixed-date record: prefer windows
+    # whose story survives the SEAG measurement, not just the week alignment
     cands = sorted(((w, (w["start"] - this_wk) % 52) for w in windows
                     if (w["start"] - this_wk) % 52 <= RADAR_HORIZON_WEEKS
                     and w["hit"] >= HIT_STRONG),
-                   key=lambda x: (-x[0]["hit"], -x[0]["n"]))
+                   key=lambda x: (-x[0]["hit"], -_dr(x[0]), -x[0]["n"]))
     out, seen = [], set()
     for w, ahead in cands:
         if w["ticker"] in seen:             # one window per product
@@ -634,7 +712,11 @@ def _radar_payload() -> dict:
                  f"{w['med']:+.1f}{w['unit']}.",
             # hit onto 0-100: 0.70 (the HIT_STRONG floor) → 40, a perfect record → 100
             heat=max(0.0, (w["hit"] - 0.5) * 200.0),
-            metric=f"{w['wins']}/{w['n']} yrs", sub="observed sample",
+            # the fixed-date record joins the card whenever it reads softer than the
+            # weekly one — a 10/10 that is 7/10 by dates must never present as 10/10
+            metric=(f"{w['wins']}/{w['n']} yrs" if _dr(w) >= w["hit"] - 0.05 else
+                    f"{w['wins']}/{w['n']} wk · {w['date_wins']}/{w['date_n']} by dates"),
+            sub="observed sample",
             value=w["med"], ticker=w["ticker"], page="Seasonality", book="ficc",
             spark=_avg_year_spark(weekly, w["ticker"])))
         if len(out) >= RADAR_MAX:

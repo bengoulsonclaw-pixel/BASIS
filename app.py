@@ -13170,6 +13170,8 @@ def render_seasonality() -> None:
                 "name": r["name"], "win": r["label"],
                 "dir": "↑ higher" if r["dir"] == "Higher" else "↓ lower",
                 "hit": f"{int(r['wins'])}/{int(r['n'])}",
+                "dhit": (f"{int(r['date_wins'])}/{int(r['date_n'])}"
+                         if int(r.get("date_n", 0) or 0) else "—"),
                 "med": float(r["med"]), "worst": float(r["worst"]), "unit": r["unit"],
             })
         brand.terminal_table(w_rows, [
@@ -13178,6 +13180,7 @@ def render_seasonality() -> None:
             {"key": "win", "label": "Window"},
             {"key": "dir", "label": "Direction"},
             {"key": "hit", "label": "Years", "align": "right"},
+            {"key": "dhit", "label": "By dates", "align": "right"},
             {"key": "med", "label": "Med", "color": True, "fmt": "{:+,.1f}"},
             {"key": "worst", "label": "Worst", "align": "right", "fmt": "{:+,.1f}"},
             {"key": "unit", "label": "Unit"},
@@ -13190,10 +13193,16 @@ def render_seasonality() -> None:
             "years (≥ 5 complete years; overlapping echoes collapsed to the strongest — the "
             "same finder that fills the per-product tables under the detail below). "
             "**Med / Worst** = the median and most adverse single-year move over the window, "
-            "in the product's own unit (% of price, bp of yield for FI). The left control "
-            "narrows to windows just entering (the Hot Sheet's framing) or widens to every "
-            "window running; the right one sets the agreement bar. Windows found by "
-            "searching a decade of history are descriptive, not a signal.")
+            "in the product's own unit (% of price, bp of yield for FI). **Years vs By "
+            "dates** — the same window measured two ways: aligned by week-of-year (the "
+            "finder's scan) and by fixed calendar dates (the Bloomberg-SEAG convention). "
+            "Week edges drift up to ±6 days across years, so a record that softens badly "
+            "under fixed dates was riding whatever the drifting edge caught — early-November "
+            "election weeks, in one live example. Trust windows where the two columns "
+            "agree. The left control narrows to windows just entering (the Hot Sheet's "
+            "framing) or widens to every window running; the right one sets the agreement "
+            "bar. Windows found by searching a decade of history are descriptive, not a "
+            "signal.")
 
         with st.expander("❓ What is a seasonal window — and how do I read one?"):
             st.markdown(
@@ -13247,10 +13256,17 @@ def render_seasonality() -> None:
                 "year lost 20%.\n\n"
                 "**The caveat that keeps this honest.** ~676 stretches are tested per "
                 "product, so a few 8- or 9-of-10 records will exist by pure luck — the way "
-                "someone in a room of 676 coin-flippers flips eight heads. Before reading "
-                "anything into a window, ask *is there a story?* A storage cycle is a "
-                "story; 'this index went up in most Octobers' may just be the decade. "
-                "Windows describe history — they promise nothing about year eleven.")
+                "someone in a room of 676 coin-flippers flips eight heads. And because the "
+                "finder aligns years by week-of-year, a window's real start and end dates "
+                "drift up to ±6 days across years — the **By dates** column re-measures "
+                "every window on fixed calendar dates (the Bloomberg-SEAG convention), and "
+                "a record that softens badly there was riding whatever the drifting edge "
+                "caught (a late-Aug Dow window quietly sweeping US election weeks was the "
+                "live example). Before reading anything into a window, ask *is there a "
+                "story?* — a storage cycle is a story; 'this index went up in most "
+                "Octobers' may just be the decade — and trust the windows where both "
+                "columns agree. Windows describe history — they promise nothing about "
+                "year eleven.")
 
     # ---- product detail -----------------------------------------------------
     st.divider()
@@ -13372,11 +13388,14 @@ def render_seasonality() -> None:
                 brand.terminal_table(
                     [{"win": r["label"], "wks": f"{int(r['weeks'])}w",
                       "hit": f"{int(r['wins'])}/{int(r['n'])}",
+                      "dhit": (f"{int(r['date_wins'])}/{int(r['date_n'])}"
+                               if int(r.get("date_n", 0) or 0) else "—"),
                       "med": float(r["med"]), "worst": float(r["worst"])}
                      for _, r in sub.iterrows()],
                     [{"key": "win", "label": "Window"},
                      {"key": "wks", "label": "Len", "align": "right"},
                      {"key": "hit", "label": "Years", "align": "right"},
+                     {"key": "dhit", "label": "By dates", "align": "right"},
                      {"key": "med", "label": f"Med {unit}", "color": True, "fmt": fmt},
                      {"key": "worst", "label": "Worst", "align": "right", "fmt": fmt}])
         st.caption(
@@ -13384,7 +13403,9 @@ def render_seasonality() -> None:
             f"windows this product moved one way in ≥ {seasmon.HIT_STRONG:.0%} of the stored "
             "years; overlapping echoes collapse to the strongest. **Worst** = the most adverse "
             "single year inside the window — the reminder that even a 9-of-10 pattern has an "
-            "exception. Descriptive history, not a signal.")
+            "exception. **By dates** re-measures the window on fixed calendar dates "
+            "(Bloomberg-SEAG style) instead of week-of-year alignment — trust the windows "
+            "where the two records agree. Descriptive history, not a signal.")
 
     # ---- client PDF (2026-08-22: the last module without one) --------------------
     st.divider()
