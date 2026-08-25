@@ -13190,20 +13190,32 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
     if wkt is None or wkt.empty:
         yc1.caption("No weekly data inside this window for that year.")
         return
-    lvl_hdr = "Yield %" if seasmon.unit_of(ticker) == "bp" else "Level"
-    brand.terminal_table(
-        [{"fri": d.strftime("%d %b %y").lstrip("0"), "lvl": _seas_lvl_fmt(lv),
-          "mv": float(m)} for d, lv, m in zip(wkt["date"], wkt["level"], wkt["move"])],
-        [{"key": "fri", "label": "Friday"},
-         {"key": "lvl", "label": lvl_hdr, "align": "right"},
-         {"key": "mv", "label": f"Weekly move ({unit})", "color": True, "fmt": fmt}])
+    fi = seasmon.unit_of(ticker) == "bp"
+    lvl_hdr = "Yield %" if fi else "Level"
+    has_fut = fi and "fut" in wkt.columns and wkt["fut"].notna().any()
+    rows_wk = []
+    for _, w in wkt.iterrows():
+        r_ = {"fri": w["date"].strftime("%d %b %y").lstrip("0"),
+              "lvl": _seas_lvl_fmt(w["level"]), "mv": float(w["move"])}
+        if has_fut:
+            r_["fut"] = "—" if pd.isna(w["fut"]) else _seas_lvl_fmt(w["fut"])
+        rows_wk.append(r_)
+    cols_wk = [{"key": "fri", "label": "Friday"},
+               {"key": "lvl", "label": lvl_hdr, "align": "right"}]
+    if has_fut:
+        cols_wk.append({"key": "fut", "label": "Future", "align": "right"})
+    cols_wk.append({"key": "mv", "label": f"Weekly move ({unit})", "color": True, "fmt": fmt})
+    brand.terminal_table(rows_wk, cols_wk)
+    _fut_note = (" **Future** = the front contract's actual settle that Friday — it moves "
+                 "opposite the yield, and it jumps on roll weeks without any P&L (the "
+                 "contract changes, not the market)." if has_fut else "")
     st.caption(
         f"{yr_sel}'s walk through the window, Friday close to Friday close — these "
         f"{len(wkt)} weekly moves sum to **{fmt.format(wkt['move'].sum())}{unit}**, the "
         f"{yr_sel} bar above (week basis). Levels are the actual front settles "
         "(benchmark yield for FI); moves are roll-adjusted point changes over the prior "
         "Friday's level, so on a roll week the move won't equal the raw levels' own "
-        "change — that gap is the roll, not a price move.")
+        f"change — that gap is the roll, not a price move.{_fut_note}")
 
 
 def render_seasonality() -> None:

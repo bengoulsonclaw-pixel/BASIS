@@ -790,6 +790,14 @@ def window_weeks(ticker: str, year: int, start: int, weeks: int) -> pd.DataFrame
     idx = lvlW.index[mask]
     out = pd.DataFrame({"date": idx, "level": lvlW.reindex(idx).to_numpy(),
                         "move": mvW.reindex(idx).to_numpy()})
+    if fi:
+        # FI windows run in yield space, but the desk trades the FUTURE — show its
+        # actual front settle beside each Friday's yield (load_frames only carries
+        # raw levels for price products, so read the store directly here)
+        fut = deepstore.get_raw([ticker])
+        if not fut.empty and ticker in fut.columns:
+            futW = fut[ticker].dropna().resample("W-FRI").last()
+            out["fut"] = futW.reindex(idx).to_numpy()
     return out.dropna(subset=["move"]).reset_index(drop=True)
 
 
