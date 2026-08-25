@@ -217,25 +217,42 @@ def email_morning_coffee() -> bool:
 _MC_PREFS_FILE = ROOT / "data" / "mc_run_prefs.json"
 
 
-def _mc_email_on_run() -> bool:
-    """Whether the manual 'Run report' button also emails (persisted toggle)."""
+def _mc_prefs() -> dict:
     try:
-        return bool(json.loads(_MC_PREFS_FILE.read_text(encoding="utf-8")).get("email_on_run", False))
+        return json.loads(_MC_PREFS_FILE.read_text(encoding="utf-8"))
     except Exception:
-        return False
+        return {}
 
 
-def _mc_set_email_on_run(on: bool) -> None:
+def _mc_set_pref(key: str, val) -> None:
+    """Read-modify-write one pref, preserving the others (email_on_run, run_after_pull, …)."""
+    d = _mc_prefs()
+    d[key] = val
     try:
         _MC_PREFS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _MC_PREFS_FILE.write_text(json.dumps({"email_on_run": bool(on)}, indent=2), encoding="utf-8")
+        _MC_PREFS_FILE.write_text(json.dumps(d, indent=2), encoding="utf-8")
     except Exception:
         pass
 
 
+def _mc_email_on_run() -> bool:
+    """Whether the manual 'Run report' button also emails (persisted toggle)."""
+    return bool(_mc_prefs().get("email_on_run", False))
+
+
+def _mc_run_after_pull() -> bool:
+    """Whether a successful Bloomberg snapshot pull auto-runs + emails Morning Coffee."""
+    return bool(_mc_prefs().get("run_after_pull", False))
+
+
 def _persist_mc_autoemail() -> None:
     """on_change for the card's Auto-email toggle — mirror session_state to disk."""
-    _mc_set_email_on_run(bool(st.session_state.get("home_mc_autoemail", False)))
+    _mc_set_pref("email_on_run", bool(st.session_state.get("home_mc_autoemail", False)))
+
+
+def _persist_mc_after_pull() -> None:
+    """on_change for the pull row's 'auto-run Morning Coffee after pull' toggle."""
+    _mc_set_pref("run_after_pull", bool(st.session_state.get("home_run_mc_after_pull", False)))
 
 
 def _regen_mc_heatmap() -> bool:
@@ -2940,8 +2957,16 @@ def render_home() -> None:
             run_daily.run(); load_signals.clear()
             _regen_mc_heatmap()      # refresh the Morning Coffee heatmap on Home
             st.session_state.pop("ficc_pull_confirm", None)
+            # Auto-run Morning Coffee + email the desk, if the pull-row toggle is on.
+            _mc_after = None
+            if _mc_run_after_pull() and MORNING_COFFEE_DIR.exists():
+                with st.spinner("Auto-running Morning Coffee and emailing the desk… (~1–2 min)"):
+                    _mc_after = run_morning_coffee(email=True)
+            _mc_note = (" · Morning Coffee sent to the desk ☕" if _mc_after
+                        else " · Morning Coffee auto-run FAILED — see its card log ⚠️"
+                        if _mc_after is False else "")
             st.success(f"✅ Snapshot {detail} — backup pushed. You can close the "
-                       "Terminal now.")
+                       f"Terminal now.{_mc_note}")
             st.rerun()
         elif outcome == "preflight_refused":
             if "WORKFLOW_REVIEW" in detail or "-4002" in detail:
@@ -3022,6 +3047,13 @@ def render_home() -> None:
         load_signals.clear(); st.rerun()
     # (Excel export + Weekly Review buttons and the old banners removed in the
     #  2026-08-20 redesign per Ben — Excel lives on via `snapshot.py --excel`.)
+    # Auto-run Morning Coffee + email the desk after a successful pull (admin, persisted toggle).
+    if IS_ADMIN and MORNING_COFFEE_DIR.exists():
+        st.session_state.setdefault("home_run_mc_after_pull", _mc_run_after_pull())
+        st.toggle("☕  Auto-run Morning Coffee + email the desk after each Bloomberg pull",
+                  key="home_run_mc_after_pull", on_change=_persist_mc_after_pull,
+                  help="When on, a successful Bloomberg snapshot pull automatically builds today's "
+                       "Morning Coffee report and emails it to the desk — no extra clicks.")
 
     # ── My Day beside the FICC day timeline ──
     _cl, _cr = st.columns([0.82, 1])

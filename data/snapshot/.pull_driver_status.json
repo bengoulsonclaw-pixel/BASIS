@@ -1,6 +1,7 @@
 {
  "date": "2026-08-25",
  "runs": 1,
- "outcome": "running",
- "when": "2026-08-25T06:38:26"
+ "outcome": "ok",
+ "when": "2026-08-25T06:50:06",
+ "detail": "complete in 11.6 min"
 }

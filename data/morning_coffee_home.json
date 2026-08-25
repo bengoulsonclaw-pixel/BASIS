@@ -1,55 +1,55 @@
 {
- "generated_at": "24 Aug 2026 · 10:08 ET",
- "synopsis": "Risk-off tone to start a loaded week: US equity-index futures are lower with the Nasdaq (-0.6%) underperforming as a chip-sector rout — aggravated by Alibaba's $10.2bn share placement to fund AI capex, a reminder of how much capital the buildout is soaking up — dents the AI trade ahead of Nvidia earnings.",
- "commentary": "Risk-off tone to start a loaded week: US equity-index futures are lower with the Nasdaq (-0.6%) underperforming as a chip-sector rout — aggravated by Alibaba's $10.2bn share placement to fund AI capex, a reminder of how much capital the buildout is soaking up — dents the AI trade ahead of Nvidia earnings. The bigger macro event is Jackson Hole, where new Fed Chair Kevin Warsh makes his debut and Treasury Secretary Bessent also speaks, with the bond market anxious for direction after weeks of term-premium angst. Treasuries caught a bid overnight, led by the long end (Ultra +0.4%), while the dollar firmed broadly and CAD lagged (-0.6%) after US-Canada trade talks reportedly broke down.\n\nEnergy is the puzzle of the morning: crude fell hard — WTI -1.9%, Brent -1.4%, products off 2%+ — even as Bessent teased an \"economic D-Day\" sanctions announcement on Iran and Tehran threatened 46 vessels in a Strait of Hormuz crackdown. The market seems to be discounting the headlines until it sees how sanctions would actually bite China, the top buyer of Iranian barrels. Nat gas went the other way, Henry Hub +1% and TTF +2.5%, on record-breaking August heat and softer US output. In ags, tariff friction is the driver — arabica hit records on the US-Colombia spat (+1.7%), while corn (+2.7%) and wheat (+1.9%) rallied and sugar and cocoa sold off.\n\nGold held a modest bid (+0.5%) as a hedge into the week's event risk. Watch Warsh's speech, July core PCE, and any concrete Iran sanctions detail — each can reprice the curve, the dollar and crude in one move.",
+ "generated_at": "25 Aug 2026 · 08:06 ET",
+ "synopsis": "Risk tone turned constructive overnight, and the story starts in energy: Brent slid below $90, down 2.8%, with WTI off 3.1%, as traders brushed aside Treasury Secretary Bessent's \"economic D-Day\" sanctions threat against Iran — Qatar's push to mediate the US-Iran dispute took the sting out of the supply-risk premium, with the follow-through hitting gasoil (-1.8%) and dragging TTF gas 2.4% lower.",
+ "commentary": "Risk tone turned constructive overnight, and the story starts in energy: Brent slid below $90, down 2.8%, with WTI off 3.1%, as traders brushed aside Treasury Secretary Bessent's \"economic D-Day\" sanctions threat against Iran — Qatar's push to mediate the US-Iran dispute took the sting out of the supply-risk premium, with the follow-through hitting gasoil (-1.8%) and dragging TTF gas 2.4% lower. That crude retreat did the heavy lifting elsewhere: falling oil eased the inflation math, bond yields dropped, and equities rallied — Treasuries bid across the curve with the long bond up 0.4%, Bunds and gilts firmer, and Nasdaq futures up 0.9% as chipmakers rebounded ahead of Nvidia earnings and this week's Jackson Hole gathering, where markets are hunting for clear Fed guidance before PCE data.\n\nThe other macro thread is Bessent's move to more than double long-dated Treasury buybacks — read by many as yield-curve management by another name and, per some strategists, just another route to a weaker dollar. Prediction markets remain sceptical it caps yields into 2026, and the \"debasement trade\" is back: gold is holding near $4,700 with crypto extending gains, even as the softer risk-off tone knocked platinum and palladium 1.5-2.4% lower. Ags were broadly heavy — wheat down 2-2.6%, sugar, cotton and robusta all off more than 1% — consistent with the deflating commodity complex.\n\nWatch Jackson Hole rhetoric, PCE, and whether Iran mediation headlines keep crude — and with it the rates bid — moving in tandem.",
  "headlines": [
   {
+   "source": "Bloomberg",
+   "title": "Russia Eyes Grain Duty Pause Through Year End on Ukraine Strikes",
+   "time": "07:16 ET",
+   "tag": "Agriculture"
+  },
+  {
    "source": "Financial Times",
-   "title": "Iran threatens 46 ships in Strait of Hormuz transit crackdown",
-   "time": "07:14 ET",
+   "title": "China warns US it could retaliate over Iran sanctions",
+   "time": "06:13 ET",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "The Guardian",
+   "title": "Gold hits highest level in three months as traders worry about US inflation and bond market jitters",
+   "time": "",
+   "tag": "Metals"
+  },
+  {
+   "source": "Financial Times",
+   "title": "Iranians queue for petrol as US blockade bites",
+   "time": "00:00 ET",
    "tag": "Energy"
   },
   {
-   "source": "Washington Post",
-   "title": "Bessent to unveil ‘economic D-Day’ sanctions against Iran",
-   "time": "10:00 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "NPR",
-   "title": "As Canada readies retaliatory tariffs, Mark Carney says his nation is 'at war' with U.S.",
-   "time": "00:36 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Treasuries Gain With Bessent and Warsh Due to Set Direction",
-   "time": "05:22 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "NPR",
-   "title": "Investors sell stocks and bonds as government efforts fail to soothe market",
-   "time": "04:44 ET",
-   "tag": "Rates"
+   "source": "Financial Times",
+   "title": "China could rescue the oil market again — if it wanted to",
+   "time": "00:00 ET",
+   "tag": "Energy"
   },
   {
    "source": "Wall Street Journal",
-   "title": "Comex Gold, Silver Settle Lower",
-   "time": "14:01 ET",
-   "tag": "Metals"
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "09:05 ET",
+   "tag": "Energy"
+  },
+  {
+   "source": "Financial Times",
+   "title": "US grain farmers pummelled as Iran war triggers surge in costs",
+   "time": "00:00 ET",
+   "tag": "Agriculture"
   },
   {
    "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "US Natural Gas Rises on Record-Breaking Heat, Lower Output",
-   "time": "09:39 ET",
-   "tag": "Energy"
   }
  ]
 }

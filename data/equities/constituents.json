@@ -4303,13 +4303,6 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "SHW US Equity",
-      "name": "Sherwin Williams Co/The",
-      "sector": "Materials",
-      "region": "US",
-      "index": "Dow Jones 30"
-    },
-    {
       "ticker": "GOOGL US Equity",
       "name": "Alphabet Inc Cl A",
       "sector": "Communication",
@@ -4317,9 +4310,9 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "AXP US Equity",
-      "name": "American Express Co",
-      "sector": "Financials",
+      "ticker": "SHW US Equity",
+      "name": "Sherwin Williams Co/The",
+      "sector": "Materials",
       "region": "US",
       "index": "Dow Jones 30"
     },
@@ -4327,6 +4320,13 @@
       "ticker": "HD US Equity",
       "name": "Home Depot Inc",
       "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "AXP US Equity",
+      "name": "American Express Co",
+      "sector": "Financials",
       "region": "US",
       "index": "Dow Jones 30"
     },
@@ -4373,13 +4373,6 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "NVDA US Equity",
-      "name": "Nvidia Corp",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "Dow Jones 30"
-    },
-    {
       "ticker": "BA US Equity",
       "name": "Boeing Co/The",
       "sector": "Industrials",
@@ -4389,6 +4382,13 @@
     {
       "ticker": "CRM US Equity",
       "name": "Salesforce Inc",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "NVDA US Equity",
+      "name": "Nvidia Corp",
       "sector": "Information Technology",
       "region": "US",
       "index": "Dow Jones 30"
@@ -4422,16 +4422,16 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "CSCO US Equity",
-      "name": "Cisco Systems Inc",
-      "sector": "Information Technology",
+      "ticker": "DIS US Equity",
+      "name": "Walt Disney Co/The",
+      "sector": "Communication",
       "region": "US",
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "DIS US Equity",
-      "name": "Walt Disney Co/The",
-      "sector": "Communication",
+      "ticker": "CSCO US Equity",
+      "name": "Cisco Systems Inc",
+      "sector": "Information Technology",
       "region": "US",
       "index": "Dow Jones 30"
     },
