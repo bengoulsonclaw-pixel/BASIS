@@ -214,6 +214,27 @@ def email_morning_coffee() -> bool:
     return mc_ok
 
 
+def rebuild_morning_coffee() -> bool:
+    """Rebuild the report docx from the last run + the admin's edited commentary
+    (main.py --rebuild) — no fetch, no re-scrape, no AI except the PT re-translate. The
+    edit override is written by the Synopsis card before this runs. Returns True on success."""
+    if not MORNING_COFFEE_DIR.exists():
+        st.session_state["mc_ok"] = False
+        st.session_state["mc_log"] = "Morning Coffee project not found on this PC."
+        return False
+    try:
+        mc = subprocess.run(
+            [morning_coffee_python(), str(MORNING_COFFEE_CLI), "--rebuild"],
+            cwd=str(MORNING_COFFEE_DIR), capture_output=True, text=True, timeout=300)
+        mc_log = (mc.stdout or "") + (("\n" + mc.stderr) if mc.stderr else "")
+        mc_ok = mc.returncode == 0
+    except Exception as e:
+        mc_log, mc_ok = f"Rebuild failed: {e}", False
+    st.session_state["mc_ok"] = mc_ok
+    st.session_state["mc_log"] = mc_log
+    return mc_ok
+
+
 _MC_PREFS_FILE = ROOT / "data" / "mc_run_prefs.json"
 
 
@@ -2724,8 +2745,17 @@ def _mc_synopsis_card() -> None:
     stamp = mc.get("generated_at", "")
     with st.container(key="dkcard_mcsyn"):
         st.markdown(f'<div class="dk-h"><span class="dk-t">Synopsis · Morning Coffee</span>'
-                    f'<span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
-                    f'</span></div>', unsafe_allow_html=True)
+                    f'<span class="dk-s" style="margin-right:38px">'
+                    f'{repcal._esc(stamp) if stamp else "no run yet"}</span></div>',
+                    unsafe_allow_html=True)
+        # ✏️ pen (admin): floated top-right — edit the commentary, then rebuild the report with it.
+        if (IS_ADMIN and MORNING_COFFEE_DIR.exists() and prose
+                and not st.session_state.get("mc_syn_editing")):
+            if st.button("✏️", key="mc_syn_edit",
+                         help="Edit the market commentary (admin). On Save your text replaces the "
+                              "AI's on the report — everything else (heatmap, headlines) stays."):
+                st.session_state["mc_syn_editing"] = True
+                st.rerun()
         # Control row (moved here from the Headlines card, 2026-08-31) — admin + this PC only
         # (the pipeline needs Bloomberg, the news feeds and the Gmail token):
         # Run report · Email the last report · Auto-email toggle.
@@ -2753,7 +2783,37 @@ def _mc_synopsis_card() -> None:
                        help="On = running the report also emails it. Off = Run report only "
                             "refreshes these cards; use ✉️ Email it to send. (This governs the "
                             "button; the scheduled daily send is set on the Recipients page.)")
-        if prose:
+        if IS_ADMIN and st.session_state.get("mc_syn_editing"):
+            _txt = st.text_area(
+                "Market commentary", value=prose, height=300, key="mc_syn_textarea",
+                label_visibility="collapsed",
+                help="Blank line between paragraphs. The Portuguese edition is re-translated "
+                     "from your text on Save; the heatmap, headlines and hot sheet stay as-is.")
+            _sv, _cn, _ = st.columns([1.3, 1.0, 2.2])
+            if _sv.button("💾 Save & rebuild", key="mc_syn_save", use_container_width=True):
+                _edited = (_txt or "").strip()
+                if len(_edited) < 40:
+                    st.warning("The commentary looks too short — not saving.")
+                else:
+                    _saved = True
+                    try:
+                        _ov = MORNING_COFFEE_DIR / "results" / "_commentary_override.json"
+                        _ov.parent.mkdir(parents=True, exist_ok=True)
+                        _ov.write_text(json.dumps({"commentary": _edited}, ensure_ascii=False),
+                                       encoding="utf-8")
+                    except Exception as _e:
+                        st.error(f"Couldn't save the edit: {_e}"); _saved = False
+                    if _saved:
+                        with st.spinner("Rebuilding the report with your edit… (~20–40s)"):
+                            _ok = rebuild_morning_coffee()
+                        st.session_state.pop("mc_syn_editing", None)
+                        st.toast("Commentary updated on the report ✏️" if _ok
+                                 else "Rebuild failed — see the log", icon="✏️" if _ok else "⚠️")
+                        st.rerun()
+            if _cn.button("Cancel", key="mc_syn_cancel", use_container_width=True):
+                st.session_state.pop("mc_syn_editing", None)
+                st.rerun()
+        elif prose:
             paras = "".join(
                 f'<p style="margin:0 0 .7rem;font-size:15px;line-height:1.6">'
                 f'{repcal._esc(p.strip())}</p>'
@@ -7941,15 +8001,20 @@ def _brazil_company_chart(blk: dict, cc: dict):
     order = d["company"].tolist()          # already sorted: companies, artisanal, Other
     # Three-way: companies in gold, a non-corporate producer (garimpo) in blue so it can
     # never be mistaken for a company, the Other bucket muted.
-    d["kind_lbl"] = np.where(d.get("is_artisanal", False), "Not a company",
-                             np.where(d["is_other"], "Other", "Company"))
+    # A fourth case: the slice of the national total nobody has been named for. It must
+    # not be gold — a reader scanning the chart would otherwise count it as a producer.
+    d["kind_lbl"] = np.where(d.get("is_unsourced", False), "Not sourced",
+                             np.where(d.get("is_artisanal", False), "Not a company",
+                                      np.where(d["is_other"], "Other", "Company")))
     return alt.Chart(d).mark_bar().encode(
         x=alt.X("share_brazil:Q", title=blk.get("axis_label") or "share of Brazil (%)"),
         y=alt.Y("company:N", title=None, sort=order),
         color=alt.Color("kind_lbl:N", legend=None,
-                        scale=alt.Scale(domain=["Company", "Not a company", "Other"],
-                                        range=[cc["accent"], cc["series"], cc["muted"]])),
-        opacity=alt.condition("datum.is_other", alt.value(0.45), alt.value(0.9)),
+                        scale=alt.Scale(
+                            domain=["Company", "Not a company", "Other", "Not sourced"],
+                            range=[cc["accent"], cc["series"], cc["muted"], cc["muted"]])),
+        opacity=alt.condition("datum.is_other || datum.is_unsourced",
+                              alt.value(0.45), alt.value(0.9)),
         tooltip=[alt.Tooltip("company:N", title="Company"),
                  alt.Tooltip("volume:Q", title=f"Volume ({blk['unit']})", format=",.2f"),
                  alt.Tooltip("share_brazil:Q", title="Share of Brazil", format=".2f"),
@@ -8010,7 +8075,9 @@ def render_brazil_production() -> None:
                "produces it — and which companies produce Brazil's share. Country data is "
                "free and refreshes with the daily pull (USDA PS&D, EIA). Company splits come "
                "from the Brazilian regulators where they exist — crude by operator from ANP, "
-               "iron ore and bauxite by volume sold from ANM's CFEM royalty returns. "
+               "iron ore and bauxite by volume sold from ANM's CFEM royalty returns — and "
+               "from company annual filings where the regulator's basis will not compare "
+               "(copper and nickel, which are published as contained metal). "
                "Everything else is blank on purpose: every block states what it measures, "
                "and a blank means we do not know rather than that the producer is small.")
 
@@ -16468,11 +16535,16 @@ if active == "Put/Call Ratios":
                     axis=alt.Axis(labelFontSize=11, labelExpr="abs(datum.value) + '%'")),
             color=alt.Color("Side:N", scale=alt.Scale(domain=["Calls", "Puts"], range=[_cc_a["long"], _cc_a["short"]]),
                             legend=alt.Legend(orient="top", title=None, labelFontSize=12)),
+            # Each side grouped: what traded, what normally trades, and the ratio between
+            # them — a % on its own doesn't say whether it's 1,800% of 80 lots or of 80,000
+            # (Ben, 2026-08-25).
             tooltip=[alt.Tooltip("market:N", title="Market"), alt.Tooltip("asset:N", title="Asset"),
                      alt.Tooltip("Side:N"),
                      alt.Tooltip("call_last:Q", title="Calls (contracts)", format=",.0f"),
-                     alt.Tooltip("put_last:Q", title="Puts (contracts)", format=",.0f"),
+                     alt.Tooltip("avg_call:Q", title="Calls (1y avg/day)", format=",.0f"),
                      alt.Tooltip("call_pct:Q", title="Calls (% of avg)", format=".0f"),
+                     alt.Tooltip("put_last:Q", title="Puts (contracts)", format=",.0f"),
+                     alt.Tooltip("avg_put:Q", title="Puts (1y avg/day)", format=",.0f"),
                      alt.Tooltip("put_pct:Q", title="Puts (% of avg)", format=".0f"),
                      alt.Tooltip("vol_days:Q", title="History (days)", format=".0f")])
         _avg100 = alt.Chart(pd.DataFrame({"x": [100.0, -100.0]})).mark_rule(
