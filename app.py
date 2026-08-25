@@ -108,8 +108,8 @@ MORNING_COFFEE_DIR = Path(os.getenv("BASIS_MC_DIR", r"C:\Users\Ben\OneDrive\Pers
 MORNING_COFFEE_CLI = MORNING_COFFEE_DIR / "main.py"
 
 
-def _to_et(local_str) -> str:
-    """Convert a snapshot capture time to 'H:MM AM ET · DD Mon YYYY' in New York time (DST-aware).
+def _fmt_stamp(local_str, tz, label: str) -> str:
+    """Render a capture time as 'H:MM AM <label> · DD Mon YYYY' in `tz`.
     Timestamps tagged with an explicit offset (the UTC pull time '…+00:00') are honored as-is;
     legacy naive 'YYYY-MM-DD HH:MM[:SS]' stamps are read as this box's local time (UTC-5)."""
     try:
@@ -122,13 +122,24 @@ def _to_et(local_str) -> str:
             dt = datetime.strptime(raw[:16], "%Y-%m-%d %H:%M")
         if dt.tzinfo is None:                   # legacy naive stamp -> machine-local (UTC-5)
             dt = dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
-        et = dt.astimezone(ZoneInfo("America/New_York"))
-        t = et.strftime("%I:%M %p").lstrip("0")
+        d = dt.astimezone(tz)
+        t = d.strftime("%I:%M %p").lstrip("0")
         mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][et.month - 1]
-        return f"{t} ET · {et.day:02d} {mon} {et.year}"
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.month - 1]
+        return f"{t} {label} · {d.day:02d} {mon} {d.year}"
     except Exception:
         return str(local_str)
+
+
+def _to_et(local_str) -> str:
+    """New York time (DST-aware) — the desk's reference clock for pull/publish stamps."""
+    return _fmt_stamp(local_str, ZoneInfo("America/New_York"), "ET")
+
+
+def _to_local(local_str) -> str:
+    """This box's own wall clock. Used where the stamp answers "when did *I* last do this"
+    rather than "when in the trading day" — the sidebar's SIGNALS row (Ben, 2026-08-25)."""
+    return _fmt_stamp(local_str, datetime.now().astimezone().tzinfo, "local")
 
 
 def morning_coffee_python() -> str:
@@ -14766,7 +14777,7 @@ with st.sidebar:
     except Exception:
         pass
     brand.sidebar_footer([
-        ("signals", _to_et(meta.get("as_of", "n/a")), ""),
+        ("signals", _to_local(meta.get("as_of", "n/a")), ""),
         ("feed", _feed[0], _feed[1]),
         ("data", _data_s, ""),
     ])
