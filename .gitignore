@@ -80,6 +80,11 @@ logs/
 # once reached this file and would have printed a fabricated release in a client PDF.
 data/econ_calendar_cache.json
 
+# Brazilian regulator bulk downloads (ANM CFEM, ANP per-well). These are raw
+# upstream CSVs re-fetched on demand - CFEM alone is 93 MB, and the repo's
+# post-pull auto-backup would sweep it in. Only the parsed summary belongs in git.
+data/cache/
+
 # runtime locks / guard markers - never version these (a stale lock on main made the VPS think a pull was running)
 data/snapshot/.eq_pull.lock
 data/snapshot/.pull_driver.lock

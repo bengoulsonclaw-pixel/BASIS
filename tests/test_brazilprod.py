@@ -450,6 +450,25 @@ def test_unhedgeable_lines_are_listed_but_carry_no_lots():
     assert set(brazilprod.hedge_matrix(include_unhedgeable=False)["_avail"]) == {True}
 
 
+def test_unhedgeable_lots_survive_the_subsidiary_aggregation_as_blanks():
+    """A blank must not become a zero on the way through groupby.
+
+    `sum` over an all-NaN group returns 0.0, so the aggregation that merges a client's
+    subsidiaries silently turned "no contract exists" into "0 lots" — which reads as a
+    client with nothing to hedge. Bauxite is the case: real sold tonnage from ANM, and
+    no listed future anywhere in the desk's universe.
+    """
+    m = brazilprod.hedge_matrix(include_unhedgeable=True)
+    if m.empty:
+        pytest.skip("no Brazil store on this box")
+    nohedge = m[~m["_avail"]]
+    if not len(nohedge):
+        pytest.skip("every product in this store is hedgeable")
+    for col in [c for c in m.columns if c.endswith((" yr", " mth", " day"))]:
+        assert nohedge[col].isna().all(), f"{col} shows a number for an unhedgeable line"
+        assert not (nohedge[col] == 0).any(), f"{col} shows 0 where it must be blank"
+
+
 def test_matrix_lots_reconcile_with_the_client_roll_up():
     """The per-product table and the per-client table are two views of one number."""
     m = brazilprod.hedge_matrix()

@@ -30,10 +30,21 @@ def main() -> int:
         pg.wait_for_timeout(14000)
 
         if pick:
-            pg.get_by_role("combobox").first.click()
-            pg.wait_for_timeout(800)
-            pg.get_by_text(pick, exact=False).last.click()
-            pg.wait_for_timeout(7000)
+            # NOT .first — the top bar's user switcher is also a selectbox and sits
+            # ahead of the commodity picker in the DOM, so `.first` silently drives the
+            # wrong widget and the page never leaves its default commodity.
+            box = pg.locator('[data-testid="stSelectbox"]').filter(
+                has_text=re.compile("COMMODITY", re.I)).first
+            box.scroll_into_view_if_needed()
+            box.click()
+            pg.wait_for_timeout(1200)
+            # The option list is VIRTUALISED — only ~10 of the 17 commodities are in
+            # the DOM at a time, so a plain locator misses anything below the fold.
+            # Type to filter instead, then take the first surviving option.
+            pg.keyboard.type(pick, delay=60)
+            pg.wait_for_timeout(1500)
+            pg.locator('[role="option"]').first.click(timeout=30000)
+            pg.wait_for_timeout(9000)
 
         body = pg.inner_text("body")
         for marker in ("Traceback", "Error", "error"):

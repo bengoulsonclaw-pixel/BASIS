@@ -682,18 +682,16 @@ div[class*="st-key-sf_chiprow"] button p {
 /* the drill-down pills echo the chip language */
 div[class*="st-key-dkcard_sectors"] [data-testid="stPills"] button {
     border-radius:6px !important; min-height:0 !important; padding:2px 9px !important; }
-/* Morning Coffee headlines card (design): the Run report pill floats in the header
-   band; the footer strip carries the sources roll-call + a gold text-link */
-div[class*="st-key-dkcard_mc"] { position:relative; }
-div.st-key-home_mc_run, [data-testid="stElementContainer"].st-key-home_mc_run {
-    position:absolute; top:7px; right:14px; width:auto !important; z-index:5;
-    margin:0 !important; }
-div.st-key-home_mc_run button {
-    background:$btn_gold !important; border:1px solid rgba(245,197,24,.55) !important;
-    min-height:0 !important; padding:3px 12px !important; border-radius:8px !important; }
-div.st-key-home_mc_run button p {
-    color:$gold !important; font-size:12px !important; font-weight:600;
-    text-transform:none !important; letter-spacing:0 !important; }
+/* Morning Coffee card: the control row (Run report · Email it · Auto-email) sits grouped at
+   the LEFT under the header — Run report keeps the gold pill accent, Email it matches it. */
+div.st-key-home_mc_run button, div.st-key-home_mc_email button {
+    min-height:0 !important; padding:4px 12px !important; border-radius:8px !important;
+    white-space:nowrap; }
+div.st-key-home_mc_run button, div.st-key-home_mc_email button {
+    background:$btn_gold !important; border:1px solid rgba(245,197,24,.55) !important; }
+div.st-key-home_mc_run button p, div.st-key-home_mc_email button p {
+    font-size:12px !important; font-weight:600; text-transform:none !important;
+    letter-spacing:0 !important; color:$gold !important; }
 div[class*="st-key-mc_footer"] {
     border-top:1px solid $border; margin-top:.3rem; padding-top:.45rem; }
 .mc-foot { font-size:11.5px; color:$caption; line-height:1.5;

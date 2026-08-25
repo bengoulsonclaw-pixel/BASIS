@@ -570,6 +570,18 @@ def _compute_phase(include_equities: bool = False) -> dict:
     # (data/signals/brazil_prod.json). Free sources, no Terminal, but a ~40MB
     # download and a minute of parsing, so it belongs to the daily pull rather
     # than page-open (app-wide once-a-day rule).
+    # ANM CFEM metals store — per-company sold tonnage from the royalty returns
+    # (data/signals/anm_metals.json). A 93MB CSV to parse, so it belongs here rather
+    # than page-open, and it must run BEFORE brazilprod.build() reads it.
+    try:
+        from src import anmdata
+        _anm = anmdata.refresh()
+        _live = [k for k, v in _anm["commodities"].items() if v.get("sourced")]
+        print(f"  ANM metals store: {len(_live)} of {len(_anm['commodities'])} "
+              f"commodities sourced ({', '.join(_live) or 'none'})")
+    except Exception as e:
+        print(f"  (ANM metals store skipped: {e})")
+
     try:
         from src import brazilprod
         _bz = brazilprod.build(force=True)

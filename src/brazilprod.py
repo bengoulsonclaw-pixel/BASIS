@@ -124,11 +124,15 @@ BASIS_LABEL = {
     "export":     ("Export share", "Share of what leaves the country — NOT who grew it."),
     "operated":   ("Operated production", "Output the company OPERATES — not its equity share. "
                                           "An operator runs fields in which others hold interests."),
+    "sold":       ("Volume sold", "Tonnage the company COMMERCIALISED, from its royalty "
+                                  "returns — not what it dug up. Stock movements and the gap "
+                                  "between output and shipments both land in it."),
 }
 # How to finish the sentence "share of Brazil's ___" on the company chart's axis.
 BASIS_AXIS = {
     "production": "production", "equity": "output", "crush": "cane crush",
     "slaughter": "processing", "export": "exports", "operated": "operated output",
+    "sold": "sold volume",
 }
 CONFIDENCE_LABEL = {
     "reported":    ("Reported", "Straight off company production releases."),
@@ -476,11 +480,78 @@ def _anp_crude_block(brazil_share: float) -> dict | None:
     }
 
 
+# CFEM reports tonnes; these commodities are displayed in millions of tonnes.
+_ANM_DISPLAY_DIV = {"iron_ore": 1e6, "bauxite": 1e6}
+
+
+def _anm_metals_block(key: str) -> dict | None:
+    """A metals company table from ANM's CFEM royalty returns, when it passes the gates.
+
+    Volume SOLD, not produced — CFEM is levied on what was commercialised. anmdata
+    refuses any commodity whose sold tonnage will not reconcile against the national
+    figure (CFEM reports gross ore, USGS reports contained metal for most metals), so
+    a `None` here means the split is genuinely not known rather than merely missing.
+    """
+    div = _ANM_DISPLAY_DIV.get(key)
+    if not div:
+        return None
+    try:
+        try:
+            from src import anmdata           # imported by the app, from the repo root
+        except ImportError:
+            import anmdata                    # run as `python src/brazilprod.py`
+        got = anmdata.from_store(key)
+    except Exception as exc:
+        # Loud, for the same reason as ANP: a live feed that quietly stops being live
+        # and falls back to the unsourced block is the failure worth preventing.
+        print(f"  ANM {key} unavailable ({type(exc).__name__}: {exc}) — company table "
+              f"falls back to NOT SOURCED")
+        return None
+    if got is None:
+        print(f"  ANM {key}: no store at data/signals/anm_metals.json — run the daily "
+              f"pull, or `python src/anmdata.py`. Company table falls back to NOT SOURCED")
+        return None
+    if not got.get("sourced") or not got.get("companies"):
+        return None
+
+    top = got["companies"][:12]
+    rows = []
+    for c in top:
+        ticker, yahoo = anmdata.TICKERS.get(c["company"], ("", ""))
+        rows.append({"company": c["company"], "ticker": ticker, "yahoo": yahoo,
+                     "volume": round(c["tonnes"] / div, 3), "kind": "company"})
+    named = sum(c["tonnes"] for c in top)
+    rest = got["total_t"] - named
+    if rest > 0 and len(got["companies"]) > len(top):
+        rows.append({"company": f"Other ({len(got['companies']) - len(top)} smaller producers)",
+                     "ticker": "", "volume": round(rest / div, 3), "kind": "other"})
+    excluded = got.get("excluded_tonnes") or 0.0
+    note = (f"Volume SOLD, from CFEM royalty returns — the tonnage each title-holder "
+            f"paid royalty on, not what it mined. Filers declaring run-of-mine tonnage "
+            f"are excluded, because ROM carries a fraction of the royalty per tonne and "
+            f"summing it with saleable product overstates Brazil badly")
+    if excluded > 0:
+        note += (f": {got['excluded_filers']} filer(s) and "
+                 f"{excluded / div:,.1f} {'Mt' if div >= 1e6 else 't'} left out on that test")
+    note += (f". What remains reconciles to {got['reconciliation']:.2f}x Brazil's national "
+             f"figure — measured, not fitted.")
+    return {
+        "basis": "sold", "year": got.get("year"),
+        "unit": "Mt" if div >= 1e6 else "t",
+        "confidence": "reported", "provenance": "live",
+        "source": got.get("source"), "note": note, "rows": rows,
+    }
+
+
 def _company_block(key: str, spec: dict, brazil_raw: float, brazil_share: float,
                    curated: dict) -> dict | None:
     blk = (curated.get("companies") or {}).get(key)
     if key == "crude_oil":
         live = _anp_crude_block(brazil_share)
+        if live:
+            blk = live
+    elif key in _ANM_DISPLAY_DIV:
+        live = _anm_metals_block(key)
         if live:
             blk = live
     if not blk or not blk.get("rows"):
@@ -888,6 +959,15 @@ def hedge_matrix(store: dict | None = None, turns: float = 1.0,
             agg[f"{pct}% {suffix}"] = "sum"
     df = df.groupby(["Company", "Product"], as_index=False, sort=False).agg(agg)
     df["Annual production"] = df["Annual production"].round(2)
+
+    # `sum` over an all-NaN group returns 0.0, not NaN — so aggregation silently turns
+    # an unhedgeable product's blank lot cells into zeros, and "0 lots" reads as a
+    # client with nothing to hedge rather than a product with no contract. Put the
+    # blanks back. (Latent until ANM sourced bauxite, which is the first product to
+    # carry real volumes and no listed future.)
+    lot_cols = [f"{pct}% {suffix}" for pct in ratios for suffix, _d in HEDGE_PERIODS]
+    df.loc[~df["_avail"], lot_cols] = pd.NA
+    df.loc[~df["_avail"], "_lots"] = 0.0          # ordering only; never displayed
 
     # Company blocks ordered by the company's whole book, biggest line first within it.
     totals = df.groupby("Company")["_lots"].sum().rename("_co_total")

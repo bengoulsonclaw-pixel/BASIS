@@ -143,10 +143,10 @@ def morning_coffee_python() -> str:
     return shutil.which("python") or sys.executable
 
 
-def run_morning_coffee() -> bool:
-    """Run the Morning Coffee main.py (separate project + interpreter) as a subprocess;
-    stash its status, log and the generated .docx in session_state so the Daily Briefing
-    section below can show the result + a download. Returns True on success."""
+def run_morning_coffee(email: bool = False) -> bool:
+    """Run the Morning Coffee main.py (separate project + interpreter) as a subprocess. Builds
+    the report and refreshes the home cards; sends the desk email only when email=True (else
+    passes --no-email). Stashes status/log/docx in session_state. Returns True on success."""
     if not MORNING_COFFEE_DIR.exists():
         st.session_state["mc_ok"] = False
         st.session_state["mc_log"] = (
@@ -154,12 +154,12 @@ def run_morning_coffee() -> bool:
             "set the BASIS_MC_DIR environment variable to its folder to enable this, or leave it "
             "disabled on this PC — the rest of the dashboard is unaffected.")
         return False
+    args = [morning_coffee_python(), str(MORNING_COFFEE_CLI)]
+    if not email:
+        args.append("--no-email")
     try:
-        mc = subprocess.run(
-            [morning_coffee_python(), str(MORNING_COFFEE_CLI)],
-            cwd=str(MORNING_COFFEE_DIR),
-            capture_output=True, text=True, timeout=600,
-        )
+        mc = subprocess.run(args, cwd=str(MORNING_COFFEE_DIR),
+                            capture_output=True, text=True, timeout=600)
         mc_log = (mc.stdout or "") + (("\n" + mc.stderr) if mc.stderr else "")
         mc_ok = mc.returncode == 0
     except subprocess.TimeoutExpired:
@@ -181,6 +181,50 @@ def run_morning_coffee() -> bool:
             st.session_state["mc_docx"] = saved.read_bytes()
             st.session_state["mc_docx_name"] = saved.name
     return mc_ok
+
+
+def email_morning_coffee() -> bool:
+    """Email the LAST generated Morning Coffee report WITHOUT rebuilding it
+    (main.py --email-only) — instant; no Bloomberg / news / AI. Returns True on success."""
+    if not MORNING_COFFEE_DIR.exists():
+        st.session_state["mc_ok"] = False
+        st.session_state["mc_log"] = "Morning Coffee project not found on this PC."
+        return False
+    try:
+        mc = subprocess.run(
+            [morning_coffee_python(), str(MORNING_COFFEE_CLI), "--email-only"],
+            cwd=str(MORNING_COFFEE_DIR), capture_output=True, text=True, timeout=180)
+        mc_log = (mc.stdout or "") + (("\n" + mc.stderr) if mc.stderr else "")
+        mc_ok = mc.returncode == 0
+    except Exception as e:
+        mc_log, mc_ok = f"Could not email the report: {e}", False
+    st.session_state["mc_ok"] = mc_ok
+    st.session_state["mc_log"] = mc_log
+    return mc_ok
+
+
+_MC_PREFS_FILE = ROOT / "data" / "mc_run_prefs.json"
+
+
+def _mc_email_on_run() -> bool:
+    """Whether the manual 'Run report' button also emails (persisted toggle)."""
+    try:
+        return bool(json.loads(_MC_PREFS_FILE.read_text(encoding="utf-8")).get("email_on_run", False))
+    except Exception:
+        return False
+
+
+def _mc_set_email_on_run(on: bool) -> None:
+    try:
+        _MC_PREFS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _MC_PREFS_FILE.write_text(json.dumps({"email_on_run": bool(on)}, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _persist_mc_autoemail() -> None:
+    """on_change for the card's Auto-email toggle — mirror session_state to disk."""
+    _mc_set_email_on_run(bool(st.session_state.get("home_mc_autoemail", False)))
 
 
 def _regen_mc_heatmap() -> bool:
@@ -2654,6 +2698,33 @@ def _mc_synopsis_card() -> None:
         st.markdown(f'<div class="dk-h"><span class="dk-t">Synopsis · Morning Coffee</span>'
                     f'<span class="dk-s">{repcal._esc(stamp) if stamp else "no run yet"}'
                     f'</span></div>', unsafe_allow_html=True)
+        # Control row (moved here from the Headlines card, 2026-08-31) — admin + this PC only
+        # (the pipeline needs Bloomberg, the news feeds and the Gmail token):
+        # Run report · Email the last report · Auto-email toggle.
+        if IS_ADMIN and MORNING_COFFEE_DIR.exists():
+            _auto = _mc_email_on_run()
+            _cr, _ce, _ct = st.columns([1.3, 1.15, 2.0], vertical_alignment="center")
+            if _cr.button("☕ Run report", key="home_mc_run", use_container_width=True,
+                          help="Build today's report from the latest snapshot + news and refresh "
+                               "these cards (~1–2 min). Emails the desk too ONLY if Auto-email is on."):
+                with st.spinner("Building the Morning Coffee report… (~1–2 min)"):
+                    _ok = run_morning_coffee(email=_auto)
+                st.toast(("Report built & emailed ☕" if _auto else "Report built — not emailed")
+                         if _ok else "Run failed — see the log", icon="☕" if _ok else "⚠️")
+                st.rerun()
+            if _ce.button("✉️ Email it", key="home_mc_email", use_container_width=True,
+                          help="Email the LAST report to the desk now, without rebuilding it."):
+                with st.spinner("Emailing the last report…"):
+                    _ok = email_morning_coffee()
+                st.toast("Emailed to the desk ✉️" if _ok else "Email failed — see the log",
+                         icon="✉️" if _ok else "⚠️")
+                st.rerun()
+            st.session_state.setdefault("home_mc_autoemail", _auto)
+            _ct.toggle("Auto-email on run", key="home_mc_autoemail",
+                       on_change=_persist_mc_autoemail,
+                       help="On = running the report also emails it. Off = Run report only "
+                            "refreshes these cards; use ✉️ Email it to send. (This governs the "
+                            "button; the scheduled daily send is set on the Recipients page.)")
         if prose:
             paras = "".join(
                 f'<p style="margin:0 0 .7rem;font-size:15px;line-height:1.6">'
@@ -2664,6 +2735,18 @@ def _mc_synopsis_card() -> None:
         else:
             st.caption("No commentary exported yet — the next Morning Coffee run will "
                        "fill this card.")
+        # last-run status + full log + .docx download (moved here from the Headlines card)
+        if IS_ADMIN and st.session_state.get("mc_log"):
+            _ok = st.session_state.get("mc_ok")
+            with st.expander("✓ Last run — log" if _ok else "⚠️ Last run FAILED — log",
+                             expanded=not _ok):
+                st.code(st.session_state.get("mc_log", ""), language="text")
+                if st.session_state.get("mc_docx"):
+                    st.download_button(
+                        "⬇️ Download the report (.docx)", data=st.session_state["mc_docx"],
+                        file_name=st.session_state.get("mc_docx_name", "Morning_Coffee.docx"),
+                        key="mc_docx_dl_home",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
 def _mc_card() -> None:
@@ -2681,25 +2764,10 @@ def _mc_card() -> None:
     with st.container(key="dkcard_mc"):
         _sub = f"{len(_srcs)} sources · pulled {_time}" if heads else "no run yet"
         st.markdown(f'<div class="dk-h"><span class="dk-t">Headlines · Morning Coffee'
-                    f'</span><span class="dk-s" style="margin-right:96px">{repcal._esc(_sub)}'
+                    f'</span><span class="dk-s">{repcal._esc(_sub)}'
                     f'</span></div>', unsafe_allow_html=True)
-        # the design's Run report pill, floated into the header band (admin + this
-        # PC only — the pipeline needs Bloomberg, the news feeds and the Gmail token)
-        if IS_ADMIN and MORNING_COFFEE_DIR.exists():
-            if st.button("Run report", key="home_mc_run",
-                         help="Run the Morning Coffee pipeline now — pulls Bloomberg, reads "
-                              "the news, writes the commentary and emails the desk (~1–2 min). "
-                              "These cards refresh when it finishes."):
-                with st.spinner("Pulling Bloomberg, reading the news, writing the macro "
-                                "commentary and emailing the report… (~1–2 min)"):
-                    _ok = run_morning_coffee()
-                if _ok:
-                    st.toast("Morning Coffee sent — cards refreshed.", icon="☕")
-                else:
-                    st.toast("Morning Coffee failed — see the Morning Coffee page for the log.",
-                             icon="⚠️")
-                st.rerun()
-        # (the synopsis moved to its own card beside this one, 2026-08-20)
+        # (the Run / Email / Auto-email controls + run-log moved to the Synopsis card on the
+        #  left, 2026-08-31; the synopsis itself moved to its own card 2026-08-20)
         if heads:
             # "cited in Hot Sheet: Brent" (design): product names from today's radar
             # stories, matched as whole words against each headline
@@ -2740,16 +2808,13 @@ def _mc_card() -> None:
         else:
             st.caption("No headlines exported yet — the next Morning Coffee run will "
                        "fill this card.")
-        # footer strip (design): sources roll-call + last run · gold link into the module
+        # footer strip: sources roll-call + last run (the old "Open Morning Coffee →" link and
+        # its standalone page were retired 2026-08-31 — everything lives on this card now)
+        _ftxt = (" · ".join(_srcs) + (f" — last run {_time}" if _time else "")
+                 if _srcs else "No run yet")
         with st.container(key="mc_footer"):
-            _fl, _fr = st.columns([3.4, 1.0], vertical_alignment="center")
-            _ftxt = (" · ".join(_srcs) + (f" — last run {_time}" if _time else "")
-                     if _srcs else "No run yet")
-            _fl.markdown(f'<div class="dk-vc mc-foot">{repcal._esc(_ftxt)}</div>',
-                         unsafe_allow_html=True)
-            with _fr:
-                st.button("Open Morning Coffee →", key="home_open_mc", on_click=_go,
-                          args=("Morning Coffee",))
+            st.markdown(f'<div class="dk-vc mc-foot">{repcal._esc(_ftxt)}</div>',
+                        unsafe_allow_html=True)
 
 
 def render_home() -> None:
@@ -4968,63 +5033,9 @@ def render_eq_dispersion() -> None:
         "either side.")
 
 
-def render_morning_coffee() -> None:
-    st.subheader("☕ Morning Coffee")
-    st.caption("The daily global-macro briefing — pulls Bloomberg + the news, writes the "
-               "commentary, emails the desk, and then opens here in English with the heatmap.")
-    if st.button("☕  Generate, email & open the report", type="primary",
-                 use_container_width=True, key="run_mc"):
-        with st.spinner("Pulling Bloomberg, reading the news, writing the macro commentary "
-                        "and emailing the report… (~1–2 min)"):
-            run_morning_coffee()
-
-    if "mc_ok" not in st.session_state:
-        st.info("Tap the button to generate today's report. It emails the desk, then opens "
-                "here in English with the heatmap.")
-        return
-    if not st.session_state["mc_ok"]:
-        st.error("Morning Coffee run failed — the log below has the actual error. "
-                 "(NOT necessarily Bloomberg: prices fall back to the morning snapshot "
-                 "Terminal-closed — news, Gmail, the AI commentary or the email send "
-                 "can each fail independently.)")
-        with st.expander("Run log", expanded=True):
-            st.code(st.session_state.get("mc_log", ""), language="text")
-        return
-
-    st.success("Generated and emailed to the desk. ☕")
-    side = _mc_sidecar()
-    if not _mc_native_heatmap(side):          # app-native treemap from the report's own moves…
-        heat = _mc_heatmap_path()             # …falling back to the report PNG for older runs
-        if heat.exists():
-            st.image(str(heat), use_container_width=True)
-    commentary = ((side or {}).get("commentary_en")
-                  or _mc_commentary(st.session_state.get("mc_log", "")))
-    if commentary:
-        st.markdown("#### Market Commentary")
-        for para in commentary.split("\n\n"):
-            if para.strip():
-                st.markdown(_md_money(para.strip()))
-    else:
-        st.caption("(Couldn't read the English text from this run — the .docx download below "
-                   "has the full report.)")
-    _news = (side or {}).get("headlines") or []
-    if _news:
-        st.markdown("#### Market news")
-        for _h in _news[:20]:
-            _t = str(_h.get("title", "")).strip()
-            if not _t:
-                continue
-            _u = str(_h.get("url", "")).strip()
-            _src = str(_h.get("source", "")).strip()
-            st.markdown((f"- [{_md_money(_t)}]({_u})" if _u else f"- {_md_money(_t)}")
-                        + (f" — *{_md_money(_src)}*" if _src else ""))
-    if st.session_state.get("mc_docx"):
-        st.download_button("⬇️  Download the report (.docx)", data=st.session_state["mc_docx"],
-                           file_name=st.session_state.get("mc_docx_name", "Morning_Coffee.docx"),
-                           key="mc_docx_dl",
-                           mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    with st.expander("Run log"):
-        st.code(st.session_state.get("mc_log", ""), language="text")
+# render_morning_coffee (the standalone ☕ page) was retired 2026-08-31 — the FICC home's
+# "Headlines · Morning Coffee" card now carries Run report / ✉️ Email it / Auto-email, the
+# commentary + headlines cards, the heatmap and a run-log/download expander.
 
 
 # --- overview pages: the Hot Sheet + data health -----------------------------
@@ -7954,9 +7965,11 @@ def render_brazil_production() -> None:
     st.subheader("🇧🇷 Brazil Production")
     st.caption("What Brazil produces, how much of the world's supply that is, who else "
                "produces it — and which companies produce Brazil's share. Country data is "
-               "free and refreshes with the daily pull (USDA PS&D, EIA); the metals, pulp "
-               "and company tables are hand-maintained, and every company block states what "
-               "it actually measures.")
+               "free and refreshes with the daily pull (USDA PS&D, EIA). Company splits come "
+               "from the Brazilian regulators where they exist — crude by operator from ANP, "
+               "iron ore and bauxite by volume sold from ANM's CFEM royalty returns. "
+               "Everything else is blank on purpose: every block states what it measures, "
+               "and a blank means we do not know rather than that the producer is small.")
 
     store = _brazil_store()
     coms = store.get("commodities") or {}
@@ -14999,8 +15012,8 @@ if active in ("Hot Sheet", "Confluence"):        # old saved-state deep links la
     render_hotsheet("ficc"); st.stop()
 if active == "Technical Analysis":
     render_ta_overview(); st.stop()
-if active == "Morning Coffee":
-    (render_morning_coffee if IS_ADMIN else render_home)(); st.stop()
+if active == "Morning Coffee":          # standalone page retired 2026-08-31 — old deep links
+    render_home(); st.stop()             # land on the FICC home; its card carries all the controls
 if active == "Weekly Review":
     (render_weekly_review if IS_ADMIN else render_home)(); st.stop()
 if active == "Market Hours":

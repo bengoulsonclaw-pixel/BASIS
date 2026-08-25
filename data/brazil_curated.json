@@ -1,943 +1,944 @@
 {
-  "_readme": [
-    "Hand-maintained inputs for the Brazil Production page (src/brazilprod.py).",
-    "Everything else on that page is pulled live and free (USDA PS&D, EIA).",
-    "Two sections:",
-    "  countries_curated - country-level output for commodities with no free API",
-    "                      (metals via USGS Mineral Commodity Summaries, pulp, ethanol).",
-    "                      Refresh once a year, Jan/Feb, when the new MCS lands.",
-    "                      'world' is the published world total and is authoritative: the",
-    "                      listed countries are only the majors and the page buckets the",
-    "                      rest into 'Other'. If the listed countries ever sum to MORE than",
-    "                      'world', the build flags it rather than silently redefining world.",
-    "  companies         - who produces Brazil's share. Refresh quarterly from company",
-    "                      production reports.",
-    "'basis' says WHAT the company number measures - production, equity share, crush,",
-    "slaughter or export. Never mix bases in one block: a soybean exporter did not grow",
-    "the beans. 'confidence': reported = straight off a company release; association =",
-    "industry body; estimate = desk estimate, shown with a caveat on the page and PDF."
-  ],
-  "as_of": "2026-08-21",
-  "countries_curated": {
-    "iron_ore": {
-      "label": "Iron ore",
-      "unit": "Mt",
-      "unit_long": "million tonnes, usable ore",
-      "year": 2024,
-      "source": "USGS Mineral Commodity Summaries 2025",
-      "world": 2500,
-      "countries": {
-        "Australia": 930,
-        "Brazil": 440,
-        "India": 280,
-        "China": 270,
-        "Russia": 88,
-        "Iran": 78,
-        "Canada": 70,
-        "South Africa": 60,
-        "Ukraine": 47,
-        "United States": 44,
-        "Kazakhstan": 20,
-        "Sweden": 17
-      },
-      "provenance": "keyed"
-    },
-    "niobium": {
-      "label": "Niobium",
-      "unit": "kt",
-      "unit_long": "thousand tonnes, Nb content",
-      "year": 2024,
-      "source": "USGS Mineral Commodity Summaries 2025",
-      "world": 83.0,
-      "countries": {
-        "Brazil": 75.0,
-        "Canada": 6.7,
-        "Other": 1.3
-      },
-      "provenance": "keyed"
-    },
-    "bauxite": {
-      "label": "Bauxite",
-      "unit": "Mt",
-      "unit_long": "million tonnes, dry equivalent",
-      "year": 2024,
-      "source": "USGS Mineral Commodity Summaries 2025",
-      "world": 430,
-      "countries": {
-        "Guinea": 130,
-        "Australia": 98,
-        "China": 93,
-        "Brazil": 31,
-        "Indonesia": 27,
-        "India": 24,
-        "Jamaica": 5.8,
-        "Russia": 5.5
-      },
-      "provenance": "keyed"
-    },
-    "gold": {
-      "label": "Gold",
-      "unit": "t",
-      "unit_long": "tonnes, mine production",
-      "year": 2024,
-      "source": "USGS Mineral Commodity Summaries 2025",
-      "world": 3300,
-      "countries": {
-        "China": 380,
-        "Russia": 310,
-        "Australia": 290,
-        "Canada": 200,
-        "United States": 160,
-        "Kazakhstan": 130,
-        "Mexico": 130,
-        "Peru": 130,
-        "Ghana": 130,
-        "Indonesia": 130,
-        "Uzbekistan": 110,
-        "Brazil": 60
-      },
-      "provenance": "keyed"
-    },
-    "nickel": {
-      "label": "Nickel",
-      "unit": "kt",
-      "unit_long": "thousand tonnes, Ni content",
-      "year": 2024,
-      "source": "USGS Mineral Commodity Summaries 2025",
-      "world": 3700,
-      "countries": {
-        "Indonesia": 2200,
-        "Philippines": 330,
-        "Russia": 200,
-        "New Caledonia": 190,
-        "Canada": 190,
-        "Australia": 160,
-        "China": 110,
-        "Brazil": 88
-      },
-      "provenance": "keyed"
-    },
-    "manganese": {
-      "label": "Manganese",
-      "unit": "kt",
-      "unit_long": "thousand tonnes, Mn content",
-      "year": 2024,
-      "source": "USGS Mineral Commodity Summaries 2025",
-      "world": 20000,
-      "countries": {
-        "South Africa": 7200,
-        "Gabon": 4600,
-        "Australia": 2300,
-        "China": 1000,
-        "Ghana": 1000,
-        "India": 850,
-        "Brazil": 620,
-        "Kazakhstan": 400
-      },
-      "provenance": "keyed"
-    },
-    "copper": {
-      "label": "Copper",
-      "unit": "kt",
-      "unit_long": "thousand tonnes, Cu content",
-      "year": 2024,
-      "source": "USGS Mineral Commodity Summaries 2025",
-      "world": 23000,
-      "countries": {
-        "Chile": 5300,
-        "Congo (Kinshasa)": 3300,
-        "Peru": 2600,
-        "China": 1800,
-        "United States": 1100,
-        "Indonesia": 1100,
-        "Russia": 930,
-        "Australia": 800,
-        "Zambia": 820,
-        "Mexico": 750,
-        "Brazil": 400
-      },
-      "provenance": "keyed"
-    },
-    "pulp": {
-      "label": "Wood pulp",
-      "unit": "Mt",
-      "unit_long": "million tonnes, chemical wood pulp",
-      "year": 2024,
-      "source": "Iba + PPPC / FAO ForesSTAT",
-      "world": 190.0,
-      "countries": {
-        "United States": 47.0,
-        "Brazil": 29.0,
-        "China": 22.0,
-        "Canada": 15.0,
-        "Sweden": 11.5,
-        "Finland": 10.0,
-        "Japan": 8.0,
-        "Russia": 8.0,
-        "Indonesia": 8.0,
-        "Chile": 5.0
-      },
-      "note": "Brazil is a mid-table producer of ALL wood pulp but the clear world number one in traded hardwood (eucalyptus) market pulp, where it is roughly a third of global supply.",
-      "provenance": "keyed"
-    },
-    "ethanol": {
-      "label": "Fuel ethanol",
-      "unit": "bn litres",
-      "unit_long": "billion litres",
-      "year": 2024,
-      "source": "UNICA / RFA / EIA",
-      "world": 115.0,
-      "countries": {
-        "United States": 60.0,
-        "Brazil": 35.5,
-        "European Union": 5.5,
-        "China": 4.0,
-        "India": 5.5,
-        "Canada": 2.0,
-        "Thailand": 1.5
-      },
-      "provenance": "keyed"
-    }
+ "_readme": [
+  "Hand-maintained inputs for the Brazil Production page (src/brazilprod.py).",
+  "Everything else on that page is pulled live and free (USDA PS&D, EIA).",
+  "Two sections:",
+  "  countries_curated - country-level output for commodities with no free API",
+  "                      (metals via USGS Mineral Commodity Summaries, pulp, ethanol).",
+  "                      Refresh once a year, Jan/Feb, when the new MCS lands.",
+  "                      'world' is the published world total and is authoritative: the",
+  "                      listed countries are only the majors and the page buckets the",
+  "                      rest into 'Other'. If the listed countries ever sum to MORE than",
+  "                      'world', the build flags it rather than silently redefining world.",
+  "  companies         - who produces Brazil's share. Refresh quarterly from company",
+  "                      production reports.",
+  "'basis' says WHAT the company number measures - production, equity share, crush,",
+  "slaughter or export. Never mix bases in one block: a soybean exporter did not grow",
+  "the beans. 'confidence': reported = straight off a company release; association =",
+  "industry body; estimate = desk estimate, shown with a caveat on the page and PDF.",
+  "ANM AMB (Anuario Mineral Brasileiro) does NOT carry the title-holder - it is aggregated to Ano base x UF x Classe Substancia x Substancia. Verified 2026-08-24 against the live files. The company-level route is CFEM (royalty returns), wired in src/anmdata.py; it reports volume SOLD, and only iron ore and bauxite reconcile against their national figures because the rest are published as contained metal."
+ ],
+ "as_of": "2026-08-21",
+ "countries_curated": {
+  "iron_ore": {
+   "label": "Iron ore",
+   "unit": "Mt",
+   "unit_long": "million tonnes, usable ore",
+   "year": 2024,
+   "source": "USGS Mineral Commodity Summaries 2025",
+   "world": 2500,
+   "countries": {
+    "Australia": 930,
+    "Brazil": 440,
+    "India": 280,
+    "China": 270,
+    "Russia": 88,
+    "Iran": 78,
+    "Canada": 70,
+    "South Africa": 60,
+    "Ukraine": 47,
+    "United States": 44,
+    "Kazakhstan": 20,
+    "Sweden": 17
+   },
+   "provenance": "keyed"
   },
-  "companies": {
-    "iron_ore": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "Mt",
-      "confidence": "reported",
-      "source": "Company production reports (Vale 4Q24, CSN Mineracao, Anglo American, Usiminas)",
-      "note": "Attributable saleable production. Samarco is a 50/50 Vale-BHP JV and is shown separately, not inside Vale.",
-      "rows": [
-        {
-          "company": "Vale",
-          "ticker": "VALE3 BZ",
-          "yahoo": "VALE",
-          "volume": 328.0
-        },
-        {
-          "company": "CSN Mineracao",
-          "ticker": "CMIN3 BZ",
-          "yahoo": "",
-          "volume": 43.0
-        },
-        {
-          "company": "Anglo American (Minas-Rio)",
-          "ticker": "AAL LN",
-          "yahoo": "AAL.L",
-          "volume": 24.0
-        },
-        {
-          "company": "Samarco (Vale / BHP JV)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 9.0
-        },
-        {
-          "company": "Usiminas (Musa)",
-          "ticker": "USIM5 BZ",
-          "yahoo": "",
-          "volume": 8.0
-        },
-        {
-          "company": "ArcelorMittal Brasil",
-          "ticker": "MT NA",
-          "yahoo": "MT",
-          "volume": 3.0
-        },
-        {
-          "company": "Other (Gerdau, Bemisa, Ferro+, J&F)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 25.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Company tonnages come from quarterly production reports (Vale, CSN Mineracao, Anglo American, Usiminas). Not yet wired."
-    },
-    "crude_oil": {
-      "basis": "equity",
-      "year": 2025,
-      "unit": "kb/d",
-      "confidence": "estimate",
-      "source": "ANP monthly production bulletin + company disclosures",
-      "note": "Working-interest (equity) share of Brazilian liquids, NOT operatorship. Petrobras operates far more than it owns - it is the operator of most pre-salt fields in which Shell, TotalEnergies, CNOOC, CNPC, Equinor, Galp and Repsol Sinopec hold equity.",
-      "rows": [
-        {
-          "company": "Petrobras",
-          "ticker": "PETR4 BZ",
-          "yahoo": "PBR",
-          "volume": 2250
-        },
-        {
-          "company": "Shell Brasil",
-          "ticker": "SHEL LN",
-          "yahoo": "SHEL",
-          "volume": 380
-        },
-        {
-          "company": "CNOOC",
-          "ticker": "883 HK",
-          "yahoo": "",
-          "volume": 180
-        },
-        {
-          "company": "CNPC / PetroChina",
-          "ticker": "857 HK",
-          "yahoo": "",
-          "volume": 130
-        },
-        {
-          "company": "TotalEnergies",
-          "ticker": "TTE FP",
-          "yahoo": "TTE",
-          "volume": 120
-        },
-        {
-          "company": "Equinor",
-          "ticker": "EQNR NO",
-          "yahoo": "EQNR",
-          "volume": 110
-        },
-        {
-          "company": "Galp",
-          "ticker": "GALP PL",
-          "yahoo": "",
-          "volume": 110
-        },
-        {
-          "company": "PRIO",
-          "ticker": "PRIO3 BZ",
-          "yahoo": "",
-          "volume": 100
-        },
-        {
-          "company": "Repsol Sinopec",
-          "ticker": "REP SM",
-          "yahoo": "",
-          "volume": 80
-        },
-        {
-          "company": "Brava Energia (3R + Enauta)",
-          "ticker": "BRAV3 BZ",
-          "yahoo": "",
-          "volume": 75
-        },
-        {
-          "company": "Other (Karoon, Petrogal, PetroReconcavo, Trident)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 120
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Superseded by ANP operator data."
-    },
-    "pulp": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "Mt",
-      "confidence": "reported",
-      "source": "Company results releases + Iba (Industria Brasileira de Arvores)",
-      "note": "Chemical wood pulp production in Brazil. Veracel is a Suzano / Stora Enso JV, shown separately.",
-      "rows": [
-        {
-          "company": "Suzano",
-          "ticker": "SUZB3 BZ",
-          "yahoo": "SUZ",
-          "volume": 11.3
-        },
-        {
-          "company": "Bracell",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 3.0
-        },
-        {
-          "company": "CMPC (Guaiba)",
-          "ticker": "CMPC CI",
-          "yahoo": "",
-          "volume": 1.9
-        },
-        {
-          "company": "Eldorado Brasil",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 1.8
-        },
-        {
-          "company": "Klabin",
-          "ticker": "KLBN11 BZ",
-          "yahoo": "",
-          "volume": 1.6
-        },
-        {
-          "company": "Veracel (Suzano / Stora Enso JV)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 1.2
-        },
-        {
-          "company": "Other (Arauco, Sylvamo, integrated and non-market mills)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 8.2
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Volumes come from company results releases and Iba. Not yet wired."
-    },
-    "sugar": {
-      "basis": "crush",
-      "year": 2025,
-      "unit": "Mt cane",
-      "confidence": "association",
-      "source": "UNICA / company harvest reports (Centre-South crush)",
-      "note": "Cane CRUSHED, not sugar produced - each group splits its cane between sugar and ethanol depending on relative prices, so crush is the honest capacity measure. Raizen is the Cosan / Shell joint venture.",
-      "rows": [
-        {
-          "company": "Raizen (Cosan / Shell)",
-          "ticker": "RAIZ4 BZ",
-          "yahoo": "",
-          "volume": 85.0
-        },
-        {
-          "company": "BP Bioenergy",
-          "ticker": "BP LN",
-          "yahoo": "BP",
-          "volume": 32.0
-        },
-        {
-          "company": "Atvos",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 28.0
-        },
-        {
-          "company": "Sao Martinho",
-          "ticker": "SMTO3 BZ",
-          "yahoo": "",
-          "volume": 23.0
-        },
-        {
-          "company": "Tereos Brasil",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 20.0
-        },
-        {
-          "company": "CMAA",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 12.0
-        },
-        {
-          "company": "Jalles Machado",
-          "ticker": "JALL3 BZ",
-          "yahoo": "",
-          "volume": 6.0
-        },
-        {
-          "company": "Other (~250 independent mills)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 404.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Cane crush by mill group is published by UNICA. Not yet wired."
-    },
-    "beef": {
-      "basis": "slaughter",
-      "year": 2024,
-      "unit": "% of slaughter",
-      "confidence": "estimate",
-      "source": "ABIEC + company capacity disclosures",
-      "note": "Share of federally-inspected cattle slaughter, not of herd ownership. Cattle are RAISED on tens of thousands of private ranches; these are the processors that buy and slaughter them.",
-      "rows": [
-        {
-          "company": "JBS (Friboi)",
-          "ticker": "JBSS3 BZ",
-          "yahoo": "",
-          "volume": 24.0
-        },
-        {
-          "company": "Marfrig",
-          "ticker": "MRFG3 BZ",
-          "yahoo": "",
-          "volume": 12.0
-        },
-        {
-          "company": "Minerva Foods",
-          "ticker": "BEEF3 BZ",
-          "yahoo": "",
-          "volume": 10.0
-        },
-        {
-          "company": "Frigol, Masterboi, Mataboi (three processors)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 5.0,
-          "kind": "group"
-        },
-        {
-          "company": "Other (regional plants)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 49.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Slaughter share would come from ABIEC and company disclosures. Not yet wired."
-    },
-    "chicken": {
-      "basis": "slaughter",
-      "year": 2024,
-      "unit": "% of output",
-      "confidence": "estimate",
-      "source": "ABPA + company disclosures",
-      "note": "Share of Brazilian broiler output. Integrators own the birds and contract the growing out, so this is closer to a true production share than the beef table.",
-      "rows": [
-        {
-          "company": "BRF (Sadia / Perdigao)",
-          "ticker": "BRFS3 BZ",
-          "yahoo": "BRFS",
-          "volume": 22.0
-        },
-        {
-          "company": "JBS (Seara)",
-          "ticker": "JBSS3 BZ",
-          "yahoo": "",
-          "volume": 17.0
-        },
-        {
-          "company": "Aurora Coop",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 8.0
-        },
-        {
-          "company": "C.Vale",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 5.0
-        },
-        {
-          "company": "Copacol",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 3.0
-        },
-        {
-          "company": "Other (co-ops and regional integrators)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 45.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Output share would come from ABPA and company disclosures. Not yet wired."
-    },
-    "soybeans": {
-      "basis": "export",
-      "year": 2024,
-      "unit": "% of exports",
-      "confidence": "estimate",
-      "source": "Comex Stat / ABIOVE trade-house shares",
-      "note": "Brazil's soybean crop is grown by tens of thousands of private farms; no listed company grows a material fraction of it. The largest listed grower, SLC Agricola, is roughly 1% of the national crop. What concentrates is who buys, crushes and ships it - and that is what moves basis.",
-      "rows": [
-        {
-          "company": "Bunge",
-          "ticker": "BG US",
-          "yahoo": "BG",
-          "volume": 13.0
-        },
-        {
-          "company": "Cargill",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 13.0
-        },
-        {
-          "company": "COFCO International",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 9.0
-        },
-        {
-          "company": "ADM",
-          "ticker": "ADM US",
-          "yahoo": "ADM",
-          "volume": 8.0
-        },
-        {
-          "company": "Louis Dreyfus",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 8.0
-        },
-        {
-          "company": "Amaggi",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 6.0
-        },
-        {
-          "company": "Other (CHS, Olam, Gavilon, co-ops)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 43.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Company-level export share is NOT public in Brazil - Comex Stat publishes by product, state and destination but not by exporter. Needs paid bill-of-lading data."
-    },
-    "corn": {
-      "basis": "export",
-      "year": 2024,
-      "unit": "% of exports",
-      "confidence": "estimate",
-      "source": "Comex Stat trade-house shares",
-      "note": "Same caveat as soybeans. Corn is grown as a safrinha second crop by the same fragmented farm base, so the concentration sits in the export channel, not the field.",
-      "rows": [
-        {
-          "company": "Cargill",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 14.0
-        },
-        {
-          "company": "Bunge",
-          "ticker": "BG US",
-          "yahoo": "BG",
-          "volume": 11.0
-        },
-        {
-          "company": "COFCO International",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 10.0
-        },
-        {
-          "company": "Louis Dreyfus",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 8.0
-        },
-        {
-          "company": "ADM",
-          "ticker": "ADM US",
-          "yahoo": "ADM",
-          "volume": 7.0
-        },
-        {
-          "company": "Other (Amaggi, CHS, co-ops, ethanol plants)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 50.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Same as soybeans: exporter-level share is not public."
-    },
-    "coffee": {
-      "basis": "export",
-      "year": 2024,
-      "unit": "% of exports",
-      "confidence": "estimate",
-      "source": "Cecafe exporter rankings",
-      "note": "Brazil's crop comes from roughly 300,000 growers. Cooxupe is a growers' co-operative, so it is the one line here that is genuinely upstream.",
-      "rows": [
-        {
-          "company": "Neumann Kaffee Gruppe",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 13.0
-        },
-        {
-          "company": "Louis Dreyfus",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 11.0
-        },
-        {
-          "company": "Cooxupe (co-op)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 9.0
-        },
-        {
-          "company": "Sucafina",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 8.0
-        },
-        {
-          "company": "Olam / ofi",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 7.0
-        },
-        {
-          "company": "Volcafe",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 6.0
-        },
-        {
-          "company": "Other (Cofco, Exportadora Guaxupe, regional)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 46.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "Cecafe publishes exporter rankings. Not yet wired."
-    },
-    "cotton": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "% of crop",
-      "confidence": "estimate",
-      "source": "ABRAPA state association data",
-      "note": "Cotton is the one Brazilian row crop with real farm-level concentration - large Mato Grosso and Bahia estates. SLC Agricola discloses its own lint volumes; the rest are private groups.",
-      "rows": [
-        {
-          "company": "SLC Agricola",
-          "ticker": "SLCE3 BZ",
-          "yahoo": "",
-          "volume": 6.0
-        },
-        {
-          "company": "Grupo Scheffer",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 4.0
-        },
-        {
-          "company": "Grupo Bom Futuro",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 3.5
-        },
-        {
-          "company": "Grupo Horita",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 2.5
-        },
-        {
-          "company": "Other (large private estates)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 84.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "ABRAPA state data plus SLC Agricola disclosures. Not yet wired."
-    },
-    "niobium": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "kt",
-      "confidence": "estimate",
-      "source": "Company disclosures + USGS Mineral Commodity Summaries",
-      "note": "Brazil is ~90% of world niobium and Brazilian niobium is essentially one private company: CBMM's Araxa operation in Minas Gerais. There is no listed pure-play - CBMM is held by the Moreira Salles group with Japanese, Korean and Chinese minority stakes.",
-      "rows": [
-        {
-          "company": "CBMM (Araxa)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 66.0
-        },
-        {
-          "company": "CMOC Brasil / Niobras (Catalao)",
-          "ticker": "603993 CH",
-          "yahoo": "",
-          "volume": 7.5
-        },
-        {
-          "company": "Other (Mineracao Taboca, Pitinga)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 1.5
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "CBMM is private and does not publish tonnage; ANM's AMB needs a dados.gov.br API key."
-    },
-    "bauxite": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "Mt",
-      "confidence": "estimate",
-      "source": "Company production reports (Hydro, Alcoa) + MRN disclosures",
-      "note": "Mineracao Rio do Norte is a joint venture whose shareholders include Vale, South32, Rio Tinto and CBA, so its output is not attributable to any single listed parent.",
-      "rows": [
-        {
-          "company": "Mineracao Rio do Norte (MRN)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 12.0
-        },
-        {
-          "company": "Hydro Paragominas",
-          "ticker": "NHY NO",
-          "yahoo": "NHY.OL",
-          "volume": 10.0
-        },
-        {
-          "company": "Alcoa Juruti",
-          "ticker": "AA US",
-          "yahoo": "AA",
-          "volume": 5.5
-        },
-        {
-          "company": "Other (CBA / Votorantim and smaller mines)",
-          "ticker": "CBAV3 BZ",
-          "yahoo": "",
-          "volume": 3.5
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "ANM AMB needs a dados.gov.br API key; Hydro and Alcoa publish their own volumes."
-    },
-    "copper": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "kt",
-      "confidence": "estimate",
-      "source": "Company production reports (Vale, Lundin Mining, Ero Copper)",
-      "note": "Brazilian copper is a small share of world supply but is concentrated in three operators, all of which report their Brazilian volumes separately.",
-      "rows": [
-        {
-          "company": "Vale (Salobo, Sossego)",
-          "ticker": "VALE3 BZ",
-          "yahoo": "VALE",
-          "volume": 220.0
-        },
-        {
-          "company": "Lundin Mining (Chapada)",
-          "ticker": "LUN CN",
-          "yahoo": "",
-          "volume": 55.0
-        },
-        {
-          "company": "Ero Copper (Caraiba, Tucuma)",
-          "ticker": "ERO CN",
-          "yahoo": "",
-          "volume": 50.0
-        },
-        {
-          "company": "Other",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 75.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "ANM AMB needs a dados.gov.br API key; Vale, Lundin and Ero publish their own volumes."
-    },
-    "nickel": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "kt",
-      "confidence": "estimate",
-      "source": "Company production reports (Anglo American, Vale, Atlantic Nickel)",
-      "note": "Nickel content of Brazilian mine output. Anglo American's Barro Alto and Niquelandia ferronickel operations are the largest single source.",
-      "rows": [
-        {
-          "company": "Anglo American (Barro Alto, Niquelandia)",
-          "ticker": "AAL LN",
-          "yahoo": "AAL.L",
-          "volume": 40.0
-        },
-        {
-          "company": "Vale (Onca Puma)",
-          "ticker": "VALE3 BZ",
-          "yahoo": "VALE",
-          "volume": 25.0
-        },
-        {
-          "company": "Atlantic Nickel (Santa Rita)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 15.0
-        },
-        {
-          "company": "Other (Horizonte and smaller operations)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 8.0
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "ANM AMB needs a dados.gov.br API key; Anglo American and Vale publish their own volumes."
-    },
-    "gold": {
-      "basis": "production",
-      "year": 2024,
-      "unit": "t",
-      "confidence": "estimate",
-      "source": "Company production reports + ANM / IBGM estimates of artisanal output",
-      "note": "Garimpo - artisanal and small-scale mining, concentrated in Para, Amazonas and Roraima - is the single largest source of Brazilian gold, ahead of any listed miner. It is shown as its own line because it is a real producer but not a company. Treat this split with more caution than the other tables: a meaningful share of garimpo output is unlicensed and enters the legal chain through trading desks, so the national total it is measured against is itself uncertain.",
-      "rows": [
-        {
-          "company": "Kinross (Paracatu)",
-          "ticker": "K CN",
-          "yahoo": "",
-          "volume": 15.0
-        },
-        {
-          "company": "AngloGold Ashanti",
-          "ticker": "AU US",
-          "yahoo": "AU",
-          "volume": 11.0
-        },
-        {
-          "company": "Equinox Gold",
-          "ticker": "EQX CN",
-          "yahoo": "EQX",
-          "volume": 5.5
-        },
-        {
-          "company": "Aura Minerals (Almas, Apoena)",
-          "ticker": "AURA33 BZ",
-          "yahoo": "",
-          "volume": 4.5
-        },
-        {
-          "company": "Serabi Gold (Palito, Coringa)",
-          "ticker": "SRB LN",
-          "yahoo": "",
-          "volume": 1.3
-        },
-        {
-          "company": "Jaguar Mining (Turmalina, Caete)",
-          "ticker": "JAG CN",
-          "yahoo": "",
-          "volume": 1.2
-        },
-        {
-          "company": "Artisanal / garimpo",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 20.0,
-          "kind": "artisanal"
-        },
-        {
-          "company": "Other industrial (by-product, small mines)",
-          "ticker": "",
-          "yahoo": "",
-          "volume": 1.5
-        }
-      ],
-      "provenance": "names_only",
-      "unsourced_reason": "ANM AMB needs a dados.gov.br API key. Artisanal (garimpo) output is not reliably measured by anyone."
-    }
+  "niobium": {
+   "label": "Niobium",
+   "unit": "kt",
+   "unit_long": "thousand tonnes, Nb content",
+   "year": 2024,
+   "source": "USGS Mineral Commodity Summaries 2025",
+   "world": 83.0,
+   "countries": {
+    "Brazil": 75.0,
+    "Canada": 6.7,
+    "Other": 1.3
+   },
+   "provenance": "keyed"
   },
-  "_provenance_key": {
-    "live": "fetched this run from a machine-readable source (USDA PS&D, EIA, ANP)",
-    "keyed": "typed in from a named published document a human can re-check",
-    "names_only": "we know who the producers are, NOT how much each makes - volumes blank"
+  "bauxite": {
+   "label": "Bauxite",
+   "unit": "Mt",
+   "unit_long": "million tonnes, dry equivalent",
+   "year": 2024,
+   "source": "USGS Mineral Commodity Summaries 2025",
+   "world": 430,
+   "countries": {
+    "Guinea": 130,
+    "Australia": 98,
+    "China": 93,
+    "Brazil": 31,
+    "Indonesia": 27,
+    "India": 24,
+    "Jamaica": 5.8,
+    "Russia": 5.5
+   },
+   "provenance": "keyed"
+  },
+  "gold": {
+   "label": "Gold",
+   "unit": "t",
+   "unit_long": "tonnes, mine production",
+   "year": 2024,
+   "source": "USGS Mineral Commodity Summaries 2025",
+   "world": 3300,
+   "countries": {
+    "China": 380,
+    "Russia": 310,
+    "Australia": 290,
+    "Canada": 200,
+    "United States": 160,
+    "Kazakhstan": 130,
+    "Mexico": 130,
+    "Peru": 130,
+    "Ghana": 130,
+    "Indonesia": 130,
+    "Uzbekistan": 110,
+    "Brazil": 60
+   },
+   "provenance": "keyed"
+  },
+  "nickel": {
+   "label": "Nickel",
+   "unit": "kt",
+   "unit_long": "thousand tonnes, Ni content",
+   "year": 2024,
+   "source": "USGS Mineral Commodity Summaries 2025",
+   "world": 3700,
+   "countries": {
+    "Indonesia": 2200,
+    "Philippines": 330,
+    "Russia": 200,
+    "New Caledonia": 190,
+    "Canada": 190,
+    "Australia": 160,
+    "China": 110,
+    "Brazil": 88
+   },
+   "provenance": "keyed"
+  },
+  "manganese": {
+   "label": "Manganese",
+   "unit": "kt",
+   "unit_long": "thousand tonnes, Mn content",
+   "year": 2024,
+   "source": "USGS Mineral Commodity Summaries 2025",
+   "world": 20000,
+   "countries": {
+    "South Africa": 7200,
+    "Gabon": 4600,
+    "Australia": 2300,
+    "China": 1000,
+    "Ghana": 1000,
+    "India": 850,
+    "Brazil": 620,
+    "Kazakhstan": 400
+   },
+   "provenance": "keyed"
+  },
+  "copper": {
+   "label": "Copper",
+   "unit": "kt",
+   "unit_long": "thousand tonnes, Cu content",
+   "year": 2024,
+   "source": "USGS Mineral Commodity Summaries 2025",
+   "world": 23000,
+   "countries": {
+    "Chile": 5300,
+    "Congo (Kinshasa)": 3300,
+    "Peru": 2600,
+    "China": 1800,
+    "United States": 1100,
+    "Indonesia": 1100,
+    "Russia": 930,
+    "Australia": 800,
+    "Zambia": 820,
+    "Mexico": 750,
+    "Brazil": 400
+   },
+   "provenance": "keyed"
+  },
+  "pulp": {
+   "label": "Wood pulp",
+   "unit": "Mt",
+   "unit_long": "million tonnes, chemical wood pulp",
+   "year": 2024,
+   "source": "Iba + PPPC / FAO ForesSTAT",
+   "world": 190.0,
+   "countries": {
+    "United States": 47.0,
+    "Brazil": 29.0,
+    "China": 22.0,
+    "Canada": 15.0,
+    "Sweden": 11.5,
+    "Finland": 10.0,
+    "Japan": 8.0,
+    "Russia": 8.0,
+    "Indonesia": 8.0,
+    "Chile": 5.0
+   },
+   "note": "Brazil is a mid-table producer of ALL wood pulp but the clear world number one in traded hardwood (eucalyptus) market pulp, where it is roughly a third of global supply.",
+   "provenance": "keyed"
+  },
+  "ethanol": {
+   "label": "Fuel ethanol",
+   "unit": "bn litres",
+   "unit_long": "billion litres",
+   "year": 2024,
+   "source": "UNICA / RFA / EIA",
+   "world": 115.0,
+   "countries": {
+    "United States": 60.0,
+    "Brazil": 35.5,
+    "European Union": 5.5,
+    "China": 4.0,
+    "India": 5.5,
+    "Canada": 2.0,
+    "Thailand": 1.5
+   },
+   "provenance": "keyed"
   }
+ },
+ "companies": {
+  "iron_ore": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "Mt",
+   "confidence": "reported",
+   "source": "Company production reports (Vale 4Q24, CSN Mineracao, Anglo American, Usiminas)",
+   "note": "Attributable saleable production. Samarco is a 50/50 Vale-BHP JV and is shown separately, not inside Vale.",
+   "rows": [
+    {
+     "company": "Vale",
+     "ticker": "VALE3 BZ",
+     "yahoo": "VALE",
+     "volume": 328.0
+    },
+    {
+     "company": "CSN Mineracao",
+     "ticker": "CMIN3 BZ",
+     "yahoo": "",
+     "volume": 43.0
+    },
+    {
+     "company": "Anglo American (Minas-Rio)",
+     "ticker": "AAL LN",
+     "yahoo": "AAL.L",
+     "volume": 24.0
+    },
+    {
+     "company": "Samarco (Vale / BHP JV)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 9.0
+    },
+    {
+     "company": "Usiminas (Musa)",
+     "ticker": "USIM5 BZ",
+     "yahoo": "",
+     "volume": 8.0
+    },
+    {
+     "company": "ArcelorMittal Brasil",
+     "ticker": "MT NA",
+     "yahoo": "MT",
+     "volume": 3.0
+    },
+    {
+     "company": "Other (Gerdau, Bemisa, Ferro+, J&F)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 25.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Live from ANM's CFEM royalty returns (src/anmdata.py) when the store exists. This block is only the fallback shown if data/signals/anm_metals.json is missing - run the daily pull, or `python src/anmdata.py`."
+  },
+  "crude_oil": {
+   "basis": "equity",
+   "year": 2025,
+   "unit": "kb/d",
+   "confidence": "estimate",
+   "source": "ANP monthly production bulletin + company disclosures",
+   "note": "Working-interest (equity) share of Brazilian liquids, NOT operatorship. Petrobras operates far more than it owns - it is the operator of most pre-salt fields in which Shell, TotalEnergies, CNOOC, CNPC, Equinor, Galp and Repsol Sinopec hold equity.",
+   "rows": [
+    {
+     "company": "Petrobras",
+     "ticker": "PETR4 BZ",
+     "yahoo": "PBR",
+     "volume": 2250
+    },
+    {
+     "company": "Shell Brasil",
+     "ticker": "SHEL LN",
+     "yahoo": "SHEL",
+     "volume": 380
+    },
+    {
+     "company": "CNOOC",
+     "ticker": "883 HK",
+     "yahoo": "",
+     "volume": 180
+    },
+    {
+     "company": "CNPC / PetroChina",
+     "ticker": "857 HK",
+     "yahoo": "",
+     "volume": 130
+    },
+    {
+     "company": "TotalEnergies",
+     "ticker": "TTE FP",
+     "yahoo": "TTE",
+     "volume": 120
+    },
+    {
+     "company": "Equinor",
+     "ticker": "EQNR NO",
+     "yahoo": "EQNR",
+     "volume": 110
+    },
+    {
+     "company": "Galp",
+     "ticker": "GALP PL",
+     "yahoo": "",
+     "volume": 110
+    },
+    {
+     "company": "PRIO",
+     "ticker": "PRIO3 BZ",
+     "yahoo": "",
+     "volume": 100
+    },
+    {
+     "company": "Repsol Sinopec",
+     "ticker": "REP SM",
+     "yahoo": "",
+     "volume": 80
+    },
+    {
+     "company": "Brava Energia (3R + Enauta)",
+     "ticker": "BRAV3 BZ",
+     "yahoo": "",
+     "volume": 75
+    },
+    {
+     "company": "Other (Karoon, Petrogal, PetroReconcavo, Trident)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 120
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Superseded by ANP operator data."
+  },
+  "pulp": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "Mt",
+   "confidence": "reported",
+   "source": "Company results releases + Iba (Industria Brasileira de Arvores)",
+   "note": "Chemical wood pulp production in Brazil. Veracel is a Suzano / Stora Enso JV, shown separately.",
+   "rows": [
+    {
+     "company": "Suzano",
+     "ticker": "SUZB3 BZ",
+     "yahoo": "SUZ",
+     "volume": 11.3
+    },
+    {
+     "company": "Bracell",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 3.0
+    },
+    {
+     "company": "CMPC (Guaiba)",
+     "ticker": "CMPC CI",
+     "yahoo": "",
+     "volume": 1.9
+    },
+    {
+     "company": "Eldorado Brasil",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 1.8
+    },
+    {
+     "company": "Klabin",
+     "ticker": "KLBN11 BZ",
+     "yahoo": "",
+     "volume": 1.6
+    },
+    {
+     "company": "Veracel (Suzano / Stora Enso JV)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 1.2
+    },
+    {
+     "company": "Other (Arauco, Sylvamo, integrated and non-market mills)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 8.2
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Volumes come from company results releases and Iba. Not yet wired."
+  },
+  "sugar": {
+   "basis": "crush",
+   "year": 2025,
+   "unit": "Mt cane",
+   "confidence": "association",
+   "source": "UNICA / company harvest reports (Centre-South crush)",
+   "note": "Cane CRUSHED, not sugar produced - each group splits its cane between sugar and ethanol depending on relative prices, so crush is the honest capacity measure. Raizen is the Cosan / Shell joint venture.",
+   "rows": [
+    {
+     "company": "Raizen (Cosan / Shell)",
+     "ticker": "RAIZ4 BZ",
+     "yahoo": "",
+     "volume": 85.0
+    },
+    {
+     "company": "BP Bioenergy",
+     "ticker": "BP LN",
+     "yahoo": "BP",
+     "volume": 32.0
+    },
+    {
+     "company": "Atvos",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 28.0
+    },
+    {
+     "company": "Sao Martinho",
+     "ticker": "SMTO3 BZ",
+     "yahoo": "",
+     "volume": 23.0
+    },
+    {
+     "company": "Tereos Brasil",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 20.0
+    },
+    {
+     "company": "CMAA",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 12.0
+    },
+    {
+     "company": "Jalles Machado",
+     "ticker": "JALL3 BZ",
+     "yahoo": "",
+     "volume": 6.0
+    },
+    {
+     "company": "Other (~250 independent mills)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 404.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Cane crush by mill group is published by UNICA. Not yet wired."
+  },
+  "beef": {
+   "basis": "slaughter",
+   "year": 2024,
+   "unit": "% of slaughter",
+   "confidence": "estimate",
+   "source": "ABIEC + company capacity disclosures",
+   "note": "Share of federally-inspected cattle slaughter, not of herd ownership. Cattle are RAISED on tens of thousands of private ranches; these are the processors that buy and slaughter them.",
+   "rows": [
+    {
+     "company": "JBS (Friboi)",
+     "ticker": "JBSS3 BZ",
+     "yahoo": "",
+     "volume": 24.0
+    },
+    {
+     "company": "Marfrig",
+     "ticker": "MRFG3 BZ",
+     "yahoo": "",
+     "volume": 12.0
+    },
+    {
+     "company": "Minerva Foods",
+     "ticker": "BEEF3 BZ",
+     "yahoo": "",
+     "volume": 10.0
+    },
+    {
+     "company": "Frigol, Masterboi, Mataboi (three processors)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 5.0,
+     "kind": "group"
+    },
+    {
+     "company": "Other (regional plants)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 49.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Slaughter share would come from ABIEC and company disclosures. Not yet wired."
+  },
+  "chicken": {
+   "basis": "slaughter",
+   "year": 2024,
+   "unit": "% of output",
+   "confidence": "estimate",
+   "source": "ABPA + company disclosures",
+   "note": "Share of Brazilian broiler output. Integrators own the birds and contract the growing out, so this is closer to a true production share than the beef table.",
+   "rows": [
+    {
+     "company": "BRF (Sadia / Perdigao)",
+     "ticker": "BRFS3 BZ",
+     "yahoo": "BRFS",
+     "volume": 22.0
+    },
+    {
+     "company": "JBS (Seara)",
+     "ticker": "JBSS3 BZ",
+     "yahoo": "",
+     "volume": 17.0
+    },
+    {
+     "company": "Aurora Coop",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 8.0
+    },
+    {
+     "company": "C.Vale",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 5.0
+    },
+    {
+     "company": "Copacol",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 3.0
+    },
+    {
+     "company": "Other (co-ops and regional integrators)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 45.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Output share would come from ABPA and company disclosures. Not yet wired."
+  },
+  "soybeans": {
+   "basis": "export",
+   "year": 2024,
+   "unit": "% of exports",
+   "confidence": "estimate",
+   "source": "Comex Stat / ABIOVE trade-house shares",
+   "note": "Brazil's soybean crop is grown by tens of thousands of private farms; no listed company grows a material fraction of it. The largest listed grower, SLC Agricola, is roughly 1% of the national crop. What concentrates is who buys, crushes and ships it - and that is what moves basis.",
+   "rows": [
+    {
+     "company": "Bunge",
+     "ticker": "BG US",
+     "yahoo": "BG",
+     "volume": 13.0
+    },
+    {
+     "company": "Cargill",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 13.0
+    },
+    {
+     "company": "COFCO International",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 9.0
+    },
+    {
+     "company": "ADM",
+     "ticker": "ADM US",
+     "yahoo": "ADM",
+     "volume": 8.0
+    },
+    {
+     "company": "Louis Dreyfus",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 8.0
+    },
+    {
+     "company": "Amaggi",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 6.0
+    },
+    {
+     "company": "Other (CHS, Olam, Gavilon, co-ops)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 43.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Company-level export share is NOT public in Brazil - Comex Stat publishes by product, state and destination but not by exporter. Needs paid bill-of-lading data."
+  },
+  "corn": {
+   "basis": "export",
+   "year": 2024,
+   "unit": "% of exports",
+   "confidence": "estimate",
+   "source": "Comex Stat trade-house shares",
+   "note": "Same caveat as soybeans. Corn is grown as a safrinha second crop by the same fragmented farm base, so the concentration sits in the export channel, not the field.",
+   "rows": [
+    {
+     "company": "Cargill",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 14.0
+    },
+    {
+     "company": "Bunge",
+     "ticker": "BG US",
+     "yahoo": "BG",
+     "volume": 11.0
+    },
+    {
+     "company": "COFCO International",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 10.0
+    },
+    {
+     "company": "Louis Dreyfus",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 8.0
+    },
+    {
+     "company": "ADM",
+     "ticker": "ADM US",
+     "yahoo": "ADM",
+     "volume": 7.0
+    },
+    {
+     "company": "Other (Amaggi, CHS, co-ops, ethanol plants)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 50.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Same as soybeans: exporter-level share is not public."
+  },
+  "coffee": {
+   "basis": "export",
+   "year": 2024,
+   "unit": "% of exports",
+   "confidence": "estimate",
+   "source": "Cecafe exporter rankings",
+   "note": "Brazil's crop comes from roughly 300,000 growers. Cooxupe is a growers' co-operative, so it is the one line here that is genuinely upstream.",
+   "rows": [
+    {
+     "company": "Neumann Kaffee Gruppe",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 13.0
+    },
+    {
+     "company": "Louis Dreyfus",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 11.0
+    },
+    {
+     "company": "Cooxupe (co-op)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 9.0
+    },
+    {
+     "company": "Sucafina",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 8.0
+    },
+    {
+     "company": "Olam / ofi",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 7.0
+    },
+    {
+     "company": "Volcafe",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 6.0
+    },
+    {
+     "company": "Other (Cofco, Exportadora Guaxupe, regional)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 46.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Cecafe publishes exporter rankings. Not yet wired."
+  },
+  "cotton": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "% of crop",
+   "confidence": "estimate",
+   "source": "ABRAPA state association data",
+   "note": "Cotton is the one Brazilian row crop with real farm-level concentration - large Mato Grosso and Bahia estates. SLC Agricola discloses its own lint volumes; the rest are private groups.",
+   "rows": [
+    {
+     "company": "SLC Agricola",
+     "ticker": "SLCE3 BZ",
+     "yahoo": "",
+     "volume": 6.0
+    },
+    {
+     "company": "Grupo Scheffer",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 4.0
+    },
+    {
+     "company": "Grupo Bom Futuro",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 3.5
+    },
+    {
+     "company": "Grupo Horita",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 2.5
+    },
+    {
+     "company": "Other (large private estates)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 84.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "ABRAPA state data plus SLC Agricola disclosures. Not yet wired."
+  },
+  "niobium": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "kt",
+   "confidence": "estimate",
+   "source": "Company disclosures + USGS Mineral Commodity Summaries",
+   "note": "Brazil is ~90% of world niobium and Brazilian niobium is essentially one private company: CBMM's Araxa operation in Minas Gerais. There is no listed pure-play - CBMM is held by the Moreira Salles group with Japanese, Korean and Chinese minority stakes.",
+   "rows": [
+    {
+     "company": "CBMM (Araxa)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 66.0
+    },
+    {
+     "company": "CMOC Brasil / Niobras (Catalao)",
+     "ticker": "603993 CH",
+     "yahoo": "",
+     "volume": 7.5
+    },
+    {
+     "company": "Other (Mineracao Taboca, Pitinga)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 1.5
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "CBMM is private and publishes no tonnage. CFEM carries CMOC Brasil's concentrate tonnage, but the national figure is CONTAINED NIOBIUM and the conversion needs a grade we do not have, so no split is published."
+  },
+  "bauxite": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "Mt",
+   "confidence": "estimate",
+   "source": "Company production reports (Hydro, Alcoa) + MRN disclosures",
+   "note": "Mineracao Rio do Norte is a joint venture whose shareholders include Vale, South32, Rio Tinto and CBA, so its output is not attributable to any single listed parent.",
+   "rows": [
+    {
+     "company": "Mineracao Rio do Norte (MRN)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 12.0
+    },
+    {
+     "company": "Hydro Paragominas",
+     "ticker": "NHY NO",
+     "yahoo": "NHY.OL",
+     "volume": 10.0
+    },
+    {
+     "company": "Alcoa Juruti",
+     "ticker": "AA US",
+     "yahoo": "AA",
+     "volume": 5.5
+    },
+    {
+     "company": "Other (CBA / Votorantim and smaller mines)",
+     "ticker": "CBAV3 BZ",
+     "yahoo": "",
+     "volume": 3.5
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "Live from ANM's CFEM royalty returns (src/anmdata.py) when the store exists. This block is only the fallback shown if data/signals/anm_metals.json is missing - run the daily pull, or `python src/anmdata.py`."
+  },
+  "copper": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "kt",
+   "confidence": "estimate",
+   "source": "Company production reports (Vale, Lundin Mining, Ero Copper)",
+   "note": "Brazilian copper is a small share of world supply but is concentrated in three operators, all of which report their Brazilian volumes separately.",
+   "rows": [
+    {
+     "company": "Vale (Salobo, Sossego)",
+     "ticker": "VALE3 BZ",
+     "yahoo": "VALE",
+     "volume": 220.0
+    },
+    {
+     "company": "Lundin Mining (Chapada)",
+     "ticker": "LUN CN",
+     "yahoo": "",
+     "volume": 55.0
+    },
+    {
+     "company": "Ero Copper (Caraiba, Tucuma)",
+     "ticker": "ERO CN",
+     "yahoo": "",
+     "volume": 50.0
+    },
+    {
+     "company": "Other",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 75.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "ANM's CFEM royalty returns DO give per-company tonnage - but they declare ore and concentrate, while the national figure is CONTAINED COPPER. Converting one to the other needs a per-mine grade, which would be an invented number. Vale, Lundin Mining and Ero Copper publish their own contained-metal volumes; keying those in is the route, not the regulator."
+  },
+  "nickel": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "kt",
+   "confidence": "estimate",
+   "source": "Company production reports (Anglo American, Vale, Atlantic Nickel)",
+   "note": "Nickel content of Brazilian mine output. Anglo American's Barro Alto and Niquelandia ferronickel operations are the largest single source.",
+   "rows": [
+    {
+     "company": "Anglo American (Barro Alto, Niquelandia)",
+     "ticker": "AAL LN",
+     "yahoo": "AAL.L",
+     "volume": 40.0
+    },
+    {
+     "company": "Vale (Onca Puma)",
+     "ticker": "VALE3 BZ",
+     "yahoo": "VALE",
+     "volume": 25.0
+    },
+    {
+     "company": "Atlantic Nickel (Santa Rita)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 15.0
+    },
+    {
+     "company": "Other (Horizonte and smaller operations)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 8.0
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "ANM's CFEM royalty returns DO give per-company tonnage - but they declare ore and concentrate, while the national figure is CONTAINED NICKEL. Converting one to the other needs a per-mine grade, which would be an invented number. Anglo American and Vale publish their own contained-metal volumes; keying those in is the route, not the regulator."
+  },
+  "gold": {
+   "basis": "production",
+   "year": 2024,
+   "unit": "t",
+   "confidence": "estimate",
+   "source": "Company production reports + ANM / IBGM estimates of artisanal output",
+   "note": "Garimpo - artisanal and small-scale mining, concentrated in Para, Amazonas and Roraima - is the single largest source of Brazilian gold, ahead of any listed miner. It is shown as its own line because it is a real producer but not a company. Treat this split with more caution than the other tables: a meaningful share of garimpo output is unlicensed and enters the legal chain through trading desks, so the national total it is measured against is itself uncertain.",
+   "rows": [
+    {
+     "company": "Kinross (Paracatu)",
+     "ticker": "K CN",
+     "yahoo": "",
+     "volume": 15.0
+    },
+    {
+     "company": "AngloGold Ashanti",
+     "ticker": "AU US",
+     "yahoo": "AU",
+     "volume": 11.0
+    },
+    {
+     "company": "Equinox Gold",
+     "ticker": "EQX CN",
+     "yahoo": "EQX",
+     "volume": 5.5
+    },
+    {
+     "company": "Aura Minerals (Almas, Apoena)",
+     "ticker": "AURA33 BZ",
+     "yahoo": "",
+     "volume": 4.5
+    },
+    {
+     "company": "Serabi Gold (Palito, Coringa)",
+     "ticker": "SRB LN",
+     "yahoo": "",
+     "volume": 1.3
+    },
+    {
+     "company": "Jaguar Mining (Turmalina, Caete)",
+     "ticker": "JAG CN",
+     "yahoo": "",
+     "volume": 1.2
+    },
+    {
+     "company": "Artisanal / garimpo",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 20.0,
+     "kind": "artisanal"
+    },
+    {
+     "company": "Other industrial (by-product, small mines)",
+     "ticker": "",
+     "yahoo": "",
+     "volume": 1.5
+    }
+   ],
+   "provenance": "names_only",
+   "unsourced_reason": "CFEM carries per-filer gold, but its unit field cannot be trusted for this substance: filers declare ore tonnage under a gram unit, so the declared quantities sum to roughly a thousand times world production. Separating metal from ore would need an assumed gold price and royalty rate - modelling, not sourcing. Artisanal (garimpo) output is in any case not reliably measured by anyone."
+  }
+ },
+ "_provenance_key": {
+  "live": "fetched this run from a machine-readable source (USDA PS&D, EIA, ANP)",
+  "keyed": "typed in from a named published document a human can re-check",
+  "names_only": "we know who the producers are, NOT how much each makes - volumes blank"
+ }
 }
