@@ -240,9 +240,31 @@ def dashboard(banks=("FED", "ECB", "BOE"), *, rule=macrorules.balanced,
 # threshold of its own (level gaps of 100bp+ persist for years — see the docstring);
 # 50bp = two conventional steps, comfortably past rule-input noise.
 GAP_MIN_BP = 50.0
+# …and BECAUSE those level gaps persist for years, a level bar alone parks a
+# permanent line on the exception-based sheet (the BoE's assumed-input gap sat at
+# heat 100 from day one). So a standing gap must also have MOVED since it last
+# made the sheet — a print moving the prescription, or the market repricing
+# against the rule — or crossed sides. First-ever appearances still show once.
+GAP_MOVE_BP = 20.0
 
 # The bank's flagship strip ticker, for the Hot Sheet's sector filter.
 _RADAR_TICKER = {"FED": "SFRA Comdty", "ECB": "ERA Comdty", "BOE": "SFIA Comdty"}
+
+
+def _last_stamped_gap(bk: str) -> float | None:
+    """The gap recorded the last time this bank's line was on a STAMPED sheet
+    (data/signals/hotsheet_history.parquet `value` column). Stamps only move once
+    a day, so the move-gate compares against the last appearance, not the last
+    render — slow drift accumulates until it clears GAP_MOVE_BP and re-flags."""
+    try:
+        from src import hotsheet
+        h = hotsheet.load_history()
+        h = h[h["key"] == f"MACRO:{bk}:rulegap"].dropna(subset=["value"])
+        if h.empty:
+            return None
+        return float(h.sort_values("date")["value"].iloc[-1])
+    except Exception:
+        return None
 
 
 def radar_items() -> list:
@@ -280,19 +302,32 @@ def radar_items() -> list:
             gap = float(last.spread_bp)
             if abs(gap) < GAP_MIN_BP:
                 continue
+            prev = _last_stamped_gap(bk)          # the gap when this line last made the sheet
+            flipped = prev is not None and (gap > 0) != (prev > 0)
+            if prev is not None and abs(gap - prev) < GAP_MOVE_BP and not flipped:
+                continue                          # standing gap, unmoved — wallpaper, not news
             # Per-bank honesty (module convention): say so when the rule ran on
             # assumed inputs rather than measured ones — the BoE leg always does.
             caveat = ""
             if res.provenance is not None and res.provenance.assumed:
                 caveat = f" ({' and '.join(res.provenance.assumed)} assumed for this bloc)"
             side = "above" if gap > 0 else "below"
+            if flipped:
+                move = " The prescription has **crossed** to the other side of the market."
+            elif prev is not None:
+                word = "widened" if abs(gap) > abs(prev) else "narrowed"
+                move = (f" The gap has **{word} {abs(gap - prev):.0f}bp** since it "
+                        f"last made the sheet.")
+            else:
+                move = ""
             out.append(hotsheet.item(
                 tag="MACRO", key=f"{bk}:rulegap", section="Policy rules",
                 text=(f"The **{res.rule_name}** rule prescribes a policy rate "
                       f"**{abs(gap):.0f}bp {side}** what the market prices for the "
-                      f"**{stirpaths.BANKS[bk].name}**{caveat}."),
+                      f"**{stirpaths.BANKS[bk].name}**{caveat}.{move}"),
                 metric=f"{gap:+.0f} bp", sub=f"by the {last.meeting:%b %Y} meeting",
-                heat=min(100.0, abs(gap) / 150.0 * 100.0),
+                heat=(min(100.0, abs(gap - prev) / 50.0 * 100.0) if prev is not None
+                      else min(100.0, abs(gap) / 150.0 * 100.0)),
                 value=gap, ticker=_RADAR_TICKER.get(bk, ""),
                 page="Macro Radar", book="ficc"))
     finally:
