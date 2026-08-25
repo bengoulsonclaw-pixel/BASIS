@@ -57,15 +57,21 @@ DATA = Path(__file__).resolve().parents[2] / "data" / "signals"
 DETAIL_FILE = DATA / "putcall.parquet"
 HISTORY_FILE = DATA / "putcall_history.parquet"
 
+MONTH_WINDOW = 21        # ~1 month of sessions — the near-term average, alongside the 1y one
 DETAIL_COLUMNS = ["market", "ticker", "asset", "region", "pc_oi", "pc_vol",
                   "oi_pctl", "oi_z", "vol_pctl", "tot_call", "tot_put", "avg_day",
-                  "call_last", "put_last", "avg_call", "avg_put", "vol_days",
+                  "call_last", "put_last", "avg_call", "avg_put",
+                  "avg_call_1m", "avg_put_1m", "vol_days",
                   "oi_chg_z", "divergence", "signal", "direction"]
 # tot_call / tot_put = total call / put contracts TRADED over the trailing window;
 # avg_day = average total option contracts (calls + puts) traded per day. The window
 # is STAT_WINDOW sessions (~1y) so it lines up with the percentile basis.
 # call_last / put_last = the PREVIOUS DAY's call / put contracts traded; avg_call /
 # avg_put = each side's trailing-1y daily average — for the daily activity leaderboard.
+# avg_call_1m / avg_put_1m = the same over the trailing MONTH. A product whose options have
+# been busy for weeks reads enormous against its year and ordinary against its month — Corn
+# on 2026-08-24 was 1,582% of its 1y call average but ~360% of its 1m one, after ramping
+# 18k -> 235k lots over a fortnight (Ben, 2026-08-25).
 HISTORY_COLUMNS = ["date", "ticker", "market", "asset", "pc_oi", "pc_vol",
                    "call_vol", "put_vol", "oi_pctl", "price"]
 
@@ -207,6 +213,9 @@ def compute_table() -> pd.DataFrame:
         put_last = float(pv.iloc[-1]) if not pv.empty else float("nan")
         avg_call = float(cv.mean()) if not cv.empty else float("nan")
         avg_put = float(pv.mean()) if not pv.empty else float("nan")
+        # the near-term basis — same series, last MONTH_WINDOW complete sessions
+        avg_call_1m = float(cv.iloc[-MONTH_WINDOW:].mean()) if not cv.empty else float("nan")
+        avg_put_1m = float(pv.iloc[-MONTH_WINDOW:].mean()) if not pv.empty else float("nan")
         if t in call_vol.columns and t in put_vol.columns:
             day = (call_vol[t] + put_vol[t]).dropna().iloc[-STAT_WINDOW:]
             avg_day = float(day.mean()) if not day.empty else float("nan")
@@ -234,6 +243,8 @@ def compute_table() -> pd.DataFrame:
             "put_last": round(put_last) if np.isfinite(put_last) else np.nan,
             "avg_call": round(avg_call) if np.isfinite(avg_call) else np.nan,
             "avg_put": round(avg_put) if np.isfinite(avg_put) else np.nan,
+            "avg_call_1m": round(avg_call_1m) if np.isfinite(avg_call_1m) else np.nan,
+            "avg_put_1m": round(avg_put_1m) if np.isfinite(avg_put_1m) else np.nan,
             "vol_days": int(len(cv)),       # days of put/call volume the average is built on
             "oi_chg_z": round(oi_chg_z, 2) if np.isfinite(oi_chg_z) else np.nan,
             "divergence": round(divergence) if np.isfinite(divergence) else np.nan,

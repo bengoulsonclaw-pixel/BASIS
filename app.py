@@ -16506,14 +16506,21 @@ if active == "Put/Call Ratios":
     # line on each side is the average marker. Size-normalised; extremes kept (full scale).
     _cc_a = brand.chart_colors()
     _av = detail.copy()
-    for _c in ("call_last", "put_last", "avg_call", "avg_put"):
-        _av[_c] = pd.to_numeric(_av[_c], errors="coerce")
+    for _c in ("call_last", "put_last", "avg_call", "avg_put", "avg_call_1m", "avg_put_1m"):
+        if _c in _av.columns:
+            _av[_c] = pd.to_numeric(_av[_c], errors="coerce")
+        else:
+            _av[_c] = float("nan")          # store written before the 1m columns existed
     _av["tot_last"] = _av["call_last"].fillna(0) + _av["put_last"].fillna(0)
     _av = _av[(_av["avg_call"] > 0) & (_av["avg_put"] > 0) & (_av["tot_last"] > 0)].copy()
     if not _av.empty:
         st.markdown("##### Yesterday's options activity — calls vs puts, each against its own 1-year average")
         _av["call_pct"] = _av["call_last"].fillna(0) / _av["avg_call"] * 100.0
         _av["put_pct"] = _av["put_last"].fillna(0) / _av["avg_put"] * 100.0
+        # the near-term basis: a product busy for weeks reads enormous against its year and
+        # ordinary against its month (Ben, 2026-08-25 — Corn at 1,582% of 1y, ~360% of 1m)
+        _av["call_pct_1m"] = _av["call_last"].fillna(0) / _av["avg_call_1m"] * 100.0
+        _av["put_pct_1m"] = _av["put_last"].fillna(0) / _av["avg_put_1m"] * 100.0
         _av["neg_put_pct"] = -_av["put_pct"]
         _av["rank_pct"] = _av[["call_pct", "put_pct"]].max(axis=1)
         _av["call_lbl"] = _av["call_pct"].map(lambda v: f"{v:.0f}%")
@@ -16541,11 +16548,15 @@ if active == "Put/Call Ratios":
             tooltip=[alt.Tooltip("market:N", title="Market"), alt.Tooltip("asset:N", title="Asset"),
                      alt.Tooltip("Side:N"),
                      alt.Tooltip("call_last:Q", title="Calls (contracts)", format=",.0f"),
-                     alt.Tooltip("avg_call:Q", title="Calls (1y avg/day)", format=",.0f"),
-                     alt.Tooltip("call_pct:Q", title="Calls (% of avg)", format=".0f"),
+                     alt.Tooltip("avg_call:Q", title="Calls — 1y avg/day", format=",.0f"),
+                     alt.Tooltip("call_pct:Q", title="Calls — % of 1y avg", format=",.0f"),
+                     alt.Tooltip("avg_call_1m:Q", title="Calls — 1m avg/day", format=",.0f"),
+                     alt.Tooltip("call_pct_1m:Q", title="Calls — % of 1m avg", format=",.0f"),
                      alt.Tooltip("put_last:Q", title="Puts (contracts)", format=",.0f"),
-                     alt.Tooltip("avg_put:Q", title="Puts (1y avg/day)", format=",.0f"),
-                     alt.Tooltip("put_pct:Q", title="Puts (% of avg)", format=".0f"),
+                     alt.Tooltip("avg_put:Q", title="Puts — 1y avg/day", format=",.0f"),
+                     alt.Tooltip("put_pct:Q", title="Puts — % of 1y avg", format=",.0f"),
+                     alt.Tooltip("avg_put_1m:Q", title="Puts — 1m avg/day", format=",.0f"),
+                     alt.Tooltip("put_pct_1m:Q", title="Puts — % of 1m avg", format=",.0f"),
                      alt.Tooltip("vol_days:Q", title="History (days)", format=".0f")])
         _avg100 = alt.Chart(pd.DataFrame({"x": [100.0, -100.0]})).mark_rule(
             color=_cc_a["ink"], strokeDash=[5, 3]).encode(x="x:Q")
@@ -16562,7 +16573,9 @@ if active == "Put/Call Ratios":
                    "average** so size doesn't distort it. The **dashed 100% line on each side is the average** — "
                    "a bar past it traded **above average**. Ranked by the bigger side. The **(Nd)** next to each "
                    "name is how many days of history the average uses — under ~120 days is still building, so "
-                   "read those with caution. Hover for contract counts; full totals are in each product's detail.")
+                   "read those with caution. **Hover for the contract counts and the same comparison against "
+                   "the 1-MONTH average** — a product whose options have been busy for weeks reads huge against "
+                   "its year and ordinary against its month, so check both before calling a day unusual.")
         st.divider()
 
     # --- whole-book heatmap (markets × last ~6 weeks, coloured by OI P/C percentile) ---
