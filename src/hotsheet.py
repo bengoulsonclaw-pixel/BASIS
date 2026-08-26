@@ -70,6 +70,12 @@ BOOKS = ("ficc", "equities", "meta")
 SPARK_MAX = 120             # sparkline points kept per item (longer series are strided down)
 SPARK_MIN = 8               # fewer points than this isn't a shape — the spark is dropped
 
+# Chip-colour semantics for story families that must read apart at a glance
+# (Ben, 2026-08-26: seasonality vs crowded positioning). One source of truth,
+# resolved per surface — the page maps hues through brand.chart_colors() (theme-
+# aware), the PDF through its print-safe inks; any unlisted tag stays house gold.
+TAG_HUE = {"SEAS": "green", "COT": "blue", "FLOW": "blue"}
+
 # columns persisted per item per day — the history store's schema
 COLUMNS = ["date", "key", "tag", "section", "book", "text", "metric", "sub",
            "heat", "value", "ticker", "page", "weekly", "internal_only", "provider"]

@@ -5235,9 +5235,15 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
     """One Hot Sheet line: tag chip + badge + prose, the story's sparkline, the
     metric column with its heat gauge, and the jump into the owning module."""
     c_txt, c_spark, c_met, c_go = st.columns([8, 3, 3, 1])
-    chip = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{pal["gold"]};'
-            f'border:1px solid {pal["label_ring"]};padding:.05rem .35rem;'
+    _cc = brand.chart_colors(pal)                # theme-aware family hues (hotsheet.TAG_HUE)
+    _hue = {"green": _cc["long"], "blue": _cc["series"]}.get(
+        hotsheet.TAG_HUE.get(it["tag"], ""), pal["gold"])
+    _ring = pal["label_ring"] if _hue == pal["gold"] else _hue
+    chip = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{_hue};'
+            f'border:1px solid {_ring};padding:.05rem .35rem;'
             f'margin-right:.5rem;white-space:nowrap">{it["tag"]}</span>')
+    star = (f'<span style="color:{pal["gold"]};font-size:.8rem;margin-right:.3rem">★</span>'
+            if it.get("badge") == "NEW" else "")
     badge = ""
     if it.get("badge") == "NEW":
         badge = (f'<span style="font:700 .6rem/1.7 {_HS_MONO};color:{pal["canvas"]};'
@@ -5246,7 +5252,7 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
         badge = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{pal["faint"]};'
                  f'border:1px solid {pal["border"]};padding:.05rem .35rem;'
                  f'margin-right:.5rem;white-space:nowrap">{it["badge"]}</span>')
-    c_txt.markdown(chip + badge + it["text"], unsafe_allow_html=True)
+    c_txt.markdown(star + chip + badge + it["text"], unsafe_allow_html=True)
     if it.get("spark"):
         c_spark.markdown(f'<div style="padding-top:.35rem">{_hs_spark(it["spark"], pal)}</div>',
                          unsafe_allow_html=True)

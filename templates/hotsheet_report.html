@@ -65,6 +65,7 @@
   .badge { font-size: 6.2pt; color: #999; font-style: italic; white-space: nowrap;
            margin-right: 1.2mm; }
   .badge.new { color: #1e8449; font-weight: 700; font-style: normal; }
+  .star { color: #C8901A; font-size: 8pt; margin-right: 0.8mm; }  /* NEW-story flag */
 
   .flowlede { font-size: 6.8pt; color: #888; margin: 0.6mm 0 0.8mm; line-height: 1.45; }
   .lede { font-size: 7pt; color: #888; margin: 2.5mm 0 0; }
@@ -85,7 +86,7 @@
 
   {% macro row(it) %}
   <div class="itm">
-    <div class="story"><span class="chip">{{ it.tag }}</span>{% if it.badge %}<span class="badge{% if it.badge == 'NEW' %} new{% endif %}">{{ it.badge }}</span>{% endif %} {{ it.html|safe }}</div>
+    <div class="story">{% if it.star %}<span class="star">&#9733;</span>{% endif %}<span class="chip"{% if it.chipc %} style="color:{{ it.chipc }};border-color:{{ it.chipc }}"{% endif %}>{{ it.tag }}</span>{% if it.badge %}<span class="badge{% if it.badge == 'NEW' %} new{% endif %}">{{ it.badge }}</span>{% endif %} {{ it.html|safe }}</div>
     <div class="spk">{% if it.spark_svg %}{{ it.spark_svg|safe }}{% endif %}</div>
     <div class="mx">
       <div class="v">{{ it.met }}</div>
@@ -149,8 +150,10 @@
       Method: the Hot Sheet aggregates, without modification, the exception flags each internal
       Strategy Monitor module computes on its own thresholds from settlement data &mdash; it
       performs no analysis of its own. Items are ranked on a common 0&ndash;100 heat scale
-      (how far each reading sits beyond its module&rsquo;s bar); &ldquo;NEW&rdquo; marks a story&rsquo;s
+      (how far each reading sits beyond its module&rsquo;s bar); &#9733;&nbsp;&ldquo;NEW&rdquo; marks a story&rsquo;s
       first appearance and &ldquo;day&nbsp;n&rdquo; a run of consecutive sessions on the sheet.
+      Tag colours separate story families &mdash; green for seasonality, blue for
+      positioning &amp; flow; all other modules print gold.
       Sparklines show each story&rsquo;s own recent daily series. Past patterns are not indicative
       of future results.
     </div>

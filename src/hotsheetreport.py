@@ -135,15 +135,22 @@ def spark_svg(vals: list) -> str:
             f'stroke="{SPARK_DOT_RING}" stroke-width="0.6"/></svg>')
 
 
+PRINT_HUE = {"green": "#1F7A44", "blue": "#1F5FA8"}   # print-safe long/series inks
+                                                      # for hotsheet.TAG_HUE families
+
+
 def decorate(items: list) -> None:
     """Annotate items in place with their render fields: escaped **bold** prose,
-    the sparkline markup, the metric fallback (heat, the page's convention) and
-    the gauge width."""
+    the sparkline markup, the metric fallback (heat, the page's convention), the
+    gauge width, the family chip ink and the NEW star."""
+    from src import hotsheet
     for it in items:
         it["html"] = md_bold(it["text"])
         it["spark_svg"] = spark_svg(it.get("spark") or [])
         it["met"] = it.get("metric") or f"{it['heat']:.0f}"
         it["gw"] = int(max(4, min(100, round(it["heat"]))))
+        it["chipc"] = PRINT_HUE.get(hotsheet.TAG_HUE.get(it["tag"], ""), "")
+        it["star"] = it.get("badge") == "NEW"
 
 
 # ---------------------------------------------------------------------------
