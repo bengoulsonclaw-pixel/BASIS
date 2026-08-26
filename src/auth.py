@@ -236,7 +236,9 @@ def render_user_admin() -> None:
         rm = st.selectbox("Remove a colleague", [""] + sorted(colleague_emails), key="user_admin_rm")
         if rm and st.button(f"Remove {rm}", key="user_admin_rm_btn"):
             remove_user(rm)
-            _sync_live(f"Removed {rm}")      # revoking access must reach the live site at once
+            # revoking access must reach the live site at once — and `drop` stops the
+            # reconcile step adopting the account straight back off the VPS
+            _sync_live(f"Removed {rm}", drop=rm)
             st.rerun()
     domains = load_allowed_domains()
     with st.expander("⚙️ Email domain restriction" + (f" — {', '.join('@' + d for d in domains)}"
@@ -308,16 +310,63 @@ def render_user_admin() -> None:
 _SYNC_MSG_KEY = "user_sync_msg"
 
 
-def _sync_live(what: str) -> None:
+def merge_vps_users(drop: str | None = None) -> tuple[bool, str]:
+    """Adopt any account that exists on the live site but not here, then save locally.
+
+    The live site's admin panel writes only the VPS copy, and Ben does add colleagues from
+    his phone — so a straight local-over-VPS push silently DELETES them. That happened once
+    already (the "Pep" account, 2026-08-11). Now that the push fires automatically it would
+    happen far more often, so every sync reconciles first. `drop` is the account being
+    removed, which must NOT be adopted back off the VPS."""
+    import json as _json
+    import subprocess
+    import tempfile
+    if not VPS_SSH_KEY.exists():
+        return False, f"SSH key not found at {VPS_SSH_KEY}."
+    tmp = Path(tempfile.gettempdir()) / "basis_vps_users.json"
+    try:
+        r = subprocess.run(
+            ["scp", "-i", str(VPS_SSH_KEY), "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+             f"{VPS_HOST}:{VPS_USERS_PATH}", str(tmp)],
+            capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return False, (r.stderr or r.stdout or "scp failed").strip()
+        remote = _json.loads(tmp.read_text(encoding="utf-8"))
+    except Exception as e:
+        return False, str(e)
+    local = load_users()
+    adopted = [e for e in remote
+               if e not in local and e != (drop or "").strip().lower()]
+    if adopted:
+        for e in adopted:
+            local[e] = remote[e]
+        save_users(local)
+    return True, (f"adopted {len(adopted)} account(s) added on the live site "
+                  f"({', '.join(sorted(adopted))})" if adopted else "")
+
+
+def _sync_live(what: str, drop: str | None = None) -> None:
     """Mirror a local account change to basisterminal.com straight away. The outcome is stashed
     in session_state rather than rendered here, because every caller reruns immediately after and
-    would otherwise wipe the message. A failed push must be LOUD: the account exists locally but
-    the colleague still can't log in, which is exactly the state that prompted this change."""
+    would otherwise wipe the message. A failed sync must be LOUD: the account exists locally but
+    the colleague still can't log in, which is exactly the state that prompted this change.
+
+    Reconciles before pushing — see merge_vps_users. If the pull fails we do NOT push: a blind
+    overwrite is how a phone-added account gets deleted, and that is worse than a delayed one."""
     if REQUIRE_LOGIN:            # on the VPS this file already IS the live list
         return
+    got, note = merge_vps_users(drop=drop)
+    if not got:
+        st.session_state[_SYNC_MSG_KEY] = (
+            "err", f"⚠️ {what} locally, but the live account list could NOT be read "
+                   f"({note}) — nothing was pushed, because overwriting it blind can delete "
+                   "an account added from your phone. The change is NOT live yet; fix the "
+                   "connection and press “Push accounts to basisterminal.com” below.")
+        return
     ok, msg = push_users_to_vps()
+    _note = f" (also {note})" if note else ""
     st.session_state[_SYNC_MSG_KEY] = (
-        ("ok", f"✅ {what} — pushed to basisterminal.com, live on their next page load.")
+        ("ok", f"✅ {what} — pushed to basisterminal.com, live on their next page load.{_note}")
         if ok else
         ("err", f"⚠️ {what} locally, but the push to basisterminal.com FAILED: {msg} — the change "
                 "is NOT live yet. Press “Push accounts to basisterminal.com” below to retry."))
