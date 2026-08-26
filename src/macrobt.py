@@ -159,16 +159,18 @@ def score(obs: list[Observation], rstar: float = 0.75) -> list[Observation]:
     return obs
 
 
-def dispersion_history(rstar: float = 0.75,
-                       rule_keys=("taylor93", "balanced", "shortfalls",
-                                  "inertial")) -> list[tuple[date, float]]:
-    """Monthly rule dispersion (max − min prescription, bp) rebuilt from the cached
-    vintage observations — no network. US only, like everything in this module.
+def prescription_history(rstar: float = 0.75,
+                         rule_keys=("taylor93", "balanced", "shortfalls",
+                                    "inertial")) -> list[dict]:
+    """Monthly rule prescriptions (%) rebuilt from the cached vintage observations —
+    no network. US only, like everything in this module. Each row is
+    {"when": date, "policy": actual fed funds %, "<rule_key>": prescribed %, ...},
+    kept only when EVERY requested rule evaluated, so series stay comparable.
 
-    First-difference is excluded: the store carries no year-ago gap, so that rule
-    cannot be evaluated historically, and comparing a 5-rule spread today against a
-    4-rule spread in history would overstate the present. Callers must compare a
-    4-rule dispersion computed the same way."""
+    First-difference is excluded from the default set: the store carries no year-ago
+    gap, so that rule cannot be evaluated historically. r* is held FIXED, matching
+    score() — see its docstring: this biases the LEVEL of every prescription but not
+    the direction of its changes."""
     out = []
     for f in sorted(_STORE.glob("obs_*.json")):
         try:
@@ -181,12 +183,25 @@ def dispersion_history(rstar: float = 0.75,
                                   unemp=rec["unemp"], nairu=rec["nairu"],
                                   policy_rate=rec["policy"],
                                   prev_policy_rate=rec["policy"])
-        vals = [r.prescribed for r in macrorules.evaluate(x)
-                if r.ok and r.prescribed is not None and r.key in rule_keys]
-        if len(vals) == len(rule_keys):
-            out.append((date.fromisoformat(rec["when"]),
-                        (max(vals) - min(vals)) * 100.0))
+        row = {r.key: r.prescribed for r in macrorules.evaluate(x)
+               if r.ok and r.prescribed is not None and r.key in rule_keys}
+        if len(row) == len(rule_keys):
+            row["when"] = date.fromisoformat(rec["when"])
+            row["policy"] = rec["policy"]
+            out.append(row)
     return out
+
+
+def dispersion_history(rstar: float = 0.75,
+                       rule_keys=("taylor93", "balanced", "shortfalls",
+                                  "inertial")) -> list[tuple[date, float]]:
+    """Monthly rule dispersion (max − min prescription, bp) off prescription_history.
+
+    Comparing a 5-rule spread today against a 4-rule spread in history would overstate
+    the present, so callers must compare a 4-rule dispersion computed the same way."""
+    return [(row["when"], (max(row[k] for k in rule_keys)
+                           - min(row[k] for k in rule_keys)) * 100.0)
+            for row in prescription_history(rstar, rule_keys)]
 
 
 def dispersion_context(current_bp: float) -> dict | None:

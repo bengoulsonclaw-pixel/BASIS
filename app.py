@@ -14791,6 +14791,62 @@ def render_macro_radar() -> None:
         if rows:
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         st.caption(macrobt.verdict(a) if a else "")
+
+        # Prescriptions vs the actual funds rate through history — the classic chart
+        # from the Fed's MPR "Monetary Policy Rules" box (and the Taylor-rule Wikipedia
+        # page), rebuilt here from the SAME point-in-time vintages as the backtest, so
+        # every point shows what the rule said with the data of the day. It is the
+        # picture behind the module's core warning: level gaps persist for years.
+        st.markdown("**Prescriptions vs the actual funds rate — as they stood at the time**")
+        try:
+            import altair as alt
+            hist = macrobt.prescription_history()
+        except Exception:
+            hist = []
+        if hist:
+            _hist_rules = [(k, n) for k, n, _f in _RADAR_RULES if k != "firstdiff"]
+            _hist_names = dict(_hist_rules)
+            sel_hist = st.multiselect(
+                "Rules shown", [k for k, _n in _hist_rules],
+                default=["taylor93", "balanced"],
+                format_func=lambda k: _hist_names.get(k, k), key="radar_bt_hist_rules")
+            _actual = "Effective fed funds rate"
+            chart_rows = [{"when": row["when"].isoformat(), "rate": row["policy"],
+                           "series": _actual} for row in hist]
+            for k in sel_hist:
+                chart_rows += [{"when": row["when"].isoformat(), "rate": row[k],
+                                "series": _hist_names[k]} for row in hist]
+            cdf = pd.DataFrame(chart_rows)
+            dom = [_actual] + [_hist_names[k] for k in sel_hist]
+            rng = ["#F5C518"] + ["#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65"][:len(sel_hist)]
+            base = alt.Chart(cdf).encode(
+                x=alt.X("when:T", title=None,
+                        axis=alt.Axis(format="%Y", grid=True,
+                                      gridOpacity=0.25, gridDash=[2, 3])),
+                y=alt.Y("rate:Q", title="Rate (%)", scale=alt.Scale(zero=False)),
+                color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
+                                legend=alt.Legend(title=None, orient="top",
+                                                  labelLimit=0)),
+                size=alt.condition(alt.datum.series == _actual,
+                                   alt.value(3.0), alt.value(1.6)),
+                tooltip=[alt.Tooltip("when:T", title="Month", format="%b %Y"),
+                         alt.Tooltip("series:N", title=""),
+                         alt.Tooltip("rate:Q", title="Rate", format=".2f")])
+            lines = base.mark_line()
+            zero_rule = alt.Chart(pd.DataFrame([{"y": 0.0}])).mark_rule(
+                strokeDash=[4, 3], color="#9AA4B0").encode(y="y:Q")
+            st.altair_chart((lines + zero_rule).properties(height=320),
+                            use_container_width=True)
+            st.caption(
+                f"US only, {hist[0]['when'].year}–{hist[-1]['when'].year}, monthly. Each "
+                "point is computed from the ALFRED vintage of that month — the data as it "
+                "stood on the day, revisions and publication lags included. r* is held "
+                "fixed at 0.75% throughout (matching the backtest): that biases the LEVEL "
+                "of every prescription, not the direction of its changes. First-difference "
+                "is absent because the store carries no year-ago gap to evaluate it with. "
+                "Read the gaps as stance, not forecast — they sit 100bp+ from policy for "
+                "years at a stretch, which is exactly why the page trades the CHANGE in "
+                "prescription, never the level.")
     else:
         st.info("No backtest stored yet — run `python -m src.macrobt` once (about an "
                 "hour cold; minutes thereafter). It measures, on point-in-time ALFRED "
