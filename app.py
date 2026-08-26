@@ -14820,8 +14820,10 @@ def render_macro_radar() -> None:
             dom = [_actual] + [_hist_names[k] for k in sel_hist]
             rng = ["#F5C518"] + ["#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65"][:len(sel_hist)]
             base = alt.Chart(cdf).encode(
+                # No forced tick format: Vega's adaptive time labels show years at the
+                # full 14-year view and switch to months as the pan/zoom closes in.
                 x=alt.X("when:T", title=None,
-                        axis=alt.Axis(format="%Y", tickCount="year", grid=True,
+                        axis=alt.Axis(grid=True,
                                       gridOpacity=0.25, gridDash=[2, 3])),
                 y=alt.Y("rate:Q", title="Rate (%)", scale=alt.Scale(zero=False)),
                 color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
