@@ -95,8 +95,8 @@ def company_png(com: dict) -> str:
     fig, ax = plt.subplots(figsize=(3.0, max(1.7, 0.24 * len(rows) + 0.6)))
     # Blue marks a producer that is NOT a company (Brazil's garimpo gold), so it reads
     # as a different kind of thing rather than another miner.
-    colours = [GREY if r["is_other"] else (BLUE if r.get("is_artisanal") else GOLD)
-               for r in rows]
+    colours = [GREY if (r["is_other"] or r.get("is_unsourced"))
+               else (BLUE if r.get("is_artisanal") else GOLD) for r in rows]
     ax.barh([r["company"][:42] for r in rows], [r["share_brazil"] for r in rows],
             color=colours, height=0.66)
     for r, y in zip(rows, range(len(rows))):
@@ -138,6 +138,12 @@ def _block(com: dict) -> dict:
     blk = com.get("companies")
     if not blk:
         return out
+    # Internal-only blocks never reach a client. The listed-grower tables (soy, corn)
+    # name companies that are under 1% of the crop, which is useful for sizing
+    # brokerage and actively misleading as a producer ranking. The commodity still
+    # gets its country page — only the company table is dropped.
+    if blk.get("internal_only"):
+        return out
     # Producers known, volumes not: name them, print no numbers, say why.
     if blk.get("unsourced"):
         out.update({"has_co": False, "unsourced": True,
@@ -161,6 +167,7 @@ def _block(com: dict) -> dict:
                   "lots": (f"{out['hedge']['by_company'][r['company']]['lots']:,}"
                            if r["company"] in out["hedge"]["by_company"] else ""),
                   "is_other": r["is_other"],
+                  "is_unsourced": bool(r.get("is_unsourced")),
                   "is_artisanal": bool(r.get("is_artisanal"))} for r in blk["rows"]],
         "unit_is_pct": bool(blk.get("unit_is_pct")),
         "co_unit": blk.get("unit"),

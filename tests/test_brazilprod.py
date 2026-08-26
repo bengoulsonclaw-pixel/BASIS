@@ -29,6 +29,82 @@ def test_curated_file_loads():
     assert cur.get("countries_curated"), "curated country tables must exist"
 
 
+def test_keyed_rows_each_carry_a_document_and_url():
+    """`keyed` means "typed in from a named published document you can re-check", so
+    every number in such a block has to say WHICH document and WHERE.
+
+    This is the tripwire against the failure that caused the purge: numbers assembled
+    from recall and given a plausible-sounding block-level source. A row with no URL
+    cannot be re-checked, which makes it indistinguishable from an invented one.
+    """
+    cur = brazilprod.load_curated()
+    for key, blk in cur["companies"].items():
+        if blk.get("provenance") != "keyed":
+            continue
+        for r in blk["rows"]:
+            if r.get("kind") in ("unsourced", "other", "artisanal"):
+                continue          # a residual has nothing to cite by definition
+            assert r.get("source_url", "").startswith("http"), \
+                f"{key}/{r['company']}: keyed row has no source_url"
+            assert r.get("document"), f"{key}/{r['company']}: keyed row names no document"
+            assert r.get("as_of"), f"{key}/{r['company']}: keyed row has no as-of date"
+
+
+def test_unsourced_remainder_is_never_counted_as_coverage():
+    """Coverage must measure what we SOURCED. Counting the remainder would print 100%
+    for a table that names two of three producers — the fitted-residual mistake by
+    another route."""
+    store = brazilprod.load()
+    if not store:
+        pytest.skip("no Brazil store on this box")
+    for key, com in (store.get("commodities") or {}).items():
+        blk = com.get("companies") or {}
+        if blk.get("unsourced") or not blk.get("rows"):
+            continue
+        gap = blk.get("unsourced_share") or 0
+        if gap <= 0:
+            continue
+        assert blk["coverage_pct"] is None or blk["coverage_pct"] < 99.9, \
+            f"{key}: coverage {blk['coverage_pct']}% despite {gap}% unattributed"
+        assert blk["named_share"] + gap == pytest.approx(100.0, abs=0.6), key
+
+
+def test_internal_only_blocks_never_reach_the_client_pdf():
+    """Soy and corn name SLC Agricola, which is under 1% of the crop. That is useful
+    for sizing brokerage and misleading as a producer ranking, so those company tables
+    are marked internal_only and the PDF must drop them while keeping the country page.
+    """
+    store = brazilprod.load()
+    if not store:
+        pytest.skip("no Brazil store on this box")
+    internal = [k for k, c in (store.get("commodities") or {}).items()
+                if (c.get("companies") or {}).get("internal_only")]
+    assert internal, "expected at least one internal-only company block"
+    from src import brazilreport
+    for key in internal:
+        got = brazilreport._block(store["commodities"][key])
+        assert not got.get("has_co"), f"{key}: internal-only block reached the PDF"
+        assert not got.get("rows"), f"{key}: internal-only rows reached the PDF"
+
+
+def test_no_corporate_producer_rows_are_not_hedge_clients():
+    """The 99% of Brazil's soy grown by independent farms is not a client to call, and
+    must not inflate the brokerage book the way the garimpo line would for gold."""
+    m = brazilprod.hedge_matrix(include_unhedgeable=True)
+    if m.empty:
+        pytest.skip("no Brazil store on this box")
+    assert not m["Company"].str.contains("Independent farms", case=False).any()
+
+
+def test_unsourced_remainder_is_not_a_hedge_client():
+    """There is nobody to call for the part of Brazil we cannot name, so it must not
+    appear in the brokerage roll-up."""
+    m = brazilprod.hedge_matrix(include_unhedgeable=True)
+    if m.empty:
+        pytest.skip("no Brazil store on this box")
+    assert not m["Company"].str.contains("Not sourced", case=False).any()
+
+
 def test_every_company_block_declares_basis_and_confidence():
     """An undeclared basis is the one failure that would let an export share be
     read as production — the whole point of the page's honesty rules."""
@@ -43,14 +119,50 @@ def test_every_company_block_declares_basis_and_confidence():
             assert isinstance(r.get("volume"), (int, float)), f"{key}: {r.get('company')} volume"
 
 
-def test_row_crops_are_not_claimed_as_production():
-    """Soybeans, corn and coffee are grown by tens of thousands of farms. If a
-    future edit ever relabels those blocks 'production', this test is the
-    tripwire — the page and PDF would start asserting something untrue."""
+# The trade houses. None of them GROWS anything — they buy, crush and ship. Their
+# export share was once printed as though it were production, which is the specific
+# error the row-crop tripwires below exist to prevent.
+TRADE_HOUSES = ("bunge", "cargill", "adm", "archer", "louis dreyfus", "ldc",
+                "cofco", "amaggi", "glencore")
+
+
+def test_row_crops_never_show_a_trade_house_as_a_producer():
+    """Soybeans, corn and coffee are grown by tens of thousands of farms.
+
+    The original tripwire pinned these blocks to an EXPORT basis. That guarded the
+    mechanism rather than the rule, and blocked a legitimate change: naming the listed
+    GROWERS, who really do produce, alongside an explicit non-corporate bucket. So this
+    now guards the rule itself — a trade house must never appear under a production
+    basis, whatever else the block does.
+    """
     cur = brazilprod.load_curated()
     for key in ("soybeans", "corn", "coffee"):
-        assert cur["companies"][key]["basis"] == "export", (
-            f"{key} must stay an EXPORT basis — no company grows a material share of it")
+        blk = cur["companies"][key]
+        if blk.get("basis") != "production":
+            continue
+        for r in blk["rows"]:
+            name = str(r.get("company", "")).lower()
+            assert not any(h in name for h in TRADE_HOUSES), (
+                f"{key}: {r['company']} is a trade house — its share is what it SHIPS, "
+                f"not what it grew, and this block claims production")
+
+
+def test_row_crop_producer_tables_are_overwhelmingly_non_corporate():
+    """If a row crop does name growers, the chart must still show that essentially
+    none of the crop has a corporate producer — otherwise naming SLC at 0.8% reads as
+    a producer ranking rather than a prospect list."""
+    cur = brazilprod.load_curated()
+    for key in ("soybeans", "corn"):
+        blk = cur["companies"][key]
+        if blk.get("provenance") == "names_only":
+            continue
+        assert blk.get("internal_only") is True, f"{key}: grower table must stay internal"
+        total = sum(float(r["volume"]) for r in blk["rows"])
+        nonco = sum(float(r["volume"]) for r in blk["rows"]
+                    if r.get("kind") in ("artisanal", "other", "unsourced"))
+        assert nonco / total > 0.95, (
+            f"{key}: only {nonco / total:.1%} is non-corporate — a grower table that "
+            f"large would be claiming companies grow the crop")
 
 
 def test_curated_countries_include_brazil_and_a_world_total():
@@ -130,12 +242,16 @@ def test_coverage_only_computed_when_units_match():
 
 
 def test_export_share_is_not_publicly_sourceable():
-    """Brazil does not publish exporter-level customs data, so the trade-house split
-    cannot be sourced for free. It must stay blank AND say so, not quietly reappear."""
-    blk = brazilprod._company_block("soybeans", {"key": "soybeans", "raw_unit": "1000 MT"},
-                                    186000.0, 42.1, brazilprod.load_curated())
+    """Brazil publishes no exporter-level customs data — verified 2026-08-25 against
+    Comex Stat's own API, whose filters are country, bloc, state, transport mode,
+    customs unit and product code, with no exporter field. Coffee is the block that
+    still rests on it, and it must stay blank AND say so.
+    """
+    blk = brazilprod._company_block("coffee", {"key": "coffee", "raw_unit": "1000 60kg bags"},
+                                    71900.0, 37.9, brazilprod.load_curated())
     assert blk["unsourced"] is True
-    assert "not public" in blk["reason"].lower() or "bill-of-lading" in blk["reason"].lower()
+    reason = blk["reason"].lower()
+    assert any(s in reason for s in ("exporter", "confidential", "bill-of-lading")), reason
 
 
 # ── country ranking ──────────────────────────────────────────────────────────

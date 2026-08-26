@@ -589,11 +589,17 @@ def _company_block(key: str, spec: dict, brazil_raw: float, brazil_share: float,
                          else "company"))
         r["is_other"] = r["kind"] == "other"
         r["is_artisanal"] = r["kind"] == "artisanal"
+        # 'unsourced' is the part of the national total we have NOT attributed to
+        # anyone. It is deliberately not 'other': "Other (42 smaller producers)" says
+        # the remainder is small and known, and this says the opposite — we do not know
+        # who it is. Keeping them apart is what stops coverage becoming circular again.
+        r["is_unsourced"] = r["kind"] == "unsourced"
         # 'group' = several companies on one line: a valid production figure, but not
         # a single client, so the brokerage roll-up skips it.
         r["is_group"] = r["kind"] == "group"
     # Companies by size, then any non-corporate producer, then the Other bucket.
-    rows.sort(key=lambda r: (r["is_other"], r["is_artisanal"], -r["share_brazil"]))
+    rows.sort(key=lambda r: (r["is_other"] or r["is_unsourced"], r["is_artisanal"],
+                             -r["share_brazil"]))
 
     basis = blk.get("basis", "production")
     conf = blk.get("confidence", "estimate")
@@ -601,7 +607,11 @@ def _company_block(key: str, spec: dict, brazil_raw: float, brazil_share: float,
     # national figure — a "% of exports" block has nothing to reconcile against.
     coverage = None
     if blk.get("unit") == spec["raw_unit"] and brazil_raw:
-        coverage = round(total / brazil_raw * 100, 1)
+        # SOURCED rows only. Counting the unsourced remainder here would print 100%
+        # coverage for a table that names two of three producers — the same false
+        # comfort as a fitted residual, arrived at a different way.
+        sourced = sum(r["volume"] for r in rows if not r["is_unsourced"])
+        coverage = round(sourced / brazil_raw * 100, 1)
     return {
         "basis": basis, "basis_label": BASIS_LABEL.get(basis, (basis, ""))[0],
         "basis_note": BASIS_LABEL.get(basis, ("", ""))[1],
@@ -610,12 +620,19 @@ def _company_block(key: str, spec: dict, brazil_raw: float, brazil_share: float,
         "axis_label": f"share of Brazil's {BASIS_AXIS.get(basis, 'output')} (%)",
         # A "% of ..." block's volume column IS its share of Brazil, so the page drops it.
         "unit_is_pct": str(blk.get("unit", "")).strip().startswith("%"),
+        # Listed-grower tables are a PROSPECT list, not a producer ranking — SLC is
+        # under 1% of the soy crop. Useful internally for sizing brokerage, misleading
+        # in a client document, so the PDF drops these blocks entirely.
+        "internal_only": bool(blk.get("internal_only")),
         "year": blk.get("year"), "unit": blk.get("unit"), "source": blk.get("source"),
         "provenance": blk.get("provenance", "keyed"),
         "provenance_label": PROVENANCE.get(blk.get("provenance", "keyed"), ("", ""))[0],
         "note": blk.get("note"), "total": round(total, 3), "coverage_pct": coverage,
         "named_share": round(sum(r["share_brazil"] for r in rows
-                                 if not r["is_other"] and not r["is_artisanal"]), 1),
+                                 if not r["is_other"] and not r["is_artisanal"]
+                                 and not r["is_unsourced"]), 1),
+        "unsourced_share": round(sum(r["share_brazil"] for r in rows
+                                     if r["is_unsourced"]), 1),
         # A table carrying a non-corporate producer can't head its first column "Company".
         "has_artisanal": any(r["is_artisanal"] for r in rows),
         "entity_label": "Producer" if any(r["is_artisanal"] for r in rows) else "Company",
@@ -636,6 +653,10 @@ def _input_hedge_block(inp: dict, brazil_disp: float, blk: dict | None, unit: st
                      "lots": int(round(lots)), "lots_per_month": int(round(lots / 12.0))})
     rows = []
     for r in (blk or {}).get("rows", []):
+        # The unattributed slice of the national total gets no lots: sizing a hedge
+        # for it would put a tradeable number against a producer we cannot name.
+        if r.get("is_unsourced"):
+            continue
         lots = national_lots * r["share_brazil"] / 100.0
         rows.append({"company": r["company"], "share_brazil": r["share_brazil"],
                      "lots": int(round(lots)), "lots_per_month": int(round(lots / 12.0)),
@@ -688,6 +709,10 @@ def _hedge_block(key: str, brazil_disp: float, exports_disp: float | None,
     national_lots = total_units / spec["size"]
     rows = []
     for r in (blk or {}).get("rows", []):
+        # The unattributed slice of the national total gets no lots: sizing a hedge
+        # for it would put a tradeable number against a producer we cannot name.
+        if r.get("is_unsourced"):
+            continue
         lots = national_lots * r["share_brazil"] / 100.0
         rows.append({"company": r["company"], "share_brazil": r["share_brazil"],
                      "lots": int(round(lots)), "lots_per_month": int(round(lots / 12.0)),
@@ -928,7 +953,8 @@ def hedge_matrix(store: dict | None = None, turns: float = 1.0,
                     if h.get("legs") else (h.get("ticker", "").split()[0] if avail else "—"))
         by_co = {r["company"]: r for r in h.get("rows", [])}
         for r in blk["rows"]:
-            if r["is_other"] or r.get("is_artisanal") or r.get("is_group"):
+            if (r["is_other"] or r.get("is_artisanal") or r.get("is_group")
+                    or r.get("is_unsourced")):
                 continue
             lots = float(by_co.get(r["company"], {}).get("lots", 0)) * turns if avail else None
             vol = (h["national_qty"] * r["share_brazil"] / 100.0) if avail else r["volume"]

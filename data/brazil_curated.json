@@ -385,67 +385,59 @@
     }
    ],
    "provenance": "names_only",
-   "unsourced_reason": "Volumes come from company results releases and Iba. Not yet wired."
+   "unsourced_reason": "Suzano publishes, but not on this table's basis. Its 20-F reports MARKET PULP SALES (10,864,630 t in 2024) and nominal capacity (13.44 Mt), while the national figure is chemical wood pulp PRODUCED - which includes pulp a mill integrates into its own paper and never sells. Klabin, CMPC, Bracell, Eldorado, Cenibra and Veracel are B3-listed or private and publish only in IR PDFs. Verified 2026-08-25."
   },
   "sugar": {
    "basis": "crush",
-   "year": 2025,
+   "year": "2025/26",
    "unit": "Mt cane",
-   "confidence": "association",
-   "source": "UNICA / company harvest reports (Centre-South crush)",
-   "note": "Cane CRUSHED, not sugar produced - each group splits its cane between sugar and ethanol depending on relative prices, so crush is the honest capacity measure. Raizen is the Cosan / Shell joint venture.",
+   "confidence": "reported",
+   "provenance": "keyed",
+   "source": "Company reports read directly; national crush from UNICA (2026-08-25)",
+   "note": "Cane CRUSHED in the 2025/26 harvest, against Brazil's 667.58 Mt from UNICA's own sector snapshot. Only groups that publish their own crush appear. UNICAdata has no company dimension - checked directly - so the ~340 remaining mills cannot be attributed and sit in one unsourced line. Crush share is applied to Brazil's SUGAR output to size the hedge, which assumes a group's sugar/ethanol mix matches the national mix; it does not exactly.",
    "rows": [
     {
      "company": "Raizen (Cosan / Shell)",
      "ticker": "RAIZ4 BZ",
-     "yahoo": "",
-     "volume": 85.0
-    },
-    {
-     "company": "BP Bioenergy",
-     "ticker": "BP LN",
-     "yahoo": "BP",
-     "volume": 32.0
-    },
-    {
-     "company": "Atvos",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 28.0
+     "yahoo": "RAIZ4.SA",
+     "volume": 70.5,
+     "kind": "company",
+     "detail": "world's largest cane processor",
+     "document": "Raizen Relatorio Integrado 2025/26 - business model page",
+     "source_url": "https://d169uzu5o4xu1k.cloudfront.net/e24e1732-fe1c-4eaf-9a28-ed09ccc472b1/2026/f3eb76b8-ad8a-4e38-a6bd-a0e855df3475.pdf",
+     "as_of": "2026"
     },
     {
      "company": "Sao Martinho",
      "ticker": "SMTO3 BZ",
-     "yahoo": "",
-     "volume": 23.0
+     "yahoo": "SMTO3.SA",
+     "volume": 21.7,
+     "kind": "company",
+     "detail": "fiscal year IS the harvest",
+     "document": "Sao Martinho 3Q 2025/26 results, executive summary",
+     "source_url": "https://ri.saomartinho.com.br/Download.aspx?Arquivo=FffpTlTHiXfalqpltN7BuA%3D%3D&linguagem=pt",
+     "as_of": "2026-02-09"
     },
     {
-     "company": "Tereos Brasil",
+     "company": "Adecoagro",
+     "ticker": "AGRO US",
+     "yahoo": "AGRO",
+     "volume": 12.1,
+     "kind": "company",
+     "detail": "calendar 2025; the crush season runs Apr-Dec so it maps to this harvest",
+     "document": "Adecoagro 20-F 2025, sugar/ethanol operations",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1499505/000149950526000069/agro-20251231.htm",
+     "as_of": "2026-04-29"
+    },
+    {
+     "company": "Not sourced",
      "ticker": "",
      "yahoo": "",
-     "volume": 20.0
-    },
-    {
-     "company": "CMAA",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 12.0
-    },
-    {
-     "company": "Jalles Machado",
-     "ticker": "JALL3 BZ",
-     "yahoo": "",
-     "volume": 6.0
-    },
-    {
-     "company": "Other (~250 independent mills)",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 404.0
+     "volume": 563.28,
+     "kind": "unsourced",
+     "detail": "Atvos, BP Bioenergy, Tereos, CMAA, Coruripe and ~340 other mills. No industry body publishes crush by group, so these are unknown."
     }
-   ],
-   "provenance": "names_only",
-   "unsourced_reason": "Cane crush by mill group is published by UNICA. Not yet wired."
+   ]
   },
   "beef": {
    "basis": "slaughter",
@@ -488,7 +480,7 @@
     }
    ],
    "provenance": "names_only",
-   "unsourced_reason": "Slaughter share would come from ABIEC and company disclosures. Not yet wired."
+   "unsourced_reason": "The processors publish capacity and tonnes SOLD, not carcass-weight slaughter. JBS's 20-F gives facility counts and daily head capacity; the national figure is 12.37 Mt CWE from IBGE. Those do not reconcile without assuming a yield and a utilisation rate, which would be inventing two numbers to produce a third. Verified 2026-08-25."
   },
   "chicken": {
    "basis": "slaughter",
@@ -536,109 +528,69 @@
     }
    ],
    "provenance": "names_only",
-   "unsourced_reason": "Output share would come from ABPA and company disclosures. Not yet wired."
+   "unsourced_reason": "Same basis problem as beef: BRF and JBS Seara report volumes sold in tonnes of product, while the national figure is bird output. Marfrig and BRF merged into MBRF during 2025, so the 2024 entities no longer file separately either. Verified 2026-08-25."
   },
   "soybeans": {
-   "basis": "export",
-   "year": 2024,
-   "unit": "% of exports",
-   "confidence": "estimate",
-   "source": "Comex Stat / ABIOVE trade-house shares",
-   "note": "Brazil's soybean crop is grown by tens of thousands of private farms; no listed company grows a material fraction of it. The largest listed grower, SLC Agricola, is roughly 1% of the national crop. What concentrates is who buys, crushes and ships it - and that is what moves basis.",
+   "basis": "production",
+   "year": "2024/25",
+   "unit": "Mt",
+   "confidence": "reported",
+   "provenance": "keyed",
+   "internal_only": true,
+   "source": "SLC Agricola operational data, read directly (2026-08-25)",
+   "note": "Brazil has no material corporate soybeans producer. SLC Agricola is the largest listed grower and is under 1% of the crop; the rest is tens of thousands of independent farms, which is a fact about the market rather than a gap in the data. SLC publishes planted AREA and YIELD, not tonnage, so production here is area x yield from the same table - arithmetic on two published figures, not an estimate. SLC's realised 2024/25 harvest is set against the national 2025/26 figure; at under 1% of the crop the year offset does not move the share. INTERNAL ONLY - this is a prospect list, not a producer ranking, and it is kept out of the client PDF.",
    "rows": [
     {
-     "company": "Bunge",
-     "ticker": "BG US",
-     "yahoo": "BG",
-     "volume": 13.0
+     "company": "SLC Agricola",
+     "ticker": "SLCE3 BZ",
+     "yahoo": "SLCE3.SA",
+     "volume": 1.495,
+     "kind": "company",
+     "detail": "377,531 ha x 3,961 kg/ha",
+     "document": "SLC Agricola 'Dados Operacionais' 2T26 workbook, tables 1 and 2 (safra 2024/25 realizado)",
+     "source_url": "https://api.mziq.com/mzfilemanager/v2/d/a975c39b-3eca-4ad8-9330-2c0a0b8d1060/ddb39b79-2dc1-6a52-b0ef-5f86b62a0d25?origin=2",
+     "as_of": "2026"
     },
     {
-     "company": "Cargill",
+     "company": "Independent farms (no corporate producer)",
      "ticker": "",
      "yahoo": "",
-     "volume": 13.0
-    },
-    {
-     "company": "COFCO International",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 9.0
-    },
-    {
-     "company": "ADM",
-     "ticker": "ADM US",
-     "yahoo": "ADM",
-     "volume": 8.0
-    },
-    {
-     "company": "Louis Dreyfus",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 8.0
-    },
-    {
-     "company": "Amaggi",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 6.0
-    },
-    {
-     "company": "Other (CHS, Olam, Gavilon, co-ops)",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 43.0
+     "volume": 184.505,
+     "kind": "artisanal",
+     "detail": "Tens of thousands of private farms and co-operatives."
     }
-   ],
-   "provenance": "names_only",
-   "unsourced_reason": "Company-level export share is NOT public in Brazil - Comex Stat publishes by product, state and destination but not by exporter. Needs paid bill-of-lading data."
+   ]
   },
   "corn": {
-   "basis": "export",
-   "year": 2024,
-   "unit": "% of exports",
-   "confidence": "estimate",
-   "source": "Comex Stat trade-house shares",
-   "note": "Same caveat as soybeans. Corn is grown as a safrinha second crop by the same fragmented farm base, so the concentration sits in the export channel, not the field.",
+   "basis": "production",
+   "year": "2024/25",
+   "unit": "Mt",
+   "confidence": "reported",
+   "provenance": "keyed",
+   "internal_only": true,
+   "source": "SLC Agricola operational data, read directly (2026-08-25)",
+   "note": "Brazil has no material corporate corn producer. SLC Agricola is the largest listed grower and is under 1% of the crop; the rest is tens of thousands of independent farms, which is a fact about the market rather than a gap in the data. SLC publishes planted AREA and YIELD, not tonnage, so production here is area x yield from the same table - arithmetic on two published figures, not an estimate. SLC's realised 2024/25 harvest is set against the national 2025/26 figure; at under 1% of the crop the year offset does not move the share. INTERNAL ONLY - this is a prospect list, not a producer ranking, and it is kept out of the client PDF.",
    "rows": [
     {
-     "company": "Cargill",
+     "company": "SLC Agricola",
+     "ticker": "SLCE3 BZ",
+     "yahoo": "SLCE3.SA",
+     "volume": 1.019,
+     "kind": "company",
+     "detail": "122,748 ha x 8,304 kg/ha",
+     "document": "SLC Agricola 'Dados Operacionais' 2T26 workbook, tables 1 and 2 (safra 2024/25 realizado)",
+     "source_url": "https://api.mziq.com/mzfilemanager/v2/d/a975c39b-3eca-4ad8-9330-2c0a0b8d1060/ddb39b79-2dc1-6a52-b0ef-5f86b62a0d25?origin=2",
+     "as_of": "2026"
+    },
+    {
+     "company": "Independent farms (no corporate producer)",
      "ticker": "",
      "yahoo": "",
-     "volume": 14.0
-    },
-    {
-     "company": "Bunge",
-     "ticker": "BG US",
-     "yahoo": "BG",
-     "volume": 11.0
-    },
-    {
-     "company": "COFCO International",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 10.0
-    },
-    {
-     "company": "Louis Dreyfus",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 8.0
-    },
-    {
-     "company": "ADM",
-     "ticker": "ADM US",
-     "yahoo": "ADM",
-     "volume": 7.0
-    },
-    {
-     "company": "Other (Amaggi, CHS, co-ops, ethanol plants)",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 50.0
+     "volume": 137.981,
+     "kind": "artisanal",
+     "detail": "Tens of thousands of private farms and co-operatives."
     }
-   ],
-   "provenance": "names_only",
-   "unsourced_reason": "Same as soybeans: exporter-level share is not public."
+   ]
   },
   "coffee": {
    "basis": "export",
@@ -692,7 +644,7 @@
     }
    ],
    "provenance": "names_only",
-   "unsourced_reason": "Cecafe publishes exporter rankings. Not yet wired."
+   "unsourced_reason": "Cecafe's monthly report - read directly, November 2024, 23 pages - breaks exports down by destination, port, state and arabica/robusta, but carries NO exporter ranking. Company-level customs data is confidential in Brazil, so this needs paid bill-of-lading data. Verified 2026-08-25."
   },
   "cotton": {
    "basis": "production",
@@ -806,73 +758,94 @@
    "basis": "production",
    "year": 2024,
    "unit": "kt",
-   "confidence": "estimate",
-   "source": "Company production reports (Vale, Lundin Mining, Ero Copper)",
-   "note": "Brazilian copper is a small share of world supply but is concentrated in three operators, all of which report their Brazilian volumes separately.",
+   "confidence": "reported",
+   "provenance": "keyed",
+   "source": "Company annual filings and results releases, read directly (2026-08-25)",
+   "note": "CONTAINED copper, the same basis as the national figure. Brazilian operations only: Vale's Canadian and Indonesian output is excluded, as is Ero's gold. ANM's CFEM returns cannot supply this - they declare ore and concentrate tonnage, and converting that to contained metal needs a per-mine grade.",
    "rows": [
     {
-     "company": "Vale (Salobo, Sossego)",
+     "company": "Vale",
      "ticker": "VALE3 BZ",
      "yahoo": "VALE",
-     "volume": 220.0
+     "volume": 265.2,
+     "kind": "company",
+     "detail": "Salobo 199.8 + Sossego 65.4",
+     "document": "Vale 20-F 2025, copper finished production by ore source",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/917851/000129281426001844/valeform20f_2025.htm",
+     "as_of": "2026-03-27"
     },
     {
-     "company": "Lundin Mining (Chapada)",
+     "company": "Lundin Mining",
      "ticker": "LUN CN",
-     "yahoo": "",
-     "volume": 55.0
+     "yahoo": "LUN.TO",
+     "volume": 43.261,
+     "kind": "company",
+     "detail": "Chapada (100% owned)",
+     "document": "Lundin Mining Q4 and Full Year 2024 Results",
+     "source_url": "https://news.cision.com/lundin-mining-corporation/r/lundin-mining-fourth-quarter-and-full-year-2024-results,c4108567",
+     "as_of": "2025-02-19"
     },
     {
-     "company": "Ero Copper (Caraiba, Tucuma)",
+     "company": "Ero Copper",
      "ticker": "ERO CN",
-     "yahoo": "",
-     "volume": 50.0
+     "yahoo": "ERO.TO",
+     "volume": 40.6,
+     "kind": "company",
+     "detail": "Caraiba 35.444 + Tucuma 5.156",
+     "document": "Ero Copper 40-F 2025, Q4 MD&A operating results",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1853860/000162828026022073/erocopper-mdax2025q4.htm",
+     "as_of": "2026-03-30"
     },
     {
-     "company": "Other",
+     "company": "Not sourced",
      "ticker": "",
      "yahoo": "",
-     "volume": 75.0
+     "volume": 50.939,
+     "kind": "unsourced",
+     "detail": "The rest of Brazil's 400 kt. We have not sourced who produces it."
     }
-   ],
-   "provenance": "names_only",
-   "unsourced_reason": "ANM's CFEM royalty returns DO give per-company tonnage - but they declare ore and concentrate, while the national figure is CONTAINED COPPER. Converting one to the other needs a per-mine grade, which would be an invented number. Vale, Lundin Mining and Ero Copper publish their own contained-metal volumes; keying those in is the route, not the regulator."
+   ]
   },
   "nickel": {
    "basis": "production",
    "year": 2024,
    "unit": "kt",
-   "confidence": "estimate",
-   "source": "Company production reports (Anglo American, Vale, Atlantic Nickel)",
-   "note": "Nickel content of Brazilian mine output. Anglo American's Barro Alto and Niquelandia ferronickel operations are the largest single source.",
+   "confidence": "reported",
+   "provenance": "keyed",
+   "source": "Company annual filings and results releases, read directly (2026-08-25)",
+   "note": "CONTAINED nickel, the same basis as the national figure. Anglo American's entire nickel business was Brazilian (Barro Alto and Codemin) and was sold to MMG during 2025, so the 2024 figure is Anglo's. Atlantic Nickel's Santa Rita is privately held and publishes no volume, which is most of the gap below.",
    "rows": [
     {
-     "company": "Anglo American (Barro Alto, Niquelandia)",
+     "company": "Anglo American",
      "ticker": "AAL LN",
      "yahoo": "AAL.L",
-     "volume": 40.0
+     "volume": 39.4,
+     "kind": "company",
+     "detail": "Barro Alto 32.3 + Codemin 7.1",
+     "document": "Anglo American Q4 2024 Production Report, p16",
+     "source_url": "https://www.angloamerican.com/~/media/Files/A/Anglo-American-Group-v9/PLC/media/press-release/releases/2025pr/q4-2024-production-report.pdf",
+     "as_of": "2025-02-06"
     },
     {
-     "company": "Vale (Onca Puma)",
+     "company": "Vale",
      "ticker": "VALE3 BZ",
      "yahoo": "VALE",
-     "volume": 25.0
+     "volume": 14.0,
+     "kind": "company",
+     "detail": "Onca Puma",
+     "document": "Vale 20-F 2025, nickel finished production by ore source",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/917851/000129281426001844/valeform20f_2025.htm",
+     "as_of": "2026-03-27"
     },
     {
-     "company": "Atlantic Nickel (Santa Rita)",
+     "company": "Not sourced",
      "ticker": "",
      "yahoo": "",
-     "volume": 15.0
-    },
-    {
-     "company": "Other (Horizonte and smaller operations)",
-     "ticker": "",
-     "yahoo": "",
-     "volume": 8.0
+     "volume": 34.6,
+     "kind": "unsourced",
+     "detail": "The rest of Brazil's 88 kt, chiefly Atlantic Nickel (Santa Rita), which is private."
     }
-   ],
-   "provenance": "names_only",
-   "unsourced_reason": "ANM's CFEM royalty returns DO give per-company tonnage - but they declare ore and concentrate, while the national figure is CONTAINED NICKEL. Converting one to the other needs a per-mine grade, which would be an invented number. Anglo American and Vale publish their own contained-metal volumes; keying those in is the route, not the regulator."
+   ]
   },
   "gold": {
    "basis": "production",

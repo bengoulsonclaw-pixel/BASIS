@@ -169,7 +169,7 @@
         </thead>
         <tbody>
           {% for r in b.rows %}
-          <tr{% if r.is_artisanal %} class="artisanal"{% elif r.is_other %} class="other"{% endif %}>
+          <tr{% if r.is_artisanal %} class="artisanal"{% elif r.is_other or r.is_unsourced %} class="other"{% endif %}>
             <td>{{ r.company }}</td>
             {% if not b.unit_is_pct %}<td class="right">{{ r.volume }}</td>{% endif %}
             <td class="right"><b>{{ r.share_brazil }}</b></td>

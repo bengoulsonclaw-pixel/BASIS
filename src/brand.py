@@ -692,6 +692,14 @@ div.st-key-home_mc_run button, div.st-key-home_mc_email button {
 div.st-key-home_mc_run button p, div.st-key-home_mc_email button p {
     font-size:12px !important; font-weight:600; text-transform:none !important;
     letter-spacing:0 !important; color:$gold !important; }
+/* Synopsis card ✏️ pen: floated into the top-right of the header band (admin edit). */
+div[class*="st-key-dkcard_mcsyn"] { position:relative; }
+div.st-key-mc_syn_edit {
+    position:absolute; top:6px; right:12px; width:auto !important; z-index:6; margin:0 !important; }
+div.st-key-mc_syn_edit button {
+    min-height:0 !important; padding:1px 8px !important; border-radius:7px !important;
+    background:transparent !important; border:1px solid $border !important; }
+div.st-key-mc_syn_edit button p { font-size:14px !important; }
 div[class*="st-key-mc_footer"] {
     border-top:1px solid $border; margin-top:.3rem; padding-top:.45rem; }
 .mc-foot { font-size:11.5px; color:$caption; line-height:1.5;

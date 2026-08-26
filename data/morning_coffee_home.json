@@ -1,13 +1,19 @@
 {
- "generated_at": "25 Aug 2026 · 08:06 ET",
- "synopsis": "Risk tone turned constructive overnight, and the story starts in energy: Brent slid below $90, down 2.8%, with WTI off 3.1%, as traders brushed aside Treasury Secretary Bessent's \"economic D-Day\" sanctions threat against Iran — Qatar's push to mediate the US-Iran dispute took the sting out of the supply-risk premium, with the follow-through hitting gasoil (-1.8%) and dragging TTF gas 2.4% lower.",
- "commentary": "Risk tone turned constructive overnight, and the story starts in energy: Brent slid below $90, down 2.8%, with WTI off 3.1%, as traders brushed aside Treasury Secretary Bessent's \"economic D-Day\" sanctions threat against Iran — Qatar's push to mediate the US-Iran dispute took the sting out of the supply-risk premium, with the follow-through hitting gasoil (-1.8%) and dragging TTF gas 2.4% lower. That crude retreat did the heavy lifting elsewhere: falling oil eased the inflation math, bond yields dropped, and equities rallied — Treasuries bid across the curve with the long bond up 0.4%, Bunds and gilts firmer, and Nasdaq futures up 0.9% as chipmakers rebounded ahead of Nvidia earnings and this week's Jackson Hole gathering, where markets are hunting for clear Fed guidance before PCE data.\n\nThe other macro thread is Bessent's move to more than double long-dated Treasury buybacks — read by many as yield-curve management by another name and, per some strategists, just another route to a weaker dollar. Prediction markets remain sceptical it caps yields into 2026, and the \"debasement trade\" is back: gold is holding near $4,700 with crypto extending gains, even as the softer risk-off tone knocked platinum and palladium 1.5-2.4% lower. Ags were broadly heavy — wheat down 2-2.6%, sugar, cotton and robusta all off more than 1% — consistent with the deflating commodity complex.\n\nWatch Jackson Hole rhetoric, PCE, and whether Iran mediation headlines keep crude — and with it the rates bid — moving in tandem.",
+ "generated_at": "25 Aug 2026 · 13:46 ET",
+ "synopsis": "Energy is the story this morning: Brent is down 2.8% at $89.56 and WTI off 3.1% at $82.36 as fresh diplomatic efforts around the Iran war — including talks over Hormuz — revive hopes the conflict won't escalate, while Washington's plan to squeeze Tehran spared its trading partners harsher measures for now.",
+ "commentary": "Energy is the story this morning: Brent is down 2.8% at $89.56 and WTI off 3.1% at $82.36 as fresh diplomatic efforts around the Iran war — including talks over Hormuz — revive hopes the conflict won't escalate, while Washington's plan to squeeze Tehran spared its trading partners harsher measures for now. Supply signals reinforce the move, with satellite imagery showing a jump in Iraq's Persian Gulf loadings. The war-premium bleed is running right down the complex: gasoil -1.8%, TTF -2.4%. That oil slide is doing the Fed's and Treasury's work for it — easing inflation pressure and taking the heat off the long end after the months-long selloff, with the Long Bond +0.4%, Bunds and Gilts firmer, and a strong 2-year auction stopping through.\n\nSofter US data helped: new home sales missed at 607k (down 10.5% on high mortgage rates) and consumer confidence undershot at 89.4, though Fed hawks are still warning rates may need to rise absent clearer disinflation. Risk tone is constructive — Nasdaq futures +0.9%, S&P +0.4% ahead of Nvidia's earnings, the key test of whether the AI capex story holds — even as Canada escalates the trade war, slapping 15-50% tariffs on ~$20bn of US goods and doubling steel duties to 50%, a fresh input-cost wrinkle for metals and rates markets.\n\nGold sits near $4,700 as the debasement trade persists on US fiscal worry, though the white metals are giving back, palladium -2.4%. Wheat is down 2%+ alongside broad ag weakness on the risk-premium unwind. Watch Nvidia, Hormuz headlines and Ottawa-Washington escalation next.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "Russia Eyes Grain Duty Pause Through Year End on Ukraine Strikes",
-   "time": "07:16 ET",
-   "tag": "Agriculture"
+   "title": "Oil Dips on Fresh Iran War Diplomacy, Talks on Hormuz",
+   "time": "18:02 ET",
+   "tag": "Energy"
+  },
+  {
+   "source": "Washington Post",
+   "title": "Bessent unveils sweeping new Iran sanctions but delays toughest blow",
+   "time": "18:22 ET",
+   "tag": "Geopolitics"
   },
   {
    "source": "Financial Times",
@@ -16,28 +22,22 @@
    "tag": "Geopolitics"
   },
   {
-   "source": "The Guardian",
-   "title": "Gold hits highest level in three months as traders worry about US inflation and bond market jitters",
+   "source": "Financial Times",
+   "title": "Iranian tankers gather off Sri Lankan coast",
+   "time": "12:22 ET",
+   "tag": "Energy"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "*CANADA PUTS 15% TO 50% TARIFFS ON ABOUT $20B OF US PRODUCTS",
    "time": "",
-   "tag": "Metals"
+   "tag": "Geopolitics"
   },
   {
    "source": "Financial Times",
-   "title": "Iranians queue for petrol as US blockade bites",
-   "time": "00:00 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Financial Times",
-   "title": "China could rescue the oil market again — if it wanted to",
-   "time": "00:00 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
-   "tag": "Energy"
+   "title": "Trump says US to increase tariffs on Canadian cars to 50%",
+   "time": "19:54 ET",
+   "tag": "Geopolitics"
   },
   {
    "source": "Financial Times",
