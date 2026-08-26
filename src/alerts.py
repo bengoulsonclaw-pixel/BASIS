@@ -34,6 +34,8 @@ ALERT_REPORTS = OrderedDict([
                   "email": "sigscore", "alerts": []}),
     ("weekreview", {"label": "Weekly Review — cross-module wrap", "group": "Desk & positioning",
                     "email": "weekreview", "alerts": []}),
+    ("hotsheet", {"label": "Hot Sheet — daily highlights", "group": "Desk & positioning",
+                  "email": "hotsheet", "alerts": []}),
     ("cot", {"label": "CFTC COT positioning", "group": "Desk & positioning",
              "email": "cot", "alerts": ["CFTC COT"]}),
     # Not a calendar release: the banner fires whenever a product pair's 1M correlation sits at

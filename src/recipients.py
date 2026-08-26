@@ -28,6 +28,7 @@ REPORTS = {
     "sectorcorr": "Product Correlations alert",
     "sigscore": "Weekly Signal Scorecard — Technical",
     "weekreview": "Weekly Review — cross-module wrap",
+    "hotsheet": "🔥 Hot Sheet — daily highlights",
     "curve": "Curve / RV Monitor report",
     "seasonality": "Seasonality Monitor report",
     "precious_metals": "Precious Metals Fundamentals monitor",
@@ -57,7 +58,7 @@ def _defaults() -> dict:
     return {"morning_coffee": list(desk), "cot": list(desk), "digest": [desk[0]],
             "opec": list(desk), "usda_reaction": list(desk),
             "wasde": list(desk), "sectorcorr": [desk[0]], "sigscore": [desk[0]],
-            "weekreview": [desk[0]],
+            "weekreview": [desk[0]], "hotsheet": [desk[0]],
             # proofread flow: the monitor goes to the desk only; Ben forwards
             # the checked copy to clients himself.
             "precious_metals": [desk[0]], "pm_releases": [desk[0]],

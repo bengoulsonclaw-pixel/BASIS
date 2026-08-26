@@ -5395,6 +5395,33 @@ def render_hotsheet(book: str = "ficc") -> None:
                     _hs_row(it, f"{sect}_{i}", pal)
     _hs_footer(report)
 
+    # Report controls pinned to the FOOT of the page (the house "generate at the
+    # bottom" layout — the radar_pdf pattern). Admin-only: clients read the sheet
+    # on the page; the PDF is the desk's print cut of it.
+    if IS_ADMIN:
+        st.divider()
+        rc1, rc2 = st.columns([1, 3])
+        if rc1.button("📄 Build client PDF", key="hs_pdf", use_container_width=True):
+            with st.spinner("Rendering the Hot Sheet report…"):
+                try:
+                    # Lazy import: reportkit pulls matplotlib in, which the server process
+                    # deliberately doesn't carry — only the report path pays for it.
+                    from src import hotsheetreport
+                    out = hotsheetreport.build_pdf(str(ROOT / "data" / "Hot_Sheet.pdf"),
+                                                   ai_polish=True)
+                    st.session_state["hs_pdf_path"] = str(out)
+                except Exception as e:
+                    st.error(f"Report failed: {e}")
+        p = st.session_state.get("hs_pdf_path")
+        if p and Path(p).exists():
+            with open(p, "rb") as fh:
+                rc2.download_button("⬇️ Download the report", fh.read(),
+                                    file_name=Path(p).name, mime="application/pdf",
+                                    use_container_width=True, key="hs_pdf_dl")
+        st.caption("The PDF is the **client cut** of this sheet — internal-only lines and the "
+                   "data-health caveats stay off it, and both desks print in one document. "
+                   "Scheduled emailing is toggled in **Recipients → Scheduled reports**.")
+
 
 def _ax(tk) -> str:
     """Y-axis title for a technical chart — fixed income is charted as YIELDS, not price."""

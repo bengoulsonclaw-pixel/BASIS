@@ -71,6 +71,10 @@ REPORTS = {
                    "schedule": "Mondays 07:35 — Fed/ECB/BoE rule prescriptions vs the strip",
                    "tasks": ["BASIS Macro Rate Radar"],
                    "recipients": "macroradar"},
+    "hotsheet": {"label": "Hot Sheet — daily highlights",
+                 "schedule": "Weekdays 08:15 — sends only when the morning pull has stamped today's sheet",
+                 "tasks": ["BASIS Hot Sheet (daily)"],
+                 "recipients": "hotsheet"},
 }
 
 

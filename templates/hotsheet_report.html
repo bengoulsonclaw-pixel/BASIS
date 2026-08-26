@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  /* as-of + collection stamp under the titleband */
+  .stamp { font-size: 8pt; color: #666; margin: 2mm 0 0; }
+  .stamp b { color: #111; }
+
+  /* one typographic stat line instead of boxed KPI tiles (weekreview convention) */
+  .statline { display: flex; margin: 3.5mm 0 1mm; }
+  .stat { flex: 1; padding: 0 4mm; border-left: 0.75pt solid #ddd; }
+  .stat:first-child { padding-left: 0; border-left: none; }
+  .stat .n { font-size: 15pt; font-weight: 700; color: #111; line-height: 1.1; }
+  .stat .l { font-size: 6.3pt; color: #777; text-transform: uppercase; letter-spacing: .5px;
+             margin-top: 0.6mm; }
+
+  /* module sections: small-caps head over a gold rule, count set right */
+  .sech { display: flex; justify-content: space-between; align-items: baseline;
+          margin: 4mm 0 0.5mm; padding-bottom: 0.8mm;
+          border-bottom: 1.6pt solid var(--yellow); break-after: avoid; }
+  .sech .t { font-size: 8.5pt; font-weight: 700; letter-spacing: 1.8px;
+             text-transform: uppercase; color: #111; }
+  .sech .c { font-size: 6.3pt; color: #999; letter-spacing: .4px; text-transform: uppercase; }
+
+  /* the two book bands ("The rest of the sheet — FICC / Equities") reuse the house
+     .banner; just give them air above */
+  .banner { margin-top: 6mm; }
+
+  /* sheet rows: story left, its own sparkline mid, headline number over the heat
+     gauge right — the weekreview .itm row with a spark column added */
+  .itm { display: flex; gap: 4mm; align-items: flex-start; padding: 1.7mm 0;
+         border-bottom: 0.5pt solid #ececec; break-inside: avoid; }
+  .itm:last-child { border-bottom: none; }
+  .itm .story { flex: 1; font-size: 7.7pt; line-height: 1.48; color: #222; }
+  .itm .spk { flex: 0 0 24mm; height: 6.5mm; padding-top: 0.7mm; }
+  .itm .mx { flex: 0 0 25mm; text-align: right; }
+  .mx .v { font-size: 9pt; font-weight: 700; color: #111; white-space: nowrap; }
+  .mx .s { font-size: 5.8pt; color: #999; letter-spacing: .3px; text-transform: uppercase;
+           line-height: 1.35; }
+  .gauge { height: 1.1mm; background: #eee; margin-top: 1mm; }
+  .gauge i { display: block; height: 100%; background: var(--yellow); }
+
+  /* tag chip + NEW / day-n badges */
+  .chip { font: 700 6pt/1.6 Consolas, 'IBM Plex Mono', monospace; letter-spacing: .4px;
+          color: var(--warn-tx); border: 0.75pt solid #E7D49A; padding: 0.2mm 1.2mm;
+          margin-right: 1.6mm; white-space: nowrap; }
+  .badge { font-size: 6.2pt; color: #999; font-style: italic; white-space: nowrap;
+           margin-right: 1.2mm; }
+  .badge.new { color: #1e8449; font-weight: 700; font-style: normal; }
+
+  .flowlede { font-size: 6.8pt; color: #888; margin: 0.6mm 0 0.8mm; line-height: 1.45; }
+  .lede { font-size: 7pt; color: #888; margin: 2.5mm 0 0; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  {% macro row(it) %}
+  <div class="itm">
+    <div class="story"><span class="chip">{{ it.tag }}</span>{% if it.badge %}<span class="badge{% if it.badge == 'NEW' %} new{% endif %}">{{ it.badge }}</span>{% endif %} {{ it.html|safe }}</div>
+    <div class="spk">{% if it.spark_svg %}{{ it.spark_svg|safe }}{% endif %}</div>
+    <div class="mx">
+      <div class="v">{{ it.met }}</div>
+      {% if it.sub %}<div class="s">{{ it.sub }}</div>{% endif %}
+      <div class="gauge"><i style="width: {{ it.gw }}%"></i></div>
+    </div>
+  </div>
+  {% endmacro %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>Hot Sheet</h1>
+      <div class="sub">The desk&rsquo;s daily cross-asset highlights &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <div class="stamp"><b>{{ asof }}</b> &nbsp;&middot;&nbsp; screens collected {{ collected_et }} ET</div>
+
+    <p class="summary">{{ intro|safe }}</p>
+
+    {% if n_items %}
+    <div class="statline">
+      <div class="stat"><div class="n">{{ n_items }}</div><div class="l">highlights on the sheet</div></div>
+      <div class="stat"><div class="n">{{ n_mods }}</div><div class="l">modules contributing</div></div>
+      <div class="stat"><div class="n">{{ n_new if n_new else "&mdash;"|safe }}</div><div class="l">new today</div></div>
+      <div class="stat"><div class="n">{{ n_ficc }} / {{ n_eq }}</div><div class="l">FICC / Equities</div></div>
+    </div>
+
+    {% if top %}
+    <div class="sech"><span class="t">Top of the sheet</span>
+      <span class="c">top {{ top|length }} by heat &middot; at most two per module</span></div>
+    {% for it in top %}{{ row(it) }}{% endfor %}
+    {% endif %}
+
+    {% for bk in books %}
+    <div class="banner"><span class="mkt">The rest of the sheet &mdash; {{ bk.label }}</span>
+      <span class="sig">{{ bk.n }} line{{ "s" if bk.n != 1 }}</span></div>
+    {% for g in bk.groups %}
+    <div class="sech"><span class="t">{{ g.title }}</span>
+      <span class="c">{{ g.rows|length }} line{{ "s" if g.rows|length != 1 }}</span></div>
+    {% if g.flow %}
+    <p class="flowlede">Activity flag, not a signal &mdash; these products traded far more puts or
+      calls in the last session than they normally do, measured against each contract&rsquo;s own
+      recent daily volume. The rows carry no direction and no view; they mark where the flow went.</p>
+    {% endif %}
+    {% for it in g.rows %}{{ row(it) }}{% endfor %}
+    {% endfor %}
+    {% endfor %}
+
+    <p class="lede">One line per flag, each past its home module&rsquo;s own live threshold
+      &mdash; the sheet adds no analysis of its own. Full detail on any line lives in that
+      module&rsquo;s own report.</p>
+    {% else %}
+    <div class="sech"><span class="t">Top of the sheet</span></div>
+    <p class="lede">A quiet morning &mdash; no module is past its own flagging bar as of the
+      latest collection.</p>
+    {% endif %}
+
+    <div class="report-footer">
+    <div class="foot-disclaimer">
+    <hr class="rule">
+    <div class="fine">
+      Method: the Hot Sheet aggregates, without modification, the exception flags each internal
+      Strategy Monitor module computes on its own thresholds from settlement data &mdash; it
+      performs no analysis of its own. Items are ranked on a common 0&ndash;100 heat scale
+      (how far each reading sits beyond its module&rsquo;s bar); &ldquo;NEW&rdquo; marks a story&rsquo;s
+      first appearance and &ldquo;day&nbsp;n&rdquo; a run of consecutive sessions on the sheet.
+      Sparklines show each story&rsquo;s own recent daily series. Past patterns are not indicative
+      of future results.
+    </div>
+    {% include "_disclaimer.html" %}
+    </div>
+    </div>
+  </div>
+</body>
+</html>
