@@ -2969,6 +2969,27 @@ def render_home() -> None:
                        "if `logs/pull_driver_fetch.log` ends with *BLOOMBERG PHASE "
                        "COMPLETE*, press **Re-run signals** — do **not** pull again, "
                        "that would re-spend the day's Bloomberg allowance.")
+        # Outcome banner, read from the STATUS FILE rather than the click handler
+        # (Ben, 2026-08-26: "why has the banner stopped working?"). The old success
+        # message lived inside _run_ficc_pull's blocking wait, so it needed the very
+        # same script run to survive all ~14 minutes — a page nav, a reload or a lost
+        # websocket killed it, and the st.rerun() straight after it wiped it anyway.
+        # Reading the file means the result is there whenever you next look, and the
+        # rerun now REVEALS this banner instead of destroying the only one.
+        elif _pstat.get("outcome") and _pstat.get("date") == str(_today):
+            _pw, _pd = str(_pstat.get("when", ""))[11:16], _pstat.get("detail", "")
+            if st.session_state.get("pull_banner_seen") != _pstat.get("when"):
+                _bc, _bx = st.columns([0.94, 0.06], vertical_alignment="center")
+                if _pstat["outcome"] == "ok":
+                    _bc.success(f"✅ **Bloomberg pull finished {_pw}** — snapshot {_pd}, "
+                                "backup pushed. The Terminal can be closed.")
+                else:
+                    _bc.error(f"⚠️ **Bloomberg pull ended {_pw}** — {_pstat['outcome']}"
+                              + (f": {_pd}" if _pd else "")
+                              + ". The existing snapshot was kept — see logs/pull_driver.log.")
+                _bx.button("✕", key="pull_banner_dismiss", help="Dismiss until the next pull",
+                           on_click=lambda w=_pstat.get("when"):
+                               st.session_state.__setitem__("pull_banner_seen", w))
 
     def _run_ficc_pull():
         # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through
