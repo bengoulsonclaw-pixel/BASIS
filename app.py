@@ -14811,6 +14811,16 @@ def render_macro_radar() -> None:
                 default=["taylor93", "balanced"],
                 format_func=lambda k: _hist_names.get(k, k), key="radar_bt_hist_rules")
             _actual = "Effective fed funds rate"
+            # End the history on a LIVE point: today's data through the same formula
+            # and as-of reduction as the vintage rows, so the chart's last reading
+            # moves with the prints exactly like the headline numbers up top. The
+            # monthly vintage rows behind it never change.
+            try:
+                _live = macrobt.live_row()
+            except Exception:
+                _live = None
+            if _live is not None and _live["when"] > hist[-1]["when"]:
+                hist = hist + [_live]
             chart_rows = [{"when": row["when"].isoformat(), "rate": row["policy"],
                            "series": _actual} for row in hist]
             for k in sel_hist:
@@ -14844,9 +14854,12 @@ def render_macro_radar() -> None:
                             use_container_width=True)
             st.caption("Drag to pan, scroll/pinch to zoom, double-click to reset the view.")
             st.caption(
-                f"US only, {hist[0]['when'].year}–{hist[-1]['when'].year}, monthly. Each "
-                "point is computed from the ALFRED vintage of that month — the data as it "
-                "stood on the day, revisions and publication lags included. r* is held "
+                f"US only, {hist[0]['when'].year}–{hist[-1]['when'].year}, monthly, with "
+                "a live final point. Each historical point is computed from the ALFRED "
+                "vintage of that month — the data as it stood on the day, revisions and "
+                "publication lags included; the last point runs today's data through the "
+                "same formula, so it updates with the releases like the headline numbers "
+                "above. r* is held "
                 "fixed at 0.75% throughout (matching the backtest): that biases the LEVEL "
                 "of every prescription, not the direction of its changes. First-difference "
                 "is absent because the store carries no year-ago gap to evaluate it with. "

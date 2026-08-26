@@ -192,6 +192,42 @@ def prescription_history(rstar: float = 0.75,
     return out
 
 
+def live_row(rstar: float = 0.75,
+             rule_keys=("taylor93", "balanced", "shortfalls",
+                        "inertial")) -> dict | None:
+    """One prescription_history()-shaped row computed from TODAY's data — the same
+    formula and reduction as the vintage rows (value as-of today, so CBO's NROU
+    projections to 2036 can't leak in), just on the current release instead of a
+    stored vintage. This is what lets the history chart end on a point that moves
+    with the data like the headline numbers at the top of the page. Returns None
+    when any input is unavailable, rather than a partial row."""
+    today = date.today()
+    try:
+        infl_s = macrodata.fred(_VINTAGE_SERIES["core_pce"], start="1990-01-01").yoy()
+        vals = {"infl": infl_s.asof(today) if infl_s.ok else None}
+        for name, sid in (("unemp", _VINTAGE_SERIES["unemp"]),
+                          ("nairu", _VINTAGE_SERIES["nairu"]),
+                          ("policy", _POLICY_SERIES)):
+            s = macrodata.fred(sid, start="1990-01-01")
+            vals[name] = s.asof(today) if s.ok else None
+    except Exception:
+        return None
+    if any(v is None for v in vals.values()):
+        return None
+    vals = {k: v[1] for k, v in vals.items()}
+    x = macrorules.RuleInputs(bank="FED", infl=vals["infl"], rstar=rstar,
+                              unemp=vals["unemp"], nairu=vals["nairu"],
+                              policy_rate=vals["policy"],
+                              prev_policy_rate=vals["policy"])
+    row = {r.key: r.prescribed for r in macrorules.evaluate(x)
+           if r.ok and r.prescribed is not None and r.key in rule_keys}
+    if len(row) != len(rule_keys):
+        return None
+    row["when"] = today
+    row["policy"] = vals["policy"]
+    return row
+
+
 def dispersion_history(rstar: float = 0.75,
                        rule_keys=("taylor93", "balanced", "shortfalls",
                                   "inertial")) -> list[tuple[date, float]]:
@@ -311,7 +347,11 @@ def run(start: date | None = None, end: date | None = None,
     if not macrodata.have_fred_key():
         return {"ok": False, "reason": macrodata.FRED_KEY_HELP}
     start = start or date(2000, 1, 1)
-    end = end or _add_months(date.today(), -13)   # need room for the 12m horizon
+    # Build to the CURRENT month. Recent observations lack the longer forward horizons
+    # (score() finds no future obs, analyse() drops the pair), so the statistics stay
+    # honest on their own — while the history chart gets the present instead of
+    # stopping 13 months short of it.
+    end = end or date.today().replace(day=1)
     obs = score(build(start, end, step_months, progress=progress))
     if not obs:
         return {"ok": False, "reason": "no usable vintage observations were assembled"}
