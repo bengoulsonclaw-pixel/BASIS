@@ -135,8 +135,10 @@ def spark_svg(vals: list) -> str:
             f'stroke="{SPARK_DOT_RING}" stroke-width="0.6"/></svg>')
 
 
-PRINT_HUE = {"green": "#1F7A44", "blue": "#1F5FA8",   # print-safe long/series/short inks
-             "red": "#C62828"}                        # for hotsheet.TAG_HUE families
+PRINT_HUE = {"green": "#1F7A44", "red": "#C62828",    # print-safe inks for every
+             "blue": "#1F5FA8", "purple": "#6A3FB5",  # hotsheet.TAG_HUE family —
+             "teal": "#0E7C7B", "orange": "#C05F10",  # the app's _HS_HUES light column
+             "slate": "#5B6570"}
 
 
 def decorate(items: list) -> None:

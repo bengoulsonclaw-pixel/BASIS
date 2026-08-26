@@ -5210,6 +5210,13 @@ def _hs_go(dest: str) -> None:
 
 _HS_MONO = "'IBM Plex Mono', Consolas, monospace"
 
+# hotsheet.TAG_HUE families as (dark, light) chip inks — the first four match
+# brand.chart_colors' long/short/series values so the code stays one language
+_HS_HUES = {"green": ("#46C58A", "#1F7A44"), "red": ("#EC6A57", "#C62828"),
+            "blue": ("#5B9BF0", "#1F5FA8"), "purple": ("#B48EF0", "#6A3FB5"),
+            "teal": ("#3FC1C9", "#0E7C7B"), "orange": ("#F08C3C", "#C05F10"),
+            "slate": ("#AEB7C2", "#5B6570")}
+
 
 def _hs_spark(vals: list, pal: dict) -> str:
     """Inline SVG sparkline of an item's own series (oldest→newest): a quiet trace
@@ -5235,10 +5242,9 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
     """One Hot Sheet line: tag chip + badge + prose, the story's sparkline, the
     metric column with its heat gauge, and the jump into the owning module."""
     c_txt, c_spark, c_met, c_go = st.columns([8, 3, 3, 1])
-    _cc = brand.chart_colors(pal)                # theme-aware family hues (hotsheet.TAG_HUE)
-    _hue = {"green": _cc["long"], "blue": _cc["series"], "red": _cc["short"]}.get(
-        hotsheet.TAG_HUE.get(it["tag"], ""), pal["gold"])
-    _ring = pal["label_ring"] if _hue == pal["gold"] else _hue
+    _pair = _HS_HUES.get(hotsheet.TAG_HUE.get(it["tag"], ""))
+    _hue = (_pair[0 if pal["name"] == "dark" else 1]) if _pair else pal["gold"]
+    _ring = _hue if _pair else pal["label_ring"]
     chip = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{_hue};'
             f'border:1px solid {_ring};padding:.05rem .35rem;'
             f'margin-right:.5rem;white-space:nowrap">{it["tag"]}</span>')
