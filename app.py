@@ -14840,7 +14840,7 @@ def render_macro_radar() -> None:
             lines = base.mark_line().interactive()
             zero_rule = alt.Chart(pd.DataFrame([{"y": 0.0}])).mark_rule(
                 strokeDash=[4, 3], color="#9AA4B0").encode(y="y:Q")
-            st.altair_chart((lines + zero_rule).properties(height=320),
+            st.altair_chart((lines + zero_rule).properties(height=480),
                             use_container_width=True)
             st.caption("Drag to pan, scroll/pinch to zoom, double-click to reset the view.")
             st.caption(
