@@ -16560,10 +16560,12 @@ if active == "Put/Call Ratios":
         # tooltip; this picks the one the chart is scaled and ranked on. The 1-month option is
         # only offered when the store actually carries those columns.
         _has1m = bool((_av["avg_call_1m"] > 0).any() and (_av["avg_put_1m"] > 0).any())
+        # 1-MONTH leads and is the default (Ben, 2026-08-26): the yearly basis flatters
+        # anything having a busy month, so the near-term read is the one to open on.
         _basis = "1-year average"
         if _has1m:
             _basis = st.radio(
-                "Compare each side against", ["1-year average", "1-month average"],
+                "Compare each side against", ["1-month average", "1-year average"],
                 horizontal=True, key="pc_act_basis",
                 help="A product whose options have been busy for weeks reads huge against its "
                      "year and ordinary against its month — flip the basis to tell those apart.")
