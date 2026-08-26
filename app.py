@@ -5415,9 +5415,18 @@ def render_hotsheet(book: str = "ficc") -> None:
         p = st.session_state.get("hs_pdf_path")
         if p and Path(p).exists():
             with open(p, "rb") as fh:
-                rc2.download_button("⬇️ Download the report", fh.read(),
-                                    file_name=Path(p).name, mime="application/pdf",
-                                    use_container_width=True, key="hs_pdf_dl")
+                _pdf_bytes = fh.read()
+            rc2.download_button("⬇️ Download the report", _pdf_bytes,
+                                file_name=Path(p).name, mime="application/pdf",
+                                use_container_width=True, key="hs_pdf_dl")
+            from src.reportkit import pretty_date as _pdate
+            email_report_ui("hs_mail", "hotsheet", _pdf_bytes,
+                            subject=f"BASIS Hot Sheet — {_pdate(str(date.today()))}",
+                            attachment_name="Hot_Sheet.pdf",
+                            intro_html="<p>Please find today's <b>BASIS Hot Sheet</b> — the desk's "
+                                       "daily cross-asset highlights: one line per flag, each past "
+                                       "its home model's own threshold. Observations of the desk's "
+                                       "screens, not recommendations.</p>")
         st.caption("The PDF is the **client cut** of this sheet — internal-only lines and the "
                    "data-health caveats stay off it, and both desks print in one document. "
                    "Scheduled emailing is toggled in **Recipients → Scheduled reports**.")
