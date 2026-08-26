@@ -16550,30 +16550,50 @@ if active == "Put/Call Ratios":
     _av["tot_last"] = _av["call_last"].fillna(0) + _av["put_last"].fillna(0)
     _av = _av[(_av["avg_call"] > 0) & (_av["avg_put"] > 0) & (_av["tot_last"] > 0)].copy()
     if not _av.empty:
-        st.markdown("##### Yesterday's options activity — calls vs puts, each against its own 1-year average")
         _av["call_pct"] = _av["call_last"].fillna(0) / _av["avg_call"] * 100.0
         _av["put_pct"] = _av["put_last"].fillna(0) / _av["avg_put"] * 100.0
         # the near-term basis: a product busy for weeks reads enormous against its year and
         # ordinary against its month (Ben, 2026-08-25 — Corn at 1,582% of 1y, ~360% of 1m)
         _av["call_pct_1m"] = _av["call_last"].fillna(0) / _av["avg_call_1m"] * 100.0
         _av["put_pct_1m"] = _av["put_last"].fillna(0) / _av["avg_put_1m"] * 100.0
-        _av["neg_put_pct"] = -_av["put_pct"]
-        _av["rank_pct"] = _av[["call_pct", "put_pct"]].max(axis=1)
-        _av["call_lbl"] = _av["call_pct"].map(lambda v: f"{v:.0f}%")
-        _av["put_lbl"] = _av["put_pct"].map(lambda v: f"{v:.0f}%")
+        # Which average the BARS are drawn against (Ben, 2026-08-26). Both are always in the
+        # tooltip; this picks the one the chart is scaled and ranked on. The 1-month option is
+        # only offered when the store actually carries those columns.
+        _has1m = bool((_av["avg_call_1m"] > 0).any() and (_av["avg_put_1m"] > 0).any())
+        _basis = "1-year average"
+        if _has1m:
+            _basis = st.radio(
+                "Compare each side against", ["1-year average", "1-month average"],
+                horizontal=True, key="pc_act_basis",
+                help="A product whose options have been busy for weeks reads huge against its "
+                     "year and ordinary against its month — flip the basis to tell those apart.")
+        _1m = _basis.startswith("1-month")
+        _bl = "1-month" if _1m else "1-year"
+        st.markdown(f"##### Yesterday's options activity — calls vs puts, each against its own {_bl} average")
+        _av["act_call"] = _av["call_pct_1m"] if _1m else _av["call_pct"]
+        _av["act_put"] = _av["put_pct_1m"] if _1m else _av["put_pct"]
+        _av = _av[_av["act_call"].notna() & _av["act_put"].notna()].copy()
+    if _av.empty:
+        st.info(f"No product has enough history for that comparison yet.")
+        st.divider()
+    else:
+        _av["neg_put_pct"] = -_av["act_put"]
+        _av["rank_pct"] = _av[["act_call", "act_put"]].max(axis=1)
+        _av["call_lbl"] = _av["act_call"].map(lambda v: f"{v:.0f}%")
+        _av["put_lbl"] = _av["act_put"].map(lambda v: f"{v:.0f}%")
         if "vol_days" in _av.columns:                       # (Nd) = days of history behind the average
             _vd = pd.to_numeric(_av["vol_days"], errors="coerce").fillna(0).astype(int)
             _av["mkt_lbl"] = [f"{m} ({v}d)" for m, v in zip(_av["market"], _vd)]
         else:
             _av["mkt_lbl"] = _av["market"].astype(str)
         _order = _av.sort_values("rank_pct", ascending=False)["mkt_lbl"].tolist()
-        _M = float(max(_av["call_pct"].max(), _av["put_pct"].max()) or 100.0)   # full scale — keep extremes
-        _bar_df = pd.concat([_av.assign(Side="Calls", pct=_av["call_pct"]),
-                             _av.assign(Side="Puts", pct=-_av["put_pct"])])
+        _M = float(max(_av["act_call"].max(), _av["act_put"].max()) or 100.0)   # full scale — keep extremes
+        _bar_df = pd.concat([_av.assign(Side="Calls", pct=_av["act_call"]),
+                             _av.assign(Side="Puts", pct=-_av["act_put"])])
         _bars = alt.Chart(_bar_df).mark_bar().encode(
             y=alt.Y("mkt_lbl:N", sort=_order, title=None, axis=alt.Axis(labelFontSize=11)),
             x=alt.X("pct:Q", stack=None,
-                    title="← puts traded      calls traded →   (each as % of that side's own 1-year daily average)",
+                    title=f"← puts traded      calls traded →   (each as % of that side's own {_bl} daily average)",
                     scale=alt.Scale(domain=[-_M * 1.20, _M * 1.20]),
                     axis=alt.Axis(labelFontSize=11, labelExpr="abs(datum.value) + '%'")),
             color=alt.Color("Side:N", scale=alt.Scale(domain=["Calls", "Puts"], range=[_cc_a["long"], _cc_a["short"]]),
@@ -16598,15 +16618,15 @@ if active == "Put/Call Ratios":
             color=_cc_a["ink"], strokeDash=[5, 3]).encode(x="x:Q")
         _zero = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color=_cc_a["muted"]).encode(x="x:Q")
         _lblc = alt.Chart(_av).mark_text(align="left", dx=3, fontSize=9, color=_cc_a["long"]).encode(
-            y=alt.Y("mkt_lbl:N", sort=_order), x=alt.X("call_pct:Q"), text="call_lbl:N")
+            y=alt.Y("mkt_lbl:N", sort=_order), x=alt.X("act_call:Q"), text="call_lbl:N")
         _lblp = alt.Chart(_av).mark_text(align="right", dx=-3, fontSize=9, color=_cc_a["short"]).encode(
             y=alt.Y("mkt_lbl:N", sort=_order), x=alt.X("neg_put_pct:Q"), text="put_lbl:N")
         _act_chart = alt.layer(_bars, _avg100, _zero, _lblc, _lblp).properties(
             height=22 * max(1, len(_order)),
-            title="Yesterday's options volume — calls (green, right) / puts (red, left) as % of each side's 1-year daily average; dashed 100% = average")
+            title=f"Yesterday's options volume — calls (green, right) / puts (red, left) as % of each side's {_bl} daily average; dashed 100% = average")
         brand.show_chart(_act_chart)
-        st.caption("**Calls point right, puts point left**, each as a **% of that side's own 1-year daily "
-                   "average** so size doesn't distort it. The **dashed 100% line on each side is the average** — "
+        st.caption(f"**Calls point right, puts point left**, each as a **% of that side's own {_bl} daily "
+                   "average** so size doesn't distort it. The **dashed 100% line on each side is the average** —"
                    "a bar past it traded **above average**. Ranked by the bigger side. The **(Nd)** next to each "
                    "name is how many days of history the average uses — under ~120 days is still building, so "
                    "read those with caution. **Hover for the contract counts and the same comparison against "
