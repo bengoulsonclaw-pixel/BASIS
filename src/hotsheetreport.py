@@ -186,7 +186,11 @@ def intro_text(items: list, n_new: int, n_mods: int) -> str:
 # ---------------------------------------------------------------------------
 # build
 # ---------------------------------------------------------------------------
-def render_html(ai_polish: bool = True) -> str:
+def render_html(ai_polish: bool = True, n_pages: int | None = None) -> str:
+    return _render(_context(ai_polish), n_pages)
+
+
+def _context(ai_polish: bool = True) -> dict:
     items, report, collected = client_items()
     collected_et = (pd.Timestamp(collected, unit="s", tz="UTC")
                     .tz_convert("America/New_York").strftime("%H:%M"))
@@ -210,8 +214,7 @@ def render_html(ai_polish: bool = True) -> str:
 
     decorate(items)
 
-    env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
-    return env.get_template("hotsheet_report.html").render(
+    return dict(
         asof=pretty_date(str(date.today())),
         collected_et=collected_et,
         intro=md_bold(intro),
@@ -223,8 +226,29 @@ def render_html(ai_polish: bool = True) -> str:
     )
 
 
+def _render(ctx: dict, n_pages: int | None = None) -> str:
+    env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
+    return env.get_template("hotsheet_report.html").render(**ctx, n_pages=n_pages)
+
+
 def build_pdf(out_path, ai_polish: bool = True) -> str:
-    return render_pdf(render_html(ai_polish), out_path)
+    """Two-pass render so the disclaimer sits flush with the BOTTOM of the last
+    page: pass 1 renders the natural flow and pypdfium2 counts its pages; pass 2
+    stretches the content column to that count and pins the footer at its foot
+    (see the pass-2 notes in the template). The context — and so the one AI-polish
+    call — is built once; a counting failure just keeps the pass-1 PDF."""
+    ctx = _context(ai_polish)
+    out = render_pdf(_render(ctx), out_path)
+    try:
+        import pypdfium2 as pdfium
+        doc = pdfium.PdfDocument(str(out))
+        n = len(doc)
+        doc.close()                   # Windows: release the handle before rewriting
+        if n > 0:
+            out = render_pdf(_render(ctx, n_pages=n), out_path)
+    except Exception:
+        pass
+    return out
 
 
 def main():

@@ -4,11 +4,21 @@
 <meta charset="utf-8">
 {% include "_report_style.html" %}
 <style>
-  /* The disclaimer FLOWS after the last section (Ben, 2026-08-26) instead of the
-     house dedicated closing page (.report-footer's break-before: page) — a daily
-     note shouldn't spend a page on boilerplate. break-inside keeps the block
-     whole: if the last page is genuinely full it moves as one unit. */
+  /* The disclaimer sits at the BOTTOM of the last content page (Ben, 2026-08-26)
+     — not the house dedicated closing page (.report-footer's break-before: page),
+     and not floating mid-page after the last section. Pass 1 of build_pdf renders
+     this natural flow (break-inside keeps the block whole) purely to COUNT pages;
+     pass 2 then stretches .content to exactly that many page heights and pins the
+     footer absolutely at its foot. Safe by construction: pass 1 proved content +
+     footer fit in n_pages, so the pin only moves the footer DOWN into slack. */
   .sheet-footer { margin-top: 6mm; break-inside: avoid; }
+  {% if n_pages %}
+  /* pass 2 — 100vh is the page CONTENT box in Chromium print (margins already
+     out), and the 0.04in hair stops sub-pixel rounding tipping a blank page:
+     see the .report-footer notes in _report_style.html. */
+  .content { min-height: calc({{ n_pages }} * 100vh - 0.04in); }
+  .sheet-footer { position: absolute; bottom: 0; left: 0; right: 0; margin-top: 0; }
+  {% endif %}
 
   /* as-of + collection stamp under the titleband */
   .stamp { font-size: 8pt; color: #666; margin: 2mm 0 0; }
