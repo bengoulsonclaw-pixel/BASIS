@@ -20,7 +20,9 @@ No Streamlit here — the page drives this module.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -175,36 +177,61 @@ def top_breaks(metric: str, asof, n: int = 15) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# ── alert floor: a pair needs a REAL standing relationship ──────────────────
+# With |1Y| near zero there is nothing to break — a 21-session correlation
+# excursion on an unrelated pair is sampling noise wearing a headline (the
+# NG × Ethanol catch: -0.78 1M against +0.08 1Y, when the diff-ranked feed was
+# 54-for-54 pairs with |1Y| < 0.18). The floor gates the whole alert feed at ONE
+# chokepoint (percentile_extremes), so the page banner, the daily client email,
+# the Weekly Review and the Hot Sheet all inherit it. Set on the Product
+# Correlations page (admin), persisted to data/sectorcorr.json.
+DEFAULT_MIN_BASE = 0.40
+SETTINGS_FILE = Path(__file__).resolve().parents[1] / "data" / "sectorcorr.json"
+
+
+def min_base() -> float:
+    """The saved alert floor; DEFAULT_MIN_BASE on a missing/mangled file."""
+    try:
+        v = float(json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))["min_base"])
+        return v if 0.0 <= v <= 0.95 else DEFAULT_MIN_BASE
+    except Exception:
+        return DEFAULT_MIN_BASE
+
+
+def save_min_base(v: float) -> None:
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_FILE.write_text(json.dumps({"min_base": round(float(v), 2)}, indent=2),
+                             encoding="utf-8")
+
+
 def percentile_extremes(metric: str, asof, *, lo: float = 5.0, hi: float = 95.0,
-                        min_move: float = 0.30, n: int = 60) -> pd.DataFrame:
+                        min_move: float = 0.30, n: int = 60,
+                        base_floor: float | None = None) -> pd.DataFrame:
     """Product pairs whose 1M correlation sits at an extreme of its own rolling
-    1-year range AND has actually moved (|1M − 1Y| ≥ min_move) — the alert feed.
-    Percentile alone fires on pairs whose correlation barely wobbles; the move
-    floor keeps the list to breaks a desk would care about."""
+    1-year range AND has actually moved (|1M − 1Y| ≥ min_move) AND had a standing
+    relationship to move from (|1Y| ≥ base_floor; None = the saved page setting)
+    — the alert feed. Percentile alone fires on pairs whose correlation barely
+    wobbles; the move floor keeps the list to breaks a desk would care about;
+    the base floor keeps out noise excursions between unrelated products."""
+    fl = min_base() if base_floor is None else float(base_floor)
     bt = top_breaks(metric, asof, n=n)
     if bt.empty:
         return bt
-    hit = bt[(bt["diff"].abs() >= min_move)
+    hit = bt[(bt["corr_1y"].abs() >= fl)
+             & (bt["diff"].abs() >= min_move)
              & ((bt["pctl"] <= lo) | (bt["pctl"] >= hi))].copy()
     hit["kind"] = np.where(hit["diff"] < 0, "breakdown", "lockstep")
     return hit.reset_index(drop=True)
 
 
 RADAR_PAIRS = 4                       # Hot Sheet cut: the widest breaks, one line per pair
-# A pair needs a REAL standing relationship before its 1M swing is a story: with
-# |1Y| near zero there is nothing to break — a 21-session correlation excursion on
-# an unrelated pair is sampling noise wearing a headline (Ben's NG × Ethanol catch,
-# -0.78 1M against +0.08 1Y). The daily banner/email keep the module's wider cut;
-# this floor is the Hot Sheet's own editorial bar.
-RADAR_MIN_BASE = 0.40
 
 
 def radar_items() -> list:
     """Hot Sheet provider: today's correlation extremes — percentile_extremes' own
-    ≤5th/≥95th percentile + move floor, RESTRICTED to pairs with an established
-    relationship (|1Y corr| ≥ RADAR_MIN_BASE), deduped per unordered pair on the
-    widest |diff|, top RADAR_PAIRS by |diff|. Heat is the extremeness within the
-    pair's own rolling 1-year range."""
+    feed (≤5th/≥95th percentile + move floor + the saved standing-relationship
+    floor), deduped per unordered pair on the widest |diff|, top RADAR_PAIRS by
+    |diff|. Heat is the extremeness within the pair's own rolling 1-year range."""
     from datetime import date
 
     from src import hotsheet
@@ -215,8 +242,6 @@ def radar_items() -> list:
         return []
     best: dict = {}                   # dedupe unordered pairs, keep the widest move
     for r in ex.to_dict("records"):
-        if abs(r.get("corr_1y", 0.0)) < RADAR_MIN_BASE:
-            continue                  # no standing relationship — nothing to break
         k = tuple(sorted((r["a"], r["b"])))
         if k not in best or abs(r["diff"]) > abs(best[k]["diff"]):
             best[k] = r

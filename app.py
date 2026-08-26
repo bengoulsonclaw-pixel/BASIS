@@ -13944,6 +13944,21 @@ def render_sector_correlations() -> None:
         "pair panel. The third map is **1M minus 1Y**: a strongly negative cell is a pair whose "
         "usual co-movement has broken down; a strongly positive one is unusual lockstep.")
 
+    if IS_ADMIN:
+        _fl, _flcap = st.columns([2, 10])
+        _new_floor = _fl.number_input(
+            "Alert floor — min |1Y correlation|", min_value=0.0, max_value=0.9,
+            value=float(sectorcorr.min_base()), step=0.05, key="sc_min_base",
+            help="A pair must have at least this standing 1-year correlation before a 1M "
+                 "extreme is flagged — with no base relationship there is nothing to break. "
+                 "One setting for the banner above, the daily correlations email, the Weekly "
+                 "Review and the Hot Sheet (the sheet picks it up on its next ↻ / pull).")
+        if abs(_new_floor - sectorcorr.min_base()) > 1e-9:
+            sectorcorr.save_min_base(_new_floor)
+            _sc_extremes.clear()
+            st.toast(f"Correlation alert floor set to {_new_floor:.2f} — applies to the "
+                     "banner, daily email, Weekly Review and Hot Sheet.", icon="🔗")
+
     c0, c1, c2 = st.columns([1.7, 1.1, 1])
     picks = c0.multiselect("Sectors", sectorcorr.SECTOR_ORDER, default=["Metals"],
                            key="sc_sectors",

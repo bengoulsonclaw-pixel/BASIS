@@ -264,10 +264,16 @@ def collect_corr_breaks() -> list:
     append-only log the alert now keeps; fall back to recomputing the latest
     session if the log is empty."""
     week_ago = date.today() - timedelta(days=7)
+    try:                              # the saved standing-relationship floor also applies
+        from src import sectorcorr    # to log entries written before it was raised
+        _floor = sectorcorr.min_base()
+    except Exception:
+        _floor = 0.0
     rows = []
     try:
         log = json.loads(BREAK_LOG.read_text(encoding="utf-8"))
-        rows = [r for r in log if date.fromisoformat(r["date"]) >= week_ago]
+        rows = [r for r in log if date.fromisoformat(r["date"]) >= week_ago
+                and abs(r.get("corr_1y", 0.0)) >= _floor]
     except Exception:
         pass
     if not rows:
