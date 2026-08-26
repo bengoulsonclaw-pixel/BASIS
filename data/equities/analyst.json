@@ -45417,7 +45417,7 @@
  },
  "LULU US Equity": {
   "ticker": "LULU US Equity",
-  "pulled": "2026-08-24",
+  "pulled": "2026-08-26",
   "empty": true
  },
  "FDX US Equity": {
@@ -50433,5 +50433,110 @@
     "prior": 149.0
    }
   ]
+ },
+ "CDNS US Equity": {
+  "ticker": "CDNS US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "COO US Equity": {
+  "ticker": "COO US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "ROL US Equity": {
+  "ticker": "ROL US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "CDW US Equity": {
+  "ticker": "CDW US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "GD US Equity": {
+  "ticker": "GD US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "SNPS US Equity": {
+  "ticker": "SNPS US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "CASY US Equity": {
+  "ticker": "CASY US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "PRU US Equity": {
+  "ticker": "PRU US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "DECK US Equity": {
+  "ticker": "DECK US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "DOW US Equity": {
+  "ticker": "DOW US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "PSKY US Equity": {
+  "ticker": "PSKY US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "MDLZ US Equity": {
+  "ticker": "MDLZ US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "PEP US Equity": {
+  "ticker": "PEP US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "NKE US Equity": {
+  "ticker": "NKE US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "WM US Equity": {
+  "ticker": "WM US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "PFE US Equity": {
+  "ticker": "PFE US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "MCK US Equity": {
+  "ticker": "MCK US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "ERIE US Equity": {
+  "ticker": "ERIE US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "LYB US Equity": {
+  "ticker": "LYB US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "VICI US Equity": {
+  "ticker": "VICI US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
+ },
+ "UPS US Equity": {
+  "ticker": "UPS US Equity",
+  "pulled": "2026-08-26",
+  "empty": true
  }
 }

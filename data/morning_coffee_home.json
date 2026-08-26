@@ -1,55 +1,55 @@
 {
- "generated_at": "25 Aug 2026 · 13:46 ET",
- "synopsis": "Energy is the story this morning: Brent is down 2.8% at $89.56 and WTI off 3.1% at $82.36 as fresh diplomatic efforts around the Iran war — including talks over Hormuz — revive hopes the conflict won't escalate, while Washington's plan to squeeze Tehran spared its trading partners harsher measures for now.",
- "commentary": "Energy is the story this morning: Brent is down 2.8% at $89.56 and WTI off 3.1% at $82.36 as fresh diplomatic efforts around the Iran war — including talks over Hormuz — revive hopes the conflict won't escalate, while Washington's plan to squeeze Tehran spared its trading partners harsher measures for now. Supply signals reinforce the move, with satellite imagery showing a jump in Iraq's Persian Gulf loadings. The war-premium bleed is running right down the complex: gasoil -1.8%, TTF -2.4%. That oil slide is doing the Fed's and Treasury's work for it — easing inflation pressure and taking the heat off the long end after the months-long selloff, with the Long Bond +0.4%, Bunds and Gilts firmer, and a strong 2-year auction stopping through.\n\nSofter US data helped: new home sales missed at 607k (down 10.5% on high mortgage rates) and consumer confidence undershot at 89.4, though Fed hawks are still warning rates may need to rise absent clearer disinflation. Risk tone is constructive — Nasdaq futures +0.9%, S&P +0.4% ahead of Nvidia's earnings, the key test of whether the AI capex story holds — even as Canada escalates the trade war, slapping 15-50% tariffs on ~$20bn of US goods and doubling steel duties to 50%, a fresh input-cost wrinkle for metals and rates markets.\n\nGold sits near $4,700 as the debasement trade persists on US fiscal worry, though the white metals are giving back, palladium -2.4%. Wheat is down 2%+ alongside broad ag weakness on the risk-premium unwind. Watch Nvidia, Hormuz headlines and Ottawa-Washington escalation next.",
+ "generated_at": "26 Aug 2026 · 07:21 ET",
+ "synopsis": "Energy is the story this morning: Brent is down 2.9% to $86 and WTI off 2.5% to just above $80 after reports that Iran and Oman are pushing talks toward an \"interim\" reopening of the Strait of Hormuz, with Saudi Aramco reportedly offering more barrels routed outside the Strait — a double hit to the supply-risk premium.",
+ "commentary": "Energy is the story this morning: Brent is down 2.9% to $86 and WTI off 2.5% to just above $80 after reports that Iran and Oman are pushing talks toward an \"interim\" reopening of the Strait of Hormuz, with Saudi Aramco reportedly offering more barrels routed outside the Strait — a double hit to the supply-risk premium. A 4.2m-bbl API crude build compounded the move, and the curve confirms it: Brent's prompt spread has slumped to its weakest since mid-July and implied vol keeps bleeding lower.\n\nProducts are leading the way down — gasoil off nearly 5%, heating oil -3.3% — though European gasoline cracks remain at multi-month highs, so watch refined spreads rather than flat price for the cleaner signal. TTF fell 3% in sympathy. The broader tone is cautious rather than risk-off: US index futures are flat-to-lower as traders sit on their hands ahead of Nvidia earnings — the key test of the AI trade's durability — and the July PCE inflation print. Rates are the tension point: ECB's Schnabel says rates must rise further on inflation risks, while in the US the Treasury's buyback interventions are on a collision course with the Warsh Fed's inflation fight, and positioning against long bonds looks crowded enough to squeeze, according to reports.\n\nGold has eased off a three-month high awaiting Jackson Hole clarity. Elsewhere, wheat is up 1.6% across both boards and coffee is unwinding hard (-2.5% robusta). Watch EIA stocks, PCE, Nvidia, then Jackson Hole.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "Oil Dips on Fresh Iran War Diplomacy, Talks on Hormuz",
-   "time": "18:02 ET",
+   "title": "Latest Oil Market News and Analysis for Aug. 26 — Oil fell for a third day as Iran and Oman discussed a potential deal to resume shipping through the Strait of Hormuz.",
+   "time": "",
    "tag": "Energy"
   },
   {
-   "source": "Washington Post",
-   "title": "Bessent unveils sweeping new Iran sanctions but delays toughest blow",
-   "time": "18:22 ET",
-   "tag": "Geopolitics"
-  },
-  {
    "source": "Financial Times",
-   "title": "China warns US it could retaliate over Iran sanctions",
-   "time": "06:13 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "Financial Times",
-   "title": "Iranian tankers gather off Sri Lankan coast",
-   "time": "12:22 ET",
+   "title": "European LNG prices surge to highest level since 2023 — Continent's gas inventories were already low before Iran war disrupted shipments",
+   "time": "",
    "tag": "Energy"
   },
   {
    "source": "Bloomberg",
-   "title": "*CANADA PUTS 15% TO 50% TARIFFS ON ABOUT $20B OF US PRODUCTS",
-   "time": "",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "Financial Times",
-   "title": "Trump says US to increase tariffs on Canadian cars to 50%",
-   "time": "19:54 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "Financial Times",
-   "title": "US grain farmers pummelled as Iran war triggers surge in costs",
-   "time": "00:00 ET",
-   "tag": "Agriculture"
+   "title": "Gold Rally Eases as Traders Turn Focus to Fed Interest Rate Path",
+   "time": "19:52 ET",
+   "tag": "Metals"
   },
   {
    "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
+  },
+  {
+   "source": "Washington Post",
+   "title": "Squeezed by tariffs and Iran war, farmers say they face a new crisis — The president's policies are driving up prices for fertilizer, fuel and machinery.",
+   "time": "",
+   "tag": "Agriculture"
+  },
+  {
+   "source": "Financial Times",
+   "title": "Bessent's bond intervention puts US Treasury on collision course with Fed — Increased purchases of debt threaten to undermine central bank chief Kevin Warsh's bid to tame inflation",
+   "time": "",
+   "tag": "Rates"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "*ECB'S SCHNABEL SAYS RATES MUST RISE FURTHER ON INFLATION RISKS",
+   "time": "",
+   "tag": "Rates"
+  },
+  {
+   "source": "Wall Street Journal",
+   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek — Nasdaq leads declines as AI infrastructure makers suffer steep falls; Nvidia down 16%.",
+   "time": "",
+   "tag": "Equities"
   }
  ]
 }

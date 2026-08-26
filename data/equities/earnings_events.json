@@ -1,5 +1,5 @@
 {
- "asof": "2026-08-25T07:13:25",
+ "asof": "2026-08-26T07:07:26",
  "events": [
   {
    "date": "2021-08-02",
@@ -976,8 +976,8 @@
    "color": "#C62828",
    "auto": false,
    "bbg": "IQV US Equity",
-   "sub": "Iqvia Holdings Inc \u00b7 S&P 500 \u00b7 US",
-   "tip": "Iqvia Holdings Inc \u2014 Health Care \u00b7 S&P 500 \u00b7 US \u00b7 43bn"
+   "sub": "Iqvia Holdings \u00b7 S&P 500 \u00b7 US",
+   "tip": "Iqvia Holdings \u2014 Health Care \u00b7 S&P 500 \u00b7 US \u00b7 43bn"
   },
   {
    "date": "2026-07-28",
@@ -1496,8 +1496,8 @@
    "color": "#C62828",
    "auto": false,
    "bbg": "GILD US Equity",
-   "sub": "Gilead Sciences Inc \u00b7 S&P 500, Nasdaq 100 \u00b7 US",
-   "tip": "Gilead Sciences Inc \u2014 Health Care \u00b7 S&P 500, Nasdaq 100 \u00b7 US \u00b7 161bn"
+   "sub": "Gilead Sciences \u00b7 S&P 500, Nasdaq 100 \u00b7 US",
+   "tip": "Gilead Sciences \u2014 Health Care \u00b7 S&P 500, Nasdaq 100 \u00b7 US \u00b7 161bn"
   },
   {
    "date": "2026-08-04",
@@ -1771,7 +1771,7 @@
    "label": "\u22ef 64 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Immunovant, Esco Technologies, Scholar Rock Holding, Metlen Energy & Metals Plc, Cg Oncology, Rigetti Computing, Scout24 N, Tritax Big Box Reit Plc, Avient Corp, Persimmon Plc, Celldex Therapeutics, Cleanspark, Maximus, Northern Oil And Gas, Bkv, Trevi Therapeutics, Five9, Guardian Pharmacy Services Class A, Bobs Discount Furniture Inc, Aurinia Pharmaceuticals, Perdoceo Education, Tic Solutions Inc, Ingles Markets Class A, Atlanticus Holdings Corp, The Realreal, Liquidity Services Inc, Avalo Therapeutics Inc, Profrac Holding Class A, Mitek Systems Inc, Pra Group Inc, Pubmatic Class A, Ironwood Pharma Class A, Matthews International Corp Class, Natural Grocers By Vitamin Cottage, Starling Oncology, Vaalco Energy Inc, Frontview Reit, Evommune, Relmada Therapeutics Inc, I3 Verticals Class A\u2026"
+   "tip": "Immunovant, Esco Technologies, Scholar Rock Holding, Metlen Energy & Metals Plc, Cg Oncology, Rigetti Computing, Scout24 N, Tritax Big Box Reit Plc, Avient Corp, Persimmon Plc, Celldex Therapeutics, Cleanspark, Maximus, Northern Oil And Gas, Bkv, Trevi Therapeutics, Five9, Guardian Pharmacy Services Class A, Bobs Discount Furniture Inc, Aurinia Pharmaceuticals, Perdoceo Education, Tic Solutions Inc, Ingles Markets Class A, Atlanticus Holdings Corp, The Realreal, Liquidity Services Inc, Avalo Therapeutics, Profrac Holding Class A, Mitek Systems Inc, Pra Group Inc, Pubmatic Class A, Ironwood Pharma Class A, Matthews International Corp Class, Natural Grocers By Vitamin Cottage, Starling Oncology, Vaalco Energy Inc, Frontview Reit, Evommune, Relmada Therapeutics Inc, I3 Verticals Class A\u2026"
   },
   {
    "date": "2026-08-07",
@@ -3127,7 +3127,7 @@
    "label": "\u22ef 6 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Zumiez, Designer Brands Inc Class A, 1-800 Flowers.Com Class A, Lovesac Company, Evi Industries Inc, Rf Industries Ltd"
+   "tip": "Zumiez, Designer Brands Class A, 1-800 Flowers.Com Class A, Lovesac Company, Evi Industries Inc, Rf Industries Ltd"
   },
   {
    "date": "2026-09-11",
@@ -3886,8 +3886,8 @@
    "color": "#283593",
    "auto": false,
    "bbg": "PGR US Equity",
-   "sub": "Progressive Corp \u00b7 S&P 500 \u00b7 US",
-   "tip": "Progressive Corp \u2014 Financials \u00b7 S&P 500 \u00b7 US \u00b7 127bn"
+   "sub": "Progressive \u00b7 S&P 500 \u00b7 US",
+   "tip": "Progressive \u2014 Financials \u00b7 S&P 500 \u00b7 US \u00b7 127bn"
   },
   {
    "date": "2026-10-14",
@@ -4152,8 +4152,8 @@
    "color": "#283593",
    "auto": false,
    "bbg": "DX US Equity",
-   "sub": "Dynex Capital Reit Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Dynex Capital Reit Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+   "sub": "Dynex Capital Reit \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Dynex Capital Reit \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
   },
   {
    "date": "2026-10-19",
@@ -4260,8 +4260,8 @@
    "color": "#37474F",
    "auto": false,
    "bbg": "RTX US Equity",
-   "sub": "Rtx Corp \u00b7 S&P 500 \u00b7 US",
-   "tip": "Rtx Corp \u2014 Industrials \u00b7 S&P 500 \u00b7 US \u00b7 283bn"
+   "sub": "Rtx \u00b7 S&P 500 \u00b7 US",
+   "tip": "Rtx \u2014 Industrials \u00b7 S&P 500 \u00b7 US \u00b7 283bn"
   },
   {
    "date": "2026-10-20",
@@ -4329,7 +4329,7 @@
    "label": "\u22ef 31 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Deutsche Boerse Ag, Msci Inc, Eqt, Quest Diagnostics Inc, Omnicom Group Inc, Keycorp, Equifax, Pentair, Gatx, Balchem, Fulton Financial Corp, Pennymac Financial Services, Nicolet Bankshares Inc, Amc Entertainment Holdings Inc Cla, Monarch Casino And Resort, Bank First Corp, Peoples Bancorp Inc, Columbia Financial Inc, Mercantile Bank Corp, Trustco Bank Corp, Hanmi Financial Corp, Capital City Bank Inc, Smartfinancial Inc, Orrstown Financial Services Inc, Pennymac Mortgage Investment Trust, Bar Harbor Bankshares, Bridgewater Bancshares Inc, Greene County Bancorp Inc, Fs Bancorp Inc, Fvcbankcorp Inc, Pultegroup"
+   "tip": "Deutsche Boerse Ag, Msci Inc, Eqt, Quest Diagnostics Inc, Omnicom Group Inc, Keycorp, Equifax, Pentair, Gatx, Balchem, Fulton Financial, Pennymac Financial Services, Nicolet Bankshares Inc, Amc Entertainment Holdings Inc Cla, Monarch Casino And Resort, Bank First Corp, Peoples Bancorp Inc, Columbia Financial Inc, Mercantile Bank Corp, Trustco Bank Corp, Hanmi Financial Corp, Capital City Bank Inc, Smartfinancial Inc, Orrstown Financial Services Inc, Pennymac Mortgage Investment Trust, Bar Harbor Bankshares, Bridgewater Bancshares Inc, Greene County Bancorp Inc, Fs Bancorp Inc, Fvcbankcorp Inc, Pultegroup"
   },
   {
    "date": "2026-10-21",
@@ -4692,8 +4692,8 @@
    "color": "#795548",
    "auto": false,
    "bbg": "NUE US Equity",
-   "sub": "Nucor Corp \u00b7 S&P 500 \u00b7 US",
-   "tip": "Nucor Corp \u2014 Materials \u00b7 S&P 500 \u00b7 US \u00b7 55bn"
+   "sub": "Nucor \u00b7 S&P 500 \u00b7 US",
+   "tip": "Nucor \u2014 Materials \u00b7 S&P 500 \u00b7 US \u00b7 55bn"
   },
   {
    "date": "2026-10-26",
@@ -4869,7 +4869,7 @@
    "label": "\u22ef 81 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Paccar Inc, Oneok, Paypal Holdings Inc, Orange, Edison International, Ppg Industries, Essex Property Trust Reit, Invesco Ltd, Umb Financial Corp, Zurn Elkay Water Solutions Corp, Noble Corporation Plc, Red Rock Resorts Ors Class A, Kiniksa Pharmaceuticals Internatio, Cheesecake Factory Inc, Commvault Systems, Archrock, Herc Holdings, Champion Homes Inc, Varonis Systems, Franklin Electric, Ceco Environmental, Arcus Biosciences, Renasant Corp, Asbury Automotive Group Inc, Mirion Technologies Class A, Highwoods Properties Reit, Stride Inc, Curbline Properties, Community Financial System Inc, Arcutis Biotherapeutics, Acadia Realty Trust Reit, Group Automotive Inc, Artisan Partners Asset Management, Trustmark, Inventrust Properties, Genedx Holdings Class A, Atricure, First Busey, Merchants Bancorp, Hycroft Mining Holding Corp Class\u2026"
+   "tip": "Paccar Inc, Oneok, Paypal Holdings, Orange, Edison International, Ppg Industries, Essex Property Trust Reit, Invesco Ltd, Umb Financial Corp, Zurn Elkay Water Solutions Corp, Noble Corporation Plc, Red Rock Resorts Ors Class A, Kiniksa Pharmaceuticals Internatio, Cheesecake Factory Inc, Commvault Systems, Archrock, Herc Holdings, Champion Homes Inc, Varonis Systems, Franklin Electric, Ceco Environmental, Arcus Biosciences, Renasant Corp, Asbury Automotive Group Inc, Mirion Technologies Class A, Highwoods Properties Reit, Stride Inc, Curbline Properties, Community Financial System Inc, Arcutis Biotherapeutics, Acadia Realty Trust Reit, Group Automotive Inc, Artisan Partners Asset Management, Trustmark, Inventrust Properties, Genedx Holdings Class A, Atricure, First Busey, Merchants Bancorp, Hycroft Mining Holding Corp Class\u2026"
   },
   {
    "date": "2026-10-28",
@@ -5193,7 +5193,7 @@
    "label": "\u22ef 16 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Sensient Technologies, Portland General Electric, Piper Sandler Companies, Wisdomtree, Newell Brands Inc, Butterfly Network Class A, Xenia Hotels Resorts Reit, Proto Labs, Virtus Investment Partners Inc, Middlesex Water, Arbor Realty Trust Reit, The Marcus Corp, Standard Motor Products Inc, Tiptree Inc, Ponce Financial Group Inc, Graftech International Ltd"
+   "tip": "Sensient Technologies, Portland General Electric, Piper Sandler Companies, Wisdomtree, Newell Brands Inc, Butterfly Network Class A, Xenia Hotels Resorts Reit, Proto Labs, Virtus Investment Partners, Middlesex Water, Arbor Realty Trust Reit, The Marcus Corp, Standard Motor Products Inc, Tiptree Inc, Ponce Financial Group Inc, Graftech International Ltd"
   },
   {
    "date": "2026-11-02",
@@ -5252,8 +5252,8 @@
    "color": "#00695C",
    "auto": false,
    "bbg": "PEG US Equity",
-   "sub": "Public Service Enterprise Group In \u00b7 S&P 500 \u00b7 US",
-   "tip": "Public Service Enterprise Group In \u2014 Utilities \u00b7 S&P 500 \u00b7 US \u00b7 36bn"
+   "sub": "Public Service Enterprise Group \u00b7 S&P 500 \u00b7 US",
+   "tip": "Public Service Enterprise Group \u2014 Utilities \u00b7 S&P 500 \u00b7 US \u00b7 36bn"
   },
   {
    "date": "2026-11-02",
@@ -5517,7 +5517,7 @@
    "label": "\u22ef 196 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Steris, Vonovia Se, Trimble Inc, Hut Corp, Kinetik Holdings Class A, Compass Inc Class A, Qiagen Nv, Terreno Realty Reit, Joby Aviation Class A, Enersys, Magnolia Oil Gas Corp Class A, Installed Building Products, Southwest Gas Holdings, Ormat Tech Inc, Mirum Pharmaceuticals, Frontdoor Inc, Warrior Met Coal Inc, Remitly Global, Black Hills Corp, Acm Research Class A, Acushnet Holdings Corp, Murphy Oil Corp, Acadia Pharmaceuticals, Vishay Intertechnology Inc, Tanger, Tutor Perini, Brinks, Dave Class A, Excelerate Energy Inc Class A, Miami International Holdings, Mara Holdings, Livanova Plc, Pattern Group Series A, Openlane Inc, Tango Therapeutics, Workiva Class A, Sezzle Inc, Marriott Vacations Worldwide, Interparfums Inc, Atlanta Braves Holdings Series A\u2026"
+   "tip": "Steris, Vonovia Se, Trimble Inc, Hut Corp, Kinetik Holdings Class A, Compass Inc Class A, Qiagen Nv, Terreno Realty Reit, Joby Aviation Class A, Enersys, Magnolia Oil Gas Corp Class A, Installed Building Products, Southwest Gas Holdings, Ormat Tech Inc, Mirum Pharmaceuticals, Frontdoor Inc, Warrior Met Coal Inc, Remitly Global, Black Hills Corp, Acm Research Class A, Acushnet Holdings Corp, Murphy Oil Corp, Acadia Pharmaceuticals, Vishay Intertechnology Inc, Tanger, Tutor Perini, Brinks, Dave Class A, Excelerate Energy Inc Class A, Miami International Holdings, Mara Holdings, Livanova Plc, Pattern Group Series A, Openlane, Tango Therapeutics, Workiva Class A, Sezzle Inc, Marriott Vacations Worldwide, Interparfums Inc, Atlanta Braves Holdings Series A\u2026"
   },
   {
    "date": "2026-11-05",
@@ -5622,7 +5622,7 @@
   {
    "date": "2026-11-05",
    "icon": "",
-   "label": "\u22ef 303 more",
+   "label": "\u22ef 302 more",
    "color": "#616161",
    "auto": false,
    "tip": "Warner Bros. Discovery Series A, Transdigm Group, Targa Resources, Deutsche Post Ag, Moderna Inc, Rheinmetall Ag, Rockwell Automation Inc, Vistra, Microchip Technology Inc, Consolidated Edison, Kenvue, Tapestry, Nrg Energy Inc, Ralph Lauren Class A, Dupont De Nemours, Zimmer Biomet Holdings, Viatris, News Class B, News Class A, Solventum, Jfrog, Cytokinetics, Wynn Resorts, Insulet, Protagonist Therapeutics, 10X Genomics Class A, Victory Capital Holdings Class A, D Wave Quantum, Lantheus Holdings, Stepstone Group Class A, Trade Desk Inc Class A, Clear Secure Class A, Casella Waste Systems Class A, Radnet, Definium Therapeutics Inc, Ligand Pharmaceuticals, Outfront Media, Aci Worldwide, Golar Lng, Marex Group Ltd\u2026"
@@ -5940,8 +5940,8 @@
    "color": "#C62828",
    "auto": false,
    "bbg": "SPRY US Equity",
-   "sub": "Ars Pharmaceuticals Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ars Pharmaceuticals Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 532mm"
+   "sub": "Ars Pharmaceuticals \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Ars Pharmaceuticals \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 532mm"
   },
   {
    "date": "2026-11-10",
@@ -6057,7 +6057,7 @@
    "label": "\u22ef 34 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Sellas Life Sciences Group Inc, Mcgraw Hill, Pagseguro Digital Ltd Class A, Flowco Holdings Class A, Pelagos Insurance Capital Ltd, Anterix Inc, Alto Neuroscience Inc, Staar Surgical, Savara, Sky Harbour Group Class A, Himalaya Shipping Ltd, Nexxen International Ltd, Ovid Therapeutics, Prelude Therapeutics, Idaho Strategic Resources Inc, Kyverna Therapeutics, Atea Pharmaceuticals, Vox Royalty Corp, Diamedica Therapeutics Inc, Abeona Therapeutics Inc, M Tron Industries Inc, Sanara Medtech Inc, B And G Foods Inc, Global Water Resources Inc, Ridenow Group Inc Class B, Acumen Pharmaceuticals Inc, Quicklogic Corp, Smart Sand Inc, Armata Pharmaceuticals, Lucid Diagnostics Inc, Ampco Pittsburgh Corp, Caribou Biosciences, Curiositystream Inc Class A, Proficient Auto Logistics Inc"
+   "tip": "Sellas Life Sciences Group Inc, Mcgraw Hill, Pagseguro Digital Ltd Class A, Flowco Holdings Class A, Pelagos Insurance Capital Ltd, Anterix, Alto Neuroscience Inc, Staar Surgical, Savara, Sky Harbour Group Class A, Himalaya Shipping Ltd, Nexxen International Ltd, Ovid Therapeutics, Prelude Therapeutics, Idaho Strategic Resources Inc, Kyverna Therapeutics, Atea Pharmaceuticals, Vox Royalty Corp, Diamedica Therapeutics Inc, Abeona Therapeutics Inc, M Tron Industries Inc, Sanara Medtech Inc, B And G Foods Inc, Global Water Resources Inc, Ridenow Group Inc Class B, Acumen Pharmaceuticals Inc, Quicklogic Corp, Smart Sand Inc, Armata Pharmaceuticals, Lucid Diagnostics Inc, Ampco Pittsburgh Corp, Caribou Biosciences, Curiositystream Inc Class A, Proficient Auto Logistics Inc"
   },
   {
    "date": "2026-11-12",
@@ -6165,7 +6165,7 @@
    "label": "\u22ef 73 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences Inc, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene Inc, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics Inc, Zura Bio Ltd Class A, Asp Isotopes Inc, Spire Global Class A, Bit Digital, Maplight Therapeutics\u2026"
+   "tip": "Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences Inc, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics Inc, Zura Bio Ltd Class A, Asp Isotopes Inc, Spire Global Class A, Bit Digital, Maplight Therapeutics\u2026"
   },
   {
    "date": "2026-11-13",
