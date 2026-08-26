@@ -220,6 +220,11 @@ def render_user_admin() -> None:
     st.subheader("👥 Colleague accounts")
     st.caption("Accounts added here can log in and use every report page, but can't change any "
                "settings, run a data pull, or email a report to anyone but themselves.")
+    # Result of the automatic push, stashed by _sync_live so it survives the st.rerun()
+    # that follows an add/remove (Ben, 2026-08-26).
+    _m = st.session_state.pop(_SYNC_MSG_KEY, None)
+    if _m:
+        (st.success if _m[0] == "ok" else st.error)(_m[1])
     users = load_users()
     if users:
         import pandas as pd
@@ -231,6 +236,7 @@ def render_user_admin() -> None:
         rm = st.selectbox("Remove a colleague", [""] + sorted(colleague_emails), key="user_admin_rm")
         if rm and st.button(f"Remove {rm}", key="user_admin_rm_btn"):
             remove_user(rm)
+            _sync_live(f"Removed {rm}")      # revoking access must reach the live site at once
             st.rerun()
     domains = load_allowed_domains()
     with st.expander("⚙️ Email domain restriction" + (f" — {', '.join('@' + d for d in domains)}"
@@ -271,7 +277,8 @@ def render_user_admin() -> None:
                                  type="primary"):
             try:
                 add_user(email, name, pw, role)
-                st.success(f"Added {email.strip().lower()} ({role}).")
+                _sync_live(f"Added {email.strip().lower()} ({role})")
+                st.rerun()                   # surfaces the push result + refreshes the table
             except ValueError as e:
                 st.error(str(e))
 
@@ -280,8 +287,9 @@ def render_user_admin() -> None:
         # (On the VPS itself this file already IS the live account list, so there's nothing to push.)
         st.divider()
         st.markdown("**Live site**")
-        st.caption("Changes above are local until you push them — basisterminal.com won't see a "
-                   "new or removed colleague until you do.")
+        st.caption("Adding or removing an account now pushes to basisterminal.com automatically. "
+                   "This button is the manual retry — use it if a push failed (no network, VPS "
+                   "down), or to force the live list back in step with this one.")
         if st.button("🚀 Push accounts to basisterminal.com", type="primary", key="push_users_vps"):
             with st.spinner("Pushing to the VPS…"):
                 ok, msg = push_users_to_vps()
@@ -291,8 +299,28 @@ def render_user_admin() -> None:
 # ----- push local account changes to the live VPS -----------------------------------------------
 # Accounts are managed from the local Terminal (this file's admin panel), never by visiting the
 # live site directly. This copies the local account file over SSH -- the VPS app picks it up on
-# its very next page load (load_users() always reads fresh off disk, no restart needed). A manual,
-# explicit action, never fired automatically, since it reaches a real production machine.
+# its very next page load (load_users() always reads fresh off disk, no restart needed).
+#
+# 2026-08-26: this now fires AUTOMATICALLY on add/remove (Ben's call, after Kevin Hobbs and Dave
+# Pinder both sat local-only and couldn't log in). It was manual on the reasoning that it reaches
+# a production machine -- but the failure mode of forgetting is silent and lands on the colleague,
+# not on you, which is worse. The manual button remains as the retry when a push fails.
+_SYNC_MSG_KEY = "user_sync_msg"
+
+
+def _sync_live(what: str) -> None:
+    """Mirror a local account change to basisterminal.com straight away. The outcome is stashed
+    in session_state rather than rendered here, because every caller reruns immediately after and
+    would otherwise wipe the message. A failed push must be LOUD: the account exists locally but
+    the colleague still can't log in, which is exactly the state that prompted this change."""
+    if REQUIRE_LOGIN:            # on the VPS this file already IS the live list
+        return
+    ok, msg = push_users_to_vps()
+    st.session_state[_SYNC_MSG_KEY] = (
+        ("ok", f"✅ {what} — pushed to basisterminal.com, live on their next page load.")
+        if ok else
+        ("err", f"⚠️ {what} locally, but the push to basisterminal.com FAILED: {msg} — the change "
+                "is NOT live yet. Press “Push accounts to basisterminal.com” below to retry."))
 VPS_SSH_KEY = Path.home() / ".ssh" / "basis_vps"
 VPS_HOST = "root@2.24.221.3"
 VPS_USERS_PATH = "/docker/basis/app/data/users.json"
