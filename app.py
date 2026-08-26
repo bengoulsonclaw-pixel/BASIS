@@ -5236,7 +5236,7 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
     metric column with its heat gauge, and the jump into the owning module."""
     c_txt, c_spark, c_met, c_go = st.columns([8, 3, 3, 1])
     _cc = brand.chart_colors(pal)                # theme-aware family hues (hotsheet.TAG_HUE)
-    _hue = {"green": _cc["long"], "blue": _cc["series"]}.get(
+    _hue = {"green": _cc["long"], "blue": _cc["series"], "red": _cc["short"]}.get(
         hotsheet.TAG_HUE.get(it["tag"], ""), pal["gold"])
     _ring = pal["label_ring"] if _hue == pal["gold"] else _hue
     chip = (f'<span style="font:600 .6rem/1.7 {_HS_MONO};color:{_hue};'

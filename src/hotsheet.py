@@ -74,7 +74,7 @@ SPARK_MIN = 8               # fewer points than this isn't a shape — the spark
 # (Ben, 2026-08-26: seasonality vs crowded positioning). One source of truth,
 # resolved per surface — the page maps hues through brand.chart_colors() (theme-
 # aware), the PDF through its print-safe inks; any unlisted tag stays house gold.
-TAG_HUE = {"SEAS": "green", "COT": "blue", "FLOW": "blue"}
+TAG_HUE = {"SEAS": "green", "COT": "red", "FLOW": "blue"}
 
 # columns persisted per item per day — the history store's schema
 COLUMNS = ["date", "key", "tag", "section", "book", "text", "metric", "sub",
