@@ -191,13 +191,20 @@ def percentile_extremes(metric: str, asof, *, lo: float = 5.0, hi: float = 95.0,
 
 
 RADAR_PAIRS = 4                       # Hot Sheet cut: the widest breaks, one line per pair
+# A pair needs a REAL standing relationship before its 1M swing is a story: with
+# |1Y| near zero there is nothing to break — a 21-session correlation excursion on
+# an unrelated pair is sampling noise wearing a headline (Ben's NG × Ethanol catch,
+# -0.78 1M against +0.08 1Y). The daily banner/email keep the module's wider cut;
+# this floor is the Hot Sheet's own editorial bar.
+RADAR_MIN_BASE = 0.40
 
 
 def radar_items() -> list:
-    """Hot Sheet provider: today's correlation extremes — exactly what the daily
-    alert banner flags (percentile_extremes' own ≤5th/≥95th percentile + move
-    floor), deduped per unordered pair on the widest |diff|, top RADAR_PAIRS by
-    |diff|. Heat is the extremeness within the pair's own rolling 1-year range."""
+    """Hot Sheet provider: today's correlation extremes — percentile_extremes' own
+    ≤5th/≥95th percentile + move floor, RESTRICTED to pairs with an established
+    relationship (|1Y corr| ≥ RADAR_MIN_BASE), deduped per unordered pair on the
+    widest |diff|, top RADAR_PAIRS by |diff|. Heat is the extremeness within the
+    pair's own rolling 1-year range."""
     from datetime import date
 
     from src import hotsheet
@@ -208,6 +215,8 @@ def radar_items() -> list:
         return []
     best: dict = {}                   # dedupe unordered pairs, keep the widest move
     for r in ex.to_dict("records"):
+        if abs(r.get("corr_1y", 0.0)) < RADAR_MIN_BASE:
+            continue                  # no standing relationship — nothing to break
         k = tuple(sorted((r["a"], r["b"])))
         if k not in best or abs(r["diff"]) > abs(best[k]["diff"]):
             best[k] = r
