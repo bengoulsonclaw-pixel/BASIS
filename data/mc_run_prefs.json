@@ -1,3 +1,4 @@
 {
-  "email_on_run": true
+  "email_on_run": true,
+  "run_after_pull": true
 }
