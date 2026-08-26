@@ -14821,7 +14821,7 @@ def render_macro_radar() -> None:
             rng = ["#F5C518"] + ["#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65"][:len(sel_hist)]
             base = alt.Chart(cdf).encode(
                 x=alt.X("when:T", title=None,
-                        axis=alt.Axis(format="%Y", grid=True,
+                        axis=alt.Axis(format="%Y", tickCount="year", grid=True,
                                       gridOpacity=0.25, gridDash=[2, 3])),
                 y=alt.Y("rate:Q", title="Rate (%)", scale=alt.Scale(zero=False)),
                 color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
@@ -14832,11 +14832,15 @@ def render_macro_radar() -> None:
                 tooltip=[alt.Tooltip("when:T", title="Month", format="%b %Y"),
                          alt.Tooltip("series:N", title=""),
                          alt.Tooltip("rate:Q", title="Rate", format=".2f")])
-            lines = base.mark_line()
+            # Scale-bound pan/zoom (drag to pan, wheel to zoom) — the Bloomberg-chart
+            # feel. Bound on the LINE LAYER, not the layered chart: the layers share
+            # scales, and the zero rule must ride along rather than carry its own zoom.
+            lines = base.mark_line().interactive()
             zero_rule = alt.Chart(pd.DataFrame([{"y": 0.0}])).mark_rule(
                 strokeDash=[4, 3], color="#9AA4B0").encode(y="y:Q")
             st.altair_chart((lines + zero_rule).properties(height=320),
                             use_container_width=True)
+            st.caption("Drag to pan, scroll/pinch to zoom, double-click to reset the view.")
             st.caption(
                 f"US only, {hist[0]['when'].year}–{hist[-1]['when'].year}, monthly. Each "
                 "point is computed from the ALFRED vintage of that month — the data as it "
