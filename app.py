@@ -14806,10 +14806,26 @@ def render_macro_radar() -> None:
         if hist:
             _hist_rules = [(k, n) for k, n, _f in _RADAR_RULES if k != "firstdiff"]
             _hist_names = dict(_hist_rules)
-            sel_hist = st.multiselect(
+            # Startup default: the saved rule set (page prefs file), else the classic
+            # Fed-MPR pairing. Filtered against the live rule list so a renamed rule
+            # in code can never wedge the multiselect.
+            _hist_saved = [k for k in (prefs.get("hist_rules") or [])
+                           if k in _hist_names] or ["taylor93", "balanced"]
+            _hc1, _hc2 = st.columns([3, 1], vertical_alignment="bottom")
+            sel_hist = _hc1.multiselect(
                 "Rules shown", [k for k, _n in _hist_rules],
-                default=["taylor93", "balanced"],
+                default=_hist_saved,
                 format_func=lambda k: _hist_names.get(k, k), key="radar_bt_hist_rules")
+            if IS_ADMIN and _hc2.button(
+                    "📌 Set as default", key="radar_hist_set_def",
+                    use_container_width=True, disabled=not sel_hist,
+                    help="Save the rules currently shown as this chart's startup "
+                         "selection — they load on every launch."):
+                blob = _radar_prefs()
+                blob["hist_rules"] = list(sel_hist)
+                _radar_save_prefs(blob)
+                st.toast("Saved as default: "
+                         + ", ".join(_hist_names[k] for k in sel_hist), icon="📌")
             _actual = "Effective fed funds rate"
             # End the history on a LIVE point: today's data through the same formula
             # and as-of reduction as the vintage rows, so the chart's last reading
