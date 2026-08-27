@@ -1161,6 +1161,7 @@ _GROUP_TABS = {
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield"),
+                           ("📄 Tearsheet", "Product Tearsheet"),
                            ("🧭 Macro Compass", "Macro Compass")],
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
                            ("Fed", "Fed Path"),      # flags ride in via CSS ::before
@@ -7474,6 +7475,90 @@ def render_fut_yield() -> None:
         st.metric("P&L", f"{_mbp * _mlots * _dv:,.0f} {volbt.currency(_btk)}",
                   help="Yield move × futures DV01 × lots. A yield FALL is a price RISE.")
         st.caption(f"≈ {_mbp * _dv / volbt.point_value(_btk):.4f} price points per lot.")
+
+
+def render_product_tearsheet() -> None:
+    """One product, every book, one client-safe PDF.
+
+    Answering "what's going on in coffee?" used to mean walking eight module pages and
+    retyping the numbers. This assembles the same figures straight from the daily stores —
+    no pull, no recompute — so it is instant and always agrees with the rest of the app.
+    """
+    from src import ficcsheet
+
+    st.subheader("📄 Product Tearsheet")
+    st.caption("Every book's current read on one product, on one branded page — the technical "
+               "methods, the option market, positioning, the seasonal, and what the daily sheet "
+               "has said lately. Built from the morning pull's stores, so it costs nothing to run.")
+
+    tickers = sorted(universe.INSTRUMENTS, key=lambda t: (universe.asset(t), universe.name(t)))
+    assets = sorted({universe.asset(t) for t in tickers})
+    c1, c2 = st.columns([1, 2])
+    pick_asset = c1.selectbox("Asset class", ["All"] + assets, key="fts_asset")
+    pool = [t for t in tickers if pick_asset in ("All", universe.asset(t))]
+    tk = c2.selectbox("Product", pool, key="fts_product",
+                      format_func=lambda t: f"{universe.name(t)}  ·  {t}")
+    if not tk:
+        return
+
+    with st.spinner("Reading the books…"):
+        try:
+            d = ficcsheet.gather(tk)
+        except Exception as e:
+            # a store read, not a Bloomberg fetch — nothing for _explain_fetch_failure to
+            # diagnose. The realistic cause is a pull that has not run yet.
+            st.error(f"Could not read the daily stores for {tk}: {e}\n\n"
+                     "If the morning pull hasn't run today, run it from the Home page first.")
+            return
+
+    # Show what the PDF will contain BEFORE spending time building it — a product the books
+    # are quiet on produces a thin sheet, and it is better to see that here than in a PDF.
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Last yield" if d["is_fi"] else "Last", d["last_txt"], d["chg_txt"])
+    if d["tech"]:
+        m2.metric("Technical read",
+                  f"{d['tech']['up']} long / {d['tech']['down']} short",
+                  help="Standing output of each method — they routinely disagree.")
+    else:
+        m2.metric("Technical read", "—")
+    m3.metric("Books with something to say",
+              sum(1 for k in ("tech", "vol", "pos", "seas") if d.get(k)),
+              help="Of four: technicals, options, positioning, seasonality.")
+
+    missing = [lbl for k, lbl in (("tech", "technicals"), ("vol", "options"),
+                                  ("pos", "positioning"), ("seas", "seasonality"))
+               if not d.get(k)]
+    if missing:
+        st.caption("No data for this product in: " + ", ".join(missing)
+                   + " — those sections are left off the sheet rather than drawn empty.")
+
+    b1, b2 = st.columns([1, 2])
+    if b1.button("📄 Generate tearsheet PDF", key="fts_pdf_btn", use_container_width=True):
+        with st.spinner("Building the tearsheet…"):
+            try:
+                with tempfile.TemporaryDirectory() as _t:
+                    _out = Path(_t) / "Product_Tearsheet.pdf"
+                    r = subprocess.run(
+                        [sys.executable, str(ROOT / "src" / "ficcsheet.py"), tk, str(_out)],
+                        capture_output=True, text=True, timeout=180)
+                    if r.returncode == 0 and _out.exists():
+                        st.session_state["fts_pdf"] = _out.read_bytes()
+                        st.session_state["fts_pdf_name"] = (
+                            "Tearsheet_" + re.sub(r"\W+", "_", universe.name(tk)) + ".pdf")
+                    else:
+                        st.error("Report failed:\n\n" + (r.stderr or r.stdout or "unknown error")[-2000:])
+            except Exception as e:
+                st.error(f"Report failed:\n\n{e}")
+    b2.caption("Client-safe: the stores label their own signals for the desk (\"buy skew\", "
+               "\"sell the rally\"); those are stripped before anything reaches the page.")
+
+    if st.session_state.get("fts_pdf"):
+        _nm = st.session_state.get("fts_pdf_name", "Product_Tearsheet.pdf")
+        st.download_button("⬇️  Download " + _nm, data=st.session_state["fts_pdf"],
+                           file_name=_nm, mime="application/pdf", key="fts_pdf_dl")
+        email_report_ui("fts_email", "tearsheet", st.session_state["fts_pdf"],
+                        subject=f"{universe.name(tk)} — product tearsheet",
+                        attachment_name=_nm)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -15485,6 +15570,8 @@ if active == "Block Sizes":
     render_block_sizes(); st.stop()
 if active == "Fut Yield":
     render_fut_yield(); st.stop()
+if active == "Product Tearsheet":
+    render_product_tearsheet(); st.stop()
 if active == "STIR Timeline":
     render_stir_overview(); st.stop()
 if active == "Fed Path":

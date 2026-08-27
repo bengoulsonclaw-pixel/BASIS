@@ -48,6 +48,13 @@ HIST_DAYS = 252          # a year of context on every chart
 RECENT_SHEET_DAYS = 30   # how far back to look for Hot Sheet mentions
 MAX_MENTIONS = 6
 
+# These strategies get their own section further down the page, so listing them in the
+# technical table too would say the same thing twice. It also removes a real ambiguity:
+# "Skew Volatility — Long" means long SKEW, not long coffee, and a client reading a column
+# of Long/Short has no way to know that one row changes dimension.
+_OWN_SECTION = {"Volatility", "Skew Volatility", "Vol Term Structure",   # -> Options market
+                "COT Reports", "Put/Call Ratios"}                        # -> Positioning
+
 
 # ── store access ─────────────────────────────────────────────────────────────
 def _read(name: str):
@@ -105,7 +112,7 @@ def _tech_block(ticker: str):
     d = _read("opportunities")
     if d is None or "instruments" not in d.columns:
         return None
-    hit = d[d["instruments"] == ticker]
+    hit = d[(d["instruments"] == ticker) & (~d["strategy"].isin(_OWN_SECTION))]
     if hit.empty:
         return None
     rows = []
@@ -281,21 +288,25 @@ def _asof() -> str:
 
 
 def _level(ticker: str):
-    """Last traded level and the session move, off the RAW store — this is a published number
-    a client can check against a screen, so it must not be panama-adjusted
-    ([[project-deep-store-switch]])."""
+    """Last level and session move, taken from the SAME series the chart draws and every
+    technical read on this page is computed on (deepstore.get_ta).
+
+    Reading it from anywhere else quietly contradicts the table underneath. The stores use
+    two different generics: the deep store's '1' is the front contract, the snapshot's 'A'
+    is the most-active one, and for a product mid-roll they are different contracts —
+    coffee sits 35.45 points apart today (that gap IS the KC1-KC2 spread), SOFR 32bp. The
+    technicals run on get_ta, so the headline level has to as well: today's Donchian row
+    reads "65% up the [319.5 - 377.75] channel", which is only true of 357.60, not 322.15.
+    """
     try:
         from src import deepstore
-        s = deepstore.get_raw([ticker])[ticker].dropna()
+        s = deepstore.get_ta([ticker])[ticker].dropna()
     except Exception:
-        return None, None, None
+        return None, None
     if s.empty:
-        return None, None, None
+        return None, None
     last = float(s.iloc[-1])
-    prev = float(s.iloc[-2]) if len(s) > 1 else None
-    chg = None if prev is None else last - prev
-    pct = None if not prev else chg / abs(prev) * 100.0
-    return last, chg, pct
+    return last, (None if len(s) < 2 else last - float(s.iloc[-2]))
 
 
 def gather(ticker: str) -> dict:
@@ -304,9 +315,17 @@ def gather(ticker: str) -> dict:
         raise ValueError(f"{ticker} is not in the universe")
     is_fi = bool(u.is_fixed_income(ticker))
     v = _row("volatility", ticker) or {}
-    dec = int(min(_f(v.get("px_dec")) or 2, 2))
-    last, chg, pct = _level(ticker)
+    dec = 3 if is_fi else int(min(_f(v.get("px_dec")) or 2, 2))
+    last, chg = _level(ticker)
     sd = _f(v.get("iv_sd"))
+    if is_fi:
+        # fixed income is quoted here in YIELD, so the move belongs in basis points and a
+        # percent change of a yield would be meaningless.
+        chg_txt = "—" if chg is None else f"{chg * 100:+.1f} bp"
+    else:
+        pct = None if not last or chg is None else chg / abs(last - chg) * 100.0
+        chg_txt = ("—" if chg is None else f"{chg:+,.{dec}f}"
+                   + ("" if pct is None else f"  ({pct:+.2f}%)"))
     return {
         "ticker": ticker,
         "market": u.name(ticker),
@@ -314,14 +333,14 @@ def gather(ticker: str) -> dict:
         "region": u.region(ticker) or "",
         "is_fi": is_fi,
         "dec": dec,
-        "last": last, "chg": chg, "pct": pct,
-        "last_txt": _fmt(last, dec),
-        "chg_txt": ("—" if chg is None else f"{chg:+,.{dec}f}"
-                    + ("" if pct is None else f"  ({pct:+.2f}%)")),
-        # the daily 1σ move the option market is pricing, in the product's own points —
-        # the number that says whether the last session's move was ordinary.
-        "sd_txt": ("" if sd is None else f"1σ daily ≈ {_fmt(sd, dec)} pts"),
-        "sd_mult": (None if (not sd or chg is None) else abs(chg) / sd),
+        "last": last, "chg": chg,
+        "last_txt": _fmt(last, dec) + ("%" if is_fi else ""),
+        "chg_txt": chg_txt,
+        # the daily 1σ move the option market is pricing, in the product's own quote units.
+        # Not shown against a yield move: iv_sd is in futures PRICE points, and converting
+        # between the two needs the contract's DV01, which is not in any store here.
+        "sd_txt": ("" if sd is None else f"1σ daily ≈ {_fmt(sd, 2)} pts"),
+        "sd_mult": (None if (is_fi or not sd or chg is None) else abs(chg) / sd),
         "asof": _asof(),
         "tech": _tech_block(ticker),
         "vol": _vol_block(ticker),

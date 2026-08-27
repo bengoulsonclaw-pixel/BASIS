@@ -303,8 +303,10 @@ def ordinal(n) -> str:
 _ADVICE_SUBS = [
     (r"\s*·\s*(?:buy|sell) the (?:bond|future)\b", ""),      # FI yield->price instruction
     (r"\s*\((?:buy the dip|sell the rally)\)", ""),          # Long (buy the dip)
-    (r"\s*[—-]\s*(buy-dip|sell-rally) zone\b", " zone"),     # ...0.5% above — sell-rally zone
-    (r"\s*[—-]\s*(?:buy-dip|sell-rally)\b", ""),             # ...9.7% above — buy-dip
+    # "Resistance 359.25 (3 touches) 0.5% above — sell-rally zone": the clause only names the
+    # trade to put on at a level the sentence has already identified, so it drops whole. The
+    # neutral equivalent ("— resistance zone") would just repeat the word "Resistance".
+    (r"\s*[—-]\s*(?:buy-dip|sell-rally)(?: zone)?\b", ""),
     (r"\b(Cheap)\s*[—-]\s*buy (?:skew|vol)\b", r"\1"),       # Cheap — buy vol
     (r"\b(Rich)\s*[—-]\s*sell (?:skew|vol)\b", r"\1"),       # Rich — sell skew
     (r"\s*[—-]\s*(?:Buy|Sell)\b[^;·|]*", ""),                # — Buy Soy Oil / Sell Soy Meal

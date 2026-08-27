@@ -34,6 +34,7 @@ REPORTS = {
     # be switched on — a closed loop that left a finished report unreachable from the UI
     # entirely (found 2026-08-26).
     "macroradar": "Macro Rate Radar — policy rules vs market pricing",
+    "tearsheet": "Product Tearsheet (on demand)",
     "curve": "Curve / RV Monitor report",
     "seasonality": "Seasonality Monitor report",
     "precious_metals": "Precious Metals Fundamentals monitor",
@@ -67,7 +68,10 @@ def _defaults() -> dict:
             # proofread flow: the monitor goes to the desk only; Ben forwards
             # the checked copy to clients himself.
             "precious_metals": [desk[0]], "pm_releases": [desk[0]],
-            "gold_week": [desk[0]]}
+            "gold_week": [desk[0]],
+            # built on demand for one client conversation, so it seeds to Ben alone —
+            # a desk-wide default would be wrong for a sheet sent one product at a time.
+            "tearsheet": [desk[0]]}
 
 
 def load_all() -> dict:

@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 {% include "_report_style.html" %}
 <style>
-  /* One product, one page. Every block is `break-inside: avoid` so a table never splits
-     across the fold — a tearsheet that breaks mid-book reads worse than one that runs to
-     a second page. */
-  .section, .kpis, table { break-inside: avoid; }
+  /* Same pagination contract as the seasonality report: a section MAY flow across the fold,
+     but each visual block inside it stays whole and a banner never orphans from what it
+     labels. Holding whole sections together instead left four inches dead at the foot of
+     page 1 because the options block could not fit under the technical table. */
+  .section .banner { break-after: avoid; }
+  .section table, .section .chart, .kpis { break-inside: avoid; }
 
   /* Level strip: the three numbers a client asks for before anything else — where it is,
      what it did, and whether that move was ordinary for this product. */
@@ -55,9 +57,9 @@
 
     <div class="kpis">
       <div class="kpi">
-        <div class="lab">Last settlement</div>
+        <div class="lab">{% if d.is_fi %}Last yield{% else %}Last settlement{% endif %}</div>
         <div class="val">{{ d.last_txt }}</div>
-        <div class="note">{% if d.is_fi %}futures price{% else %}front contract{% endif %}</div>
+        <div class="note">{% if d.is_fi %}generic front{% else %}front contract{% endif %}</div>
       </div>
       <div class="kpi">
         <div class="lab">Session change</div>
@@ -73,8 +75,8 @@
 
     {% if d.price_png %}
     <div class="section">
-      <div class="banner"><span class="mkt">Price &mdash; 12 months</span>
-        <span class="sig">{% if d.is_fi %}yield space{% else %}with 50 / 200-day averages{% endif %}</span></div>
+      <div class="banner"><span class="mkt">{% if d.is_fi %}Yield{% else %}Price{% endif %} &mdash; 12 months</span>
+        <span class="sig">with 50 / 200-day averages</span></div>
       <div class="chart"><img src="{{ d.price_png }}" alt="price history"></div>
     </div>
     {% endif %}
