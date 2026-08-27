@@ -424,10 +424,23 @@ def radar_items() -> list:
     ext = detail[detail["direction"] != 0].head(RADAR_EXTREME_MAX)   # already |idx−50| sorted
     for r in ext.itertuples(index=False):
         side = "long" if r.direction > 0 else "short"
+        # `direction` is the COT INDEX's read (a 3y min-max rank), while net_pct_oi is the
+        # ABSOLUTE net. For a structurally one-sided book those disagree: leveraged funds are
+        # permanently short the 2Y as the cash-futures basis counterparty, so index 100 means
+        # "least short in three years", NOT net long. Asserting the side then quoting a net
+        # that contradicts it published "crowded long — net -27% of open interest" as slot 1
+        # of a client-facing sheet (2026-08-26). When the two disagree, describe the RANK,
+        # which is what the index actually measures.
+        _agrees = (r.net_pct_oi > 0) == (r.direction > 0)
+        if _agrees:
+            _claim = f"**crowded {side}** — net {r.net_pct_oi:+.0f}% of open interest"
+        else:
+            _pos = "short" if r.net_pct_oi < 0 else "long"
+            _claim = (f"the **least {_pos} in three years** — still net "
+                      f"{r.net_pct_oi:+.0f}% of open interest")
         out.append(hotsheet.item(
             tag="COT", key=f"{r.ticker}:{side}", section="Positioning",
-            text=f"**{r.market}** {r.category.lower()} positioning is **crowded "
-                 f"{side}** — net {r.net_pct_oi:+.0f}% of open interest "
+            text=f"**{r.market}** {r.category.lower()} positioning is {_claim} "
                  f"({r.date:%d %b}).",
             heat=hotsheet.heat_from_pctl(r.cot_index),
             metric=f"idx {r.cot_index:.0f}", sub="COT index, 0–100",

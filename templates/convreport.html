@@ -145,10 +145,16 @@
         <b>{{ '%g'|format(p.levels.target) }}</b>{% endif %}
         {%- if p.levels.get('stop') is not none %} &nbsp;·&nbsp; invalidation
         <b>{{ '%g'|format(p.levels.stop) }}</b>{% endif %}
-        {%- if p.levels.get('reward') and p.levels.reward.get('pct') %} &nbsp;·&nbsp; reward to objective
+        {#- fixed income quotes bp (its levels are yields); everything else quotes % of price.
+            One column, one dimension per product — mixing them made rates look 15-20x riskier. -#}
+        {%- if p.levels.get('reward') and p.levels.reward.get('bp') %} &nbsp;·&nbsp; reward to objective
+        <b>{{ '%.0f'|format(p.levels.reward.bp) }}bp</b>
+        {%- elif p.levels.get('reward') and p.levels.reward.get('pct') %} &nbsp;·&nbsp; reward to objective
         <b>{{ '%.1f'|format(p.levels.reward.pct) }}%</b>{% if p.levels.reward.get('usd') %} (&approx;
         ${{ '{:,.0f}'.format(p.levels.reward.usd) }}/contract){% endif %}{% endif %}
-        {%- if p.levels.get('risk') and p.levels.risk.get('pct') %} &nbsp;·&nbsp; risk to stop
+        {%- if p.levels.get('risk') and p.levels.risk.get('bp') %} &nbsp;·&nbsp; risk to stop
+        <b>{{ '%.0f'|format(p.levels.risk.bp) }}bp</b>
+        {%- elif p.levels.get('risk') and p.levels.risk.get('pct') %} &nbsp;·&nbsp; risk to stop
         <b>{{ '%.1f'|format(p.levels.risk.pct) }}%</b>{% if p.levels.risk.get('usd') %} (&approx;
         ${{ '{:,.0f}'.format(p.levels.risk.usd) }}/contract){% endif %}{% endif %}
         {%- if p.levels.get('rr') %} &nbsp;·&nbsp; <b>R:R {{ '%.1f'|format(p.levels.rr) }}:1</b>

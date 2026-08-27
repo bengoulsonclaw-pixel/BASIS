@@ -191,6 +191,13 @@ def _struct_levels(pf, net_dir: int) -> dict:
     return out
 
 
+# A reward-to-risk ratio is only meaningful when BOTH legs are a tradeable distance from spot.
+# Below this (as a % of price / of yield for FI) the leg is inside the noise — an objective
+# 0.4bp above spot or a stop 0.014% away produce "0.0:1" and "800:1" respectively, both of
+# which a client notices in a document carrying the compliance disclaimer.
+RR_MIN_LEG_PCT = 0.25
+
+
 def _full_levels(gathered: dict, pf, net_dir: int) -> dict:
     """The report's actionable levels: prefer a pattern's measured move (Flag / Fibonacci) for the
     objective + invalidation, fall back to structural swing pivots, and always add a confirmation
@@ -214,8 +221,15 @@ def _full_levels(gathered: dict, pf, net_dir: int) -> dict:
     # ratio exactly equals the reward-to-objective ÷ risk-to-stop distances shown beside it.
     if px is not None and lv.get("target") is not None and lv.get("stop") is not None:
         r0 = abs(px - lv["stop"])
-        if r0 > 0:
-            lv["rr"] = abs(lv["target"] - px) / r0
+        reach = abs(lv["target"] - px)
+        # Both legs must be a real distance before a RATIO of them means anything. An
+        # objective 0.4bp above spot (inside the bid/ask) printed "a reward-to-risk of
+        # roughly 0.0:1", and a stop 0.014% away printed 800:1 — 17 of 83 live picks were
+        # above 20:1 (2026-08-26). Below the floor the ratio is dropped, not rendered: the
+        # prose already has a no-rr branch, and no number beats an absurd one in a client PDF.
+        _floor = abs(px) * RR_MIN_LEG_PCT / 100.0
+        if r0 > _floor and reach > _floor:
+            lv["rr"] = reach / r0
     return lv
 
 
@@ -233,9 +247,22 @@ def _risk(tk, entry, stop) -> dict:
         return out
     if not (np.isfinite(entry) and np.isfinite(stop)) or entry == 0:
         return out
-    out["pct"] = abs(entry - stop) / abs(entry) * 100.0
-    if _is_fi(tk):
+    # A distance inside the noise is not a level worth quoting — the Euro-Bobl objective sat
+    # 0.4bp from spot and rendered as "reward to objective 0bp". Same floor the R:R uses, so
+    # the figure and the ratio appear and disappear together.
+    if abs(entry - stop) < abs(entry) * RR_MIN_LEG_PCT / 100.0:
         return out
+    if _is_fi(tk):
+        # FI levels are YIELDS, so a "% of entry" is a percentage OF THE RATE, not of the
+        # futures price — and it lands in the same leaderboard column as genuine price
+        # percentages. Live example (2026-08-26): Euro-Schatz printed "11.1% away" for a
+        # 31.2bp stop that is ~0.6% of the 105.475 futures price, next to "WTI 28.5% away"
+        # which IS a price move. Rates ideas read 15-20x riskier than they are, and STIRs
+        # the same amount safer. Quote FI risk in basis points, which needs no conversion
+        # and is what a rates client asks for anyway.
+        out["bp"] = abs(entry - stop) * 100.0
+        return out
+    out["pct"] = abs(entry - stop) / abs(entry) * 100.0
     try:
         from src.volbt import point_value
         pv = point_value(tk)
@@ -367,22 +394,34 @@ def _prose(pick: dict, gathered: dict, lv: dict) -> str:
 
     up = pick["net_dir"] > 0
     trig, stop, tgt, rr = lv.get("trigger"), lv.get("stop"), lv.get("target"), lv.get("rr")
-    risk = (lv.get("risk") or {}).get("pct")
+    _rk_d, _rw_d = (lv.get("risk") or {}), (lv.get("reward") or {})
+
+    def _away(d):
+        """Distance in the product's OWN dimension — basis points for fixed income (whose
+        levels are yields), percent of price for everything else. Mixing the two in one
+        leaderboard made rates ideas read ~15-20x riskier than they were."""
+        if d.get("bp") is not None:
+            return f"{d['bp']:.0f}bp", d["bp"]
+        if d.get("pct") is not None:
+            return f"{d['pct']:.1f}%", d["pct"]
+        return None, None
+
+    risk_txt, risk = _away(_rk_d)
     parts = []
     if trig is not None and np.isfinite(trig):
         parts.append(f"A daily close {'above' if up else 'below'} **{trig:g}** would extend the "
                      f"{word} setup.")
     if stop is not None and np.isfinite(stop):
-        rk = f" ({risk:.1f}% away)" if risk else ""
+        rk = f" ({risk_txt} away)" if risk_txt else ""
         parts.append(f"A move {'back below' if up else 'back above'} **{stop:g}**{rk} would "
                      f"negate it.")
     if tgt is not None and np.isfinite(tgt):
-        rew = (lv.get("reward") or {}).get("pct")
+        rew_txt, rew = _away(_rw_d)
         src = lv.get("source")
         basis = f", measured from the {_SHORT.get(src, src)} setup" if src else ""
         if rew and risk and rr and np.isfinite(rr):
-            parts.append(f"The next objective sits near **{tgt:g}**{basis} — **{rew:.1f}%** away, "
-                         f"against the **{risk:.1f}%** to the invalidation, a reward-to-risk of "
+            parts.append(f"The next objective sits near **{tgt:g}**{basis} — **{rew_txt}** away, "
+                         f"against the **{risk_txt}** to the invalidation, a reward-to-risk of "
                          f"roughly **{rr:.1f}:1**.")
         else:
             rrtxt = f" — roughly **{rr:.1f}:1** against the invalidation" if rr and np.isfinite(rr) else ""

@@ -17048,6 +17048,31 @@ if active == "Open Interest":
             st.session_state.pop(slot, None)
             st.error("No option open interest to render for this selection.")
             return
+        # The OI chains come from the WEEKLY Monday capture, not the daily pull, so the PDF
+        # must be stamped with THAT capture's date. It was stamping the daily snapshot's
+        # as_of, which put today's date on a chain captured 22 June — 65 days stale — on a
+        # report that has an email-to-clients button (2026-08-26).
+        # read the manifest here rather than closing over `_snap` — one caller below runs
+        # BEFORE that variable is assigned, and _load_snap is a cheap cached read
+        _oi_stamp = str((_load_snap() or {}).get("oi_as_of") or "").strip()
+        _oi_age = float("nan")
+        try:
+            _oi_age = (datetime.now() - datetime.strptime(_oi_stamp[:19], "%Y-%m-%d %H:%M:%S")).days
+        except Exception:
+            pass
+        if not _oi_stamp:
+            st.error("No option-chain capture date on file — refusing to render a PDF that "
+                     "can't state when its open interest was captured. Run the weekly OI "
+                     "capture (`python snapshot.py --oi`) first.")
+            return
+        if np.isfinite(_oi_age) and _oi_age > health.OI_OLD_DAYS:
+            st.error(f"⚠️ The option chains on file were captured **{_oi_stamp[:10]}** "
+                     f"(**{_oi_age:.0f} days** ago) — the weekly Monday capture has been "
+                     f"missed. Refusing to build a client-facing PDF off a stale chain: "
+                     f"expired contracts sit in the strike grid and the 'busiest expiry' "
+                     f"reads off dead months. Run `python snapshot.py --oi` with the "
+                     f"Terminal open, then rebuild.")
+            return
         with st.spinner(spinner):
             with tempfile.TemporaryDirectory() as tmp:
                 _cpq = Path(tmp) / "oi_chain.parquet"
@@ -17055,7 +17080,7 @@ if active == "Open Interest":
                 frame.to_parquet(_cpq, index=False)
                 _res = subprocess.run(
                     [sys.executable, str(OIREPORT_CLI), str(_cpq), str(_out),
-                     "--asof", str(meta.get("as_of", "")), "--scope", scope],
+                     "--asof", _oi_stamp, "--scope", scope],
                     capture_output=True, text=True)
                 if _res.returncode == 0 and _out.exists():
                     st.session_state[slot] = _out.read_bytes()
