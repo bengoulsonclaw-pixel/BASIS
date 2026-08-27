@@ -512,16 +512,38 @@ def _fetch_phase() -> dict | None:
             "n_tickers": len(tickers)}
 
 
+_STEP_FAILURES: list = []
+
+
+def _step_failed(step: str, e: Exception) -> None:
+    """Record a compute step that died, and say so on stdout.
+
+    Every step here is independently try/except'd so one bad module can't take the morning
+    down — which is right, but it meant the phase could never REPORT a failure: main() only
+    raised SystemExit under --fetch, run_pull tested the return code and wrote
+    outcome:"ok" regardless, and the only trace was a log opened in "w" mode that the next
+    run overwrote. A step could die every morning from Monday to Thursday and leave no
+    evidence by Friday — which is the exact shape of "every day we have a problem"
+    (Ben, 2026-08-26). Steps still don't abort each other; the phase now just tells the
+    truth about what happened."""
+    _STEP_FAILURES.append(step)
+    print(f"  (!! {step} FAILED: {e})")
+
+
 def _compute_phase(include_equities: bool = False) -> dict:
     """Everything AFTER Bloomberg — pure math + free (Yahoo/ETF) pulls, run with the
-    Terminal closed. Reads the fetch phase's parquets/caches from disk."""
+    Terminal closed. Reads the fetch phase's parquets/caches from disk.
+
+    Individual step failures are collected in _STEP_FAILURES rather than swallowed, so the
+    caller can exit non-zero and the pull driver can report a partial compute."""
+    _STEP_FAILURES.clear()
     # COT signals off the freshly-extended price store
     try:
         from src import cotdata
         cotdata.compute(force=True)
         print("  COT signals rebuilt from the price DB")
     except Exception as e:
-        print(f"  (COT signal rebuild skipped: {e})")
+        _step_failed("COT signal rebuild", e)
 
     # Own-curve fits from the cached marks — THE VOL BOOK'S IMPLIED SOURCE since
     # 2026-07-22: this append must stay AHEAD of any signals rebuild.
@@ -533,7 +555,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
             owncurve.append_today(log=lambda *a: None, use_marks=True)
             print("  Own-curve 30d/90d book fitted from cached marks + history appended")
     except Exception as e:
-        print(f"  (own-curve book update skipped: {e})")
+        _step_failed("own-curve book update", e)
 
     # FICC signal cache — today's raw per-strategy TA rows for the whole book, off the
     # freshly-extended deep store (src/sigcache.py; the TA Backtester's fast path + the
@@ -545,7 +567,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
         sigledger.rebuild(log=print)
         print("  Signal ledger outcomes re-evaluated")
     except Exception as e:
-        print(f"  (signal cache/ledger update skipped: {e})")
+        _step_failed("signal cache/ledger update", e)
 
     # Equities are a SEPARATE pull (run_equities / --equities, wired to the Equities home
     # page); it rides Yahoo + ETF files (no Terminal), so it belongs to the compute phase.
@@ -563,7 +585,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
         print(f"  Seasonality stores: {len(_wk.columns)} products, "
               f"{len(_sp)} spread rows warmed")
     except Exception as e:
-        print(f"  (Seasonality store warm skipped: {e})")
+        _step_failed("Seasonality store warm", e)
 
     # Brazil Production store — re-download the USDA PS&D bulk CSVs and the EIA
     # international series and fold in the curated metals/company tables
@@ -580,7 +602,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
         print(f"  ANM metals store: {len(_live)} of {len(_anm['commodities'])} "
               f"commodities sourced ({', '.join(_live) or 'none'})")
     except Exception as e:
-        print(f"  (ANM metals store skipped: {e})")
+        _step_failed("ANM metals store", e)
 
     try:
         from src import brazilprod
@@ -591,7 +613,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
         for _e in _err:
             print(f"    ! {_e['label']}: {_e['error']}")
     except Exception as e:
-        print(f"  (Brazil production store skipped: {e})")
+        _step_failed("Brazil production store", e)
 
     # Hot Sheet — stamp today's cross-module highlights into the daily history
     # (data/signals/hotsheet_history.parquet: NEW/streak badges + the Weekly Review's
@@ -601,7 +623,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
         from src import hotsheet
         hotsheet.stamp_today(log=print)
     except Exception as e:
-        print(f"  (Hot Sheet stamp skipped: {e})")
+        _step_failed("Hot Sheet stamp", e)
 
     # Desk day export — today's reports / decisions / majors / expiries for the
     # Morning Coffee PDF's page 2 (data/signals/desk_calendar.json). Pure calendar
@@ -610,7 +632,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
         from src import deskday
         print(f"  Desk calendar export: {deskday.export()} rows for {deskday.trading_day():%a %d %b}")
     except Exception as e:
-        print(f"  (Desk calendar export skipped: {e})")
+        _step_failed("Desk calendar export", e)
 
     # Unusual option activity — the day's put/call volume outliers, for the Morning
     # Coffee PDF's page 1 (data/signals/optflow.json). Pure disk read of the put/call
@@ -619,7 +641,7 @@ def _compute_phase(include_equities: bool = False) -> dict:
         from src import optflow
         print(f"  Option flow export: {optflow.export_today()} row(s)")
     except Exception as e:
-        print(f"  (Option flow export skipped: {e})")
+        _step_failed("Option flow export", e)
 
     # Manifest from the ON-DISK snapshot (the fetch phase's files) — works whether the
     # compute phase runs seconds or hours after the fetch. `created` = the pull moment
@@ -722,6 +744,16 @@ def main():
     if args.fetch:
         # nonzero when the guard bailed (no data) so the app can tell success from failure
         raise SystemExit(0 if m.get("phase") == "fetched" else 1)
+    if _STEP_FAILURES:
+        # The compute phase had no non-zero exit path at all, so a dead step was invisible
+        # to the pull driver, which wrote outcome:"ok" every morning regardless. Steps stay
+        # independent — a failure here means "some of today's maths did not run", not "the
+        # snapshot is bad" — but it must be VISIBLE (Ben, 2026-08-26).
+        print(f"\n!! {len(_STEP_FAILURES)} compute step(s) FAILED: "
+              + ", ".join(_STEP_FAILURES)
+              + "\n   The snapshot itself is written; these stores are stale until the next "
+                "clean run. Re-run `python snapshot.py --compute` (no Terminal needed).")
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

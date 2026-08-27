@@ -117,6 +117,9 @@ def _newest_write() -> float:
         return 0.0
 
 
+_LAST_RC = 0          # exit code of the last phase — 2 = compute ran but some steps died
+
+
 def _run_phase(args: list[str], stall_min: float | None, cap_min: float, tag: str) -> bool:
     """Run snapshot.py with the given args; kill on write-stall or the hard cap."""
     import os
@@ -138,7 +141,12 @@ def _run_phase(args: list[str], stall_min: float | None, cap_min: float, tag: st
                                capture_output=True)
                 proc.wait(timeout=30)
                 return False
-        ok = proc.returncode == 0
+        global _LAST_RC
+        _LAST_RC = proc.returncode
+        # rc 2 from the compute phase means "the snapshot is written, but some independent
+        # downstream steps died" — a real thing to report, but NOT a reason to fail the pull
+        # and tempt a re-pull that re-spends the day's Bloomberg allowance (2026-08-26).
+        ok = proc.returncode in (0, 2)
         _log(f"{tag}: exited rc={proc.returncode} after {(time.time() - t0) / 60:.1f} min")
         return ok
     finally:
@@ -212,6 +220,7 @@ def main() -> int:
             _status(outcome="compute_failed",
                     detail="fetched data is safe on disk — 'Re-run signals' in the app")
             return 1
+        _compute_partial = _LAST_RC == 2
 
         _log("pushing the data backup…")
         try:
@@ -222,6 +231,13 @@ def main() -> int:
             _log(f"backup push failed (non-fatal): {e!r}")
 
         mins = (time.time() - t0) / 60
+        if _compute_partial:
+            _status(outcome="compute_partial",
+                    detail=f"complete in {mins:.1f} min, but some compute steps FAILED — "
+                           f"see logs/pull_driver_compute.log; those stores are stale until "
+                           f"'Re-run signals'. Do NOT re-pull, the Bloomberg data is fine")
+            _log(f"=== DONE in {mins:.1f} min — WITH FAILED COMPUTE STEPS ===")
+            return 0
         _status(outcome="ok", detail=f"complete in {mins:.1f} min")
         _log(f"=== DONE in {mins:.1f} min ===")
         return 0

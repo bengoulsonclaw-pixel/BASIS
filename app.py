@@ -2983,6 +2983,11 @@ def render_home() -> None:
                 if _pstat["outcome"] == "ok":
                     _bc.success(f"✅ **Bloomberg pull finished {_pw}** — snapshot {_pd}, "
                                 "backup pushed. The Terminal can be closed.")
+                elif _pstat["outcome"] == "compute_partial":
+                    # the Bloomberg data is good; some downstream maths isn't — amber, not
+                    # red, and explicitly "don't re-pull" so the day's allowance is safe
+                    _bc.warning(f"⚠️ **Bloomberg pull finished {_pw}, but some compute steps "
+                                f"failed** — {_pd}")
                 else:
                     _bc.error(f"⚠️ **Bloomberg pull ended {_pw}** — {_pstat['outcome']}"
                               + (f": {_pd}" if _pd else "")
