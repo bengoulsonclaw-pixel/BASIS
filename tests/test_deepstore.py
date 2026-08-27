@@ -165,3 +165,39 @@ def test_overlay_upgrades_and_heals(tmp_store):
     assert pnl2.loc[tail_day, "CLA Comdty"] == pytest.approx(pnl.loc[tail_day, "CLA Comdty"])
     # volume is swapped but NEVER ffilled — a flow's hole must stay a hole
     assert vol2.loc[store_idx[0], "CLA Comdty"] == pytest.approx(1000.0)
+
+
+def test_stir_rate_level_is_anchored_to_the_front_contract(monkeypatch, tmp_path):
+    """A STIR's charted "yield" must equal the front contract's implied rate TODAY.
+
+    Regression for 2026-08-26: get_ta returned 100 - the difference-adjusted price, which
+    is a rate path plus every roll gap the adjustment has removed - SOFR read 3.6450 while
+    the front implied 3.9600, 31.5bp adrift, under an axis labelled "Yield (%)" and with
+    those levels quoted to clients. Re-anchoring is a CONSTANT shift, so every difference
+    (and therefore every signal, hit and backtest P&L) must come through untouched."""
+    root = tmp_path / "iso"                       # own root: the anchor sits beside the store
+    store, snap = root / "price_store", root / "snapshot"
+    store.mkdir(parents=True); snap.mkdir(parents=True)
+    monkeypatch.setattr(deepstore, "STORE_DIR", store)
+    idx = pd.bdate_range("2026-03-02", periods=6)
+    deepstore._write(pd.DataFrame(
+        {"SERA Comdty": [95.8, 95.9, 96.0, 96.1, 96.0, 96.2]}, index=idx), "prices")
+    before = deepstore.get_ta(["SERA Comdty"])["SERA Comdty"]      # no anchor file yet
+    # now publish an 'A' generic priced 40bp away from the store's own series
+    pd.DataFrame({"SERA Comdty": [96.2, 96.3, 96.4, 96.5, 96.4, 96.6]},
+                 index=idx).rename_axis("date").reset_index().to_parquet(
+                     snap / "prices.parquet", index=False)
+    ta = deepstore.get_ta(["SERA Comdty"])["SERA Comdty"]
+    assert ta.iloc[-1] == pytest.approx(100.0 - 96.6), "last level must equal the front rate"
+    assert ta.iloc[-1] != pytest.approx(before.iloc[-1]), "control: the anchor moved it"
+    assert list(ta.diff().dropna()) == pytest.approx(list(before.diff().dropna())),         "a constant shift must leave every move identical"
+
+
+def test_anchor_never_reaches_outside_a_relocated_store(monkeypatch, tmp_path):
+    """The anchor is found relative to STORE_DIR. A relocated store (any test, or a second
+    install) must not silently read the live data/ directory - the first cut did, and it
+    re-anchored a synthetic fixture to real SOFR."""
+    store = tmp_path / "elsewhere" / "price_store"
+    store.mkdir(parents=True)
+    monkeypatch.setattr(deepstore, "STORE_DIR", store)
+    assert deepstore._front_price_anchor() is None

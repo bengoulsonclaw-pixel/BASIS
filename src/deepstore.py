@@ -334,6 +334,27 @@ def get_adjusted(tickers, start=None, end=None) -> pd.DataFrame:
     return _slice(pd.DataFrame(out), start, end) if out else pd.DataFrame()
 
 
+def _front_price_anchor():
+    """The price series the REST of BASIS calls a product's price — the morning snapshot's
+    'A' (most-active) generic. Used only to re-anchor the STIR rate series' level.
+
+    Deliberately NOT this store's own raw column, which is the '1' (first-expiry) generic:
+    for SOFR the two are different contracts (96.04 vs 96.355 on 2026-08-26 — 31.5bp), and
+    a chart whose level disagrees with the price shown on every other page is its own bug.
+    Read as a plain file so this module keeps no import on datafeed (which imports it), and
+    located RELATIVE TO STORE_DIR so a relocated store (the test fixture's tmp dir) doesn't
+    silently reach back into the live data/ — which is exactly what the first cut did."""
+    p = STORE_DIR.parent / "snapshot" / "prices.parquet"
+    try:
+        df = pd.read_parquet(p)
+    except Exception:
+        return None
+    if "date" in df.columns:
+        df = df.set_index("date")
+    df.index = pd.to_datetime(df.index)
+    return df.sort_index()
+
+
 def get_ta(tickers, start=None, end=None) -> pd.DataFrame:
     """Deep signal-space history — datafeed.get_history_ta semantics on the deep store:
     STIRs as 100 − adjusted price, bond futures as their deep benchmark yield, everything
@@ -347,9 +368,28 @@ def get_ta(tickers, start=None, end=None) -> pd.DataFrame:
     if out.empty:
         return out
     ylds = _read("yields")
+    raw = _front_price_anchor()
     for t in list(out.columns):
         if universe.is_stir(t):
             out[t] = 100.0 - out[t]
+            # RE-ANCHOR to the front contract's true implied rate. 100 − adjusted is a rate
+            # path plus every roll gap difference-adjustment has removed since the store was
+            # built, so the LEVEL drifts away from the market: on 2026-08-26 this read SOFR
+            # at 3.6450 while the front contract implied 3.9600 — 31.5bp — under an axis
+            # labelled "Yield (%)", with those levels quoted to clients as objectives and
+            # invalidations. A constant shift leaves every difference (and therefore every
+            # signal, hit and backtest P&L) untouched, so this corrects what is read as a
+            # number without disturbing what is measured as a move. (2026-08-26)
+            try:
+                r = (100.0 - raw[t]).dropna() if (raw is not None and t in raw.columns) else None
+                a = out[t].dropna()
+                if r is not None and len(r) and len(a):
+                    common = a.index.intersection(r.index)
+                    if len(common):
+                        d = common.max()
+                        out[t] = out[t] + (float(r.loc[d]) - float(a.loc[d]))
+            except Exception:
+                pass
         elif universe.is_bond(t):
             if t in ylds.columns:
                 out[t] = ylds[t].reindex(out.index).ffill()
