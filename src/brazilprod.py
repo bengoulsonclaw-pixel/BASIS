@@ -695,11 +695,15 @@ def _hedge_block(key: str, brazil_disp: float, exports_disp: float | None,
         return {"available": False, "reason": NO_HEDGE.get(
             key, "No listed future for this commodity in the desk's universe.")}
 
-    if blk and blk.get("unsourced"):
-        return {"available": False,
-                "reason": "Company volumes are not sourced, so a hedge cannot be sized "
-                          "per producer. " + blk.get("reason", "")}
-    on_exports = bool(blk) and blk.get("basis") == "export"
+    # Not knowing WHO produces it says nothing about how big the national hedge is.
+    # Brazil's coffee, cotton and cattle all have liquid futures; sizing the country's
+    # output against them needs only the national quantity and the contract spec. Only
+    # the per-producer split is withheld when the company table is unsourced.
+    unsourced = bool(blk and blk.get("unsourced"))
+    # An export basis belongs to a trade-house table — it hedges what it SHIPS. With no
+    # company table there is no trade house, so the national opportunity is the whole
+    # crop, not just the part that leaves the country.
+    on_exports = bool(blk) and not unsourced and blk.get("basis") == "export"
     national = exports_disp if on_exports else brazil_disp
     if not national or national <= 0:
         return {"available": False,
@@ -708,7 +712,7 @@ def _hedge_block(key: str, brazil_disp: float, exports_disp: float | None,
     total_units = float(national) * spec["per_disp"]
     national_lots = total_units / spec["size"]
     rows = []
-    for r in (blk or {}).get("rows", []):
+    for r in ([] if unsourced else (blk or {}).get("rows", [])):
         # The unattributed slice of the national total gets no lots: sizing a hedge
         # for it would put a tradeable number against a producer we cannot name.
         if r.get("is_unsourced"):
@@ -728,6 +732,9 @@ def _hedge_block(key: str, brazil_disp: float, exports_disp: float | None,
         "national_units": round(total_units, 1),
         "national_lots": int(round(national_lots)),
         "national_lots_per_month": int(round(national_lots / 12.0)),
+        # The country-level hedge stands on its own; the producer split may not.
+        "company_split": not unsourced,
+        "company_reason": ((blk or {}).get("reason", "") if unsourced else ""),
         "rows": rows,
     }
 
@@ -917,6 +924,100 @@ PERIOD_COLOUR_DARK = {               # the app's dark canvas
     "yr": "#E8ECF1", "mth": "#5B9BF0", "day": "#46C58A",
 }
 PERIOD_WORD = {"yr": "year", "mth": "month", "day": "trading day"}
+
+
+# The pool is a sizing view, so it carries fewer ratios than the per-client matrix —
+# 100 / 50 / 25 is enough to bracket it without turning the headline into a spreadsheet.
+POOL_RATIOS = (100, 50, 25)
+
+# Plain English for every abbreviation the page prints. `mb/d` is the house convention
+# shared with the OPEC and EIA modules (million barrels a day, as OPEC and the IEA use
+# it) — but it is genuinely ambiguous outside that context, where M is just as often
+# the Roman thousand. Crude is the sharp case: the national figure is quoted mb/d and
+# the company table kb/d, so Brazil reads as 3.77 beside Petrobras at 3,016.96 unless
+# both are spelled out. Tonnes are METRIC throughout; the one short ton in this module
+# is the CBOT soybean-meal contract, and it says so at HEDGE.
+UNIT_LONG = {
+    "mb/d": "million barrels per day",
+    "kb/d": "thousand barrels per day — 1,000 kb/d = 1 mb/d",
+    "Mt": "million metric tonnes",
+    "kt": "thousand metric tonnes",
+    "t": "metric tonnes",
+    "Mt CWE": "million metric tonnes, carcass-weight equivalent",
+    "Mt cane": "million metric tonnes of cane crushed",
+    "m bags (60kg)": "million bags of 60 kg",
+    "m bales": "million bales",
+    "bn litres": "billion litres",
+}
+
+
+def unit_help(unit: str | None) -> str | None:
+    """Plain-English expansion for a unit label, or None if it needs no explaining."""
+    if not unit:
+        return None
+    u = str(unit).strip()
+    if u in UNIT_LONG:
+        return UNIT_LONG[u]
+    return UNIT_LONG.get(u.split()[0]) if u.split() else None
+
+
+def national_hedge(store: dict | None = None, turns: float = 1.0,
+                   ratios: tuple = POOL_RATIOS) -> dict:
+    """The whole country's hedge, before anyone asks who produces it.
+
+    Every commodity's lots to hedge 100% of Brazil's annual output, summed. This is a
+    deliberately different question from the client roll-up: it needs only the national
+    quantity and the contract spec, so it covers soybeans and corn — nearly half the
+    total — where the producer split does not exist and never will.
+
+    Read it as the size of the pool, not a forecast: it assumes every tonne is hedged,
+    on-exchange, once. What a broker sees is some fraction of it.
+    """
+    store = store or load() or {}
+    rows, missing = [], []
+    for com in (store.get("commodities") or {}).values():
+        h = com.get("hedge") or {}
+        if not h.get("available"):
+            missing.append({"label": com["label"], "group": com.get("group"),
+                            "reason": h.get("reason", "")})
+            continue
+        lots = float(h["national_lots"]) * turns
+        row = {
+            "label": com["label"], "group": com.get("group"), "icon": com.get("icon"),
+            "qty": h["national_qty"], "unit": h["national_unit"],
+            "qty_basis": h.get("qty_basis", "production"),
+            "contract": (h.get("ticker") or "").split()[0] if h.get("ticker") else "",
+            "contract_name": h.get("name", ""),
+            "proxy": bool(h.get("proxy")), "is_input": bool(h.get("is_input")),
+            "company_split": bool(h.get("company_split", True)),
+            "lots_yr": int(round(lots)),
+            "lots_mth": int(round(lots / 12.0)),
+            "lots_day": int(round(lots / TRADING_DAYS)),
+        }
+        # A producer hedges a FRACTION of forward output, not a whole year at once, so
+        # the lower ratios are the realistic reading of the same pool.
+        for pct in ratios:
+            at = lots * pct / 100.0
+            for suffix, divisor in HEDGE_PERIODS:
+                row[f"{pct}% {suffix}"] = int(round(at / divisor))
+        rows.append(row)
+    rows.sort(key=lambda r: -r["lots_yr"])
+    total = sum(r["lots_yr"] for r in rows)
+    totals = {}
+    for pct in ratios:
+        for suffix, divisor in HEDGE_PERIODS:
+            totals[f"{pct}% {suffix}"] = sum(r[f"{pct}% {suffix}"] for r in rows)
+    return {
+        "rows": rows, "missing": missing, "turns": turns, "ratios": tuple(ratios),
+        "totals": totals,
+        "total_yr": total,
+        "total_mth": int(round(total / 12.0)),
+        "total_day": int(round(total / TRADING_DAYS)),
+        "n_hedgeable": len(rows), "n_missing": len(missing),
+        # How much of the pool sits behind producers we can actually name — the bridge
+        # from this section to the company tables below it.
+        "n_with_company_split": sum(1 for r in rows if r["company_split"]),
+    }
 
 
 def hedge_matrix(store: dict | None = None, turns: float = 1.0,

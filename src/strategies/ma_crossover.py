@@ -173,6 +173,7 @@ def _chart(ticker: str, cfg: MAConfig, history: pd.DataFrame | None = None):
     _gap = (fast_s.iloc[-1] / slow_s.iloc[-1] - 1) * 100
     signal, direction, ema_ok, mom_ok = _signal(fast_s.iloc[-1], slow_s.iloc[-1], ema_f.iloc[-1],
                                                 mom, _gap, cfg.min_gap)
+    _days = _days_since_cross(fast_s, slow_s)
     info = {
         "state": "golden cross" if fast_s.iloc[-1] > slow_s.iloc[-1] else "death cross",
         "mom": float(mom),
@@ -181,7 +182,12 @@ def _chart(ticker: str, cfg: MAConfig, history: pd.DataFrame | None = None):
         "mom_ok": bool(mom_ok),
         "confirmed": bool(direction != 0),
         "signal": signal,
-        "days_since": _days_since_cross(fast_s, slow_s),
+        "days_since": _days,
+        # A GENUINELY recent cross (within the fast window) vs a standing alignment — so the prose
+        # never calls a months-old 50>200 configuration "a cross" (see convreport._phrase).
+        "fresh": bool(_days is not None and _days <= cfg.fast),
+        "gap": float(_gap),                                   # signed fast/slow gap %
+        "fast": int(cfg.fast), "slow": int(cfg.slow),
         "price": float(px.iloc[-1]),
     }
     return data, info

@@ -50,6 +50,31 @@
   table.matrix .p-mth { color: {{ col_mth }}; }
   table.matrix .p-day { color: {{ col_day }}; }
   table.matrix th.sub { font-weight: 700; }
+  /* the hedging-pool table reuses the same three period hues so one convention
+     carries from the front of the report to the appendix */
+  /* The pool table carries 12 columns. Fixed layout with explicit widths, exactly as
+     table.matrix does — under auto layout the nowrap numeric cells pushed it past the
+     right margin (0.188in against a 0.30in target). NO overflow:hidden here: that
+     "fixed" the margin once by silently clipping the last digit off 2,460,150. */
+  table.pool { font-size: 5.9pt; width: 100%; table-layout: fixed; }
+  table.pool th, table.pool td { padding: .5mm .6mm; }
+  table.pool td:first-child, table.pool td.q { white-space: normal;
+                                               overflow-wrap: break-word; }
+  table.pool col.c-name { width: 13%; }
+  table.pool col.c-qty  { width: 15%; }
+  table.pool col.c-ct   { width: 6.5%; }
+  /* yr / mth / day hold very different magnitudes — splitting the nine numeric
+     columns evenly left the bold TOTAL touching its neighbour. Width follows the
+     size of the number each column actually carries. */
+  table.pool col.c-yr   { width: 9%; }
+  table.pool col.c-mth  { width: 7%; }
+  table.pool col.c-day  { width: 5.5%; }
+  table.overview .p-yr  { color: {{ col_yr }}; }
+  table.overview .p-mth { color: {{ col_mth }}; }
+  table.overview .p-day { color: {{ col_day }}; }
+  table.overview th.p-yr  { color: {{ hcol_yr }}; }
+  table.overview th.p-mth { color: {{ hcol_mth }}; }
+  table.overview th.p-day { color: {{ hcol_day }}; }
   /* the header band is black, so the sub-headers take the dark-canvas hues —
      same three colours, readable against the band instead of lost in it */
   table.matrix th.sub.p-yr  { color: {{ hcol_yr }}; }
@@ -117,6 +142,59 @@
     </table>
     <div class="fine">Share is Brazil's production divided by world production in the same year and
       unit. Rank counts every reporting country.</div>
+
+    {% if pool %}
+    <div class="section page-break">
+      <div class="banner">The hedging pool &mdash; Brazil's output in futures lots</div>
+      <p class="summary">Every commodity above, converted at its own contract size. Hedging all of
+        Brazil's annual production once would take <b>{{ pool.total_yr }} lots</b> &mdash; about
+        <b>{{ pool.total_mth }} a month</b>, or <b>{{ pool.total_day }} a trading day</b>, across
+        {{ pool.n_hedgeable }} commodities. Read it as the size of the market rather than a
+        forecast: it assumes every tonne is hedged, on-exchange, once.</p>
+      <table class="overview pool">
+        <colgroup>
+          <col class="c-name"><col class="c-qty"><col class="c-ct">
+          {% for h in pool.ratio_heads %}{% for s in h.periods %}<col class="c-{{ s }}">{% endfor %}{% endfor %}
+        </colgroup>
+        <thead>
+          <tr>
+            <th rowspan="2">Commodity</th><th rowspan="2">Brazil produces</th>
+            <th rowspan="2">Contract</th>
+            {% for h in pool.ratio_heads %}
+            <th class="center" colspan="{{ h.periods|length }}">{{ h.pct }}% hedged</th>
+            {% endfor %}
+          </tr>
+          <tr>
+            {% for h in pool.ratio_heads %}{% for s in h.periods %}
+            <th class="right p-{{ s }}">{{ s }}</th>
+            {% endfor %}{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in pool.rows %}
+          <tr>
+            <td>{{ r.label }}</td><td class="q">{{ r.qty }}</td><td>{{ r.contract }}</td>
+            {% for c in r.cells %}
+            <td class="right p-{{ pool.periods[loop.index0 % pool.periods|length] }}">{{ c }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+          <tr class="total">
+            <td><b>TOTAL</b></td><td></td><td></td>
+            {% for c in pool.total_cells %}
+            <td class="right p-{{ pool.periods[loop.index0 % pool.periods|length] }}"><b>{{ c }}</b></td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+      <div class="fine">{% if pool.units %}<b>Units:</b> {{ pool.units }}. Tonnes are metric
+        throughout.<br>{% endif %}A day is 252 trading days, not 365, so the daily figure is
+        comparable with a contract's own daily volume. Where a commodity is hedged on a proxy or on its inputs, the
+        commodity's own page says so.{% if pool.missing %} No listed future exists for
+        {{ pool.missing }}, so they contribute nothing here &mdash; not zero opportunity, but
+        opportunity that is not exchange-traded futures.{% endif %}</div>
+    </div>
+    {% endif %}
 
     {% for b in blocks %}
     <div class="section page-break">

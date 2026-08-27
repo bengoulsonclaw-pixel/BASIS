@@ -198,6 +198,35 @@ def render_html(store: dict, keys: list | None = None) -> str:
             f"Brazil's largest share of any market here is {top['label'].lower()}, at "
             f"{top['share']:.0f}% of world output")
 
+    # The hedging pool: Brazil's whole output in lots, before anyone asks who produces
+    # it. Client-safe — it is national production times a contract size, and the
+    # per-commodity pages already carry the same figures one at a time.
+    _n = brazilprod.national_hedge(store)
+    pool = None
+    if _n["rows"]:
+        _periods = [s for s, _d in brazilprod.HEDGE_PERIODS]
+        pool = {
+            "total_yr": f"{_n['total_yr']:,}", "total_mth": f"{_n['total_mth']:,}",
+            "total_day": f"{_n['total_day']:,}", "n_hedgeable": _n["n_hedgeable"],
+            "missing": ", ".join(m["label"].lower() for m in _n["missing"]),
+            "periods": _periods,
+            # Spell out every abbreviation the table prints — a client reading
+            # "3.77 mb/d" has no reason to know whether m is million or thousand.
+            "units": " · ".join(
+                f"{u} = {brazilprod.UNIT_LONG[u]}"
+                for u in dict.fromkeys(r["unit"] for r in _n["rows"])
+                if u in brazilprod.UNIT_LONG),
+            "ratio_heads": [{"pct": p, "periods": _periods} for p in _n["ratios"]],
+            "rows": [{"label": r["label"],
+                      "qty": f"{r['qty']:,.2f} {r['unit']}",
+                      "contract": r["contract"],
+                      "cells": [f"{r[f'{p}% {s}']:,}"
+                                for p in _n["ratios"] for s in _periods]}
+                     for r in _n["rows"]],
+            "total_cells": [f"{_n['totals'][f'{p}% {s}']:,}"
+                            for p in _n["ratios"] for s in _periods],
+        }
+
     # The hedge matrix: company x product, lots at each ratio broken into
     # year / month / trading day. Internal-facing brokerage sizing, so it prints as a
     # clearly-marked appendix rather than inside the client-facing commodity pages.
@@ -232,6 +261,7 @@ def render_html(store: dict, keys: list | None = None) -> str:
                    for s, _d in brazilprod.HEDGE_PERIODS] if tot else []
 
     return env.get_template("brazilreport.html").render(
+        pool=pool,
         total_cells=total_cells, total_hedgeable=tot.get("_n_hedgeable", 0),
         periods=[s for s, _d in brazilprod.HEDGE_PERIODS],
         col_yr=brazilprod.PERIOD_COLOUR["yr"],

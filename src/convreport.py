@@ -310,11 +310,23 @@ def _phrase(strategy: str, info: dict, is_fi: bool) -> str:
         if strategy == "Trend":
             return f"a {g('mom', 0) * 100:+.0f}% three-month trend"
         if strategy in ("MA Crossover", "MA Swing"):
+            # A "cross" is the EVENT of the fast MA crossing the slow; the persistent 50>200 (or
+            # 20>50) state is an ALIGNMENT. Only call it a cross when it's genuinely recent (`fresh`),
+            # else describe the standing gap — so a months-old alignment never reads as a fresh cross.
             st = str(g("state", "")).lower()
-            per = "50/200-day" if strategy == "MA Crossover" else "20/50-day"
-            cross = "a golden-cross alignment" if "golden" in st else (
-                "a death-cross alignment" if "death" in st else "a moving-average alignment")
-            return f"{cross} of the {per} averages"
+            fast_w, slow_w = f"{int(g('fast', 50))}-day", f"{int(g('slow', 200))}-day"
+            gold = "golden" in st
+            if not (gold or "death" in st):
+                return f"a moving-average alignment of the {fast_w}/{slow_w} averages"
+            side, kind = ("above", "bullish") if gold else ("below", "bearish")
+            if g("fresh"):
+                return (f"a fresh {'golden' if gold else 'death'} cross — the {fast_w} has just "
+                        f"crossed {side} the {slow_w}")
+            gap = g("gap")
+            if gap is not None and np.isfinite(gap):
+                return (f"the {fast_w} holding {abs(gap):.1f}% {side} the {slow_w} "
+                        f"(a {kind} moving-average alignment)")
+            return f"a {'golden' if gold else 'death'}-cross alignment of the {fast_w}/{slow_w} averages"
         if strategy == "Support & Resistance":
             near = g("nearest")
             kind = "support" if g("direction", 0) > 0 else "resistance"

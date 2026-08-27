@@ -1,6 +1,8 @@
 {
  "hist_rules": [
   "taylor93",
-  "balanced"
+  "balanced",
+  "shortfalls",
+  "inertial"
  ]
 }

@@ -96,6 +96,107 @@ def test_no_corporate_producer_rows_are_not_hedge_clients():
     assert not m["Company"].str.contains("Independent farms", case=False).any()
 
 
+def test_national_hedge_does_not_depend_on_knowing_the_producers():
+    """The bug this guards: an unsourced company table used to disable the WHOLE hedge,
+    including the national figure — so Brazil's coffee, cotton and cattle showed 'no
+    contract' when all three have liquid futures. How big the country's hedge is and
+    who would place it are separate questions.
+    """
+    nat = brazilprod.national_hedge()
+    if not nat["rows"]:
+        pytest.skip("no Brazil store on this box")
+    store = brazilprod.load()
+    for r in nat["rows"]:
+        assert r["lots_yr"] > 0, f"{r['label']}: sized at zero lots"
+    # at least one commodity must be sized nationally while having no producer split
+    assert nat["n_with_company_split"] < nat["n_hedgeable"], (
+        "expected some commodity hedged nationally with no company breakdown")
+    # and no 'no contract' reason may blame missing company data
+    for m in nat["missing"]:
+        assert "not sourced" not in m["reason"].lower(), (
+            f"{m['label']}: dropped from the pool because producers are unknown, "
+            f"which has nothing to do with whether a contract exists")
+
+
+def test_national_pool_totals_are_internally_consistent():
+    nat = brazilprod.national_hedge()
+    if not nat["rows"]:
+        pytest.skip("no Brazil store on this box")
+    assert nat["total_yr"] == sum(r["lots_yr"] for r in nat["rows"])
+    assert nat["total_mth"] == pytest.approx(nat["total_yr"] / 12, rel=0.01)
+    assert nat["total_day"] == pytest.approx(nat["total_yr"] / brazilprod.TRADING_DAYS, rel=0.01)
+
+
+def test_named_clients_never_exceed_the_national_pool():
+    """The client roll-up is a SUBSET of the pool — every client's lots come from its
+    share of a national figure. If it ever exceeds the pool, a share is being applied
+    to the wrong denominator."""
+    nat = brazilprod.national_hedge()
+    book = brazilprod.broker_book()
+    if not nat["rows"] or book.empty:
+        pytest.skip("no Brazil store on this box")
+    assert book["Lots (1 yr)"].sum() <= nat["total_yr"] * 1.001
+
+
+def test_pool_ratio_columns_are_fractions_of_the_full_hedge():
+    """100 / 50 / 25 must be the same number scaled, not three separate calculations —
+    and the totals row must be the sum of its own column, not of the 100% column."""
+    nat = brazilprod.national_hedge()
+    if not nat["rows"]:
+        pytest.skip("no Brazil store on this box")
+    assert nat["ratios"] == (100, 50, 25)
+    for r in nat["rows"]:
+        for pct in nat["ratios"]:
+            assert r[f"{pct}% yr"] == pytest.approx(r["lots_yr"] * pct / 100, rel=0.001, abs=1)
+            assert r[f"{pct}% mth"] == pytest.approx(r[f"{pct}% yr"] / 12, rel=0.02, abs=1)
+            assert r[f"{pct}% day"] == pytest.approx(
+                r[f"{pct}% yr"] / brazilprod.TRADING_DAYS, rel=0.02, abs=1)
+    for pct in nat["ratios"]:
+        for suffix, _d in brazilprod.HEDGE_PERIODS:
+            col = f"{pct}% {suffix}"
+            assert nat["totals"][col] == sum(r[col] for r in nat["rows"]), col
+
+
+def test_every_unit_the_page_prints_has_a_plain_english_expansion():
+    """'mb/d' is million barrels a day here, but M is the Roman thousand elsewhere — and
+    this page shows Brazil in mb/d directly above Petrobras in kb/d. Any unit that
+    reaches a metric or a table header must be explainable."""
+    store = brazilprod.load()
+    if not store:
+        pytest.skip("no Brazil store on this box")
+    for key, com in (store.get("commodities") or {}).items():
+        if str(com.get("unit", "")).startswith("%"):
+            continue
+        assert brazilprod.unit_help(com["unit"]), f"{key}: unit {com['unit']!r} unexplained"
+        blk = com.get("companies") or {}
+        u = blk.get("unit")
+        if u and not str(u).startswith("%"):
+            assert brazilprod.unit_help(u), f"{key}: company unit {u!r} unexplained"
+
+
+def test_barrel_units_say_which_multiple_they_are():
+    """The exact confusion: 3.77 mb/d beside 3,016.96 kb/d is the same quantity."""
+    assert "million" in brazilprod.unit_help("mb/d")
+    assert "thousand" in brazilprod.unit_help("kb/d")
+    assert "1 mb/d" in brazilprod.unit_help("kb/d")
+
+
+def test_tonnes_are_declared_metric():
+    """Asked and answered once already — the only short ton in this module is the CBOT
+    soybean-meal contract, and it must not leak into a production unit."""
+    for u in ("Mt", "kt", "t", "Mt CWE"):
+        assert "metric" in brazilprod.unit_help(u), u
+        assert "short" not in brazilprod.unit_help(u), u
+
+
+def test_round_turns_scale_the_pool_linearly():
+    one = brazilprod.national_hedge(turns=1.0)
+    two = brazilprod.national_hedge(turns=2.0)
+    if not one["rows"]:
+        pytest.skip("no Brazil store on this box")
+    assert two["total_yr"] == pytest.approx(one["total_yr"] * 2, rel=0.001)
+
+
 def test_unsourced_remainder_is_not_a_hedge_client():
     """There is nobody to call for the part of Brazil we cannot name, so it must not
     appear in the brokerage roll-up."""
