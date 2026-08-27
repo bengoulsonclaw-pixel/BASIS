@@ -7596,7 +7596,17 @@ def _render_alert_settings() -> None:
             nrec = len(data.get(automation.REPORTS[ekey]["recipients"], []))
             _ta_schedule_control(c[1], ekey, meta["label"], nrec)
         elif email_states.get(ekey, "missing") == "missing":
-            c[1].markdown("<div style='padding-top:.35rem;color:#8a8f98'>n/a</div>", unsafe_allow_html=True)
+            # "n/a" on its own read as "this report can't be automated", when the truth is
+            # just that its Windows task was never registered on this PC — the report itself
+            # is finished and its schtasks line sits in its own module. Say which task is
+            # missing so the cell is actionable rather than a dead end (2026-08-26).
+            _tn = (automation.REPORTS[ekey].get("tasks") or ["—"])[0]
+            c[1].markdown("<div style='padding-top:.35rem;color:#8a8f98'>no task</div>",
+                          unsafe_allow_html=True)
+            c[1].caption(f"⚠️ Windows task **{_tn}** doesn't exist on this PC — the report "
+                         "works, it just has nothing to run it. Create it (the `schtasks "
+                         "/create` line is in the report's own module) and it will appear "
+                         "here as a normal toggle.")
         else:
             nrec = len(data.get(automation.REPORTS[ekey]["recipients"], []))
             st.session_state[f"al_em_{ekey}"] = email_states.get(ekey) == "on"

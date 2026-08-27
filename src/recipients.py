@@ -29,6 +29,11 @@ REPORTS = {
     "sigscore": "Weekly Signal Scorecard — Technical",
     "weekreview": "Weekly Review — cross-module wrap",
     "hotsheet": "🔥 Hot Sheet — daily highlights",
+    # automation.REPORTS["macroradar"] points at this key. Without the entry the Recipients
+    # editor never drew a row for it, so it had no recipients, so its auto-email could never
+    # be switched on — a closed loop that left a finished report unreachable from the UI
+    # entirely (found 2026-08-26).
+    "macroradar": "Macro Rate Radar — policy rules vs market pricing",
     "curve": "Curve / RV Monitor report",
     "seasonality": "Seasonality Monitor report",
     "precious_metals": "Precious Metals Fundamentals monitor",
