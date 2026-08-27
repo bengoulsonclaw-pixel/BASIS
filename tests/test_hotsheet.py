@@ -207,3 +207,43 @@ def test_week_view_aggregation(tmp_store):
     assert x["days_on"] == 3 and x["heat"] == 90.0          # the most extreme reading kept
     assert x["wk_delta"] == pytest.approx(2.0)              # generic value drift over the window
     assert wk.iloc[1]["days_on"] == 1
+
+
+# --- top strip never prints the same story twice (2026-08-26) ----------------
+def test_top_strip_drops_a_repeated_story():
+    """Client-facing regression: the sheet spent slots 2 and 3 on "Ultra 10Y Note …
+    +36.5bp" and "US 10Y Note … +36.5bp" — one observation, printed twice, because
+    universe.py maps UXYA to the same yield series as TYA. A reader takes a repeated
+    line as independent corroboration."""
+    same = "enters a seasonal window (10 Sep to 9 Nov) — higher, median move +36.5bp."
+    items = [_it("a", heat=90, tag="SEAS", text=f"**Ultra 10Y Note** {same}"),
+             _it("b", heat=89, tag="SEAS", text=f"**US 10Y Note** {same}"),
+             _it("c", heat=80, tag="COT", text="**Copper** positioning is crowded long.")]
+    strip = hotsheet.top_strip(items)
+    assert len(strip) == 2, "the duplicate claim must be dropped"
+    assert [it["key"] for it in strip] == ["SEAS:a", "COT:c"]
+
+
+def test_top_strip_keeps_genuinely_different_claims():
+    """Only IDENTICAL claims collapse — two products saying different things both stay,
+    even under the same tag."""
+    items = [_it("a", heat=90, tag="SEAS", text="**Corn** enters a window — higher, +2.8%."),
+             _it("b", heat=89, tag="SEAS", text="**Euro** enters a window — lower, -1.7%.")]
+    assert len(hotsheet.top_strip(items)) == 2
+
+
+def test_story_key_ignores_the_product_name():
+    a = hotsheet._story_key("**Ultra 10Y Note** median move +36.5bp.")
+    b = hotsheet._story_key("**US 10Y Note** median move +36.5bp.")
+    assert a == b and a
+    assert hotsheet._story_key("**X** median move +2.0bp.") != a
+
+
+def test_wordless_claims_are_never_deduped():
+    """Guard on the guard: "positioning is crowded long" is the same sentence for every
+    product in the book. Collapsing on wording alone would hide independent observations,
+    so a claim with no number in it is exempt."""
+    items = [_it(f"p{i}", heat=90 - i, tag=f"T{i}",
+                 text=f"**Product {i}** positioning is crowded long.") for i in range(5)]
+    assert len(hotsheet.top_strip(items)) == 5
+    assert hotsheet._story_key("**X** positioning is crowded long.") == ""

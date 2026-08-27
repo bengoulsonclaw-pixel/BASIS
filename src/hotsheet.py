@@ -316,15 +316,40 @@ def export_from_history(min_rows: int = 5) -> int:
     return 0
 
 
+def _story_key(text: str) -> str:
+    """A story's identity with the product name stripped out, so two rows saying the SAME
+    THING about different points of one curve collapse to one key.
+
+    Returns "" — meaning "don't dedupe me" — unless the claim carries a NUMBER. Wording alone
+    is far too weak a signal: "positioning is crowded long" is the same sentence for every
+    product in the book, and collapsing on it would hide genuinely independent observations.
+    Two products quoting the identical figure is the actual signature of the duplicate this
+    guards (UXYA and TYA both printing +36.5bp off one shared yield series)."""
+    t = re.sub(r"\*\*[^*]+\*\*", " ", str(text or ""))     # product names are the bold spans
+    t = re.sub(r"[^a-z0-9 ]+", " ", t.lower())
+    key = " ".join(w for w in t.split() if len(w) > 2)
+    return key if any(c.isdigit() for c in key) else ""
+
+
 def top_strip(items: list, book: str = "ficc", per_tag: int = 2, n: int = 10) -> list:
     """The editorial top strip: `book` only, at most `per_tag` rows per module, first
-    `n` by heat (items arrive heat-sorted). Pure selection — no I/O."""
-    top, seen = [], {}
+    `n` by heat (items arrive heat-sorted), and NEVER the same story twice. Pure selection.
+
+    The duplicate rule earns its place (2026-08-26): today's client-facing sheet spent slots
+    2 and 3 on "Ultra 10Y Note ... +36.5bp" and "US 10Y Note ... +36.5bp" — one observation
+    printed twice, because universe.py maps UXYA to the same yield series as TYA. The same
+    morning, SEAS spent three of its five slots on one seasonal window read off three points
+    of one curve. A reader takes a repeated line as independent corroboration; it isn't."""
+    top, seen, stories = [], {}, set()
     for it in items:
         if it.get("book") != book:
             continue
         if seen.get(it["tag"], 0) >= per_tag:
             continue
+        key = _story_key(it.get("text"))
+        if key and key in stories:
+            continue                       # same claim, different contract on the same curve
+        stories.add(key)
         seen[it["tag"]] = seen.get(it["tag"], 0) + 1
         top.append(it)
         if len(top) >= n:
