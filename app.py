@@ -11342,6 +11342,28 @@ def _osb_atm_curve(ticker: str, mode: str) -> dict:
 
 
 @st.cache_data(show_spinner=False, ttl=900)
+def _osb_skew_marks(ticker: str, mode: str) -> dict:
+    """Latest 1M 90%-put / ATM / 110%-call vols for `ticker` — the three points the smile
+    is fitted through. Same seam the vol/skew reports and the Vol Backtester read, so the
+    Strategy Builder marks a wing at the same vol the backtester would price it at.
+    Empty dict = no usable wings, and legs fall back to ATM."""
+    try:
+        sk = get_skew_components([ticker])
+    except Exception:
+        return {}
+    out = {}
+    for key in ("put", "call", "atm"):
+        fr = sk.get(key)
+        if fr is None or ticker not in getattr(fr, "columns", []):
+            return {}
+        s = fr[ticker].dropna()
+        if s.empty:
+            return {}
+        out[key] = float(s.iloc[-1])
+    return out
+
+
+@st.cache_data(show_spinner=False, ttl=900)
 def _tabt_overlays(tk: str, strats: tuple, hist: pd.DataFrame, vol: pd.DataFrame | None,
                    sessions: int = 0) -> dict:
     """Indicator overlays for the backtester's 'why it traded' chart — the SAME per-strategy chart
@@ -12579,17 +12601,37 @@ def render_strategy_builder() -> None:
     curve = _osb_atm_curve(prod, MODE) if prod != _NONE else {}
     _TENOR_LBL = {30: "1M", 91: "3M", 182: "6M", 365: "12M"}
 
-    def _leg_vol(days: float, fallback: float) -> float:
-        """Surface ATM vol interpolated to a leg's expiry — manual fallback when
-        the product has no live surface."""
-        return round(optbuilder.vol_at(curve, days), 1) if curve else fallback
+    smile = _osb_skew_marks(prod, MODE) if prod != _NONE else {}
+
+    def _leg_vol(days: float, fallback: float, strike: float | None = None) -> float:
+        """Vol for a leg: the surface ATM curve interpolated to its expiry, then tilted to
+        the leg's STRIKE off the 1M smile. Manual fallback when there's no live surface.
+
+        Every leg used to take the ATM vol whatever its strike (2026-08-26). On a 60-day
+        90/110 risk reversal that mis-marks the structure by roughly $400-3,000 a lot
+        depending on the product — always in the direction that makes selling the wing look
+        free — and 13 of the 20 presets have off-ATM legs. volbt.smile_vol is shared with
+        the Vol Backtester so the two can't quote a different vol for the same option."""
+        if not curve:
+            return fallback
+        atm = optbuilder.vol_at(curve, days)
+        if strike and smile and F0:
+            atm = volbt.smile_vol(atm, smile["put"], smile["call"], smile["atm"],
+                                  float(F0), float(strike), float(days))
+        return round(atm, 1)
 
     if prod != _NONE and curve:
+        _sk = (f" · **1M smile** {smile['put']:.1f} / {smile['atm']:.1f} / {smile['call']:.1f} "
+               "(90% put / ATM / 110% call)" if smile else "")
         st.caption("Vol marks from the **option surface** — ATM "
                    + "  ·  ".join(f"{_TENOR_LBL[d]} {v:.1f}"
                                   for d, v in sorted(curve.items()))
-                   + " — presets and blank *Vol %* cells seed from this curve, "
-                     "interpolated to each leg's expiry. Type a vol to override.")
+                   + _sk
+                   + " — presets and blank *Vol %* cells seed from this curve, interpolated to "
+                     "each leg's expiry"
+                   + (" and **tilted to the leg's strike** off the smile."
+                      if smile else " (no smile published — off-ATM legs mark at ATM).")
+                   + " Type a vol to override.")
     elif prod != _NONE:
         st.caption("This product publishes **no live option surface** (or it's stale) — "
                    "vol marks stay manual.")
@@ -12616,7 +12658,9 @@ def render_strategy_builder() -> None:
         return {"Side": l["side"], "Qty": float(l["qty"]), "Type": l["kind"],
                 "Strike": float(l["strike"]),
                 "Month": _NO_MONTH if fut else _closest_month(l["days"]),
-                "Vol %": np.nan if fut else _leg_vol(l["days"], l["vol"]),
+                # preset/loaded legs seed at their OWN strike's vol, not ATM — a risk
+                # reversal's two wings must not both arrive marked at the same number
+                "Vol %": np.nan if fut else _leg_vol(l["days"], l["vol"], strike=l["strike"]),
                 "Price paid": np.nan}
 
     def _preset_rows() -> pd.DataFrame:
@@ -12680,7 +12724,7 @@ def render_strategy_builder() -> None:
                      "month": _mlbl if _mlbl in _MDAYS else
                      (_NO_MONTH if _r["Type"] == "Future" else dflt_month),
                      "vol": float(_r["Vol %"]) if pd.notna(_r["Vol %"])
-                     else _leg_vol(_days, dflt_vol),
+                     else _leg_vol(_days, dflt_vol, strike=float(_r["Strike"])),
                      "premium": None if pd.isna(_r.get("Price paid")) else float(_r["Price paid"]),
                      "prem_src": "model" if pd.isna(_r.get("Price paid")) else "screen"})
 
@@ -12694,7 +12738,8 @@ def render_strategy_builder() -> None:
     _atm = optbuilder.atm_strike(F0)
     _blank_opt = lambda kind: {"Side": "Buy", "Qty": 1.0, "Type": kind, "Strike": _atm,
                                "Month": dflt_month,
-                               "Vol %": _leg_vol(dflt_days, dflt_vol), "Price paid": np.nan}
+                               "Vol %": _leg_vol(dflt_days, dflt_vol, strike=_atm),
+                               "Price paid": np.nan}
     a1, a2, a3, a4 = st.columns(4)
     if a1.button("➕ Add call leg", use_container_width=True, key="osb_add_c"):
         _append_leg(_blank_opt("Call"))

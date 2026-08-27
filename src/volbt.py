@@ -185,6 +185,32 @@ PILLAR_DAYS = {"1M": 30.0, "3M": 91.0, "6M": 182.0, "12M": 365.0}
 SMILE_X = (math.log(0.90), math.log(1.10))   # the two wing log-moneyness points
 
 
+def smile_vol(base: float, vp: float, vc: float, va: float,
+              F: float, K: float, tau_days: float) -> float:
+    """Fixed-strike vol = tenor ATM (`base`) + the 1M smile shape at ln(K/F).
+
+    An exact quadratic through the three 1M marks — (ln0.90, put−atm), (0, 0),
+    (ln1.10, call−atm) — with moneyness clamped to ±20% and the tilt decayed by
+    sqrt(30/tenor) past 1M. Returns `base` unchanged if any wing is missing.
+
+    Module-level so the Option Strategy Builder marks its legs on the SAME smile the
+    Vol Backtester prices on (2026-08-26). The page previously handed every leg the ATM
+    vol regardless of strike, mis-marking a 60-day 90/110 risk reversal by roughly
+    $400-3,000 a lot depending on the product — always in the direction that makes
+    selling the wing look free, and 13 of the 20 presets have off-ATM legs."""
+    if not np.isfinite(base):
+        return base
+    if not all(np.isfinite(v) for v in (vp, vc, va)) or not (F and np.isfinite(F) and K > 0):
+        return base
+    xp, xc = SMILE_X
+    det = xp * xc * (xp - xc)
+    a = (xp * xp * (vc - va) - xc * xc * (vp - va)) / det
+    b = (xc * (vp - va) - xp * (vc - va)) / det
+    x = max(-0.20, min(0.20, math.log(K / F)))
+    decay = min(1.0, math.sqrt(30.0 / max(tau_days, 30.0)))
+    return max(base + (a * x + b * x * x) * decay, 1.0)
+
+
 class VolSurface:
     """ATM vol at any days-to-expiry (variance-linear between the report's tenor
     pillars, flat beyond the ends) plus a fixed-strike smile tilt from the 1M
@@ -239,16 +265,7 @@ class VolSurface:
         if not np.isfinite(base) or any(s is None for s in (self.put, self.call, self.atm1m)):
             return base
         vp, vc, va = (s.get(day, np.nan) for s in (self.put, self.call, self.atm1m))
-        if not all(np.isfinite(v) for v in (vp, vc, va)):
-            return base
-        xp, xc = SMILE_X
-        # exact quadratic through (xp, vp-va), (0, 0), (xc, vc-va)
-        det = xp * xc * (xp - xc)
-        a = (xp * xp * (vc - va) - xc * xc * (vp - va)) / det
-        b = (xc * (vp - va) - xp * (vc - va)) / det
-        x = max(-0.20, min(0.20, math.log(K / F)))
-        decay = min(1.0, math.sqrt(30.0 / max(tau_days, 30.0)))
-        return max(base + (a * x + b * x * x) * decay, 1.0)
+        return smile_vol(base, vp, vc, va, F, K, tau_days)
 
 
 # ── the backtest ─────────────────────────────────────────────────────────────
