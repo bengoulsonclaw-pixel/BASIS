@@ -810,6 +810,307 @@ def hlw(measure: str = "rstar", area: str = "US",
         return _fail(f"HLW/{measure}/{area}", f"HLW parse failed: {e}", "NY Fed")
 
 
+# ── BCB / Brazil ────────────────────────────────────────────────────────────────────
+# Three separate free BCB services, no key on any of them:
+#
+#   SGS      api.bcb.gov.br/dados/serie/bcdata.sgs.{id}   time series (IPCA, Selic, …)
+#   Olinda   olinda.bcb.gov.br/olinda/servico/Expectativas Focus survey expectations
+#   sitebcb  www.bcb.gov.br/api/servico/sitebcb/calendario the published Copom calendar
+#
+# Brazil is the best-instrumented bloc after the US, and in two respects it is better
+# than the euro area or the UK: the inflation TARGET is a published series (SGS 13521)
+# rather than a constant we hardcode, and the Focus survey gives a per-meeting expected
+# policy path — something no free source publishes for the ECB or the BoE.
+_SGS_BASE = "https://api.bcb.gov.br/dados/serie/bcdata.sgs."
+
+# SGS ids, each verified live 2026-08-27 against a plausibility check on its latest value.
+SGS_IDS = {
+    "ipca_yoy": 13522,        # IPCA accumulated 12m, % — headline inflation
+    "ipca_mom": 433,          # IPCA monthly %
+    "core_mom": 4466,         # IPCA trimmed-mean core, smoothed, monthly % (BCB's own core)
+    "selic_target": 432,      # Meta Selic set by Copom, % — SEE the projection note below
+    "selic_daily": 1178,      # Selic effective, annualised daily, %
+    "unemp": 24369,           # Unemployment rate, PNAD Contínua, %
+    "ibcbr": 24364,           # IBC-Br activity index, seasonally adjusted
+    "infl_target": 13521,     # CMN inflation target, % (annual series)
+}
+
+
+def sgs(sid: int | str, *, title: str = "", start: str = "1999-01-01",
+        ttl: int = _DEFAULT_TTL) -> Series:
+    """One BCB SGS series. No key, no rate limit worth worrying about.
+
+    Two traps, both real:
+
+    * **Dates are dd/mm/yyyy.** Parsed as ISO or US order, 01/07/2026 silently becomes
+      January and the whole series reorders.
+    * **SGS 432 (Meta Selic) runs into the FUTURE.** The target in force is carried
+      forward to the date of the next Copom decision, so its last observation is dated
+      ahead of today — exactly the CBO trap `latest_actual` exists for. Read this series
+      with `.asof(today)` / `.latest_actual`, never `.latest`, or the page reports a rate
+      that has not been set yet as though it were current.
+    * **DAILY series are capped at ten years per request** and answer a wider window with
+      HTTP 406, not with a truncated series. The Selic ones (432, 1178) are daily and hit
+      this immediately, so a 406 is retried once inside a ten-year window rather than
+      reported as a dead source.
+
+    api.bcb.gov.br also times out intermittently under load (seen twice while this was
+    being written), so a stale cache is preferred to a failure, as everywhere else here.
+    """
+    sid = str(sid)
+    url = f"{_SGS_BASE}{sid}/dados?formato=json&dataInicial={_sgs_date(start)}"
+    ck = f"sgs_{sid}_{start}"
+    cached = _cache_get(ck, ttl)
+    if cached is None:
+        try:
+            cached = json.loads(_http(url))
+            _cache_put(ck, cached)
+        except Exception as e:
+            narrow = None
+            if "406" in str(e):           # daily series, window too wide — see docstring
+                try:
+                    lo = date.today().replace(year=date.today().year - 9)
+                    narrow = json.loads(_http(
+                        f"{_SGS_BASE}{sid}/dados?formato=json"
+                        f"&dataInicial={lo.strftime('%d/%m/%Y')}"))
+                    _cache_put(ck, narrow)
+                except Exception:
+                    narrow = None
+            if narrow is not None:
+                cached = narrow
+            else:
+                stale = _cache_get(ck, -1)
+                if stale is None:
+                    return _fail(sid, f"BCB SGS fetch failed: {e}", "BCB SGS")
+                cached = stale
+    try:
+        obs = []
+        for row in cached:
+            val = _num(row.get("valor"))
+            if val is None:
+                continue
+            try:
+                obs.append((datetime.strptime(row["data"].strip(), "%d/%m/%Y").date(), val))
+            except (ValueError, KeyError):
+                continue
+        obs.sort()
+        return Series(sid, title or f"SGS {sid}", "BCB (SGS)", "%", "", obs)
+    except Exception as e:
+        return _fail(sid, f"BCB SGS parse failed: {e}", "BCB SGS")
+
+
+def _sgs_date(iso: str) -> str:
+    """ISO -> dd/mm/yyyy, the only date format the SGS query accepts."""
+    try:
+        return datetime.strptime(iso, "%Y-%m-%d").strftime("%d/%m/%Y")
+    except ValueError:
+        return "01/01/1999"
+
+
+def accum12(s: Series) -> Series:
+    """Compound twelve monthly percent changes into a 12-month accumulated rate.
+
+    Brazil publishes its core measures as MONTHLY percent changes, not as an index, so
+    `Series.yoy()` — which divides index levels — cannot be used on them. Compounding is
+    the correct reduction and it is what the BCB itself reports as "acumulado em 12
+    meses": prod(1 + m/100) − 1, not the sum of the twelve months."""
+    if not s.ok or len(s.obs) < 12:
+        return _fail(s.sid + "_A12", "need 12 monthly observations to accumulate", s.source)
+    out = []
+    for i in range(11, len(s.obs)):
+        f = 1.0
+        for _d, v in s.obs[i - 11:i + 1]:
+            f *= 1.0 + v / 100.0
+        out.append((s.obs[i][0], (f - 1.0) * 100.0))
+    return Series(s.sid + "_A12", s.title + " (accum. 12m %)", s.source, "% 12m",
+                  s.freq, out, s.ok, s.reason, s.stale_note)
+
+
+_OLINDA = ("https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/")
+
+
+def _focus(endpoint: str, params: str, ck: str, ttl: int):
+    """One Olinda (Focus survey) query, cached, degrading to stale on failure."""
+    cached = _cache_get(ck, ttl)
+    if cached is None:
+        try:
+            cached = json.loads(_http(_OLINDA + endpoint + "?" + params))
+            _cache_put(ck, cached)
+        except Exception:
+            cached = _cache_get(ck, -1)
+    if not isinstance(cached, dict):
+        return []
+    return cached.get("value") or []
+
+
+def focus_selic_path(ttl: int = _DEFAULT_TTL) -> list[dict]:
+    """The Focus survey's expected Selic AT EACH UPCOMING COPOM MEETING.
+
+    This is the Brazil leg's answer to a STIR strip: it is what the market expects the
+    policy rate to be after each decision. It is a SURVEY, not tradeable pricing, and
+    every label built on it must say so — it carries no risk premium, it is a median of
+    roughly 40-70 forecasters, and it updates weekly rather than continuously.
+
+    `baseCalculo` selects the respondent window: 0 = everyone who answered in the last
+    30 days (the basis the weekly Focus bulletin headlines), 1 = the last 5 business
+    days only. 0 is used here to match the published bulletin.
+
+    Returns [{"code": "R6/2026", "meeting": date|None, "median": %, "mean": %,
+              "n": respondents, "asof": survey date}], ascending by meeting.
+    """
+    rows = _focus("ExpectativasMercadoSelic",
+                  "%24top=2000&%24format=json&%24orderby=Data%20desc"
+                  "&%24filter=baseCalculo%20eq%200",
+                  "focus_selic", ttl)
+    if not rows:
+        return []
+    latest = max((r.get("Data") or "") for r in rows)
+    cal = copom_decisions(ttl=ttl)
+    out = []
+    for r in rows:
+        if (r.get("Data") or "") != latest:
+            continue
+        code = (r.get("Reuniao") or "").strip()
+        med = _num(r.get("Mediana"))
+        if not code or med is None:
+            continue
+        out.append({"code": code, "meeting": copom_meeting_date(code, cal),
+                    "median": med, "mean": _num(r.get("Media")),
+                    "n": r.get("numeroRespondentes"), "asof": latest})
+    # Undated meetings (a survey horizon beyond the published calendar) sort last rather
+    # than crashing the comparison — the page simply has nothing to plot them against.
+    out.sort(key=lambda d: (d["meeting"] is None, d["meeting"] or date.max, d["code"]))
+    return out
+
+
+def focus_inflation_12m(ttl: int = _DEFAULT_TTL) -> dict | None:
+    """Focus 12-month-ahead IPCA expectation (smoothed), the forward-looking variable the
+    BCB's own reaction function is built around.
+
+    The BCB targets inflation on a forward horizon, so a rule fed REALISED inflation is
+    describing a committee that does not exist. This is the input that makes a Brazil
+    rule faithful, and it has no free equivalent for the Fed, ECB or BoE.
+
+    "Suavizada" (smoothed) is the BCB's own published smoothing across the turn of the
+    calendar year; it is the series the Focus bulletin reports for the 12-month horizon.
+    """
+    rows = _focus("ExpectativasMercadoInflacao12Meses",
+                  "%24top=800&%24format=json&%24orderby=Data%20desc"
+                  "&%24filter=Indicador%20eq%20%27IPCA%27%20and%20Suavizada%20eq%20%27S%27"
+                  "%20and%20baseCalculo%20eq%200",
+                  "focus_ipca12m", ttl)
+    for r in rows:                       # already newest-first
+        med = _num(r.get("Mediana"))
+        if med is not None:
+            return {"median": med, "mean": _num(r.get("Media")),
+                    "n": r.get("numeroRespondentes"), "asof": r.get("Data")}
+    return None
+
+
+def copom_decisions(ttl: int = 24 * 3600) -> list[date]:
+    """Copom DECISION dates from the BCB's published calendar.
+
+    Two things to know about the feed:
+
+    * Each meeting is TWO consecutive rows (day one and day two). The rate decision is
+      announced on the **second** day, so consecutive pairs are collapsed to their later
+      date. Treating every row as a meeting doubles the calendar.
+    * www.bcb.gov.br answers unknown resources with HTTP 200 and a SharePoint error
+      page, so the status code proves nothing — the payload shape is checked instead.
+
+    Cross-checked three ways when this was written (2026-08-27): the minutes feed's
+    280th meeting (5 Aug 2026) is the second day of the calendar's 4-5 Aug pair, and
+    SGS 432 carries the Selic target forward to 16 Sep 2026, the next decision date.
+    """
+    y = date.today().year
+    lo, hi = f"{y - 1}-01-01", f"{y + 2}-12-31"
+    url = ("https://www.bcb.gov.br/api/servico/sitebcb/calendario"
+           f"?inicioAgenda=%27{lo}%27&fimAgenda=%27{hi}%27"
+           "&lista=" + urllib.parse.quote("Reuniões do Copom"))
+    ck = f"copom_cal_{lo}_{hi}"
+    cached = _cache_get(ck, ttl)
+    if cached is None:
+        try:
+            blob = json.loads(_http(url))
+            cached = blob.get("conteudo") if isinstance(blob, dict) else None
+            if not isinstance(cached, list) or not cached:
+                raise ValueError("unexpected payload — BCB soft-404?")
+            _cache_put(ck, cached)
+        except Exception:
+            cached = _cache_get(ck, -1)
+    if not isinstance(cached, list):
+        return []
+    days = set()
+    for row in cached:
+        raw = (row or {}).get("dataEvento") or ""
+        try:
+            days.add(datetime.strptime(raw[:10], "%Y-%m-%d").date())
+        except ValueError:
+            continue
+    # Collapse each two-day meeting to its decision (second) day.
+    out, seq = [], sorted(days)
+    for i, d in enumerate(seq):
+        nxt = seq[i + 1] if i + 1 < len(seq) else None
+        if nxt is not None and (nxt - d).days == 1:
+            continue                      # day one — the decision is tomorrow's row
+        out.append(d)
+    return out
+
+
+def copom_meeting_date(code: str, calendar: list[date] | None = None) -> date | None:
+    """Focus meeting code ('R6/2026' = the 6th Copom meeting of 2026) -> decision date.
+
+    The Focus survey identifies meetings by ordinal within the year, never by date, so
+    this join against the published calendar is the only way to put a survey
+    expectation on a timeline. Returns None when the code runs past the published
+    calendar (Focus quotes two years further out than the BCB schedules)."""
+    m = re.match(r"^R(\d+)/(\d{4})$", (code or "").strip())
+    if not m:
+        return None
+    n, yr = int(m.group(1)), int(m.group(2))
+    cal = calendar if calendar is not None else copom_decisions()
+    in_year = [d for d in cal if d.year == yr]
+    return in_year[n - 1] if 0 < n <= len(in_year) else None
+
+
+def br_inputs(ttl: int = _DEFAULT_TTL) -> dict:
+    """Brazil inputs for the rule engine.
+
+    Better covered than the UK: inflation, the policy rate, unemployment and the
+    inflation TARGET are all published series. Weaker than the US in the one place that
+    matters most for the rules — nobody publishes a Brazilian NAIRU or r*, so both are
+    assumptions, exactly as for the BoE, and the unemployment gap they imply dominates
+    the prescription. The page must say so.
+    """
+    return {
+        "bloc": "BR", "bank": "BCB",
+        "headline_infl": sgs(SGS_IDS["ipca_yoy"], title="IPCA (accum. 12m)", ttl=ttl),
+        # BCB's trimmed-mean smoothed core, published monthly and compounded here.
+        "core_infl": accum12(sgs(SGS_IDS["core_mom"],
+                                 title="IPCA trimmed-mean core (smoothed)", ttl=ttl)),
+        "unemp": sgs(SGS_IDS["unemp"], title="Unemployment rate (PNAD Contínua)", ttl=ttl),
+        # The POLICY lever is the Copom's target, not the effective daily Selic — and it
+        # is future-dated (see sgs()), so every read must go through .asof().
+        "policy": sgs(SGS_IDS["selic_target"], title="Selic target (Copom)", ttl=ttl),
+        "selic_effective": sgs(SGS_IDS["selic_daily"],
+                               title="Selic effective (annualised)", ttl=ttl),
+        "activity": sgs(SGS_IDS["ibcbr"], title="IBC-Br activity index (SA)", ttl=ttl),
+        "rstar": _fail("rstar/BR", "no published Brazilian r* — the BCB discusses a "
+                                   "neutral real rate in Inflation Report boxes but "
+                                   "publishes no series; user-set assumption", "n/a"),
+        # Published, unlike the 2.0 the other legs hardcode: the CMN sets it by decree.
+        "target": _target_br(ttl),
+        "focus_12m": focus_inflation_12m(ttl=ttl),
+    }
+
+
+def _target_br(ttl: int) -> float:
+    """Brazil's inflation target in force today (CMN, SGS 13521); 3.0 if unreachable."""
+    s = sgs(SGS_IDS["infl_target"], title="CMN inflation target", ttl=ttl)
+    v = s.latest_actual if s.ok else None
+    return float(v) if v is not None else 3.0
+
+
 # ── convenience bundles the rule engine consumes ────────────────────────────────────
 def us_inputs(ttl: int = _DEFAULT_TTL) -> dict:
     """Everything the Fed rules need. US is the best-covered bloc by a distance: CBO
@@ -876,7 +1177,7 @@ def uk_inputs(ttl: int = _DEFAULT_TTL) -> dict:
     }
 
 
-BLOC_INPUTS = {"FED": us_inputs, "ECB": ea_inputs, "BOE": uk_inputs}
+BLOC_INPUTS = {"FED": us_inputs, "ECB": ea_inputs, "BOE": uk_inputs, "BCB": br_inputs}
 
 
 def source_status() -> list[dict]:

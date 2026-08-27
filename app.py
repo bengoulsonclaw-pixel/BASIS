@@ -8837,8 +8837,18 @@ def _stir_flag_svgs() -> dict:
           '<rect y="14" width="60" height="12" fill="#fff"/>'
           '<rect x="26.6" width="6.8" height="40" fill="#C8102E"/>'
           '<rect y="16.6" width="60" height="6.8" fill="#C8102E"/></svg>')
+    # Brazil: green field, yellow lozenge, blue globe, white sash. Simplified — it
+    # renders at 19x12.5px on a button, where the 27 stars would be a smudge.
+    br = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 40">'
+          '<rect width="60" height="40" fill="#009B3A"/>'
+          '<polygon points="30,4.5 55,20 30,35.5 5,20" fill="#FEDF00"/>'
+          '<circle cx="30" cy="20" r="8.6" fill="#002776"/>'
+          '<clipPath id="brg"><circle cx="30" cy="20" r="8.6"/></clipPath>'
+          '<path d="M20 19.4Q30 26.6 40 18.2" fill="none" stroke="#fff" '
+          'stroke-width="2.7" clip-path="url(#brg)"/></svg>')
     enc = lambda s: base64.b64encode(s.encode()).decode()
-    return {"FED": enc("".join(us)), "ECB": enc("".join(eu)), "BOE": enc(uk)}
+    return {"FED": enc("".join(us)), "ECB": enc("".join(eu)), "BOE": enc(uk),
+            "BCB": enc(br)}
 
 
 _STIR_FLAG_B64 = _stir_flag_svgs()
@@ -14524,7 +14534,7 @@ _RADAR_TAB_FLAG_CSS = "".join(
     f"background:url(data:image/svg+xml;base64,{_STIR_FLAG_B64[bk]}) center/cover;"
     "margin-right:8px; border-radius:2px; vertical-align:-1.5px;"
     "box-shadow:0 0 0 1px rgba(255,255,255,0.22);}"
-    for bk in ("FED", "ECB", "BOE"))
+    for bk in macroradar.RADAR_BANKS)
 
 
 def _radar_prefs() -> dict:
@@ -14549,10 +14559,11 @@ def render_macro_radar() -> None:
     st.subheader("🏛️  Macro Rate Radar — policy rules vs what's priced")
     st.caption(
         "The formula rates desks argue about: **i = r\\* + π + 0.5(π − π\\*) + b·gap**. "
-        "Five rules, three central banks, run on public data only — FRED/ALFRED, Eurostat, "
-        "the ECB, the BoE, the ONS and the regional Feds. The number that matters is the "
-        "**spread against what the curve already prices** (from the STIR Paths fit), not "
-        "the rule level on its own.")
+        "Five rules, four central banks, run on public data only — FRED/ALFRED, Eurostat, "
+        "the ECB, the BoE, the ONS, the regional Feds and the BCB. The number that matters "
+        "is the **spread against what the curve already prices** (from the STIR Paths fit), "
+        "not the rule level on its own — except for Brazil, which has no fitted strip yet "
+        "and is compared against the **Focus survey** instead.")
 
     st.warning(
         "**Policy rules are prescriptive, not predictive.** No central bank follows one "
@@ -14593,11 +14604,14 @@ def render_macro_radar() -> None:
 
     # Flags via the STIR Paths CSS trick, NOT emoji: Windows has no flag emoji font —
     # 🇺🇸 degrades to the letters "US" on every Windows box (Ben hit this on day one).
-    bank_lbl = {"FED": "Fed", "ECB": "ECB", "BOE": "BoE"}
+    bank_lbl = {"FED": "Fed", "ECB": "ECB", "BOE": "BoE", "BCB": "Brazil"}
+    # How each bank reads after "…publishes this for ___" — a bare bank_lbl gives
+    # "for the Brazil", which is why the article lives in the phrase, not the label.
+    _BANK_FOR = {"FED": "the Fed", "ECB": "the ECB", "BOE": "the BoE", "BCB": "Brazil"}
     st.markdown(f"<style>{_RADAR_TAB_FLAG_CSS}</style>", unsafe_allow_html=True)
-    bcols = st.columns(3)
+    bcols = st.columns(len(macroradar.RADAR_BANKS))
     bank = st.session_state.setdefault("radar_bank", prefs.get("bank", "FED"))
-    for col, bk in zip(bcols, ("FED", "ECB", "BOE")):
+    for col, bk in zip(bcols, macroradar.RADAR_BANKS):
         if col.button(bank_lbl[bk], use_container_width=True, key=f"radar_bk_{bk}",
                       type="primary" if bank == bk else "secondary"):
             st.session_state["radar_bank"] = bank = bk
@@ -14618,19 +14632,34 @@ def render_macro_radar() -> None:
 
     # ---- assumption inputs (r* / NAIRU) — editable because for some blocs nobody publishes them
     saved = prefs.get("overrides", {}).get(bank, {})
+    # Seed the boxes from the engine's own per-bank fallback rather than the BoE's, so
+    # switching a bank does not silently offer it another bloc's assumption.
+    _seed_rs = macrorules.DEFAULT_RSTAR.get(bank) or 0.75
+    _seed_nu = macrorules.DEFAULT_NAIRU.get(bank) or 4.25
     with st.expander("⚙️  Assumptions — r\\* and the natural rate of unemployment", expanded=False):
         st.caption(
             "Where a bloc publishes these, the published value is used and these boxes stay "
             "empty. **The BoE leg has neither**: there is no UK estimate in Holston-Laubach-"
             "Williams and the ONS publishes no potential output, so both numbers below are "
             "assumptions, and the BoE prescription moves roughly one-for-one with r\\*.")
+        if bank == "BCB":
+            st.warning(
+                "**Brazil's gap term is the biggest assumption on this page.** Nobody "
+                "publishes a Brazilian NAIRU, and unemployment is near a record low, so the "
+                f"seeded u\\* of {_seed_nu:.2f}% is doing most of the work: each point of "
+                "u\\* moves the balanced rule's prescription by roughly two, via Okun. r\\* "
+                "is seeded at the ~5% neutral real rate the BCB discusses in its Inflation "
+                "Report but publishes nowhere. Move both and watch the prescription — if "
+                "the answer swings on your prior, that is the honest finding.", icon="⚠️")
         ac1, ac2, ac3 = st.columns([1, 1, 1])
         use_override = ac1.checkbox("Override", value=bool(saved),
                                     key=f"radar_ovr_{bank}")
-        rstar_in = ac2.number_input("r\\* (real neutral, %)", value=float(saved.get("rstar", 0.75)),
+        rstar_in = ac2.number_input("r\\* (real neutral, %)",
+                                    value=float(saved.get("rstar", _seed_rs)),
                                     step=0.05, format="%.2f", key=f"radar_rs_{bank}",
                                     disabled=not use_override)
-        nairu_in = ac3.number_input("NAIRU / u\\* (%)", value=float(saved.get("nairu", 4.25)),
+        nairu_in = ac3.number_input("NAIRU / u\\* (%)",
+                                    value=float(saved.get("nairu", _seed_nu)),
                                     step=0.05, format="%.2f", key=f"radar_nu_{bank}",
                                     disabled=not use_override)
         if st.button("💾 Save as this bank's default", key=f"radar_save_{bank}"):
@@ -14643,6 +14672,19 @@ def render_macro_radar() -> None:
 
     ov_rstar = rstar_in if use_override else None
     ov_nairu = nairu_in if use_override else None
+
+    # ---- forward-looking inflation (Brazil only, for now) ------------------------------
+    # An inflation targeter reacts to EXPECTED inflation, and the BCB is the only bank
+    # here whose expectations are published as free data (the weekly Focus survey). Off
+    # by default so every bloc is computed the same way unless asked otherwise.
+    use_exp = False
+    if bank == "BCB":
+        use_exp = st.checkbox(
+            "Use the Focus survey's 12-month-ahead IPCA expectation instead of realised core",
+            value=bool(prefs.get("bcb_expectations", False)), key="radar_use_exp",
+            help="The Copom sets policy against expected inflation on a forward horizon, "
+                 "so this is arguably the more faithful reading of its reaction function. "
+                 "No free equivalent exists for the Fed, ECB or BoE.")
 
     # ---- scenario sliders --------------------------------------------------------------
     with st.expander("🎛️  Scenario — shift the macro and watch the prescribed path move",
@@ -14668,7 +14710,7 @@ def render_macro_radar() -> None:
     with st.spinner("Pulling free macro data…"):
         try:
             res = macroradar.compare(bank, rule=rule_fn, nairu=ov_nairu, rstar=ov_rstar,
-                                     assume=assume)
+                                     assume=assume, use_expectations=use_exp)
         except Exception as e:
             st.error(f"Could not build the Radar for {bank}: {e}")
             return
@@ -14678,7 +14720,23 @@ def render_macro_radar() -> None:
                  "Check the Data health board.")
         return
 
-    x, prov = macrorules.inputs_from_data(bank, nairu=ov_nairu, rstar=ov_rstar)
+    x, prov = macrorules.inputs_from_data(bank, nairu=ov_nairu, rstar=ov_rstar,
+                                          use_expectations=use_exp)
+
+    # The whole page compares a prescription against a second path. For most banks that
+    # path is tradeable pricing; for Brazil it is a survey of forecasters, which is a
+    # materially weaker claim — so every label naming it is switched here, once.
+    _PRICED = "Expected by the Focus survey" if res.path_is_survey else "Priced by the STIR Strip"
+    _PRICED_COL = "Survey expects" if res.path_is_survey else "Priced policy"
+    _PRICED_CUM_COL = "Survey cumulative" if res.path_is_survey else "Priced cumulative"
+    if res.path_is_survey:
+        st.info(
+            f"**Brazil's comparison is against a survey, not against market pricing.** "
+            f"{res.strip_source} (published {res.strip_asof}), joined to the Copom "
+            "calendar the BCB publishes. A survey median carries no term premium, cannot "
+            "be executed, and moves once a week — so read the spread as *the rules "
+            "disagree with economists*, not as a mispricing. Fitting the DI1 curve is "
+            "what would make this a market comparison.", icon="🗳️")
 
     # ---- headline row -------------------------------------------------------------------
     m1, m2, m3, m4 = st.columns(4)
@@ -14741,8 +14799,8 @@ def render_macro_radar() -> None:
 
     if prov.assumed:
         st.info(f"**Assumed, not measured:** {', '.join(prov.assumed)} — nobody publishes "
-                f"{'these' if len(prov.assumed) > 1 else 'this'} for the "
-                f"{bank_lbl[bank].split()[-1]}. Set them under *Assumptions* above; the "
+                f"{'these' if len(prov.assumed) > 1 else 'this'} for "
+                f"{_BANK_FOR[bank]}. Set them under *Assumptions* above; the "
                 f"prescription moves with them.", icon="✏️")
     if prov.stale:
         st.caption(f"⏳ Stale source: {', '.join(prov.stale)} — r\\* comes from "
@@ -14766,14 +14824,19 @@ def render_macro_radar() -> None:
     st.caption(res.summary.verdict)
 
     # ---- prescribed vs priced -----------------------------------------------------------
-    st.markdown("#### Prescribed vs priced")
+    st.markdown("#### Prescribed vs expected" if res.path_is_survey
+                else "#### Prescribed vs priced")
     if not res.ok or not res.meetings:
         st.warning(f"No market-implied path available: {res.reason}", icon="⚠️")
     elif all_mode:
         st.caption(
-            f"All five rule paths against the market path from the STIR Paths fit of the "
-            f"live strip (store as-of **{res.strip_asof}**). Positive spread = the rule "
-            f"wants a **higher** policy rate than the curve has priced.")
+            (f"All five rule paths against the **Focus survey's** expected Copom path "
+             f"(survey of **{res.strip_asof}**). Positive spread = the rule wants a "
+             f"**higher** policy rate than forecasters expect."
+             if res.path_is_survey else
+             f"All five rule paths against the market path from the STIR Paths fit of the "
+             f"live strip (store as-of **{res.strip_asof}**). Positive spread = the rule "
+             f"wants a **higher** policy rate than the curve has priced."))
         meeting_ds = [m.meeting for m in res.meetings]
         paths = {}
         for _k, _n, _f in _RADAR_RULES:
@@ -14786,23 +14849,30 @@ def render_macro_radar() -> None:
 
         try:
             import altair as alt
-            chart_rows = [{"meeting": m.meeting.isoformat(), "rate": m.priced_policy,
-                           "series": "Priced by the STIR Strip"} for m in res.meetings]
+            chart_rows = [{"meeting": m.meeting.isoformat(),
+                           "mlabel": m.meeting.strftime("%d %b %Y"),
+                           "rate": m.priced_policy,
+                           "series": _PRICED} for m in res.meetings]
             for _n, pth in paths.items():
                 for m in res.meetings:
                     p = pth.get(m.meeting)
                     if p is not None:
                         chart_rows.append({"meeting": m.meeting.isoformat(),
+                                           "mlabel": m.meeting.strftime("%d %b %Y"),
                                            "rate": p, "series": _n})
             cdf = pd.DataFrame(chart_rows)
-            dom = ["Priced by the STIR Strip"] + list(paths)
+            dom = [_PRICED] + list(paths)
             rng = ["#F5C518", "#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65", "#F06292"]
             # ticks/grid on the meeting dates themselves — the axis is linear calendar
             # time, and anchoring the labels to the meetings makes the uneven 6-7 week
             # FOMC spacing readable instead of leaving arbitrary fortnightly ticks
             _mticks = [m.meeting.isoformat() for m in res.meetings]
             base = alt.Chart(cdf).encode(
-                x=alt.X("meeting:T", title=None,
+                # UTC scale, not the default local one: Vega parses a bare "2026-09-16"
+                # as UTC midnight and then LABELS it in the browser's timezone, so west of
+                # Greenwich every meeting rendered a day early (16 Sep showed as 15 Sep —
+                # and for a two-day Copom that is the wrong day of the meeting entirely).
+                x=alt.X("meeting:T", title=None, scale=alt.Scale(type="utc"),
                         axis=alt.Axis(values=_mticks, format="%d %b %y",
                                       labelAngle=-40, grid=True,
                                       gridOpacity=0.25, gridDash=[2, 3])),
@@ -14812,9 +14882,9 @@ def render_macro_radar() -> None:
                                 legend=alt.Legend(title=None, orient="top", labelLimit=0,
                                                   columns=3)),
                 # the strip is the reference — draw it heavier than the rule paths
-                size=alt.condition(alt.datum.series == "Priced by the STIR Strip",
+                size=alt.condition(alt.datum.series == _PRICED,
                                    alt.value(3.5), alt.value(1.6)),
-                tooltip=[alt.Tooltip("meeting:T", title="Meeting"),
+                tooltip=[alt.Tooltip("mlabel:N", title="Meeting"),
                          alt.Tooltip("series:N", title=""),
                          alt.Tooltip("rate:Q", title="Rate", format=".2f")])
             lines = base.mark_line(interpolate="step-after")
@@ -14829,7 +14899,7 @@ def render_macro_radar() -> None:
         sp_rows = []
         for m in res.meetings:
             row = {"Meeting": m.meeting.strftime("%d %b %Y"),
-                   "Priced policy": f"{m.priced_policy:.3f}%"}
+                   _PRICED_COL: f"{m.priced_policy:.3f}%"}
             for _n, pth in paths.items():
                 p = pth.get(m.meeting)
                 row[_n] = "—" if p is None else f"{(p - m.priced_policy) * 100:+.0f}bp"
@@ -14865,15 +14935,20 @@ def render_macro_radar() -> None:
                 "dispersion (options) observation, not a directional one.")
     else:
         st.caption(
-            f"Market path from the STIR Paths fit of the live strip "
-            f"(store as-of **{res.strip_asof}**). Positive spread = the rules want a "
-            f"**higher** policy rate than the curve has priced.")
+            (f"Expected path from the **BCB Focus survey** of professional forecasters "
+             f"(survey of **{res.strip_asof}**), joined to the published Copom calendar. "
+             f"Positive spread = the rules want a **higher** policy rate than "
+             f"forecasters expect."
+             if res.path_is_survey else
+             f"Market path from the STIR Paths fit of the live strip "
+             f"(store as-of **{res.strip_asof}**). Positive spread = the rules want a "
+             f"**higher** policy rate than the curve has priced."))
         rows = []
         for m in res.meetings:
             rows.append({
                 "Meeting": m.meeting.strftime("%d %b %Y"),
-                "Priced policy": f"{m.priced_policy:.3f}%",
-                "Priced cumulative": f"{m.priced_cum_bp:+.1f}bp",
+                _PRICED_COL: f"{m.priced_policy:.3f}%",
+                _PRICED_CUM_COL: f"{m.priced_cum_bp:+.1f}bp",
                 "Rule prescribes": "—" if m.prescribed is None else f"{m.prescribed:.2f}%",
                 "Spread": "—" if m.spread_bp is None else f"{m.spread_bp:+.0f}bp",
             })
@@ -14884,17 +14959,23 @@ def render_macro_radar() -> None:
             chart_rows = []
             for m in res.meetings:
                 chart_rows.append({"meeting": m.meeting.isoformat(),
-                                   "rate": m.priced_policy, "series": "Priced by the STIR Strip"})
+                                   "mlabel": m.meeting.strftime("%d %b %Y"),
+                                   "rate": m.priced_policy, "series": _PRICED})
                 if m.prescribed is not None:
                     chart_rows.append({"meeting": m.meeting.isoformat(),
+                                       "mlabel": m.meeting.strftime("%d %b %Y"),
                                        "rate": m.prescribed,
                                        "series": f"{res.rule_name} prescribes"})
             cdf = pd.DataFrame(chart_rows)
-            dom = ["Priced by the STIR Strip", f"{res.rule_name} prescribes"]
+            dom = [_PRICED, f"{res.rule_name} prescribes"]
             rng = ["#F5C518", "#64B5F6"]
             _mticks = [m.meeting.isoformat() for m in res.meetings]
             base = alt.Chart(cdf).encode(
-                x=alt.X("meeting:T", title=None,
+                # UTC scale, not the default local one: Vega parses a bare "2026-09-16"
+                # as UTC midnight and then LABELS it in the browser's timezone, so west of
+                # Greenwich every meeting rendered a day early (16 Sep showed as 15 Sep —
+                # and for a two-day Copom that is the wrong day of the meeting entirely).
+                x=alt.X("meeting:T", title=None, scale=alt.Scale(type="utc"),
                         axis=alt.Axis(values=_mticks, format="%d %b %y",
                                       labelAngle=-40, grid=True,
                                       gridOpacity=0.25, gridDash=[2, 3])),
@@ -14903,7 +14984,7 @@ def render_macro_radar() -> None:
                 color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
                                 legend=alt.Legend(title=None, orient="top",
                                                   labelLimit=0)),
-                tooltip=[alt.Tooltip("meeting:T", title="Meeting"),
+                tooltip=[alt.Tooltip("mlabel:N", title="Meeting"),
                          alt.Tooltip("series:N", title=""),
                          alt.Tooltip("rate:Q", title="Rate", format=".2f")])
             lines = base.mark_line(interpolate="step-after", point=True)
@@ -14916,15 +14997,24 @@ def render_macro_radar() -> None:
 
         md = res.max_divergence
         if md is not None:
+            _who = "the Focus survey expects" if res.path_is_survey else "the curve prices"
             st.info(f"**Widest disagreement: {md.spread_bp:+.0f}bp at the "
-                    f"{md.meeting:%d %b %Y} meeting** — the curve prices "
+                    f"{md.meeting:%d %b %Y} meeting** — {_who} "
                     f"{md.priced_policy:.2f}% there against a rule prescription of "
                     f"{md.prescribed:.2f}%.", icon="📌")
 
     # ---- contract edge -------------------------------------------------------------------
     with st.expander("💷  If the rule path is right — contract edge and P&L per lot",
                      expanded=False):
-        if all_mode:
+        # Survey banks have no strip to reprice: contract_edges() walks the stirpaths
+        # PRODUCTS table, and Brazil deliberately has none until DI1 is modelled.
+        if res.path_is_survey:
+            st.caption(
+                "This needs a strip to reprice. Brazil's DI1 curve is not in the universe "
+                "yet, so there is nothing to price the rule path against beyond the survey "
+                "comparison above.")
+            edges = []
+        elif all_mode:
             st.caption(
                 "The edge table prices the strip off ONE prescribed path — pick a single "
                 "rule above to see it. In the overview the spread table serves the same "
@@ -15088,10 +15178,13 @@ def render_macro_radar() -> None:
                 _live = None
             if _live is not None and _live["when"] > hist[-1]["when"]:
                 hist = hist + [_live]
-            chart_rows = [{"when": row["when"].isoformat(), "rate": row["policy"],
-                           "series": _actual} for row in hist]
+            chart_rows = [{"when": row["when"].isoformat(),
+                           "wlabel": row["when"].strftime("%b %Y"),
+                           "rate": row["policy"], "series": _actual} for row in hist]
             for k in sel_hist:
-                chart_rows += [{"when": row["when"].isoformat(), "rate": row[k],
+                chart_rows += [{"when": row["when"].isoformat(),
+                                "wlabel": row["when"].strftime("%b %Y"),
+                                "rate": row[k],
                                 "series": _hist_names[k]} for row in hist]
             cdf = pd.DataFrame(chart_rows)
             dom = [_actual] + [_hist_names[k] for k in sel_hist]
@@ -15099,7 +15192,10 @@ def render_macro_radar() -> None:
             base = alt.Chart(cdf).encode(
                 # No forced tick format: Vega's adaptive time labels show years at the
                 # full 14-year view and switch to months as the pan/zoom closes in.
-                x=alt.X("when:T", title=None,
+                # UTC scale for the same reason as the meeting charts above: a bare
+                # "2012-01-01" is parsed as UTC midnight and labelled locally, which west
+                # of Greenwich reads as December 2011.
+                x=alt.X("when:T", title=None, scale=alt.Scale(type="utc"),
                         axis=alt.Axis(grid=True,
                                       gridOpacity=0.25, gridDash=[2, 3])),
                 y=alt.Y("rate:Q", title="Rate (%)", scale=alt.Scale(zero=False)),
@@ -15108,7 +15204,7 @@ def render_macro_radar() -> None:
                                                   labelLimit=0)),
                 size=alt.condition(alt.datum.series == _actual,
                                    alt.value(3.0), alt.value(1.6)),
-                tooltip=[alt.Tooltip("when:T", title="Month", format="%b %Y"),
+                tooltip=[alt.Tooltip("wlabel:N", title="Month"),
                          alt.Tooltip("series:N", title=""),
                          alt.Tooltip("rate:Q", title="Rate", format=".2f")])
             # Scale-bound pan/zoom (drag to pan, wheel to zoom) — the Bloomberg-chart

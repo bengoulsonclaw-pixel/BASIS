@@ -37,7 +37,7 @@ OUT_DIR = _SRC.parent / "data" / "reports"
 
 BLUE = "#1F5FA8"
 BANK_TITLE = {"FED": "Federal Reserve", "ECB": "European Central Bank",
-              "BOE": "Bank of England"}
+              "BOE": "Bank of England", "BCB": "Banco Central do Brasil"}
 RULE_FN = {"balanced": macrorules.balanced, "taylor93": macrorules.taylor93,
            "shortfalls": macrorules.shortfalls, "inertial": macrorules.inertial,
            "firstdiff": macrorules.first_difference}
@@ -49,7 +49,8 @@ def _path_png(res: "macroradar.RadarResult") -> str:
     fig, ax = plt.subplots(figsize=(6.1, 2.9))
     xs = [m.meeting for m in res.meetings]
     ax.step(xs, [m.priced_policy for m in res.meetings], where="post", color=BLUE,
-            lw=2.2, label="Priced by the STIR Strip")
+            lw=2.2, label=("Expected by the Focus survey" if res.path_is_survey
+                           else "Priced by the STIR Strip"))
     ax.scatter(xs, [m.priced_policy for m in res.meetings], s=14, color=BLUE, zorder=3)
     if ms:
         ax.plot([m.meeting for m in ms], [m.prescribed for m in ms], color="#C8901A",
@@ -111,8 +112,12 @@ def _summary_prose(bank: str, res: "macroradar.RadarResult",
     if hb is not None and res.meetings:
         last = [m for m in res.meetings if m.spread_bp is not None][-1]
         side = "more tightening" if hb > 0 else "more easing"
+        # Brazil is compared against a survey of forecasters, not against a strip, and
+        # the sentence has to say which — the two are not the same claim.
+        against = ("the Focus survey of forecasters currently expects"
+                   if res.path_is_survey else "the futures strip currently prices")
         bits.append(f"Taken to the {last.meeting:%B %Y} meeting, the rule path implies "
-                    f"{abs(hb):.0f}bp {side} than the futures strip currently prices — "
+                    f"{abs(hb):.0f}bp {side} than {against} — "
                     f"a divergence that may be worth a closer look.")
     if prov and prov.assumed:
         bits.append(f"Note: {', '.join(prov.assumed)} "
@@ -171,6 +176,29 @@ def build(bank: str = "FED", rule_key: str = "balanced", *,
         have_path=bool(res.ok and res.meetings),
         path_reason=res.reason,
         strip_asof=res.strip_asof or "—",
+        # Brazil is compared against a survey of forecasters, not a futures strip, so
+        # every phrase naming the other side of the comparison is parameterised. The
+        # template cannot infer this and the wrong noun would be a compliance problem:
+        # a survey median is not a market price.
+        priced_by=("the Focus survey of forecasters currently expects"
+                   if res.path_is_survey else "the futures strip currently prices"),
+        priced_kpi_lab=("Vs the survey" if res.path_is_survey else "Vs the strip"),
+        priced_kpi_note=("prescribed − expected, furthest meeting" if res.path_is_survey
+                         else "prescribed − priced, furthest meeting"),
+        path_banner=("Prescribed vs Expected — rule path against the Focus survey"
+                     if res.path_is_survey else
+                     "Prescribed vs Priced — rule path against the futures strip"),
+        priced_col=("Survey expects (%)" if res.path_is_survey else "Priced policy (%)"),
+        priced_cum_col=("Survey cum (bp)" if res.path_is_survey else "Priced cum (bp)"),
+        path_note=(("Expected path from the BCB Focus survey of professional forecasters "
+                    f"({res.strip_asof}), joined to the published Copom calendar. A survey "
+                    "median carries no term premium and cannot be executed: a positive "
+                    "spread means the rule prescribes a higher rate than economists expect")
+                   if res.path_is_survey else
+                   ("Market path from the exchange settlement strip "
+                    f"({res.strip_asof}), inverted into a meeting path: a positive spread "
+                    "means the rule prescribes a higher rate than the curve has priced at "
+                    "that meeting")),
         rule_rows=rule_rows, meet_rows=meet_rows, inputs_rows=inputs_rows,
         infl=f"{x.infl:.2f}", target=f"{x.target:.2f}", rstar=f"{x.rstar:.2f}",
         gap=("—" if x.gap() is None else f"{x.gap():+.2f}"),
@@ -183,7 +211,8 @@ def build(bank: str = "FED", rule_key: str = "balanced", *,
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--bank", default="FED", choices=["FED", "ECB", "BOE"])
+    ap.add_argument("--bank", default="FED",
+                    choices=["FED", "ECB", "BOE", "BCB"])
     ap.add_argument("--rule", default="balanced", choices=sorted(RULE_FN))
     ap.add_argument("--out", default=None)
     a = ap.parse_args()

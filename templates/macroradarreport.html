@@ -40,7 +40,7 @@
       Simple monetary-policy rules &mdash; the Taylor-rule family relating the policy rate to
       inflation and the output gap &mdash; evaluated on current public data (inflation
       {{ infl }}% vs a {{ target }}% objective, r* {{ rstar }}%, output gap {{ gap }}pp), and set
-      against the meeting path the futures strip currently prices. {{ summary_prose }}
+      against the meeting path {{ priced_by }}. {{ summary_prose }}
     </p>
 
     <div class="kpis">
@@ -50,8 +50,8 @@
         <div class="val">{{ median }}%</div><div class="note">{{ median_gap }} bp vs policy</div></div>
       <div class="kpi"><div class="lab">Rule dispersion</div>
         <div class="val">{{ dispersion }} bp</div><div class="note">highest minus lowest</div></div>
-      <div class="kpi"><div class="lab">Vs the strip</div>
-        <div class="val">{{ headline }} bp</div><div class="note">prescribed &minus; priced, furthest meeting</div></div>
+      <div class="kpi"><div class="lab">{{ priced_kpi_lab }}</div>
+        <div class="val">{{ headline }} bp</div><div class="note">{{ priced_kpi_note }}</div></div>
     </div>
 
     <div class="section">
@@ -77,13 +77,13 @@
 
     {% if have_path %}
     <div class="section">
-      <div class="banner">Prescribed vs Priced &mdash; rule path against the futures strip</div>
+      <div class="banner">{{ path_banner }}</div>
       <div class="chart"><img src="{{ path_chart }}" alt="Prescribed vs priced path"></div>
     </div>
 
     <table>
       <thead>
-        <tr><th>Meeting</th><th class="center">Priced policy (%)</th><th class="center">Priced cum (bp)</th>
+        <tr><th>Meeting</th><th class="center">{{ priced_col }}</th><th class="center">{{ priced_cum_col }}</th>
             <th class="center">Rule prescribes (%)</th><th class="center">Spread (bp)</th></tr>
       </thead>
       <tbody>
@@ -98,9 +98,7 @@
         {% endfor %}
       </tbody>
     </table>
-    <p class="note">Market path from the exchange settlement strip ({{ strip_asof }}), inverted into a
-      per-meeting step path. A positive spread means the rules point to a higher policy rate than the
-      curve has priced at that meeting; a negative spread the reverse.</p>
+    <p class="note">{{ path_note }}; a negative spread the reverse.</p>
     {% else %}
     <p class="note">No market-implied path was available for this run ({{ path_reason }});
       the rule prescriptions above stand alone.</p>

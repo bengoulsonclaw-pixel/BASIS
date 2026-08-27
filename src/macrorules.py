@@ -355,10 +355,21 @@ def prescribed_path(x: RuleInputs, meeting_dates: list, rule=balanced,
 # must present them as editable inputs, never as data.
 DEFAULT_NAIRU = {"FED": None,      # CBO publishes it (NROU) — never guess for the US
                  "ECB": 6.8,       # euro-area structural unemployment, broad consensus
-                 "BOE": 4.25}      # BoE's own medium-term equilibrium U assumption
+                 "BOE": 4.25,      # BoE's own medium-term equilibrium U assumption
+                 # Brazil publishes no NAIRU and the estimates that exist disagree
+                 # violently — older work put it near 9-10%, more recent work well
+                 # below that after years of sub-6% unemployment without a wage
+                 # spiral. This is THE most consequential number on the Brazil leg:
+                 # unemployment is ~5.4%, so every point of NAIRU moves the balanced
+                 # rule's prescription by two (Okun) and the page must present it as
+                 # the assumption it is, not as data.
+                 "BCB": 8.0}
 DEFAULT_RSTAR = {"FED": None,      # HLW publishes it
                  "ECB": None,      # HLW publishes it
-                 "BOE": 0.75}      # no HLW UK estimate exists — pure assumption
+                 "BOE": 0.75,      # no HLW UK estimate exists — pure assumption
+                 # The BCB discusses a neutral REAL rate around 5% in its Inflation
+                 # Report boxes but publishes no series to read it from.
+                 "BCB": 5.0}
 
 
 @dataclass
@@ -372,6 +383,7 @@ class InputProvenance:
 
 def inputs_from_data(bank: str, *, nairu: float | None = None,
                      rstar: float | None = None, use_core: bool = True,
+                     use_expectations: bool = False,
                      when=None) -> tuple[RuleInputs, InputProvenance]:
     """Build a RuleInputs for one bank from the free data layer.
 
@@ -382,6 +394,13 @@ def inputs_from_data(bank: str, *, nairu: float | None = None,
          that is looked up from history here rather than left unavailable.
       3. Where a bloc publishes no r* or NAIRU, the fallback is recorded in `provenance
          .assumed` so the page can flag it instead of passing it off as measured.
+
+    `use_expectations` swaps realised inflation for the bloc's published 12-month-ahead
+    survey expectation where one exists (today: Brazil only, via the BCB's Focus survey).
+    That is not a cosmetic switch — an inflation targeter sets policy against EXPECTED
+    inflation, so for the BCB the expectations form is the more faithful reading of the
+    committee's own reaction function. It is off by default so every bloc is computed the
+    same way unless the caller asks otherwise.
     """
     from src import macrodata
 
@@ -407,6 +426,17 @@ def inputs_from_data(bank: str, *, nairu: float | None = None,
     infl, _ = pick("core_infl" if use_core else "headline_infl", "inflation")
     if infl is None:                       # fall back to headline rather than give up
         infl, _ = pick("headline_infl", "inflation")
+    infl_label = "core inflation" if use_core else "headline inflation"
+    if use_expectations:
+        exp = data.get("focus_12m")
+        if isinstance(exp, dict) and exp.get("median") is not None:
+            infl = float(exp["median"])
+            infl_label = "12m-ahead inflation expectations"
+            prov.sources["inflation"] = (
+                f"BCB Focus survey · median 12m-ahead IPCA, {exp.get('n')} respondents "
+                f"({exp.get('asof')})")
+        else:
+            prov.missing.append("inflation expectations")
     policy, _ = pick("policy", "policy rate")
     u, u_series = pick("unemp", "unemployment")
 
@@ -467,7 +497,7 @@ def inputs_from_data(bank: str, *, nairu: float | None = None,
                    unemp=u, nairu=nr, output_gap=out_gap,
                    policy_rate=policy if policy is not None else 0.0,
                    prev_policy_rate=policy, gap_lag4=gap_lag4,
-                   infl_label="core inflation" if use_core else "headline inflation")
+                   infl_label=infl_label)
     return x, prov
 
 

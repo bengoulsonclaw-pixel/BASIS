@@ -31,8 +31,46 @@ from datetime import date
 from src import macrorules, stirpaths
 
 
+# ── which banks this module covers, and what to call them ───────────────────────────
+# NOT the same list as stirpaths.BANKS, deliberately. Brazil has a macro leg (BCB data
+# is free and rich) but no fitted strip: its DI1 futures are a different instrument —
+# compounded to a fixed maturity on a business-252 count, not a 100−rate averaging
+# contract — and modelling them is its own build. Adding BCB to stirpaths.BANKS would
+# put a permanently empty Brazil column on the STIR Paths page, so the radar keeps its
+# own roster and reads display metadata from stirpaths only where it exists.
+@dataclass(frozen=True)
+class _BankMeta:
+    key: str
+    name: str
+    meeting_name: str
+    rate_name: str
+    ccy: str = "$"
+
+
+_EXTRA_BANKS = {
+    "BCB": _BankMeta("BCB", "Banco Central do Brasil", "Copom", "Selic target", "R$"),
+}
+
+RADAR_BANKS: list[str] = list(stirpaths.BANKS) + list(_EXTRA_BANKS)
+
+
+def bank_meta(bank: str):
+    """Display metadata for any radar bank, whether or not it has a fitted strip."""
+    bank = bank.upper()
+    return stirpaths.BANKS.get(bank) or _EXTRA_BANKS[bank]
+
+
+def is_survey_bank(bank: str) -> bool:
+    """True where the 'priced' side is a survey rather than tradeable market pricing."""
+    return bank.upper() in _EXTRA_BANKS
+
+
 def policy_from_overnight(bank: str, overnight: float) -> float:
-    """Overnight proxy -> policy rate, undoing the bank's fixing basis."""
+    """Overnight proxy -> policy rate, undoing the bank's fixing basis.
+
+    Survey banks are quoted in POLICY rates already (the Focus survey asks for the Selic
+    target, not for an overnight fixing), so their basis is absent from BANK_BASIS_SEED
+    and this is correctly a no-op for them."""
     return overnight - stirpaths.BANK_BASIS_SEED.get(bank.upper(), 0.0) / 100.0
 
 
@@ -65,6 +103,10 @@ class RadarResult:
     strip_asof: str | None = None
     strip_source: str = ""
     reason: str = ""
+    # True when the comparison is against a SURVEY of forecasters rather than against
+    # tradeable pricing. Every label the user sees has to change with this: a survey
+    # median carries no risk premium, cannot be executed, and moves once a week.
+    path_is_survey: bool = False
 
     @property
     def headline_bp(self) -> float | None:
@@ -79,30 +121,79 @@ class RadarResult:
         return max(usable, key=lambda m: abs(m.spread_bp)) if usable else None
 
 
+@dataclass
+class _SurveyFit:
+    """The shape compare() needs from a strip fit, filled from a survey instead.
+
+    Mirrors the stirpaths fit contract exactly — `seg_rates[0]` is today and
+    `seg_rates[i+1]` is the level after meeting i — so the comparison below is written
+    once and works for both. The rates here are POLICY rates already, which is why the
+    basis conversion is a no-op for these banks."""
+    meetings: list[date]
+    seg_rates: list[float]
+    cum_bp: list[float]
+    source: str = ""
+    asof_label: str = ""
+
+
+def _survey_fit(bank: str, policy_now: float, asof: date) -> "_SurveyFit | None":
+    """Build a meeting path from the BCB's Focus survey of professional forecasters.
+
+    This is Brazil's stand-in for a fitted strip until the DI1 curve is modelled. It is
+    a genuinely different object from a market-implied path and the difference is not
+    pedantic: a survey median is a central expectation with no term premium in it, so
+    the spread against a rule prescription means "the rules disagree with economists",
+    not "the rules disagree with the price of risk"."""
+    from src import macrodata
+
+    rows = [r for r in macrodata.focus_selic_path() if r.get("meeting")]
+    rows = [r for r in rows if r["meeting"] > asof]
+    if not rows:
+        return None
+    meetings = [r["meeting"] for r in rows]
+    seg = [policy_now] + [float(r["median"]) for r in rows]
+    cum = [(float(r["median"]) - policy_now) * 100.0 for r in rows]
+    n = rows[0].get("n")
+    return _SurveyFit(meetings, seg, cum,
+                      source=f"BCB Focus survey — median of {n} forecasters"
+                             if n else "BCB Focus survey — median",
+                      asof_label=str(rows[0].get("asof") or ""))
+
+
 def compare(bank: str, *, rule=macrorules.balanced, asof: date | None = None,
             nairu: float | None = None, rstar: float | None = None,
             assume: "macrorules.PathAssumption | None" = None,
+            use_expectations: bool = False,
             max_meetings: int = 8) -> RadarResult:
     """Prescribed path vs priced path for one bank."""
     bank = bank.upper()
     asof = asof or date.today()
 
-    x, prov = macrorules.inputs_from_data(bank, nairu=nairu, rstar=rstar)
+    x, prov = macrorules.inputs_from_data(bank, nairu=nairu, rstar=rstar,
+                                          use_expectations=use_expectations)
     res = macrorules.evaluate(x)
     summary = macrorules.summarise(res, x.policy_rate)
     now = rule(x)
 
+    survey = is_survey_bank(bank)
     fit = None
     try:
-        fit = stirpaths.default_bank_fit(bank, asof)
+        fit = (_survey_fit(bank, x.policy_rate, asof) if survey
+               else stirpaths.default_bank_fit(bank, asof))
     except Exception as e:
         return RadarResult(bank, False, asof, x.policy_rate, now.key, now.name,
                            now.prescribed, summary, [], prov,
-                           reason=f"no market-implied path: {e}")
+                           reason=f"no expected path: {e}" if survey
+                                  else f"no market-implied path: {e}",
+                           path_is_survey=survey)
     if fit is None or not len(fit.meetings):
         return RadarResult(bank, False, asof, x.policy_rate, now.key, now.name,
                            now.prescribed, summary, [], prov,
-                           reason="no market-implied path available for this bank")
+                           reason=("no Focus survey path available — the BCB feed is "
+                                   "unreachable or quotes no dated meeting"
+                                   if survey else
+                                   "no market-implied path available for this bank"),
+                           path_is_survey=survey)
 
     meetings = list(fit.meetings)[:max_meetings]
     path = dict(macrorules.prescribed_path(x, meetings, rule=rule, assume=assume,
@@ -120,7 +211,11 @@ def compare(bank: str, *, rule=macrorules.balanced, asof: date | None = None,
                                    None if pres is None else (pres - priced) * 100.0))
 
     return RadarResult(bank, True, asof, x.policy_rate, now.key, now.name, now.prescribed,
-                       summary, rows, prov, stirpaths.strip_store_asof())
+                       summary, rows, prov,
+                       strip_asof=(fit.asof_label if survey
+                                   else stirpaths.strip_store_asof()),
+                       strip_source=(fit.source if survey else ""),
+                       path_is_survey=survey)
 
 
 # ── turning a divergence into a trade ───────────────────────────────────────────────
@@ -247,7 +342,9 @@ GAP_MIN_BP = 50.0
 # against the rule — or crossed sides. First-ever appearances still show once.
 GAP_MOVE_BP = 20.0
 
-# The bank's flagship strip ticker, for the Hot Sheet's sector filter.
+# The bank's flagship strip ticker, for the Hot Sheet's sector filter. Brazil has no
+# entry: its DI1 curve is not in the universe, and pointing the filter at BRL FX would
+# file a rates signal under a currency.
 _RADAR_TICKER = {"FED": "SFRA Comdty", "ECB": "ERA Comdty", "BOE": "SFIA Comdty"}
 
 
@@ -288,7 +385,7 @@ def radar_items() -> list:
     orig_http = macrodata._http
     macrodata._http = _no_network
     try:
-        for bk in stirpaths.BANKS:
+        for bk in RADAR_BANKS:
             try:
                 res = compare(bk)
             except Exception:                     # one dead bank never blanks the sheet
@@ -312,6 +409,8 @@ def radar_items() -> list:
             if res.provenance is not None and res.provenance.assumed:
                 caveat = f" ({' and '.join(res.provenance.assumed)} assumed for this bloc)"
             side = "above" if gap > 0 else "below"
+            versus = ("what the **Focus survey** expects for the"
+                      if res.path_is_survey else "what the market prices for the")
             if flipped:
                 move = " The prescription has **crossed** to the other side of the market."
             elif prev is not None:
@@ -323,8 +422,8 @@ def radar_items() -> list:
             out.append(hotsheet.item(
                 tag="MACRO", key=f"{bk}:rulegap", section="Policy rules",
                 text=(f"The **{res.rule_name}** rule prescribes a policy rate "
-                      f"**{abs(gap):.0f}bp {side}** what the market prices for the "
-                      f"**{stirpaths.BANKS[bk].name}**{caveat}.{move}"),
+                      f"**{abs(gap):.0f}bp {side}** {versus} "
+                      f"**{bank_meta(bk).name}**{caveat}.{move}"),
                 metric=f"{gap:+.0f} bp", sub=f"by the {last.meeting:%b %Y} meeting",
                 heat=(min(100.0, abs(gap - prev) / 50.0 * 100.0) if prev is not None
                       else min(100.0, abs(gap) / 150.0 * 100.0)),
