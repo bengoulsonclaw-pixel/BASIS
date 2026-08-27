@@ -1,25 +1,43 @@
 {
- "generated_at": "26 Aug 2026 · 07:21 ET",
- "synopsis": "Energy is the story this morning: Brent is down 2.9% to $86 and WTI off 2.5% to just above $80 after reports that Iran and Oman are pushing talks toward an \"interim\" reopening of the Strait of Hormuz, with Saudi Aramco reportedly offering more barrels routed outside the Strait — a double hit to the supply-risk premium.",
- "commentary": "Energy is the story this morning: Brent is down 2.9% to $86 and WTI off 2.5% to just above $80 after reports that Iran and Oman are pushing talks toward an \"interim\" reopening of the Strait of Hormuz, with Saudi Aramco reportedly offering more barrels routed outside the Strait — a double hit to the supply-risk premium. A 4.2m-bbl API crude build compounded the move, and the curve confirms it: Brent's prompt spread has slumped to its weakest since mid-July and implied vol keeps bleeding lower.\n\nProducts are leading the way down — gasoil off nearly 5%, heating oil -3.3% — though European gasoline cracks remain at multi-month highs, so watch refined spreads rather than flat price for the cleaner signal. TTF fell 3% in sympathy. The broader tone is cautious rather than risk-off: US index futures are flat-to-lower as traders sit on their hands ahead of Nvidia earnings — the key test of the AI trade's durability — and the July PCE inflation print. Rates are the tension point: ECB's Schnabel says rates must rise further on inflation risks, while in the US the Treasury's buyback interventions are on a collision course with the Warsh Fed's inflation fight, and positioning against long bonds looks crowded enough to squeeze, according to reports.\n\nGold has eased off a three-month high awaiting Jackson Hole clarity. Elsewhere, wheat is up 1.6% across both boards and coffee is unwinding hard (-2.5% robusta). Watch EIA stocks, PCE, Nvidia, then Jackson Hole.",
+ "generated_at": "27 Aug 2026 · 07:40 ET",
+ "synopsis": "Risk tone this morning is two-track: Nvidia's blowout AI-driven sales outlook has Nasdaq futures up 1.1% and the S&P firmer, reinforcing the view that the capex supercycle has legs, while Europe lags — Euro Stoxx Banks off 1.4% and the FTSE lower as fiscal nerves bite. Bund and Buxl futures are sliding, with French OATs underperforming as Paris's borrowing costs have overtaken Rome's on budget and election worries…",
+ "commentary": "Risk tone this morning is two-track: Nvidia's blowout AI-driven sales outlook has Nasdaq futures up 1.1% and the S&P firmer, reinforcing the view that the capex supercycle has legs, while Europe lags — Euro Stoxx Banks off 1.4% and the FTSE lower as fiscal nerves bite. Bund and Buxl futures are sliding, with French OATs underperforming as Paris's borrowing costs have overtaken Rome's on budget and election worries — the structural repricing of term premium, with governments and AI hyperscalers competing for capital, keeps pressure on the long end globally.\n\nThe main event is Jackson Hole: Kevin Warsh delivers his first speech as Fed Chair Friday, with markets wary of his inflation approach, a reported Bessent–Warsh split over who sets the price of money, and Trump renewing his bid to oust Lisa Cook. The dollar is recouping losses into it; jobless claims at the lowest since mid-May give little cover for dovishness. In commodities, the softs are the show: arabica coffee is down 3.8% off record highs as Trump's tariff threats on Colombia were withdrawn, robusta following, while cocoa rips 4.4% higher and OJ collapses 6% — a volatile, idiosyncratic complex.\n\nEnergy is quieter but the internals matter: Brent holds near $88 with timespreads softening into expiry even as product cracks firm on falling US stockpiles, Hormuz flows keep coming through, and Putin's escalation in Ukraine plus the EU's frozen-asset plan keep a geopolitical bid under TTF (+1.7%) and Henry Hub. Copper and aluminium ease with the softer China tone. Watch Warsh on Friday — the whole rates curve, the dollar and gold trade off it.",
  "headlines": [
   {
-   "source": "Bloomberg",
-   "title": "Latest Oil Market News and Analysis for Aug. 26 — Oil fell for a third day as Iran and Oman discussed a potential deal to resume shipping through the Strait of Hormuz.",
-   "time": "",
-   "tag": "Energy"
-  },
-  {
    "source": "Financial Times",
-   "title": "European LNG prices surge to highest level since 2023 — Continent's gas inventories were already low before Iran war disrupted shipments",
+   "title": "Slightly hotter than expected PCE inflation keeps Fed's September rate rise in play",
+   "time": "10:45 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "KC Fed's Jeff Schmid on First Jackson Hole of Kevin Warsh Era",
+   "time": "07:30 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "Latest Oil Market News and Analysis for Aug. 27 — Oil steadied as traders weighed progress on increasing energy flows through the Strait of Hormuz against disruptions to Russian supplies",
    "time": "",
    "tag": "Energy"
   },
   {
-   "source": "Bloomberg",
-   "title": "Gold Rally Eases as Traders Turn Focus to Fed Interest Rate Path",
-   "time": "19:52 ET",
-   "tag": "Metals"
+   "source": "Al Jazeera",
+   "title": "How a 95 percent drop in Hormuz traffic changed global shipping",
+   "time": "05:29 ET",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "Al Jazeera",
+   "title": "Is Iran war diplomacy ramping up, as Qatar, Oman, Pakistan officials visit?",
+   "time": "06:50 ET",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "09:05 ET",
+   "tag": "Energy"
   },
   {
    "source": "Wall Street Journal",
@@ -28,28 +46,10 @@
    "tag": "Agriculture"
   },
   {
-   "source": "Washington Post",
-   "title": "Squeezed by tariffs and Iran war, farmers say they face a new crisis — The president's policies are driving up prices for fertilizer, fuel and machinery.",
-   "time": "",
-   "tag": "Agriculture"
-  },
-  {
    "source": "Financial Times",
-   "title": "Bessent's bond intervention puts US Treasury on collision course with Fed — Increased purchases of debt threaten to undermine central bank chief Kevin Warsh's bid to tame inflation",
-   "time": "",
-   "tag": "Rates"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "*ECB'S SCHNABEL SAYS RATES MUST RISE FURTHER ON INFLATION RISKS",
-   "time": "",
-   "tag": "Rates"
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek — Nasdaq leads declines as AI infrastructure makers suffer steep falls; Nvidia down 16%.",
-   "time": "",
-   "tag": "Equities"
+   "title": "El Niño's looming threat to the global food system",
+   "time": "12:49 ET",
+   "tag": "Agriculture"
   }
  ]
 }

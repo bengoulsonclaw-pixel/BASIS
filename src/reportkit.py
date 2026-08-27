@@ -6,6 +6,7 @@ is imported top-level — it sets the matplotlib Agg backend before pyplot loads
 from __future__ import annotations
 
 import base64
+import re
 from io import BytesIO
 from pathlib import Path
 
@@ -288,6 +289,52 @@ def ordinal(n) -> str:
     n = int(round(float(n)))
     suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"
+
+
+# Signal and context strings inside the daily stores are written for the DESK, so they carry
+# the instruction the desk would act on — "Cheap — buy skew", "Short (sell the rally)",
+# "· sell the bond" (the yield->price translation on fixed income). Client-facing copy is
+# neutral observation, never advice, so anything that renders a store string verbatim on a
+# client page has to strip that layer first. Every report before the FICC tearsheet fed the
+# AI writer numbers rather than store text, so this is the first place it was needed.
+#
+# The phrase set is closed: these strings are produced by our own strategies (src/specs.py),
+# not by a vendor, so a map is exact where a general-purpose rewrite would not be.
+_ADVICE_SUBS = [
+    (r"\s*·\s*(?:buy|sell) the (?:bond|future)\b", ""),      # FI yield->price instruction
+    (r"\s*\((?:buy the dip|sell the rally)\)", ""),          # Long (buy the dip)
+    (r"\s*[—-]\s*(buy-dip|sell-rally) zone\b", " zone"),     # ...0.5% above — sell-rally zone
+    (r"\s*[—-]\s*(?:buy-dip|sell-rally)\b", ""),             # ...9.7% above — buy-dip
+    (r"\b(Cheap)\s*[—-]\s*buy (?:skew|vol)\b", r"\1"),       # Cheap — buy vol
+    (r"\b(Rich)\s*[—-]\s*sell (?:skew|vol)\b", r"\1"),       # Rich — sell skew
+    (r"\s*[—-]\s*(?:Buy|Sell)\b[^;·|]*", ""),                # — Buy Soy Oil / Sell Soy Meal
+]
+_ADVICE_LEFT = re.compile(r"\b(buy|sell|bought|sold|recommend\w*)\b", re.I)
+
+# "Raymond James moved to **Strong Buy** from Outperform" — here Buy is the NAME of a
+# broker's rating, a reportable fact, not us telling a client to do anything. Ratings are
+# recognised by the phrase that introduces one (moved to / initiated at / cut to), which is
+# what separates them from "Buy Soybean Oil / Sell Soybean Meal" — that stays blocked.
+_RATING = re.compile(
+    r"\b(?:to|at|from|as)\s+\*{0,2}(?:Strong\s+|Conviction\s+)?"
+    r"(?:Buy|Sell|Hold|Overweight|Underweight|Outperform|Underperform|Accumulate|Reduce)\*{0,2}",
+)
+
+
+def client_safe(text) -> str:
+    """Strip desk instructions out of a store string, leaving the observation.
+
+    'Short (sell the rally) · buy the future' -> 'Short'. Raises if a buy/sell word
+    survives: a client page silently carrying advice is the failure worth being loud
+    about, and the caller can then extend the map above rather than ship it.
+    """
+    out = str(text or "")
+    for pat, repl in _ADVICE_SUBS:
+        out = re.sub(pat, repl, out, flags=re.I)
+    out = re.sub(r"\s{2,}", " ", out).strip(" ·—-")
+    if _ADVICE_LEFT.search(_RATING.sub(" ", out)):
+        raise ValueError(f"advice language survived client_safe(): {out!r}")
+    return out
 
 
 def when_phrase(dt: pd.Timestamp, asof: pd.Timestamp) -> str:

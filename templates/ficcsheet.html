@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  /* One product, one page. Every block is `break-inside: avoid` so a table never splits
+     across the fold — a tearsheet that breaks mid-book reads worse than one that runs to
+     a second page. */
+  .section, .kpis, table { break-inside: avoid; }
+
+  /* Level strip: the three numbers a client asks for before anything else — where it is,
+     what it did, and whether that move was ordinary for this product. */
+  .kpis { display: flex; gap: 3mm; margin: 3mm 0 0; }
+  .kpi { flex: 1; border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+         padding: 2mm 3mm; background: #FAFAFA; }
+  .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .val { font-size: 15pt; font-weight: 700; color: #111; line-height: 1.15; }
+  .kpi .val.up { color: var(--pos-tx); }
+  .kpi .val.dn { color: var(--neg-tx); }
+  .kpi .note { font-size: 6.5pt; color: #888; }
+
+  /* The technical table is the widest on the page (5 columns, one of them free text), so it
+     drops to 7.5pt per the shared sheet's note rather than inheriting the 8.5pt default. */
+  table.tech { font-size: 7.5pt; }
+  table.tech td.detail { color: #444; }
+  table.books td.z { white-space: nowrap; font-weight: 700; }
+  td.num { text-align: right; white-space: nowrap; }
+
+  .mention { font-size: 8pt; color: #333; margin: 1.6mm 0; line-height: 1.35; }
+  .mention .when { color: #888; font-weight: 700; margin-right: 2mm; }
+  .mention .tag { background: var(--lgray); color: #333; font-size: 6.5pt; font-weight: 700;
+                  padding: 0.3mm 1.4mm; margin-right: 2mm; letter-spacing: .3px; }
+
+  .empty { font-size: 8pt; color: #888; font-style: italic; margin-top: 2mm; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="titleband">
+      <h1>{{ d.market }}</h1>
+      <div class="sub">{{ d.ticker }} &nbsp;|&nbsp; {{ d.asset }}{% if d.region %} &middot; {{ d.region }}{% endif %}
+        &nbsp;|&nbsp; {{ asof }}</div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="lab">Last settlement</div>
+        <div class="val">{{ d.last_txt }}</div>
+        <div class="note">{% if d.is_fi %}futures price{% else %}front contract{% endif %}</div>
+      </div>
+      <div class="kpi">
+        <div class="lab">Session change</div>
+        <div class="val {% if d.chg and d.chg > 0 %}up{% elif d.chg and d.chg < 0 %}dn{% endif %}">{{ d.chg_txt }}</div>
+        <div class="note">{% if d.sd_mult %}{{ '%.1f'|format(d.sd_mult) }}&times; the daily 1&sigma;{% endif %}</div>
+      </div>
+      <div class="kpi">
+        <div class="lab">Options are pricing</div>
+        <div class="val">{% if d.vol and d.vol.rows %}{{ d.vol.rows[0].value.split(' vs ')[0] }}{% else %}&mdash;{% endif %}</div>
+        <div class="note">{{ d.sd_txt or 'implied 1-month' }}</div>
+      </div>
+    </div>
+
+    {% if d.price_png %}
+    <div class="section">
+      <div class="banner"><span class="mkt">Price &mdash; 12 months</span>
+        <span class="sig">{% if d.is_fi %}yield space{% else %}with 50 / 200-day averages{% endif %}</span></div>
+      <div class="chart"><img src="{{ d.price_png }}" alt="price history"></div>
+    </div>
+    {% endif %}
+
+    {% if d.tech %}
+    <div class="section">
+      <div class="banner"><span class="mkt">Technical read</span>
+        <span class="sig {% if d.tech.net == 'Long' %}long{% elif d.tech.net == 'Short' %}short{% endif %}">{{ d.tech.up }} long &middot; {{ d.tech.down }} short &middot; {{ d.tech.flat }} neutral</span></div>
+      <table class="tech">
+        <thead><tr><th>Method</th><th>Read</th><th class="num">Metric</th><th>Measure</th><th>Detail</th></tr></thead>
+        <tbody>
+        {% for r in d.tech.rows %}
+          <tr class="{% if r.dir > 0 %}long{% elif r.dir < 0 %}short{% else %}flat{% endif %}">
+            <td class="market">{{ r.strategy }}</td>
+            <td class="sig">{{ r.read }}</td>
+            <td class="num">{{ r.metric }}</td>
+            <td>{{ r.metric_label }}</td>
+            <td class="detail">{{ r.context }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% if d.vol %}
+    <div class="section">
+      <div class="banner"><span class="mkt">Options market</span>
+        <span class="sig">vs its own one-year history</span></div>
+      <table class="books">
+        <thead><tr><th>Measure</th><th>Now</th><th class="num">z</th><th>Percentile</th><th>State</th></tr></thead>
+        <tbody>
+        {% for r in d.vol.rows %}
+          <tr class="{% if r.z and r.z >= 1.5 %}short{% elif r.z and r.z <= -1.5 %}long{% else %}flat{% endif %}">
+            <td class="market">{{ r.label }}</td>
+            <td>{{ r.value }}</td>
+            <td class="num z">{% if r.z is not none %}{{ '%+.2f'|format(r.z) }}{% else %}&mdash;{% endif %}</td>
+            <td>{{ r.pctl }}</td>
+            <td>{{ r.note or '&mdash;'|safe }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if d.vol_png %}<div class="chart"><img src="{{ d.vol_png }}" alt="implied vs realized"></div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if d.pos %}
+    <div class="section">
+      <div class="banner"><span class="mkt">Positioning</span>
+        <span class="sig">who is holding it</span></div>
+      <table class="books">
+        <thead><tr><th>Measure</th><th>Now</th><th>Against its history</th><th>State</th><th>As of</th></tr></thead>
+        <tbody>
+        {% for r in d.pos.rows %}
+          <tr class="flat">
+            <td class="market">{{ r.label }}</td>
+            <td>{{ r.value }}</td>
+            <td>{{ r.hist }}</td>
+            <td>{{ r.note or '&mdash;'|safe }}</td>
+            <td>{{ r.asof or '&mdash;'|safe }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% if d.seas %}
+    <div class="section">
+      <div class="banner"><span class="mkt">Seasonal pattern</span>
+        <span class="sig">{{ d.seas.legs }}</span></div>
+      <p class="stats">The <b>{{ d.seas.legs }}</b> spread is at <b>{{ '%.2f'|format(d.seas.now) }}</b>
+        {{ d.seas.unit }} against a seasonal norm of <b>{{ '%.2f'|format(d.seas.norm) }}</b> for this point in
+        the year &mdash; a gap of <b>{{ '%+.2f'|format(d.seas.dev) }}</b> {{ d.seas.unit }}, or
+        <b>{{ '%+.1f'|format(d.seas.z) }}&sigma;</b>{% if d.seas.years %} across
+        {{ d.seas.years|int }} years of history{% endif %}.</p>
+    </div>
+    {% endif %}
+
+    {% if d.mentions %}
+    <div class="section">
+      <div class="banner"><span class="mkt">Recently on the daily sheet</span>
+        <span class="sig">last {{ mention_days }} days</span></div>
+      {% for m in d.mentions %}
+        <div class="mention"><span class="when">{{ m.date }}</span>{% if m.tag %}<span class="tag">{{ m.tag }}</span>{% endif %}{{ m.text }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="trigger">
+      <b>How to read this.</b> Every figure is measured against <b>this product&rsquo;s own history</b>, not
+      across markets &mdash; a put/call ratio or a skew that is normal for one contract is extreme for
+      another. <b>z</b> is standard deviations from the one-year norm; percentiles rank today against the
+      same window. The technical read is the standing output of each method, not a forecast, and methods
+      routinely disagree &mdash; the count in the banner is the balance, not a conclusion.
+      {%- if d.is_fi %} Fixed-income signals are computed on <b>yields</b>, so &ldquo;Long&rdquo; means long
+      yield &mdash; the opposite direction in the futures price.{% endif %}
+    </div>
+
+    <hr class="rule">
+    {% include "_disclaimer.html" %}
+  </div>
+</body>
+</html>

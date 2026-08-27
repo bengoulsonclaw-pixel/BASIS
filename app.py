@@ -2978,6 +2978,31 @@ def render_home() -> None:
         # rerun now REVEALS this banner instead of destroying the only one.
         elif _pstat.get("outcome") and _pstat.get("date") == str(_today):
             _pw, _pd = str(_pstat.get("when", ""))[11:16], _pstat.get("detail", "")
+            # Auto-run Morning Coffee + email the desk ONCE per successful pull — driven off the
+            # status FILE, not the pull handler (which dies on nav / reload / keep-alive restart —
+            # the same reason the banner itself moved here). A disk marker keyed on the pull's
+            # timestamp is CLAIMED before the run, so a mid-run rerun can't launch a second send.
+            _pull_when = str(_pstat.get("when", ""))
+            if (_pstat["outcome"] == "ok" and _pull_when and _mc_run_after_pull()
+                    and MORNING_COFFEE_DIR.exists()):
+                _mc_marker = ROOT / "data" / "snapshot" / ".mc_after_pull.done"
+                try:
+                    _mc_done_for = _mc_marker.read_text(encoding="utf-8").strip()
+                except Exception:
+                    _mc_done_for = ""
+                if _mc_done_for != _pull_when:
+                    _claimed = False
+                    try:
+                        _mc_marker.write_text(_pull_when, encoding="utf-8"); _claimed = True
+                    except Exception:
+                        _claimed = False
+                    if _claimed:                     # only run if we actually own the marker
+                        with st.spinner("Auto-running Morning Coffee and emailing the desk… (~1–2 min)"):
+                            _mc_auto_ok = run_morning_coffee(email=True)
+                        st.toast("Morning Coffee sent to the desk ☕" if _mc_auto_ok
+                                 else "Morning Coffee auto-run FAILED — see its card log ⚠️",
+                                 icon="☕" if _mc_auto_ok else "⚠️")
+                        st.rerun()
             if st.session_state.get("pull_banner_seen") != _pstat.get("when"):
                 _bc, _bx = st.columns([0.94, 0.06], vertical_alignment="center")
                 if _pstat["outcome"] == "ok":
@@ -3043,16 +3068,10 @@ def render_home() -> None:
             run_daily.run(); load_signals.clear()
             _regen_mc_heatmap()      # refresh the Morning Coffee heatmap on Home
             st.session_state.pop("ficc_pull_confirm", None)
-            # Auto-run Morning Coffee + email the desk, if the pull-row toggle is on.
-            _mc_after = None
-            if _mc_run_after_pull() and MORNING_COFFEE_DIR.exists():
-                with st.spinner("Auto-running Morning Coffee and emailing the desk… (~1–2 min)"):
-                    _mc_after = run_morning_coffee(email=True)
-            _mc_note = (" · Morning Coffee sent to the desk ☕" if _mc_after
-                        else " · Morning Coffee auto-run FAILED — see its card log ⚠️"
-                        if _mc_after is False else "")
-            st.success(f"✅ Snapshot {detail} — backup pushed. You can close the "
-                       f"Terminal now.{_mc_note}")
+            # Morning Coffee auto-run is handled by the status-file block above — it fires once per
+            # pull and survives nav / reload. Doing it here (inside the blocking wait) meant a killed
+            # handler silently dropped the send — which is exactly the bug we just fixed.
+            st.success(f"✅ Snapshot {detail} — backup pushed. You can close the Terminal now.")
             st.rerun()
         elif outcome == "preflight_refused":
             if "WORKFLOW_REVIEW" in detail or "-4002" in detail:

@@ -1,5 +1,5 @@
 {
- "asof": "2026-08-26T07:07:26",
+ "asof": "2026-08-27T07:07:48",
  "events": [
   {
    "date": "2021-08-02",
@@ -2737,11 +2737,11 @@
    "date": "2026-09-03",
    "icon": "",
    "label": "DELL",
-   "color": "#37474F",
+   "color": "#1565C0",
    "auto": false,
    "bbg": "DELL US Equity",
    "sub": "Dell Technologies Inc Class C \u00b7 S&P 500 \u00b7 US",
-   "tip": "Dell Technologies Inc Class C \u2014 Industrials \u00b7 S&P 500 \u00b7 US \u00b7 317bn"
+   "tip": "Dell Technologies Inc Class C \u2014 Information Technology \u00b7 S&P 500 \u00b7 US \u00b7 317bn"
   },
   {
    "date": "2026-09-03",
@@ -4758,10 +4758,10 @@
   {
    "date": "2026-10-26",
    "icon": "",
-   "label": "\u22ef 35 more",
+   "label": "\u22ef 34 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Dorman Products, Park National Corp, Polaris Inc, Seacoast Banking Of Florida, Agilysys Inc, Bank Of Hawaii, Nbt Bancorp, H2O America, Calix Networks, Enterprise Financial Services Corp, Northwest Bancshares Inc, Netstreit, German American Bancorp Inc, Firstsun Capital Bancorp, Lakeland Financial Corp, Harmonic, Hbt Financial Inc, Leggett & Platt, Two Harbors Investment, Easterly Government Properties Inc, Five Star Bancorp, Ramaco Resources Inc Class A, Capital Bancorp Inc, Universal Health Realty Income Tru, Sierra Bancorp, Nrc Health, Farmers And Merchants Bancorp Inc, Commercial Bancgroup Inc, Bank Of Marin Bancorp, Neighborhood Intelligence, First United Corp, Ohio Valley Banc Corp, Citizens Community Bancorp Inc, Mainstreet Bancshares, Seven Hills Realty Trust"
+   "tip": "Dorman Products, Park National Corp, Polaris Inc, Seacoast Banking Of Florida, Agilysys Inc, Bank Of Hawaii, Nbt Bancorp, H2O America, Calix Networks, Enterprise Financial Services Corp, Northwest Bancshares Inc, Netstreit, German American Bancorp Inc, Firstsun Capital Bancorp, Lakeland Financial Corp, Harmonic, Hbt Financial Inc, Leggett & Platt, Easterly Government Properties Inc, Five Star Bancorp, Ramaco Resources Inc Class A, Capital Bancorp Inc, Universal Health Realty Income Tru, Sierra Bancorp, Nrc Health, Farmers And Merchants Bancorp Inc, Commercial Bancgroup Inc, Bank Of Marin Bancorp, Neighborhood Intelligence, First United Corp, Ohio Valley Banc Corp, Citizens Community Bancorp Inc, Mainstreet Bancshares, Seven Hills Realty Trust"
   },
   {
    "date": "2026-10-27",
@@ -5517,7 +5517,7 @@
    "label": "\u22ef 196 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Steris, Vonovia Se, Trimble Inc, Hut Corp, Kinetik Holdings Class A, Compass Inc Class A, Qiagen Nv, Terreno Realty Reit, Joby Aviation Class A, Enersys, Magnolia Oil Gas Corp Class A, Installed Building Products, Southwest Gas Holdings, Ormat Tech Inc, Mirum Pharmaceuticals, Frontdoor Inc, Warrior Met Coal Inc, Remitly Global, Black Hills Corp, Acm Research Class A, Acushnet Holdings Corp, Murphy Oil Corp, Acadia Pharmaceuticals, Vishay Intertechnology Inc, Tanger, Tutor Perini, Brinks, Dave Class A, Excelerate Energy Inc Class A, Miami International Holdings, Mara Holdings, Livanova Plc, Pattern Group Series A, Openlane, Tango Therapeutics, Workiva Class A, Sezzle Inc, Marriott Vacations Worldwide, Interparfums Inc, Atlanta Braves Holdings Series A\u2026"
+   "tip": "Steris, Vonovia Se, Trimble Inc, Hut Corp, Kinetik Holdings Class A, Compass Inc Class A, Qiagen Nv, Terreno Realty Reit, Joby Aviation Class A, Enersys, Magnolia Oil Gas Corp Class A, Installed Building Products, Southwest Gas Holdings, Ormat Tech Inc, Mirum Pharmaceuticals, Frontdoor Inc, Warrior Met Coal Inc, Remitly Global, Black Hills Corp, Acm Research Class A, Acushnet Holdings Corp, Murphy Oil Corp, Acadia Pharmaceuticals, Vishay Intertechnology Inc, Tanger, Tutor Perini, Brinks, Dave Class A, Excelerate Energy Class A, Miami International Holdings, Mara Holdings, Livanova Plc, Pattern Group Series A, Openlane, Tango Therapeutics, Workiva Class A, Sezzle Inc, Marriott Vacations Worldwide, Interparfums Inc, Atlanta Braves Holdings Series A\u2026"
   },
   {
    "date": "2026-11-05",
@@ -6165,7 +6165,7 @@
    "label": "\u22ef 73 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences Inc, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics Inc, Zura Bio Ltd Class A, Asp Isotopes Inc, Spire Global Class A, Bit Digital, Maplight Therapeutics\u2026"
+   "tip": "Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences Inc, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics Inc, Zura Bio Ltd Class A, Asp Isotopes, Spire Global Class A, Bit Digital, Maplight Therapeutics\u2026"
   },
   {
    "date": "2026-11-13",

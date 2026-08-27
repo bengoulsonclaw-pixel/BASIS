@@ -50456,7 +50456,7 @@
  },
  "GD US Equity": {
   "ticker": "GD US Equity",
-  "pulled": "2026-08-26",
+  "pulled": "2026-08-27",
   "empty": true
  },
  "SNPS US Equity": {
@@ -50537,6 +50537,76 @@
  "UPS US Equity": {
   "ticker": "UPS US Equity",
   "pulled": "2026-08-26",
+  "empty": true
+ },
+ "FER US Equity": {
+  "ticker": "FER US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "SJM US Equity": {
+  "ticker": "SJM US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "GWW US Equity": {
+  "ticker": "GWW US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "ANET US Equity": {
+  "ticker": "ANET US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "NTAP US Equity": {
+  "ticker": "NTAP US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "GL US Equity": {
+  "ticker": "GL US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "PSA US Equity": {
+  "ticker": "PSA US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "TKO US Equity": {
+  "ticker": "TKO US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "TJX US Equity": {
+  "ticker": "TJX US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "CHRW US Equity": {
+  "ticker": "CHRW US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "HST US Equity": {
+  "ticker": "HST US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "LVS US Equity": {
+  "ticker": "LVS US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "ITW US Equity": {
+  "ticker": "ITW US Equity",
+  "pulled": "2026-08-27",
+  "empty": true
+ },
+ "TXT US Equity": {
+  "ticker": "TXT US Equity",
+  "pulled": "2026-08-27",
   "empty": true
  }
 }
