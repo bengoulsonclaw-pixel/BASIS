@@ -37,6 +37,9 @@ def _stores(tmp_path, monkeypatch, put=None, call=None):
     pd.DataFrame({TICK: pd.Series(50_000.0, index=idx)}).to_parquet(
         tmp_path / "putcall_put_oi.parquet")
     monkeypatch.setattr(optflow, "SNAP", tmp_path)
+    # SIG too: the put/call RATIO rows read from there, and an unpatched path would reach
+    # past this fixture into the live store (2026-08-26)
+    monkeypatch.setattr(optflow, "SIG", tmp_path)
     return idx[-1]
 
 
@@ -156,9 +159,9 @@ def test_heat_is_capped(tmp_path, monkeypatch):
     ceiling."""
     s = _series(); s.iloc[-1] = s.iloc[-61:-1].median() * 5_000
     _stores(tmp_path, monkeypatch, put=s)
-    items = optflow.radar_items()
-    assert items, "control: something fired"
-    assert all(it["heat"] <= optflow.FLOW_HEAT_CEIL for it in items)
+    flow = [it for it in optflow.radar_items() if it["tag"] == "FLOW"]
+    assert flow, "control: something fired"
+    assert all(it["heat"] <= optflow.FLOW_HEAT_CEIL for it in flow)
     assert optflow.FLOW_HEAT_CEIL <= 50.0
 
 
@@ -167,7 +170,7 @@ def test_flow_never_displaces_a_dislocation_row(tmp_path, monkeypatch):
     must not reach the top strip."""
     s = _series(); s.iloc[-1] = s.iloc[-61:-1].median() * 5_000
     _stores(tmp_path, monkeypatch, put=s)
-    flow = optflow.radar_items()
+    flow = [it for it in optflow.radar_items() if it["tag"] == "FLOW"]
     assert flow
     # a normal sheet: distinct tags, since top_strip takes at most 2 rows per tag
     real = [hotsheet.item(tag=f"T{i}", key=f"d{i}", section="Positioning",
@@ -222,7 +225,12 @@ def test_export_is_empty_not_broken_on_a_quiet_day(tmp_path, monkeypatch):
 
 def test_provider_never_raises(tmp_path, monkeypatch):
     """A provider that raises is isolated by the engine, but one that drops off the
-    sheet silently is a bug — an empty store returns [], not an exception."""
+    sheet silently is a bug — an empty store returns [], not an exception.
+
+    BOTH roots have to be relocated: this module reads the snapshot stores for the
+    activity rows and the signals store for the put/call ratio rows, and leaving either
+    pointed at the live data would quietly read real files during a test."""
     monkeypatch.setattr(optflow, "SNAP", tmp_path / "nope")
+    monkeypatch.setattr(optflow, "SIG", tmp_path / "nope")
     assert optflow.radar_items() == []
     assert optflow.candidates() == []

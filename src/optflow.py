@@ -57,6 +57,8 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAP = ROOT / "data" / "snapshot"
+SIG = ROOT / "data" / "signals"      # module-level so tests can relocate it (a hard-coded
+                                     # path here reached past a patched store and read live data)
 
 # ── metric ──────────────────────────────────────────────────────────────────────
 BASE_WINDOW = 60         # non-null sessions in the median baseline (120 halves the
@@ -237,16 +239,61 @@ def export_today() -> int:
     return len(rows)
 
 
+RATIO_MAX = 3          # put/call POSITIONING rows carried alongside the activity rows
+RATIO_PCTL = 95.0      # only the tails of a product's own year
+
+
+def _ratio_items(hotsheet, ordinal) -> list:
+    """Where a product's put/call OPEN INTEREST sits against its own trailing year.
+
+    The activity rows above answer "how much traded"; this answers "which way is the
+    standing position leaning" — the book's headline signal, and the one that had no
+    provider at all despite flagging 21 of 57 markets on 2026-08-26. Percentile-of-own-
+    history, exactly as the module computes it, because a raw ratio isn't comparable
+    across products (index options sit structurally put-heavy from hedging)."""
+    try:
+        d = pd.read_parquet(SIG / "putcall.parquet")
+    except Exception:
+        return []
+    if d is None or d.empty or "oi_pctl" not in d.columns:
+        return []
+    f = d[d.get("direction", 0) != 0].copy()
+    f = f[f["oi_pctl"].notna() & f["pc_oi"].notna()]
+    if f.empty:
+        return []
+    f["_x"] = (f["oi_pctl"] - 50.0).abs()
+    f = f[f["oi_pctl"].ge(RATIO_PCTL) | f["oi_pctl"].le(100 - RATIO_PCTL)]
+    out = []
+    for r in f.sort_values("_x", ascending=False).head(RATIO_MAX).itertuples(index=False):
+        heavy = "put-heavy" if r.direction < 0 else "call-heavy"
+        out.append(hotsheet.item(
+            tag="P/C", key=f"{r.ticker}:{heavy}", section="Positioning",
+            text=(f"**{r.market}** option open interest is unusually **{heavy}** — "
+                  f"{r.pc_oi:.2f} puts per call, the {ordinal(int(round(r.oi_pctl)))} "
+                  f"percentile of its own year."),
+            # heat off the Z, not the percentile: heat_from_pctl saturates at 100 for BOTH
+            # tails, so every flagged row would pin at the top and crowd out genuinely rarer
+            # stories — the "heat is not one scale" failure the 2026-08-26 survey called out.
+            # The z discriminates (SOFR -1.3 vs Rough Rice +3.2) on the same convention the
+            # other z-based providers use.
+            heat=(hotsheet.heat_from_z(r.oi_z) if np.isfinite(getattr(r, "oi_z", np.nan))
+                  else hotsheet.heat_from_pctl(r.oi_pctl)),
+            metric=f"{ordinal(int(round(r.oi_pctl)))} pctl", sub="OI put/call vs its 1y range",
+            value=float(r.pc_oi), ticker=r.ticker, page="Put/Call Ratios", book="ficc"))
+    return out
+
+
 def radar_items() -> list:
-    """Hot Sheet provider — the day's unusual option activity. Cache-only; returns []
-    rather than raising on any missing or malformed store."""
+    """Hot Sheet provider — the day's unusual option activity, plus where standing put/call
+    positioning sits against its own year. Cache-only; returns [] rather than raising on any
+    missing or malformed store."""
     try:
         from src import hotsheet
         from src.reportkit import ordinal
         from src.universe import name
 
         rows = candidates()[:MAX_ROWS]
-        out = []
+        out = _ratio_items(hotsheet, ordinal)
         for c in rows:
             heat = min(FLOW_HEAT_CEIL,
                        FLOW_HEAT_CEIL * math.log10(max(c["ratio"], 1.0)) / math.log10(HEAT_FULL_X))
