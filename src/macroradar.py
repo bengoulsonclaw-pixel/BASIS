@@ -78,9 +78,9 @@ def is_survey_bank(bank: str) -> bool:
 def policy_from_overnight(bank: str, overnight: float) -> float:
     """Overnight proxy -> policy rate, undoing the bank's fixing basis.
 
-    Survey banks are quoted in POLICY rates already (the Focus survey asks for the Selic
-    target, not for an overnight fixing), so their basis is absent from BANK_BASIS_SEED
-    and this is correctly a no-op for them."""
+    Call this on a STRIP fit only. Survey paths are quoted in the policy rate itself, so
+    they must bypass it — do not rely on the bank being absent from BANK_BASIS_SEED to
+    make it a no-op, because a bloc gains a basis the moment someone builds its strip."""
     return overnight - stirpaths.BANK_BASIS_SEED.get(bank.upper(), 0.0) / 100.0
 
 
@@ -224,7 +224,12 @@ def compare(bank: str, *, rule=macrorules.balanced, asof: date | None = None,
         seg = float(fit.seg_rates[i + 1]) if i + 1 < len(fit.seg_rates) else None
         if seg is None:
             continue
-        priced = policy_from_overnight(bank, seg)
+        # Only a STRIP fit needs the basis conversion: it prices the overnight proxy.
+        # A survey is quoted in the policy rate itself, so converting it would invent a
+        # divergence out of the fixing basis — the same error the module docstring warns
+        # about for the ECB, in reverse. This bit once: BCB gained a -10bp seed when its
+        # DI strip was built, and every Focus-survey meeting silently moved 10bp.
+        priced = seg if survey else policy_from_overnight(bank, seg)
         pres = path.get(m)
         rows.append(MeetingCompare(m, priced, float(fit.cum_bp[i]), pres,
                                    None if pres is None else (pres - priced) * 100.0))
