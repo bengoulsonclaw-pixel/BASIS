@@ -32,12 +32,12 @@ from src import macrorules, stirpaths
 
 
 # ── which banks this module covers, and what to call them ───────────────────────────
-# NOT the same list as stirpaths.BANKS, deliberately. Brazil has a macro leg (BCB data
-# is free and rich) but no fitted strip: its DI1 futures are a different instrument —
-# compounded to a fixed maturity on a business-252 count, not a 100−rate averaging
-# contract — and modelling them is its own build. Adding BCB to stirpaths.BANKS would
-# put a permanently empty Brazil column on the STIR Paths page, so the radar keeps its
-# own roster and reads display metadata from stirpaths only where it exists.
+# The roster is the union of stirpaths.BANKS and the extras below, because a bloc can
+# have a macro leg here before it has a priced strip there. Brazil was exactly that: rich
+# free BCB data and no fit, since DI1 is a different instrument (compounded to a fixed
+# maturity on a business-252 count, not a 100−rate averaging contract) and modelling it
+# was its own build. The extras are a FALLBACK for display metadata and for the survey
+# path — once a bloc gains a real strip it is served from stirpaths automatically.
 @dataclass(frozen=True)
 class _BankMeta:
     key: str
@@ -51,7 +51,11 @@ _EXTRA_BANKS = {
     "BCB": _BankMeta("BCB", "Banco Central do Brasil", "Copom", "Selic target", "R$"),
 }
 
-RADAR_BANKS: list[str] = list(stirpaths.BANKS) + list(_EXTRA_BANKS)
+# dict.fromkeys de-duplicates while preserving order: a bank listed here twice renders
+# two buttons with the same Streamlit key and crashes the page. That is not theoretical —
+# it happened the moment BCB gained a strip in stirpaths.BANKS while still being carried
+# in _EXTRA_BANKS as a survey-only bloc.
+RADAR_BANKS: list[str] = list(dict.fromkeys(list(stirpaths.BANKS) + list(_EXTRA_BANKS)))
 
 
 def bank_meta(bank: str):
@@ -61,8 +65,14 @@ def bank_meta(bank: str):
 
 
 def is_survey_bank(bank: str) -> bool:
-    """True where the 'priced' side is a survey rather than tradeable market pricing."""
-    return bank.upper() in _EXTRA_BANKS
+    """True where this bloc has no strip in stirpaths at all.
+
+    Deliberately NOT the last word on whether a given comparison is survey-based: a bank
+    can be in stirpaths.BANKS and still return no fit (its strip half-built, or simply not
+    in the morning store yet). compare() therefore decides per call, from what the fit
+    actually yields, and a bloc upgrades itself from survey to market pricing the moment a
+    real path appears — with every label following, because they key off the result."""
+    return bank.upper() not in stirpaths.BANKS
 
 
 def policy_from_overnight(bank: str, overnight: float) -> float:
@@ -175,11 +185,20 @@ def compare(bank: str, *, rule=macrorules.balanced, asof: date | None = None,
     summary = macrorules.summarise(res, x.policy_rate)
     now = rule(x)
 
-    survey = is_survey_bank(bank)
-    fit = None
+    # Prefer tradeable pricing; fall back to a survey of forecasters only where there is
+    # no priced path to be had. The spread against a strip and the spread against a
+    # survey are different claims, so which one produced this result is recorded on it.
+    survey, fit = False, None
     try:
-        fit = (_survey_fit(bank, x.policy_rate, asof) if survey
-               else stirpaths.default_bank_fit(bank, asof))
+        if bank in stirpaths.BANKS:
+            try:
+                fit = stirpaths.default_bank_fit(bank, asof)
+            except Exception:
+                fit = None
+        if fit is None or not len(getattr(fit, "meetings", ())):
+            sfit = _survey_fit(bank, x.policy_rate, asof)
+            if sfit is not None:
+                fit, survey = sfit, True
     except Exception as e:
         return RadarResult(bank, False, asof, x.policy_rate, now.key, now.name,
                            now.prescribed, summary, [], prov,

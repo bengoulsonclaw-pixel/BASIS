@@ -9303,27 +9303,11 @@ def render_stir_overview() -> None:
             rate_tip = {"FED": "Current FOMC target band (%)",
                         "ECB": "Current deposit facility rate (%)",
                         "BOE": "Current Bank Rate (%)"}[bk]
-            st.markdown(
-                f"<div style='border:1px solid rgba(128,128,128,0.28);border-left:4px solid "
-                f"{col_c};border-radius:8px;padding:0.7rem 0.9rem 0.55rem;min-height:10.6rem'>"
-                f"<div style='display:flex;justify-content:space-between;align-items:flex-start'>"
-                f"<div style='font-weight:700;font-size:0.95rem'>{_flag_img(bk)} {bank.name}"
-                f"</div>"
-                f"<div style='text-align:right;white-space:nowrap' title='{rate_tip}'>"
-                f"<span style='font-size:1.25rem;font-weight:700'>{rate_big}</span>"
-                f"<br><span style='color:#9AA4B0;font-size:0.66rem;"
-                f"letter-spacing:0.05em'>NOW</span></div>"
-                f"</div>"
-                f"<div style='color:#C3CAD3;font-size:0.78rem;margin-top:0.1rem'>"
-                f"Next: <b>{bank.meeting_name}</b></div>"
-                f"<div style='color:#C3CAD3;font-size:0.78rem'>{nxt:%a %d %b} · in "
-                f"<b>{(nxt - asof).days}d</b></div>"
-                f"<div style='font-size:1.4rem;font-weight:700;margin:0.2rem 0 0.1rem'>"
-                f"{_stir_odds_str(bp0, bank.step_bp)} <span style='font-size:0.85rem;"
-                f"color:#C3CAD3'>{bp0:+.1f}bp</span></div>"
-                f"<div style='color:#C3CAD3;font-size:0.78rem'>Thru Dec {asof.year}: "
-                f"<b>{yend:+.0f}bp</b> &nbsp;·&nbsp; Terminal: <b>{term:.2f}%</b></div>"
-                f"</div>", unsafe_allow_html=True)
+            st.markdown(_rate_card_html(
+                bk=bk, name=bank.name, rate_big=rate_big, rate_tip=rate_tip,
+                meeting_name=bank.meeting_name, nxt=nxt, days=(nxt - asof).days,
+                headline=_stir_odds_str(bp0, bank.step_bp), bp0=bp0, yend=yend,
+                term=term, year=asof.year, colour=col_c), unsafe_allow_html=True)
             st.button(f"Open {bk} cockpit →", key=f"stir_card_{bk}",
                       use_container_width=True, on_click=_go, args=(_dest[bk],))
 
@@ -9474,6 +9458,115 @@ def _stir_seed_from_market(per_bp: dict, hike_bp: float, cut_bp: float) -> dict:
         v = (bp / hike_bp if bp > 0 else bp / cut_bp) * 100.0
         out[lab] = float(min(300.0, max(-300.0, round(v / 5) * 5.0)))
     return out
+
+
+def _rate_card_html(*, bk: str, name: str, rate_big: str, rate_tip: str,
+                    meeting_name: str, nxt: date, days: int, headline: str,
+                    bp0: float, yend: float, term: float, year: int,
+                    colour: str, priced_by: str = "") -> str:
+    """The bank summary card used on the STIR Paths overview and at the top of each
+    Macro Rate Radar tab: current setting, next decision, what is priced INTO it, and
+    where the path ends up.
+
+    One builder, two callers, because the two were going to drift otherwise — and a
+    rates card that says something subtly different depending on which page you read it
+    on is worse than no card. `priced_by` is the escape hatch for a bank whose path is
+    NOT market pricing (Brazil, off the Focus survey): it appends a provenance line so
+    a survey median can never be mistaken for an odds-implied probability."""
+    prov = (f"<div style='color:#9AA4B0;font-size:0.68rem;margin-top:0.15rem'>"
+            f"{priced_by}</div>") if priced_by else ""
+    return (
+        f"<div style='border:1px solid rgba(128,128,128,0.28);border-left:4px solid "
+        f"{colour};border-radius:8px;padding:0.7rem 0.9rem 0.55rem;min-height:10.6rem'>"
+        f"<div style='display:flex;justify-content:space-between;align-items:flex-start'>"
+        f"<div style='font-weight:700;font-size:0.95rem'>{_flag_img(bk)} {name}"
+        f"</div>"
+        f"<div style='text-align:right;white-space:nowrap' title='{rate_tip}'>"
+        f"<span style='font-size:1.25rem;font-weight:700'>{rate_big}</span>"
+        f"<br><span style='color:#9AA4B0;font-size:0.66rem;"
+        f"letter-spacing:0.05em'>NOW</span></div>"
+        f"</div>"
+        f"<div style='color:#C3CAD3;font-size:0.78rem;margin-top:0.1rem'>"
+        f"Next: <b>{meeting_name}</b></div>"
+        f"<div style='color:#C3CAD3;font-size:0.78rem'>{nxt:%a %d %b} · in "
+        f"<b>{days}d</b></div>"
+        f"<div style='font-size:1.4rem;font-weight:700;margin:0.2rem 0 0.1rem'>"
+        f"{headline} <span style='font-size:0.85rem;"
+        f"color:#C3CAD3'>{bp0:+.1f}bp</span></div>"
+        f"<div style='color:#C3CAD3;font-size:0.78rem'>Thru Dec {year}: "
+        f"<b>{yend:+.0f}bp</b> &nbsp;·&nbsp; Terminal: <b>{term:.2f}%</b></div>"
+        f"{prov}"
+        f"</div>")
+
+
+def _radar_priced_banner(bank: str, asof: date) -> None:
+    """The STIR card for the bank whose Radar tab is open.
+
+    The Radar's whole argument is prescribed versus priced, so what the market has
+    already put in the next meeting belongs at the top of the page rather than several
+    scrolls down — you should not have to hop to STIR Paths to read the other half of
+    the comparison.
+
+    Brazil has no strip, so its card is built from the Focus survey instead and says so:
+    a survey median is a central expectation, not an odds-implied probability, and the
+    "35% hike" phrasing would be a lie on it."""
+    bank = bank.upper()
+    try:
+        # Mirror compare()'s precedence exactly: a priced strip if there is one, the
+        # survey only as a fallback. A bank can sit in stirpaths.BANKS and still return
+        # no fit while its strip is being built, and the card must not vanish for it.
+        ip = None
+        if bank in stirpaths.BANKS:
+            try:
+                ip = stirpaths.default_bank_fit(bank, asof)
+            except Exception:
+                ip = None
+            if ip is not None and not len(ip.meetings):
+                ip = None
+        if ip is not None:
+            b = stirpaths.BANKS[bank]
+            nxt, bp0 = ip.meetings[0], float(ip.per_meeting_bp[0])
+            eoy = [i for i, m in enumerate(ip.meetings) if m.year == asof.year]
+            yend = float(ip.cum_bp[eoy[-1]]) if eoy else float(ip.cum_bp[-1])
+            lvl0 = b.default_rate
+            html = _rate_card_html(
+                bk=bank, name=b.name,
+                rate_big=(f"{lvl0 - 0.125:.2f}–{lvl0 + 0.125:.2f}" if bank == "FED"
+                          else f"{lvl0:.2f}"),
+                rate_tip={"FED": "Current FOMC target band (%)",
+                          "ECB": "Current deposit facility rate (%)",
+                          "BOE": "Current Bank Rate (%)"}.get(
+                              bank, f"Current {b.rate_name} (%)"),
+                meeting_name=b.meeting_name, nxt=nxt, days=(nxt - asof).days,
+                headline=_stir_odds_str(bp0, b.step_bp), bp0=bp0, yend=yend,
+                term=lvl0 + float(ip.cum_bp[-1]) / 100.0, year=asof.year,
+                colour=_STIR_BANK_COLOR.get(bank, "#F5C518"))
+        else:
+            res = macroradar.compare(bank)
+            ms = [m for m in res.meetings if m.spread_bp is not None]
+            if not res.ok or not ms:
+                return
+            m0 = ms[0]
+            eoy = [m for m in ms if m.meeting.year == asof.year]
+            yend = (eoy[-1] if eoy else ms[-1]).priced_cum_bp
+            meta = macroradar.bank_meta(bank)
+            step = 25.0
+            n = round(m0.priced_cum_bp / step)
+            word = "hike" if m0.priced_cum_bp > 0 else "cut"
+            headline = ("hold expected" if abs(m0.priced_cum_bp) < step / 2
+                        else f"{abs(n):g}×25 {word} expected")
+            html = _rate_card_html(
+                bk=bank, name=meta.name, rate_big=f"{res.policy_now:.2f}",
+                rate_tip="Current Selic target (%)",
+                meeting_name=meta.meeting_name, nxt=m0.meeting,
+                days=(m0.meeting - asof).days, headline=headline,
+                bp0=m0.priced_cum_bp, yend=yend, term=ms[-1].priced_policy,
+                year=asof.year, colour="#FEDF00",
+                priced_by="Focus survey median, not market pricing — an expectation, "
+                          "not odds")
+    except Exception:
+        return                       # a missing strip must never blank the whole page
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def _stir_signed_pct(bp: float, hike_bp: float, cut_bp: float) -> float:
@@ -14743,6 +14836,10 @@ def render_macro_radar() -> None:
                       type="primary" if bank == bk else "secondary"):
             st.session_state["radar_bank"] = bank = bk
             st.rerun()
+
+    # What the market has already put in the next meeting — the other half of this
+    # page's comparison, shown before the rules rather than several scrolls below them.
+    _radar_priced_banner(bank, date.today())
 
     rule_names = [n for _k, n, _f in _RADAR_RULES]
     _ALL_PICK = "All rules — overview"
