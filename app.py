@@ -1460,13 +1460,23 @@ def _world_clocks() -> None:
         "}catch(e){}}"
         # phone only: tapping a module in the (overlaying, near-full-screen) sidebar
         # left the nav sitting on top of the page you just opened — collapse it once
-        # the click has been handed to Streamlit. Bound once; desktop is untouched.
+        # the click has been handed to Streamlit.
+        #
+        # Width alone is a bad proxy for "phone" and was closing the sidebar on the
+        # DESKTOP (Ben, 2026-08-28): any window under 820px got the phone behaviour, and
+        # 820 is an ordinary desktop window — a landscape phone is wider than that anyway.
+        # A coarse pointer is the honest test: a mouse never matches it, a touchscreen
+        # always does. Checked INSIDE the handler rather than at bind time so dragging a
+        # window narrow and wide again follows the current state instead of whatever was
+        # true when the listener was first attached.
+        "function phone(d){try{return d.documentElement.clientWidth<820&&"
+        "!!(d.defaultView.matchMedia&&"
+        "d.defaultView.matchMedia('(pointer: coarse)').matches);}catch(e){return false;}}"
         "function auto(){try{var d=window.parent.document;"
-        "if(d.documentElement.clientWidth>=820)return;"
         "var u=d.querySelector('[data-testid=\"stSidebarUserContent\"]');"
         "if(!u||u.dataset.basisAuto)return;u.dataset.basisAuto='1';"
         "u.addEventListener('click',function(ev){"
-        "if(!ev.target.closest('button'))return;setTimeout(function(){"
+        "if(!ev.target.closest('button')||!phone(d))return;setTimeout(function(){"
         "var c=d.querySelector('[data-testid=\"stSidebarCollapseButton\"] button')"
         "||d.querySelector('[data-testid=\"stSidebarCollapseButton\"]');"
         "if(c)c.click();},150);},true);}catch(e){}}"
