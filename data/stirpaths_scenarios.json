@@ -38,9 +38,22 @@
    "Sep 2027": 0.0,
    "Oct 2027": 0.0,
    "Dec 2027": 0.0
+  },
+  "Bandeira 2 hikes": {
+   "Sep 2026": 100.0,
+   "Oct 2026": 0.0,
+   "Dec 2026": 100.0,
+   "Jan 2027": 0.0,
+   "Mar 2027": 0.0,
+   "Apr 2027": 0.0,
+   "Jun 2027": 0.0,
+   "Jul 2027": 0.0,
+   "Sep 2027": 0.0,
+   "Oct 2027": 0.0,
+   "Dec 2027": 0.0
   }
  },
  "_defaults": {
-  "FED": "Bandeira 2-3 hikes"
+  "FED": "Bandeira 2 hikes"
  }
 }
