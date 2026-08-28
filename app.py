@@ -2555,6 +2555,109 @@ def _pull_driver_alive() -> bool:
         return True
 
 
+def _pull_stage_bar(stat: dict) -> None:
+    """Draw the staged Bloomberg-pull progress from the driver's status dict: a pills row
+    (Bloomberg pull → Compute → [Morning Coffee] → Done) plus the one-line 'what to do now'
+    message, including the CLOSE-THE-TERMINAL cue the moment the fetch is done. Pure render —
+    it reads only the dict — so the caller (live fragment or a later visitor) decides when to
+    show it, and it is correct on ANY render even after the click session has gone."""
+    phase   = stat.get("phase", "")
+    outcome = stat.get("outcome", "")
+    mc      = stat.get("mc", "")
+    when    = str(stat.get("when", ""))[11:16]
+    detail  = stat.get("detail", "")
+    running = outcome in ("running", "retrying")
+    ok_ish  = outcome in ("ok", "compute_partial")
+    failed  = (not running) and bool(outcome) and not ok_ish
+    want_mc = bool(mc) or (running and _mc_run_after_pull())
+
+    stages = ["📡 Bloomberg pull", "🧮 Compute signals"]
+    if want_mc:
+        stages.append("☕ Morning Coffee")
+    stages.append("✅ Done")
+    done_i = len(stages) - 1
+    idx = {"preflight": 0, "fetch": 0, "retrying": 0, "compute": 1, "backup": 1,
+           "coffee": (2 if want_mc else done_i), "done": done_i}.get(phase)
+    if idx is None:
+        idx = done_i if ok_ish else 0
+
+    def _pill(i, label):
+        if failed and i >= idx:
+            bg, fg, mk = "#4A2323", "#E7A8A8", "✕"
+        elif i < idx or (not running and ok_ish):
+            bg, fg, mk = "#123024", "#6FD79B", "✓"
+        elif i == idx and running:
+            bg, fg, mk = "#3A2E0C", "#F5C518", "●"
+        else:
+            bg, fg, mk = "#1E212B", "#7B8494", "○"
+        return (f'<div style="flex:1 1 0;min-width:0;padding:7px 8px;border-radius:8px;'
+                f'background:{bg};color:{fg};font-size:12px;font-weight:700;text-align:center;'
+                f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{mk}&nbsp; {label}</div>')
+
+    st.markdown('<div style="display:flex;gap:6px;margin:.15rem 0 .55rem">'
+                + "".join(_pill(i, s) for i, s in enumerate(stages)) + "</div>",
+                unsafe_allow_html=True)
+
+    if running and phase in ("", "preflight", "fetch", "retrying"):
+        st.info("⏳ **Pulling from Bloomberg** — keep the Terminal open until the next step.")
+    elif running and phase in ("compute", "backup"):
+        st.success("✅ **Bloomberg fetch complete — you can CLOSE the Bloomberg Terminal now.**  "
+                   "🧮 Computing signals (local maths — no Terminal needed)…")
+    elif running and (phase == "coffee" or mc == "running"):
+        st.info("☕ **Morning Coffee — building the report and emailing the desk…**")
+    elif outcome == "ok":
+        extra = (" · Morning Coffee emailed the desk ☕" if mc == "sent"
+                 else " · ⚠️ Morning Coffee didn't send — see its card" if mc == "failed" else "")
+        st.success(f"✅ **All done — {detail}.**  Snapshot updated, backup pushed, the Terminal "
+                   f"can be closed.{extra}")
+    elif outcome == "compute_partial":
+        st.warning(f"⚠️ **Pull finished {when}, but some compute steps failed** — {detail}.  "
+                   "Do NOT re-pull; the Bloomberg data is safe.")
+    elif failed:
+        st.error(f"⚠️ **Pull ended {when}** — {outcome}" + (f": {detail}" if detail else "")
+                 + ".  The previous snapshot was kept — see logs/pull_driver.log.")
+    elif running:
+        st.info("⏳ **Pulling…** keep the Terminal open.")
+
+
+@st.fragment(run_every="4s")
+def _pull_status_fragment() -> None:
+    """Auto-refreshing pull status. Mounted (by the Home block) only while a pull is active or
+    its result is still unacknowledged, so there is no idle polling. Every few seconds it re-reads
+    the driver's status FILE and redraws the staged bar — hands-free, and correct even if the
+    click session dropped. On completion it clears the signal cache ONCE and forces a full rerun,
+    so the sidebar dates refresh without anyone touching the blocking handler."""
+    try:
+        stat = json.loads((ROOT / "data" / "snapshot" /
+                           ".pull_driver_status.json").read_text(encoding="utf-8"))
+    except Exception:
+        stat = {}
+    _today_ny = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    if stat.get("date") != _today_ny or not stat.get("outcome"):
+        return
+    if stat.get("outcome") == "running" and not _pull_driver_alive():
+        st.warning("⚠️ **The pull driver was killed mid-run** — if logs/pull_driver_fetch.log "
+                   "ends with *BLOOMBERG PHASE COMPLETE*, press **Re-run signals**; do NOT "
+                   "re-pull (that re-spends the day's Bloomberg allowance).")
+        return
+    running = stat.get("outcome") in ("running", "retrying")
+    if not running:
+        if stat.get("outcome") == "ok" and \
+                st.session_state.get("_pull_refreshed_for") != stat.get("when"):
+            st.session_state["_pull_refreshed_for"] = stat.get("when")
+            load_signals.clear()
+            st.rerun(scope="app")                      # full rerun → the sidebar dates refresh
+        if st.session_state.get("pull_banner_seen") == stat.get("when"):
+            return                                     # finished and dismissed — show nothing
+    _c, _x = st.columns([0.955, 0.045], vertical_alignment="center")
+    with _c:
+        _pull_stage_bar(stat)
+    if not running:
+        _x.button("✕", key="pull_banner_dismiss", help="Dismiss until the next pull",
+                  on_click=lambda w=stat.get("when"):
+                      st.session_state.__setitem__("pull_banner_seen", w))
+
+
 def _md_add_cb(seat: str) -> None:
     """My Day 'Add' — a callback so the title box can legally be cleared."""
     from src import myday
@@ -2954,155 +3057,46 @@ def render_home() -> None:
     pc.markdown('<div class="dk-s dk-vc" style="text-align:right;letter-spacing:.06em;'
                 'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
                 unsafe_allow_html=True)
-    # Honesty guard (2026-08-21): the status file said "running" for hours after a
-    # server restart killed the driver mid-run. If the status says running but no
-    # run_pull.py process exists, say so instead of showing nothing.
+    # Persistent pull status (2026-08-28): the staged bar + sidebar refresh are driven off the
+    # driver's status FILE by an auto-refreshing fragment, so they advance hands-free and show the
+    # true stage on ANY render — surviving the session drops that used to blank the page and
+    # swallow the completion banner. Mounted only while a pull is active OR its result is still
+    # unseen (or one was just launched), so there is no idle polling.
     if IS_ADMIN:
         try:
-            _pstat = json.loads((ROOT / "data" / "snapshot" /
-                                 ".pull_driver_status.json").read_text(encoding="utf-8"))
+            _ps0 = json.loads((ROOT / "data" / "snapshot" /
+                               ".pull_driver_status.json").read_text(encoding="utf-8"))
         except Exception:
-            _pstat = {}
-        if _pstat.get("outcome") == "running" and not _pull_driver_alive():
-            st.warning("⚠️ **The pull driver was killed mid-run** (status still says "
-                       "'running' but no driver process exists — usually a server "
-                       "restart during a pull). The fetched data may already be safe: "
-                       "if `logs/pull_driver_fetch.log` ends with *BLOOMBERG PHASE "
-                       "COMPLETE*, press **Re-run signals** — do **not** pull again, "
-                       "that would re-spend the day's Bloomberg allowance.")
-        # Outcome banner, read from the STATUS FILE rather than the click handler
-        # (Ben, 2026-08-26: "why has the banner stopped working?"). The old success
-        # message lived inside _run_ficc_pull's blocking wait, so it needed the very
-        # same script run to survive all ~14 minutes — a page nav, a reload or a lost
-        # websocket killed it, and the st.rerun() straight after it wiped it anyway.
-        # Reading the file means the result is there whenever you next look, and the
-        # rerun now REVEALS this banner instead of destroying the only one.
-        elif _pstat.get("outcome") and _pstat.get("date") == str(_today):
-            _pw, _pd = str(_pstat.get("when", ""))[11:16], _pstat.get("detail", "")
-            # Auto-run Morning Coffee + email the desk ONCE per successful pull — driven off the
-            # status FILE, not the pull handler (which dies on nav / reload / keep-alive restart —
-            # the same reason the banner itself moved here). A disk marker keyed on the pull's
-            # timestamp is CLAIMED before the run, so a mid-run rerun can't launch a second send.
-            _pull_when = str(_pstat.get("when", ""))
-            if (_pstat["outcome"] == "ok" and _pull_when and _mc_run_after_pull()
-                    and MORNING_COFFEE_DIR.exists()):
-                _mc_marker = ROOT / "data" / "snapshot" / ".mc_after_pull.done"
-                try:
-                    _mc_done_for = _mc_marker.read_text(encoding="utf-8").strip()
-                except Exception:
-                    _mc_done_for = ""
-                if _mc_done_for != _pull_when:
-                    _claimed = False
-                    try:
-                        _mc_marker.write_text(_pull_when, encoding="utf-8"); _claimed = True
-                    except Exception:
-                        _claimed = False
-                    if _claimed:                     # only run if we actually own the marker
-                        with st.spinner("Auto-running Morning Coffee and emailing the desk… (~1–2 min)"):
-                            _mc_auto_ok = run_morning_coffee(email=True)
-                        st.toast("Morning Coffee sent to the desk ☕" if _mc_auto_ok
-                                 else "Morning Coffee auto-run FAILED — see its card log ⚠️",
-                                 icon="☕" if _mc_auto_ok else "⚠️")
-                        st.rerun()
-            if st.session_state.get("pull_banner_seen") != _pstat.get("when"):
-                _bc, _bx = st.columns([0.94, 0.06], vertical_alignment="center")
-                if _pstat["outcome"] == "ok":
-                    _bc.success(f"✅ **Bloomberg pull finished {_pw}** — snapshot {_pd}, "
-                                "backup pushed. The Terminal can be closed.")
-                elif _pstat["outcome"] == "compute_partial":
-                    # the Bloomberg data is good; some downstream maths isn't — amber, not
-                    # red, and explicitly "don't re-pull" so the day's allowance is safe
-                    _bc.warning(f"⚠️ **Bloomberg pull finished {_pw}, but some compute steps "
-                                f"failed** — {_pd}")
-                else:
-                    _bc.error(f"⚠️ **Bloomberg pull ended {_pw}** — {_pstat['outcome']}"
-                              + (f": {_pd}" if _pd else "")
-                              + ". The existing snapshot was kept — see logs/pull_driver.log.")
-                _bx.button("✕", key="pull_banner_dismiss", help="Dismiss until the next pull",
-                           on_click=lambda w=_pstat.get("when"):
-                               st.session_state.__setitem__("pull_banner_seen", w))
+            _ps0 = {}
+        _today_ny = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        _fresh_launch = (time.time() - st.session_state.get("pull_launched_at", 0)) < 90
+        if _fresh_launch or (_ps0.get("date") == _today_ny and _ps0.get("outcome") and
+                             (_ps0.get("outcome") in ("running", "retrying")
+                              or st.session_state.get("pull_banner_seen") != _ps0.get("when"))):
+            _pull_status_fragment()
 
     def _run_ficc_pull():
-        # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through
-        # run_pull.py — pre-flight probe (a block / logged-out Terminal refuses in
-        # ~2s, zero hits), fetch with an 8-min WRITE-STALL watchdog, ONE automatic
-        # retry (the playbook that fixed every wedge this month), compute, git
-        # backup. Press Pull, keep the Terminal open until the green banner — no
-        # babysitting, no 45-minute mornings.
-        _DSTAT = ROOT / "data" / "snapshot" / ".pull_driver_status.json"
-
-        def _dstat() -> dict:
-            try:
-                return json.loads(_DSTAT.read_text(encoding="utf-8"))
-            except Exception:
-                return {}
-
-        ph = st.empty()
-        t0 = time.time()
-        # DETACHED, console output to a file — never pipes (2026-08-21: a server
-        # restart mid-pull broke the driver's stdout pipe and killed it right
-        # after a perfect fetch; detached + file logging means a bounce, keeper
-        # respawn or crashed session can no longer take a running pull with it)
+        # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through run_pull.py —
+        # pre-flight probe, fetch (8-min write-stall watchdog + one auto-retry), compute, git
+        # backup, and now the Morning Coffee too. Launched DETACHED (2026-08-21: a server restart
+        # mid-pull once broke the driver's stdout pipe and killed it right after a perfect fetch —
+        # detached + file logging means a bounce, keeper respawn or dropped session can't take a
+        # running pull with it). We do NOT block or show progress here: the persistent
+        # _pull_status_fragment above reads the driver's status file every few seconds, so the
+        # staged bar (fetch → close Terminal → compute → coffee → done) advances hands-free and the
+        # sidebar refreshes no matter what this session does next.
         _con = (ROOT / "logs" / "pull_driver_console.log").open("w", encoding="utf-8")
-        proc = subprocess.Popen(
+        subprocess.Popen(
             [sys.executable, "-u", str(ROOT / "run_pull.py")], cwd=str(ROOT),
             stdout=_con, stderr=subprocess.STDOUT,
             creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP
                            | subprocess.DETACHED_PROCESS))
-        _msgs = {
-            "running": "⏳ **Pulling** — {el:.1f} min elapsed (fetch + maths; ~10–15 min "
-                       "healthy). Self-healing: a stalled fetch is killed after ~8 quiet "
-                       "minutes and retried once automatically. Keep the Terminal open "
-                       "until the green banner.",
-            "retrying": "🔁 **First attempt stalled — the automatic retry is running** "
-                        "({el:.1f} min total). Nothing to do; keep the Terminal open.",
-        }
-        while proc.poll() is None:
-            el = (time.time() - t0) / 60
-            ph.info(_msgs.get(_dstat().get("outcome"), _msgs["running"]).format(el=el))
-            time.sleep(5)
         _con.close()
-        ph.empty()
-        stat = _dstat()
-        outcome, detail = stat.get("outcome"), stat.get("detail", "")
-        if outcome == "ok":
-            run_daily.run(); load_signals.clear()
-            _regen_mc_heatmap()      # refresh the Morning Coffee heatmap on Home
-            st.session_state.pop("ficc_pull_confirm", None)
-            # Morning Coffee auto-run is handled by the status-file block above — it fires once per
-            # pull and survives nav / reload. Doing it here (inside the blocking wait) meant a killed
-            # handler silently dropped the send — which is exactly the bug we just fixed.
-            st.success(f"✅ Snapshot {detail} — backup pushed. You can close the Terminal now.")
-            st.rerun()
-        elif outcome == "preflight_refused":
-            if "WORKFLOW_REVIEW" in detail or "-4002" in detail:
-                st.error(f"🚫 **{detail}.** The Terminal itself is fine — every API "
-                         "request is rejected until Bloomberg lifts the block (HELP "
-                         "HELP, quote the -4002). No pull was started, no hits spent. "
-                         "The existing snapshot was **kept**.")
-            else:
-                st.error(f"🖥️ **Bloomberg isn't answering on this machine** — {detail}. "
-                         "Open the Terminal, log in, and press Pull again. (No pull "
-                         "was started — no API hits were spent.)")
-        elif outcome == "fetch_failed_twice":
-            st.error("⏱️ **Both fetch attempts stalled** — even the automatic retry "
-                     "froze, which points at a genuinely unhealthy Bloomberg session. "
-                     "Restart the Terminal (log in on THIS machine), then press Pull "
-                     "again. The existing snapshot was **kept** — nothing was "
-                     "overwritten.")
-            try:
-                _tail = (ROOT / "logs" / "pull_driver_fetch_retry.log").read_text(
-                    encoding="utf-8", errors="replace")[-4000:]
-            except Exception:
-                _tail = "no log"
-            with st.expander("Technical log"):
-                st.code(_tail, language="text")
-        elif outcome == "compute_failed":
-            st.error("Snapshot compute failed (the fetched data is safe on disk — "
-                     "'Re-run signals' or retry). " + detail)
-        else:
-            st.error("The pull driver ended unexpectedly — see logs/pull_driver.log. "
-                     "The existing snapshot was **kept**.")
+        st.session_state["pull_launched_at"] = time.time()
+        st.session_state.pop("ficc_pull_confirm", None)
+        st.session_state.pop("pull_banner_seen", None)      # a fresh pull's bar starts un-dismissed…
+        st.session_state.pop("_pull_refreshed_for", None)   # …and its completion re-refreshes caches
+        st.rerun()
 
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
     # column slot pauses the script mid-row, so Streamlit showed a half-drawn fresh button row
@@ -13224,6 +13218,111 @@ def _cm_load_prefs() -> dict:
         return {}
 
 
+def render_roll_board() -> None:
+    """When each front contract rolls, and what the roll costs.
+
+    About twenty products roll every fortnight and nothing here covered it. The dates are
+    observed rather than assumed — the deep store keeps the actual contract behind the front
+    generic for every day since 2016, so ten years of real roll dates are simply readable.
+    """
+    from src import rollboard
+
+    st.subheader("🗓️  Roll Board — what rolls next, and what it costs")
+    st.caption(
+        "Roll dates are measured from ten years of the front generic's own contract history, "
+        "not assumed from a calendar. The spread shown is the one a position actually rolls "
+        "across: front contract minus second, on raw prices for both legs.")
+
+    with st.spinner("Reading the roll history…"):
+        try:
+            df = rollboard.board()
+        except Exception as e:
+            st.error(f"Could not build the roll board: {e}")
+            return
+    if df is None or df.empty:
+        st.info("No contract history available — the deep store has not been built yet.")
+        return
+
+    horizon = st.slider("Horizon (business days)", 5, 40, rollboard.SOON_BD, step=5,
+                        key="rb_horizon")
+    soon = df[(df["bd"] >= 0) & (df["bd"] <= horizon)].copy()
+
+    stamp = df["px_asof"].dropna()
+    c1, c2, c3 = st.columns(3)
+    c1.metric(f"Rolling within {horizon} sessions", len(soon))
+    c2.metric("Next roll", (f"{soon['name'].iloc[0]} · {soon['bd'].iloc[0]}d"
+                            if len(soon) else "—"))
+    c3.metric("Prices as of", f"{stamp.max():%d %b}" if len(stamp) else "—")
+
+    # First notice day is the honest caveat, not a footnote: the front generic switches when
+    # the front contract stops being front, which is effectively its expiry. A long in a
+    # physically-delivered contract has to be out before FIRST NOTICE, which can precede that
+    # by weeks, and nothing in the repo models it.
+    st.warning(
+        "**These are generic-roll dates, not first notice.** The front generic switches when "
+        "the front contract stops being front — effectively its expiry. Liquidity migrates "
+        "earlier, and a long in a physically-delivered contract must be out before first "
+        "notice day, which can come well before the date shown. Check the contract spec "
+        "before acting on a delivery-month position.", icon="⚠️")
+
+    if soon.empty:
+        st.info(f"Nothing rolls in the next {horizon} sessions.")
+    else:
+        show = soon.assign(
+            spread=[_rb_spread_txt(r) for r in soon.itertuples(index=False)],
+            cost=[_rb_cash_txt(r) for r in soon.itertuples(index=False)],
+            when=soon["roll_date"].astype(str) + soon["bd"].map(lambda b: f"  ({b}d)"),
+            confidence=soon["band"].map(lambda b: "±0–1d" if b <= 1 else f"±{b}d")
+                       + soon["rolls_seen"].map(lambda n: f", {n} rolls seen"),
+        )[["name", "asset", "front", "when", "confidence", "state", "spread", "cost",
+           "z2y", "seas_z"]]
+        st.dataframe(
+            show, use_container_width=True, hide_index=True,
+            column_config={
+                "name": "Product", "asset": "Asset", "front": "Front",
+                "when": "Rolls", "confidence": "Confidence", "state": "Curve",
+                "spread": "Front − 2nd", "cost": "Per lot",
+                "z2y": st.column_config.NumberColumn(
+                    "z vs 2y", format="%+.1f",
+                    help="The spread against its own two years — in percent of the front for "
+                         "everything but fixed income, which stays in price points. Ranking a "
+                         "cross-product board on raw points ranks by which products re-rated."),
+                "seas_z": st.column_config.NumberColumn(
+                    "z vs season", format="%+.1f",
+                    help="Against the same point in the year across nine years. RBOB's "
+                         "September spread carries the summer-to-winter grade change, so it "
+                         "is extreme against a flat mean every year and only notable "
+                         "against its own season."),
+            })
+
+    with st.expander(f"The whole book — all {len(df)} products", expanded=False):
+        st.dataframe(df.drop(columns=["px_asof"]), use_container_width=True, hide_index=True)
+    if int((df["stale_days"] > 0).sum()):
+        st.caption(f"{int((df['stale_days'] > 0).sum())} product(s) had not printed on the "
+                   "board's session and are carried forward from their last — see stale_days.")
+
+
+def _rb_spread_txt(r) -> str:
+    """The spread in the unit its own block is quoted in — basis points for a STIR (whose
+    price is 100 − rate), price points elsewhere, with percent of the front alongside where
+    that means anything."""
+    if r.bp is not None and np.isfinite(r.bp):
+        return f"{r.bp:+.1f} bp"
+    if r.pts is None or not np.isfinite(r.pts):
+        return "—"
+    unit = r.unit or "pts"
+    tail = f"  ({r.pct:+.2f}%)" if r.pct is not None and np.isfinite(r.pct) else ""
+    return f"{r.pts:+,.2f} {unit}{tail}"
+
+
+def _rb_cash_txt(r) -> str:
+    # blank, never a zero: volbt.point_value returns 0.0 for products missing from its table
+    # and "0" reads as "this roll is free" rather than "we don't know the contract size".
+    if r.cash is None or not np.isfinite(r.cash):
+        return "—"
+    return f"{r.cash:+,.0f} {r.ccy}"
+
+
 def render_curve_monitor() -> None:
     import altair as alt
 
@@ -14551,6 +14650,34 @@ def _radar_save_prefs(blob: dict) -> None:
         pass
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def _radar_rule_history(bank: str) -> list:
+    """Monthly rule prescriptions for the history chart, from the best source per bloc.
+
+    US gets the point-in-time vintage store (what the rules SAID at the time) plus a live
+    final point; every other bloc gets the same rules run over today's revised series
+    (what they WOULD SAY now), because ALFRED is a FRED service and no free vintage
+    archive exists outside the US. The two are not interchangeable and the page labels
+    them differently — see the section that draws this.
+
+    Cached: the non-US path re-reads a decade of series and evaluates ~180 months, which
+    is a couple of seconds, and this runs on every rerun of the page."""
+    if bank == "FED":
+        from src import macrobt
+        hist = macrobt.prescription_history()
+        try:
+            live = macrobt.live_row()
+        except Exception:
+            live = None
+        if hist and live is not None and live["when"] > hist[-1]["when"]:
+            hist = hist + [live]
+        return hist
+    try:
+        return macrorules.history_on_current_data(bank)
+    except Exception:
+        return []
+
+
 def render_macro_radar() -> None:
     """Policy-rule dashboard: what the macro says the policy rate should be, against what
     the strip has already priced. Every input here is free public data — no Bloomberg."""
@@ -15086,112 +15213,111 @@ def render_macro_radar() -> None:
         st.caption(f"⚠️ Recording gap: {g['from']} → {g['to']} ({g['days']} days) — the "
                    f"index understates that stretch.")
 
-    # ---- vintage backtest (stored result — a cold run is ~an hour of ALFRED calls) ----
-    st.markdown("#### Does the rule gap predict anything? — real-time backtest")
-    try:
-        from src import macrobt
-        bt = macrobt.stored_summary()
-    except Exception:
-        bt = None
-    if bt and bt.get("ok"):
-        st.caption(
-            f"US only (ALFRED is the only free vintage archive). {bt['n_obs']} monthly "
-            f"observations, {bt['first']} → {bt['last']}, each rebuilt from the data "
-            f"**as it stood on the day** — revisions and publication lags included. "
-            f"Last run {bt.get('ran', '—')} — refreshed monthly by the 'BASIS Macro "
-            f"Backtest Refresh' task (3rd, 08:00).")
-        # The refresh task is fire-and-forget, so its silent death would leave this
-        # section quietly presenting old results as current. Say so instead.
+    # ---- rule history, and (US only) the vintage backtest ------------------------------
+    # Two DIFFERENT objects, and the page must never blur them:
+    #   FED  every point rebuilt from the ALFRED vintage of its month — what the rule
+    #        SAID AT THE TIME. Only the US has a free vintage archive, which is also why
+    #        the predictive backtest below runs for the US alone.
+    #   rest every point computed from today's revised series — what the rule WOULD SAY
+    #        NOW about that month. Good for the shape through a cycle, useless for
+    #        judging prediction, because hindsight is baked into it.
+    if bank == "FED":
+        st.markdown("#### Does the rule gap predict anything? — real-time backtest")
         try:
-            _bt_age = (date.today() - date.fromisoformat(bt["ran"])).days
-            if _bt_age > 45:
-                st.warning(f"This backtest is {_bt_age} days old — the monthly refresh "
-                           f"task appears not to have run. Check 'BASIS Macro Backtest "
-                           f"Refresh' in Task Scheduler, or run `python -m src.macrobt`.",
-                           icon="⏳")
+            from src import macrobt
+            bt = macrobt.stored_summary()
         except Exception:
-            pass
-        _rule_names = {k: n for k, n, _f in _RADAR_RULES}
-        sel = st.selectbox("Rule tested", list(bt.get("analyses", {}).keys()) or ["balanced"],
-                           format_func=lambda k: _rule_names.get(k, k),
-                           key="radar_bt_rule")
-        a = bt.get("analyses", {}).get(sel) or bt.get("analysis", {})
-        rows = []
-        for h, s in sorted(a.get("horizons", {}).items(), key=lambda kv: int(kv[0])):
-            rows.append({
-                "Horizon": f"{h}m",
-                "Correlation (gap → move)": ("—" if s.get("corr") is None
-                                             else f"{s['corr']:+.2f}"),
-                "Direction hit rate": ("—" if s.get("hit_rate") is None
-                                       else f"{s['hit_rate']:.0%} of {s['n_moved']} moves"),
-                "Mean move": f"{s.get('mean_move_bp', 0):+.0f}bp",
-                "Mean move when |gap|>100bp": ("—" if s.get("mean_move_when_wide_bp") is None
-                                               else f"{s['mean_move_when_wide_bp']:+.0f}bp "
-                                                    f"(n={s.get('n_wide', 0)})"),
-            })
-        if rows:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-        st.caption(macrobt.verdict(a) if a else "")
+            bt = None
+        if bt and bt.get("ok"):
+            st.caption(
+                f"US only (ALFRED is the only free vintage archive). {bt['n_obs']} monthly "
+                f"observations, {bt['first']} → {bt['last']}, each rebuilt from the data "
+                f"**as it stood on the day** — revisions and publication lags included. "
+                f"Last run {bt.get('ran', '—')} — refreshed monthly by the 'BASIS Macro "
+                f"Backtest Refresh' task (3rd, 08:00).")
+            try:
+                _bt_age = (date.today() - date.fromisoformat(bt["ran"])).days
+                if _bt_age > 45:
+                    st.warning(f"This backtest is {_bt_age} days old — the monthly refresh "
+                               f"task appears not to have run. Check 'BASIS Macro Backtest "
+                               f"Refresh' in Task Scheduler, or run `python -m src.macrobt`.",
+                               icon="⏳")
+            except Exception:
+                pass
+            _rule_names = {k: n for k, n, _f in _RADAR_RULES}
+            sel = st.selectbox("Rule tested", list(bt.get("analyses", {}).keys()) or ["balanced"],
+                               format_func=lambda k: _rule_names.get(k, k),
+                               key="radar_bt_rule")
+            _an = bt.get("analyses", {}).get(sel) or bt.get("analysis", {})
+            rows = []
+            for h, _s in sorted(_an.get("horizons", {}).items(), key=lambda kv: int(kv[0])):
+                rows.append({
+                    "Horizon": f"{h}m",
+                    "Correlation (gap → move)": ("—" if _s.get("corr") is None
+                                                 else f"{_s['corr']:+.2f}"),
+                    "Direction hit rate": ("—" if _s.get("hit_rate") is None
+                                           else f"{_s['hit_rate']:.0%} of {_s['n_moved']} moves"),
+                    "Mean move": f"{_s.get('mean_move_bp', 0):+.0f}bp",
+                    "Mean move when |gap|>100bp": ("—" if _s.get("mean_move_when_wide_bp") is None
+                                                   else f"{_s['mean_move_when_wide_bp']:+.0f}bp "
+                                                        f"(n={_s.get('n_wide', 0)})"),
+                })
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.caption(macrobt.verdict(_an) if _an else "")
+        else:
+            st.info("No backtest stored yet — run `python -m src.macrobt` once (about an "
+                    "hour cold; minutes thereafter). It measures, on point-in-time ALFRED "
+                    "vintages, whether the rule gap predicted subsequent policy moves — the "
+                    "check that decides how much weight this page deserves.", icon="🧪")
 
-        # Prescriptions vs the actual funds rate through history — the classic chart
-        # from the Fed's MPR "Monetary Policy Rules" box (and the Taylor-rule Wikipedia
-        # page), rebuilt here from the SAME point-in-time vintages as the backtest, so
-        # every point shows what the rule said with the data of the day. It is the
-        # picture behind the module's core warning: level gaps persist for years.
-        st.markdown("**Prescriptions vs the actual funds rate — as they stood at the time**")
+    # The history chart — same controls for every bloc, different provenance.
+    _rate_name = {"FED": "Effective fed funds rate", "ECB": "ECB deposit facility rate",
+                  "BOE": "Bank Rate", "BCB": "Selic target"}.get(bank, "Policy rate")
+    st.markdown(
+        "**Prescriptions vs the actual funds rate — as they stood at the time**"
+        if bank == "FED" else
+        f"**Prescriptions vs the actual {_rate_name} — on today's data**")
+    hist = _radar_rule_history(bank)
+    if hist:
+        _hist_rules = [(k, n) for k, n, _f in _RADAR_RULES if k != "firstdiff"]
+        _hist_names = dict(_hist_rules)
+        # Startup default: the saved rule set (page prefs file), else the classic
+        # Fed-MPR pairing. Filtered against the live rule list so a renamed rule
+        # in code can never wedge the multiselect.
+        _hist_saved = [k for k in (prefs.get("hist_rules") or [])
+                       if k in _hist_names] or ["taylor93", "balanced"]
+        _hc1, _hc2 = st.columns([3, 1], vertical_alignment="bottom")
+        sel_hist = _hc1.multiselect(
+            "Rules shown", [k for k, _n in _hist_rules],
+            default=_hist_saved,
+            format_func=lambda k: _hist_names.get(k, k), key="radar_bt_hist_rules")
+        if IS_ADMIN and _hc2.button(
+                "📌 Set as default", key="radar_hist_set_def",
+                use_container_width=True, disabled=not sel_hist,
+                help="Save the rules currently shown as this chart's startup "
+                     "selection — they load on every launch."):
+            blob = _radar_prefs()
+            blob["hist_rules"] = list(sel_hist)
+            _radar_save_prefs(blob)
+            st.toast("Saved as default: "
+                     + ", ".join(_hist_names[k] for k in sel_hist), icon="📌")
         try:
             import altair as alt
-            hist = macrobt.prescription_history()
-        except Exception:
-            hist = []
-        if hist:
-            _hist_rules = [(k, n) for k, n, _f in _RADAR_RULES if k != "firstdiff"]
-            _hist_names = dict(_hist_rules)
-            # Startup default: the saved rule set (page prefs file), else the classic
-            # Fed-MPR pairing. Filtered against the live rule list so a renamed rule
-            # in code can never wedge the multiselect.
-            _hist_saved = [k for k in (prefs.get("hist_rules") or [])
-                           if k in _hist_names] or ["taylor93", "balanced"]
-            _hc1, _hc2 = st.columns([3, 1], vertical_alignment="bottom")
-            sel_hist = _hc1.multiselect(
-                "Rules shown", [k for k, _n in _hist_rules],
-                default=_hist_saved,
-                format_func=lambda k: _hist_names.get(k, k), key="radar_bt_hist_rules")
-            if IS_ADMIN and _hc2.button(
-                    "📌 Set as default", key="radar_hist_set_def",
-                    use_container_width=True, disabled=not sel_hist,
-                    help="Save the rules currently shown as this chart's startup "
-                         "selection — they load on every launch."):
-                blob = _radar_prefs()
-                blob["hist_rules"] = list(sel_hist)
-                _radar_save_prefs(blob)
-                st.toast("Saved as default: "
-                         + ", ".join(_hist_names[k] for k in sel_hist), icon="📌")
-            _actual = "Effective fed funds rate"
-            # End the history on a LIVE point: today's data through the same formula
-            # and as-of reduction as the vintage rows, so the chart's last reading
-            # moves with the prints exactly like the headline numbers up top. The
-            # monthly vintage rows behind it never change.
-            try:
-                _live = macrobt.live_row()
-            except Exception:
-                _live = None
-            if _live is not None and _live["when"] > hist[-1]["when"]:
-                hist = hist + [_live]
             chart_rows = [{"when": row["when"].isoformat(),
                            "wlabel": row["when"].strftime("%b %Y"),
-                           "rate": row["policy"], "series": _actual} for row in hist]
+                           "rate": row["policy"], "series": _rate_name} for row in hist]
             for k in sel_hist:
                 chart_rows += [{"when": row["when"].isoformat(),
                                 "wlabel": row["when"].strftime("%b %Y"),
                                 "rate": row[k],
                                 "series": _hist_names[k]} for row in hist]
             cdf = pd.DataFrame(chart_rows)
-            dom = [_actual] + [_hist_names[k] for k in sel_hist]
+            dom = [_rate_name] + [_hist_names[k] for k in sel_hist]
             rng = ["#F5C518"] + ["#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65"][:len(sel_hist)]
             base = alt.Chart(cdf).encode(
                 # No forced tick format: Vega's adaptive time labels show years at the
-                # full 14-year view and switch to months as the pan/zoom closes in.
+                # full view and switch to months as the pan/zoom closes in.
                 # UTC scale for the same reason as the meeting charts above: a bare
                 # "2012-01-01" is parsed as UTC midnight and labelled locally, which west
                 # of Greenwich reads as December 2011.
@@ -15202,7 +15328,7 @@ def render_macro_radar() -> None:
                 color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
                                 legend=alt.Legend(title=None, orient="top",
                                                   labelLimit=0)),
-                size=alt.condition(alt.datum.series == _actual,
+                size=alt.condition(alt.datum.series == _rate_name,
                                    alt.value(3.0), alt.value(1.6)),
                 tooltip=[alt.Tooltip("wlabel:N", title="Month"),
                          alt.Tooltip("series:N", title=""),
@@ -15216,6 +15342,9 @@ def render_macro_radar() -> None:
             st.altair_chart((lines + zero_rule).properties(height=480),
                             use_container_width=True)
             st.caption("Drag to pan, scroll/pinch to zoom, double-click to reset the view.")
+        except Exception:
+            pass
+        if bank == "FED":
             st.caption(
                 f"US only, {hist[0]['when'].year}–{hist[-1]['when'].year}, monthly, with "
                 "a live final point. Each historical point is computed from the ALFRED "
@@ -15229,11 +15358,21 @@ def render_macro_radar() -> None:
                 "Read the gaps as stance, not forecast — they sit 100bp+ from policy for "
                 "years at a stretch, which is exactly why the page trades the CHANGE in "
                 "prescription, never the level.")
-    else:
-        st.info("No backtest stored yet — run `python -m src.macrobt` once (about an "
-                "hour cold; minutes thereafter). It measures, on point-in-time ALFRED "
-                "vintages, whether the rule gap predicted subsequent policy moves — the "
-                "check that decides how much weight this page deserves.", icon="🧪")
+        else:
+            st.warning(
+                "**Computed on today's data, not on what was known at the time.** No free "
+                "vintage archive exists outside the US (ALFRED is a FRED service), so every "
+                "point here runs the CURRENT, revised series back through the rule: it is "
+                f"what the rules would say now about {hist[0]['when'].year}, not what they "
+                "said then. Hindsight is in it, so it cannot be used to judge whether the "
+                "gap predicted anything — that test is US-only and lives on the Fed tab. "
+                "Read it for the SHAPE of the prescription against policy through a cycle."
+                + (" r\\* and the natural rate are assumptions for this bloc, so the level "
+                   "of every line moves with what you set under *Assumptions* above."
+                   if prov.assumed else ""), icon="🕰️")
+            st.caption(f"{hist[0]['when']:%b %Y}–{hist[-1]['when']:%b %Y}, monthly. "
+                       "First-difference is absent: it needs a year-ago gap this history "
+                       "does not carry consistently.")
 
     # ---- provenance + validation ------------------------------------------------------
     with st.expander("🔍  Where every number came from, and the correctness check"):
@@ -15369,6 +15508,8 @@ with st.sidebar:
         _nav_button(f"{_n_mod:02d} · Correlations", "Product Correlations")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Curve / RV", "Curve Monitor")
+        _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Roll Board", "Roll Board")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Seasonality", "Seasonality")
         _n_mod += 1
@@ -15690,6 +15831,8 @@ if active == "Product Correlations":
     render_sector_correlations(); st.stop()
 if active == "Curve Monitor":
     render_curve_monitor(); st.stop()
+if active == "Roll Board":
+    render_roll_board(); st.stop()
 if active == "Macro Radar":
     render_macro_radar(); st.stop()
 if active == "Seasonality":

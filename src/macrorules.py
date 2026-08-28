@@ -384,6 +384,7 @@ class InputProvenance:
 def inputs_from_data(bank: str, *, nairu: float | None = None,
                      rstar: float | None = None, use_core: bool = True,
                      use_expectations: bool = False,
+                     data: dict | None = None,
                      when=None) -> tuple[RuleInputs, InputProvenance]:
     """Build a RuleInputs for one bank from the free data layer.
 
@@ -406,7 +407,10 @@ def inputs_from_data(bank: str, *, nairu: float | None = None,
 
     bank = bank.upper()
     prov = InputProvenance()
-    data = macrodata.BLOC_INPUTS[bank]()
+    # `data` lets a caller hand in an already-fetched bloc bundle. Walking a decade of
+    # history means calling this once per month, and re-fetching the whole bundle each
+    # time would turn arithmetic into hundreds of cache reads for no new information.
+    data = data if data is not None else macrodata.BLOC_INPUTS[bank]()
     when = when or date.today()
 
     def pick(key, label):
@@ -618,3 +622,69 @@ if __name__ == "__main__":
               f"{c['rule']:<30} ours {c['ours']:>8.4f}  theirs {c['theirs']:>8.4f}  "
               f"{c['diff_bp']:+.2f}bp")
     print("OVERALL:", "PASS" if res["ok"] else "FAIL")
+
+
+# ── rule history on today's data (the non-US legs) ──────────────────────────────────
+# NOT the same object as the vintage history in src/macrobt.py, and the difference is the
+# whole point:
+#
+#   macrobt.prescription_history()   US only. Every point rebuilt from the ALFRED vintage
+#                                    of that month — what the rule SAID AT THE TIME, with
+#                                    the revisions and publication lags of the day.
+#   history_on_current_data()        Any bloc. Every point computed from TODAY'S revised
+#                                    series read back through .asof() — what the rule
+#                                    WOULD SAY NOW about that month.
+#
+# The second is a weaker claim. It is contaminated by hindsight: today's unemployment and
+# inflation for 2020 are not the numbers anyone had in 2020, and CBO-style natural-rate
+# series get rewritten backwards for years. It cannot be used to judge whether the rule
+# gap predicted anything — that is what the vintage backtest is for, and why it refuses to
+# run outside the US. It is honest for one purpose only: showing the SHAPE of the
+# prescription against actual policy through a cycle. Any caller must label it as such.
+def history_on_current_data(bank: str, *, start: date | None = None,
+                            step_months: int = 1,
+                            rstar: float | None = None, nairu: float | None = None,
+                            use_core: bool = True,
+                            rule_keys=("taylor93", "balanced", "shortfalls",
+                                       "inertial")) -> list[dict]:
+    """Monthly rule prescriptions for `bank` off the current (revised) data.
+
+    Returns [{"when": date, "policy": %, "<rule_key>": %, ...}] ascending, keeping only
+    months where EVERY requested rule evaluated so the series stay comparable. The bloc
+    bundle is fetched once and re-read with .asof() per month; no network per point."""
+    from src import macrodata
+
+    bank = bank.upper()
+    data = macrodata.BLOC_INPUTS[bank]()
+    start = start or date(2011, 1, 1)
+    # Stop at the last month every driver actually covers: unemployment and inflation
+    # publish with a lag, and running past it would repeat the final reading as a flat
+    # tail that looks like the rules going quiet.
+    ends = []
+    for key in ("policy", "unemp", "core_infl" if use_core else "headline_infl"):
+        s = data.get(key)
+        if s is not None and getattr(s, "ok", False) and getattr(s, "obs", None):
+            d = s.latest_actual_date if hasattr(s, "latest_actual_date") else None
+            ends.append(d or s.obs[-1][0])
+    end = min(ends) if ends else date.today()
+
+    out, d = [], date(start.year, start.month, 1)
+    while d <= end:
+        try:
+            x, _prov = inputs_from_data(bank, nairu=nairu, rstar=rstar, use_core=use_core,
+                                        data=data, when=d)
+        except Exception:
+            d = _add_months_r(d, step_months)
+            continue
+        row = {r.key: r.prescribed for r in evaluate(x)
+               if r.ok and r.prescribed is not None and r.key in rule_keys}
+        if len(row) == len(rule_keys) and x.policy_rate is not None:
+            row["when"], row["policy"] = d, x.policy_rate
+            out.append(row)
+        d = _add_months_r(d, step_months)
+    return out
+
+
+def _add_months_r(d: date, n: int) -> date:
+    y, m = d.year + (d.month - 1 + n) // 12, (d.month - 1 + n) % 12 + 1
+    return date(y, m, min(d.day, 28))
