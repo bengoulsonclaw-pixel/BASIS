@@ -142,16 +142,31 @@ def _seasonal() -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def _common_asof(p1: pd.DataFrame) -> pd.Timestamp | None:
+    """The session the board is struck on.
+
+    Taking each product's own last print silently mixes sessions: the Asian contracts
+    (KOSPI, Nikkei, ASX) run a session ahead of the other 78, so a board built column by
+    column compares yesterday's Europe against today's Asia. The modal last date is the one
+    session almost every product actually has.
+    """
+    lasts = [s.dropna().index[-1] for _, s in p1.items() if s.notna().any()]
+    return pd.Series(lasts).mode().iloc[0] if lasts else None
+
+
 def spreads(tickers: list) -> dict:
-    """front1 - front2 per product, in points, as a percent of the front, and in cash."""
+    """front1 - front2 per product, all struck on one common session."""
     from . import deepstore, volbt
     p1, p2 = deepstore.get_raw(tickers), deepstore.get_front2(tickers)
+    asof = _common_asof(p1)
     out = {}
     for t in tickers:
         if t not in getattr(p1, "columns", []) or t not in getattr(p2, "columns", []):
             continue
         a, b = p1[t].dropna(), p2[t].dropna()
         idx = a.index.intersection(b.index)
+        if asof is not None:
+            idx = idx[idx <= asof]
         if not len(idx):
             continue
         d = idx[-1]
@@ -167,19 +182,65 @@ def spreads(tickers: list) -> dict:
         pv = pv if pv else float("nan")
         out[t] = {
             "front_px": front, "second_px": second, "pts": pts,
-            # percent of the front price is the cross-product comparable. It is meaningless
-            # for STIRs, whose price is 100 - rate, so it is withheld there rather than
-            # printed as a number that invites a false comparison.
-            "pct": (None if _is_stir(t) or not front else pts / abs(front) * 100.0),
+            # A STIR price is 100 - rate, so points ARE a rate differential: x100 gives basis
+            # points directly and percent-of-price answers no question anyone asks. This is
+            # the convention curvemon and seasmon already use, so the numbers agree with the
+            # rest of the app rather than inventing a third scale.
+            "bp": (pts * 100.0 if _is_stir(t) else None),
+            # Percent of the front is the cross-product comparable for everything else, and
+            # it matters: over a two-year window ranking on raw points is a ranking by which
+            # products happened to re-rate. Silver's spread reads -2.3 sigma in points and
+            # -0.8 in percent purely because its front went 27.81 -> 115.50; gold reads
+            # +1.4 in points and +2.2 in percent, so a points board misses it altogether.
+            "pct": (None if _is_fi(t) or not front else pts / abs(front) * 100.0),
             "cash": (None if not np.isfinite(pv) else pts * pv), "ccy": ccy,
             "state": "backwardation" if pts > 0 else "contango" if pts < 0 else "flat",
             "asof": d,
+            # a product whose last print predates the board's session — one to read with care
+            "stale_days": (0 if asof is None else int(np.busday_count(d.date(), asof.date()))),
         }
     return out
 
 
 def _is_stir(ticker: str) -> bool:
     return str(u.asset(ticker)).upper().startswith("STIR")
+
+
+def _is_fi(ticker: str) -> bool:
+    """Fixed income — percent-of-price is withheld for the whole block. For a STIR the price
+    is 100 - rate; for a bond future the calendar spread is carry plus CTD-roll effects and
+    the honest divisor is the contract's DV01, which no store here holds. Both are quoted and
+    traded in price points, so that is what the board shows."""
+    return bool(_is_stir(ticker) or u.is_fixed_income(ticker))
+
+
+def norm_z(tickers: list, years: int = 2) -> dict:
+    """Each spread against its own trailing window, on the normaliser its block deserves:
+    percent of the front for non-FI, price points for fixed income (where z is scale-free,
+    so points and basis points give the identical number).
+
+    This is deliberately NOT the seasonal z the board also carries. That one asks "is this
+    spread unusual for the time of year"; this one asks "is it unusual at all", and on a
+    trending front the two can disagree.
+    """
+    from . import deepstore
+    p1, p2 = deepstore.get_raw(tickers), deepstore.get_front2(tickers)
+    asof = _common_asof(p1)
+    if asof is None:
+        return {}
+    start = asof - pd.Timedelta(days=365 * years)
+    out = {}
+    for t in tickers:
+        if t not in getattr(p1, "columns", []) or t not in getattr(p2, "columns", []):
+            continue
+        sp = (p1[t] - p2[t]).dropna()
+        if not _is_fi(t):
+            sp = ((p1[t] - p2[t]) / p1[t].abs() * 100.0).dropna()
+        w = sp.loc[start:asof]
+        if len(w) < 250 or not np.isfinite(w.std(ddof=1)) or w.std(ddof=1) == 0:
+            continue
+        out[t] = float((w.iloc[-1] - w.mean()) / w.std(ddof=1))
+    return out
 
 
 def board(today=None) -> pd.DataFrame:
@@ -189,6 +250,7 @@ def board(today=None) -> pd.DataFrame:
         return pd.DataFrame()
     tickers = [t for t in c.columns if t in u.INSTRUMENTS]
     sp = spreads(tickers)
+    nz = norm_z(tickers)
     seas = _seasonal()
     seas_by = ({r.ticker: r for r in seas.itertuples(index=False)}
                if "ticker" in getattr(seas, "columns", []) else {})
@@ -204,8 +266,12 @@ def board(today=None) -> pd.DataFrame:
             "front": nr["front"], "roll_date": nr["date"], "bd": nr["bd"],
             "band": nr["band"], "rolls_seen": nr["n"],
             "front_px": s.get("front_px"), "second_px": s.get("second_px"),
-            "pts": s.get("pts"), "pct": s.get("pct"),
+            "pts": s.get("pts"), "pct": s.get("pct"), "bp": s.get("bp"),
             "cash": s.get("cash"), "ccy": s.get("ccy"), "state": s.get("state"),
+            # not "asof": DataFrame.asof is a pandas method, so that name is unreachable
+            # by attribute and silently hands back the method instead of the column.
+            "px_asof": s.get("asof"), "stale_days": s.get("stale_days"),
+            "z2y": nz.get(t, np.nan),
             "unit": getattr(sr, "unit", None) if sr is not None else None,
             "seas_norm": float(getattr(sr, "norm", np.nan)) if sr is not None else np.nan,
             "seas_z": float(getattr(sr, "z", np.nan)) if sr is not None else np.nan,
