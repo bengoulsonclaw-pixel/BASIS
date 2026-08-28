@@ -1166,7 +1166,8 @@ _GROUP_TABS = {
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
                            ("Fed", "Fed Path"),      # flags ride in via CSS ::before
                            ("ECB", "ECB Path"),      # (_STIR_TAB_FLAG_CSS) — emoji here
-                           ("BoE", "BoE Path")],     # would double up with them
+                           ("BoE", "BoE Path"),      # would double up with them
+                           ("BCB", "BCB Path")],
     # The old Trade Testing module dissolved (Ben 2026-08-15): TA Backtester + Signal
     # Ledger live under Technical Analysis, the Vol Backtester under Volatility.
     "Technical Analysis": [("📈 TA Hub", "Technical Analysis"),
@@ -1203,7 +1204,7 @@ def _render_group_tabs(active_page: str) -> None:
     for col, (label, dest) in zip(cols, members):
         col.button(label, key=f"gtab_{dest}", use_container_width=True, on_click=_go, args=(dest,),
                    type="primary" if dest == active_page else "secondary")
-    if any(dest in ("Fed Path", "ECB Path", "BoE Path") for _l, dest in members):
+    if any(dest in ("Fed Path", "ECB Path", "BoE Path", "BCB Path") for _l, dest in members):
         st.markdown(f"<style>{_STIR_TAB_FLAG_CSS}</style>", unsafe_allow_html=True)
 
 
@@ -2620,13 +2621,13 @@ def _pull_stage_bar(stat: dict) -> None:
         st.info("⏳ **Pulling…** keep the Terminal open.")
 
 
-@st.fragment(run_every="4s")
+@st.fragment(run_every=5)
 def _pull_status_fragment() -> None:
     """Auto-refreshing pull status. Mounted (by the Home block) only while a pull is active or
     its result is still unacknowledged, so there is no idle polling. Every few seconds it re-reads
     the driver's status FILE and redraws the staged bar — hands-free, and correct even if the
-    click session dropped. On completion it clears the signal cache ONCE and forces a full rerun,
-    so the sidebar dates refresh without anyone touching the blocking handler."""
+    click session dropped. Display only — the cache refresh + rerun live in the Home block, because
+    a fragment must not app-rerun (that halts the outer script before the rest of the page renders)."""
     try:
         stat = json.loads((ROOT / "data" / "snapshot" /
                            ".pull_driver_status.json").read_text(encoding="utf-8"))
@@ -2641,14 +2642,8 @@ def _pull_status_fragment() -> None:
                    "re-pull (that re-spends the day's Bloomberg allowance).")
         return
     running = stat.get("outcome") in ("running", "retrying")
-    if not running:
-        if stat.get("outcome") == "ok" and \
-                st.session_state.get("_pull_refreshed_for") != stat.get("when"):
-            st.session_state["_pull_refreshed_for"] = stat.get("when")
-            load_signals.clear()
-            st.rerun(scope="app")                      # full rerun → the sidebar dates refresh
-        if st.session_state.get("pull_banner_seen") == stat.get("when"):
-            return                                     # finished and dismissed — show nothing
+    if not running and st.session_state.get("pull_banner_seen") == stat.get("when"):
+        return                                         # finished and dismissed — show nothing
     _c, _x = st.columns([0.955, 0.045], vertical_alignment="center")
     with _c:
         _pull_stage_bar(stat)
@@ -3033,6 +3028,31 @@ def render_home() -> None:
         pass
     dk = repcal.desk_day(ficc_ev, _day)
 
+    # Persistent pull status (2026-08-28) — a full-width block ABOVE the date-bar container, NOT
+    # interleaved between that container's column renders: a fragment placed mid-container reset the
+    # browser's column cursor and dropped the pull button (verified 2026-08-28). Driven off the
+    # driver's status FILE by an auto-refreshing fragment, so the staged bar advances hands-free and
+    # shows the true stage on ANY render — surviving the session drops that used to blank the page.
+    if IS_ADMIN:
+        try:
+            _ps0 = json.loads((ROOT / "data" / "snapshot" /
+                               ".pull_driver_status.json").read_text(encoding="utf-8"))
+        except Exception:
+            _ps0 = {}
+        _today_ny = str(_today)
+        # Robust sidebar refresh: after a completed pull, clear the signal cache ONCE and rerun so
+        # the sidebar dates update (a normal main-script rerun, BEFORE the date bar renders).
+        if (_ps0.get("outcome") == "ok" and _ps0.get("date") == _today_ny
+                and st.session_state.get("_pull_refreshed_for") != _ps0.get("when")):
+            st.session_state["_pull_refreshed_for"] = _ps0.get("when")
+            load_signals.clear()
+            st.rerun()
+        _fresh_launch = (time.time() - st.session_state.get("pull_launched_at", 0)) < 90
+        if _fresh_launch or (_ps0.get("date") == _today_ny and _ps0.get("outcome") and
+                             (_ps0.get("outcome") in ("running", "retrying")
+                              or st.session_state.get("pull_banner_seen") != _ps0.get("when"))):
+            _pull_status_fragment()
+
     # ── date bar: ‹ Today · date › + live counts + the two data actions ──
     # keyed so the phone CSS can hold ‹ date › on one row (stacked, the arrows
     # became full-width empty bars around the date — same fix as the landing nav)
@@ -3057,23 +3077,6 @@ def render_home() -> None:
     pc.markdown('<div class="dk-s dk-vc" style="text-align:right;letter-spacing:.06em;'
                 'text-transform:uppercase">' + " · ".join(_bits) + '</div>',
                 unsafe_allow_html=True)
-    # Persistent pull status (2026-08-28): the staged bar + sidebar refresh are driven off the
-    # driver's status FILE by an auto-refreshing fragment, so they advance hands-free and show the
-    # true stage on ANY render — surviving the session drops that used to blank the page and
-    # swallow the completion banner. Mounted only while a pull is active OR its result is still
-    # unseen (or one was just launched), so there is no idle polling.
-    if IS_ADMIN:
-        try:
-            _ps0 = json.loads((ROOT / "data" / "snapshot" /
-                               ".pull_driver_status.json").read_text(encoding="utf-8"))
-        except Exception:
-            _ps0 = {}
-        _today_ny = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
-        _fresh_launch = (time.time() - st.session_state.get("pull_launched_at", 0)) < 90
-        if _fresh_launch or (_ps0.get("date") == _today_ny and _ps0.get("outcome") and
-                             (_ps0.get("outcome") in ("running", "retrying")
-                              or st.session_state.get("pull_banner_seen") != _ps0.get("when"))):
-            _pull_status_fragment()
 
     def _run_ficc_pull():
         # ONE button, self-healing (Ben, 2026-08-20): the whole pull runs through run_pull.py —
@@ -8865,7 +8868,8 @@ _STIR_TAB_FLAG_CSS = "".join(
     # stray brace made the CSS parser drop the following rule (ECB/BoE flags
     # vanished while Fed's — the first rule — survived)
     "box-shadow:0 0 0 1px rgba(255,255,255,0.22);}"
-    for dest, bk in (("Fed Path", "FED"), ("ECB Path", "ECB"), ("BoE Path", "BOE")))
+    for dest, bk in (("Fed Path", "FED"), ("ECB Path", "ECB"), ("BoE Path", "BOE"),
+                     ("BCB Path", "BCB")))
 # Bank identity colours — Ben's explicit preference (2026-08-11): keep the
 # red/blue/green even though red/green mean direction elsewhere; a product-
 # colour palette (SR3 gold / ER purple / SONIA orange) was tried and rejected.
@@ -9282,7 +9286,7 @@ def render_stir_overview() -> None:
                + ". Open a bank's cockpit to set your own odds against it.")
 
     # ---- bank cards ----------------------------------------------------------
-    _dest = {"FED": "Fed Path", "ECB": "ECB Path", "BOE": "BoE Path"}
+    _dest = {"FED": "Fed Path", "ECB": "ECB Path", "BOE": "BoE Path", "BCB": "BCB Path"}
     cards = st.columns(3)
     for col, (bk, bank) in zip(cards, stirpaths.BANKS.items()):
         ip = fits[bk]
@@ -9566,7 +9570,11 @@ def _radar_priced_banner(bank: str, asof: date) -> None:
                           "not odds")
     except Exception:
         return                       # a missing strip must never blank the whole page
-    st.markdown(html, unsafe_allow_html=True)
+    # Same third-of-the-row width it has on the STIR Paths overview. Full-bleed, the
+    # rate sits a screen away from the bank name it belongs to and the card stops
+    # reading as one object. Columns (not a max-width) so a phone still stacks it full
+    # width instead of leaving a stranded ribbon.
+    st.columns(3)[0].markdown(html, unsafe_allow_html=True)
 
 
 def _stir_signed_pct(bp: float, hike_bp: float, cut_bp: float) -> float:
@@ -9587,7 +9595,7 @@ def _stir_odds_str(bp: float, step: float) -> str:
 
 
 def _stir_term_chart(prods: list, bank, strips: dict, px_of: dict, fair_of: dict,
-                     asof, front_note: str = "") -> None:
+                     asof, front_note: str = "", y_title: str = "Futures price") -> None:
     """The centrepiece: the futures TERM STRUCTURE — market curve (solid, filled ●
     at each contract's true last-trade day) vs the desk-scenario curve (dashed
     gold-edged, open points) — with every rate decision as a prominent vertical
@@ -9654,7 +9662,7 @@ def _stir_term_chart(prods: list, bank, strips: dict, px_of: dict, fair_of: dict
     prng = [cc["series"], cc["accent"]]
     base = alt.Chart(df).encode(
         x=alt.X("Date:T", title=None, scale=x_scale),
-        y=alt.Y("px:Q", title="Futures price", scale=alt.Scale(zero=False)),
+        y=alt.Y("px:Q", title=y_title, scale=alt.Scale(zero=False)),
         color=alt.Color("Path:N", scale=alt.Scale(domain=pdom, range=prng),
                         legend=alt.Legend(title=None, orient="top")),
         detail="Product:N",
@@ -9723,6 +9731,8 @@ def render_stir_bank(bank_key: str) -> None:
     import altair as alt
     bank = stirpaths.BANKS[bank_key]
     prods_all = stirpaths.bank_products(bank_key)
+    _rq = bank_key == "BCB"                         # rate-quoted DI zeros: rates on
+                                                    # screen, log-space fit, no stub
     st.markdown(f"<h3>{_flag_img(bank_key, 17)}&nbsp; {bank.name} — implied path "
                 "&amp; meeting scenarios</h3>", unsafe_allow_html=True)
     st.caption(
@@ -9748,7 +9758,7 @@ def render_stir_bank(bank_key: str) -> None:
         policy = c1.number_input(f"{bank.rate_name} (%)", value=bank.default_rate,
                                  step=0.25, format="%.2f", key=f"sp{bank_key}_rate",
                                  help="Today's policy rate. Sets the starting level of the path.")
-    proxy = {"FED": "SOFR", "ECB": "€STR", "BOE": "SONIA"}[bank_key]
+    proxy = {"FED": "SOFR", "ECB": "€STR", "BOE": "SONIA", "BCB": "CDI"}[bank_key]
     basis_bp = c2.number_input(f"{proxy} − policy basis (bp)",
                                value=stirpaths.BANK_BASIS_SEED[bank_key], step=0.5,
                                format="%.1f", key=f"sp{bank_key}_basis",
@@ -9759,9 +9769,12 @@ def render_stir_bank(bank_key: str) -> None:
     months = c4.slider("Timeline horizon (mo)", 6, 24, 15, key=f"sp{bank_key}_mo",
                        help="Horizon of the contract-windows timeline (in the expander below).")
 
-    q0 = next(p for p in prods_all if p.quarterly)
-    front_start = stirpaths.strip(q0, asof, 1)[0].start
-    auto_stub = stirpaths.realized_stub_avg(bank, front_start, asof)
+    if _rq:                                         # DI zeros start TODAY — there is
+        front_start, auto_stub = asof, None         # no elapsed window, hence no stub
+    else:
+        q0 = next(p for p in prods_all if p.quarterly)
+        front_start = stirpaths.strip(q0, asof, 1)[0].start
+        auto_stub = stirpaths.realized_stub_avg(bank, front_start, asof)
     with st.expander("Advanced"):
         a1, a2, a3 = st.columns(3)
         compound = a1.checkbox("Compound settlements (ACT/360)", value=True,
@@ -9784,24 +9797,29 @@ def render_stir_bank(bank_key: str) -> None:
                                         help="Seeds the per-contract Spread column in the market-"
                                              "prices grid (Euribor is a forward-looking term fix). "
                                              "Default measured off the real strips vs €STR-fair.")
-        stub = a3.number_input(
-            f"Realized o/n avg since {front_start:%d %b} (%)",
-            value=round(float(auto_stub), 3) if auto_stub is not None
-            else round(policy + basis_bp / 100.0, 3),
-            step=0.005, format="%.3f", key=f"sp{bank_key}_stub",
-            help="Average overnight fixing over the front window's already-elapsed days — fixes "
-                 "the front contract's odds after a mid-window move. Auto-seeded from the fixings "
-                 "cache when available.")
-        a3.caption(("auto from fixings cache" if auto_stub is not None
-                    else "no fixings cache — seeded from today's rate; adjust after a recent move"))
-        if stirpaths.MODE == "bloomberg" and IS_ADMIN:
-            if a3.button("↻ Pull o/n fixings", key=f"sp{bank_key}_fixpull",
-                         help="Refresh data/stir_fixings.json from the Terminal (3 index bdh pulls)."):
-                got = stirpaths.refresh_fixings(asof)
-                st.session_state.pop(f"sp{bank_key}_stub", None)
-                st.session_state.pop(f"sp{bank_key}_stub_seed0", None)
-                st.toast(f"Fixings refreshed: {got}" if got else "Pull failed (blocked/offline).")
-                st.rerun()
+        if _rq:
+            stub = policy + basis_bp / 100.0        # unused: DI zeros have no stub
+            a3.caption("No front-stub input for DI — every contract accrues from "
+                       "TODAY, so nothing is realized.")
+        else:
+            stub = a3.number_input(
+                f"Realized o/n avg since {front_start:%d %b} (%)",
+                value=round(float(auto_stub), 3) if auto_stub is not None
+                else round(policy + basis_bp / 100.0, 3),
+                step=0.005, format="%.3f", key=f"sp{bank_key}_stub",
+                help="Average overnight fixing over the front window's already-elapsed days — fixes "
+                     "the front contract's odds after a mid-window move. Auto-seeded from the fixings "
+                     "cache when available.")
+            a3.caption(("auto from fixings cache" if auto_stub is not None
+                        else "no fixings cache — seeded from today's rate; adjust after a recent move"))
+            if stirpaths.MODE == "bloomberg" and IS_ADMIN:
+                if a3.button("↻ Pull o/n fixings", key=f"sp{bank_key}_fixpull",
+                             help="Refresh data/stir_fixings.json from the Terminal (3 index bdh pulls)."):
+                    got = stirpaths.refresh_fixings(asof)
+                    st.session_state.pop(f"sp{bank_key}_stub", None)
+                    st.session_state.pop(f"sp{bank_key}_stub_seed0", None)
+                    st.toast(f"Fixings refreshed: {got}" if got else "Pull failed (blocked/offline).")
+                    st.rerun()
     # remember the stub input's FIRST-render seed: the widget keeps its old
     # value when policy/basis change, so comparing against a RECOMPUTED seed
     # mistook the stale auto-seed for a deliberate user stub and silently
@@ -9865,8 +9883,12 @@ def render_stir_bank(bank_key: str) -> None:
         # the pull covers this bank's whole FIT universe (incl. fit-only
         # serials/monthlies) — refreshing only the displayed contracts left the
         # hidden instruments at morning vintage, and the serial-pair
-        # differences turned that gap into phantom "pinned" meeting moves
-        _live_cs = [c for p_, c in stirpaths.pull_universe(asof) if p_.bank == bank_key]
+        # differences turned that gap into phantom "pinned" meeting moves.
+        # BCB: the DI strip is OFF the morning pull (root unverified), so the
+        # ⚡ button IS the live feed — an explicit, user-initiated request for
+        # exactly these ~12 tickers, and the way the OD root gets verified.
+        _live_cs = (contracts if _rq else
+                    [c for p_, c in stirpaths.pull_universe(asof) if p_.bank == bank_key])
         if lp2.button("⚡ Live pull", key=f"sp{bank_key}_livepull", use_container_width=True,
                       help="One request for exactly this bank's strip + serial/monthly "
                            f"tickers ({len(_live_cs)} contracts) — nothing else touches "
@@ -9905,13 +9927,16 @@ def render_stir_bank(bank_key: str) -> None:
                 "Product": st.column_config.TextColumn(disabled=True),
                 "Contract": st.column_config.TextColumn(disabled=True),
                 "Window": st.column_config.TextColumn(disabled=True),
-                "Market px": st.column_config.NumberColumn(format="%.4f",
-                                                           min_value=90.0, max_value=100.0),
+                "Market px": (st.column_config.NumberColumn(format="%.3f",
+                                                            min_value=0.5, max_value=40.0)
+                              if _rq else
+                              st.column_config.NumberColumn(format="%.4f",
+                                                            min_value=90.0, max_value=100.0)),
                 "Spread (bp)": st.column_config.NumberColumn(format="%.1f", step=0.5,
                                                              min_value=-50.0, max_value=50.0)})
         st.session_state[px_key] = dict(zip(edited_px["Contract"], edited_px["Market px"]))
         st.session_state[spd_key] = dict(zip(edited_px["Contract"], edited_px["Spread (bp)"]))
-    prices = [float(st.session_state[px_key].get(c, 96.0)) for c in codes]
+    prices = [float(st.session_state[px_key].get(c, r0 if _rq else 96.0)) for c in codes]
     spreads = [float(st.session_state[spd_key].get(c, s)) for c, s in zip(codes, seed_spd)]
     spread_of = dict(zip(codes, spreads))
 
@@ -9943,6 +9968,13 @@ def render_stir_bank(bank_key: str) -> None:
                             override_spreads=spread_of)
     if bf is not None:
         ip = bf.implied
+    elif _rq:
+        # live store with no DI quotes: never mock a real fit, never run
+        # price-maths on rates — say so and stop cleanly
+        st.info("No DI quotes in the snapshot store yet — the DI strip stays off the "
+                "morning pull until the OD root is verified. Paste the strip to Claude "
+                "or press **⚡ Live pull** above, and this cockpit lights up.")
+        return
     else:                                           # nothing liquid (shouldn't happen)
         ip = stirpaths.implied_path(bank, contracts, prices, asof, r0, spreads,
                                     stub_rate=stub)
@@ -10009,6 +10041,8 @@ def render_stir_bank(bank_key: str) -> None:
     scen_fn = stirpaths.scenario_rate_fn(r0, views, asof=asof, stub_rate=stub)
 
     def _fair(p, c):
+        if p.rate_quoted:                           # DI: compounded scenario CDI, a rate
+            return stirpaths.di_fair_rate(c, scen_fn, asof)
         return fedpath.price(c, scen_fn, compound=(p.compound and compound)) \
             - spread_of.get(c.code, 0.0) / 100.0
 
@@ -10054,10 +10088,16 @@ def render_stir_bank(bank_key: str) -> None:
             c_.markdown(f"<div class='sp-cell'>{html}</div>", unsafe_allow_html=True)
 
     # ---- 1 · the futures: market price over your fair, gap beneath -----------
-    st.markdown(f"**1 · Futures — the market's prices over "
-                f"<span style='color:{_YOU_C}'>yours</span>** &nbsp;·&nbsp; Δ row = the gap "
-                "in bp (green = cheap vs your view / buy, red = rich / sell)",
-                unsafe_allow_html=True)
+    if _rq:
+        st.markdown(f"**1 · DI rates — the market's curve over "
+                    f"<span style='color:{_YOU_C}'>yours</span>** &nbsp;·&nbsp; Δ row = the "
+                    "gap in bp (green = market rate BELOW your view / pay the rate, "
+                    "red = above / receive)", unsafe_allow_html=True)
+    else:
+        st.markdown(f"**1 · Futures — the market's prices over "
+                    f"<span style='color:{_YOU_C}'>yours</span>** &nbsp;·&nbsp; Δ row = the gap "
+                    "in bp (green = cheap vs your view / buy, red = rich / sell)",
+                    unsafe_allow_html=True)
     gC = [1] + [1] * len(codes)
     # code + its last-trade (expiry) date on a small second line
     _hdr_items, _hdr_tips = [], {}
@@ -10068,30 +10108,40 @@ def render_stir_bank(bank_key: str) -> None:
         _hdr_items.append(_it)
         _hdr_tips[_it] = (f"{p_.short} {c_.label} · last trading day "
                           f"{_lt:%a %d %b %Y}")
-    _grid_hdr(st.columns(gC, gap="small"), "Futures", _hdr_items, _FUT_C, _hdr_tips,
+    _grid_hdr(st.columns(gC, gap="small"), "DI strip" if _rq else "Futures",
+              _hdr_items, _FUT_C, _hdr_tips,
               sub="code · expiry", tip="Each column is one listed futures contract; "
                                        "the small date is its last trading day")
+    _px_fmt = "{:.3f}".format if _rq else "{:.4f}".format
     _grid_row(st.columns(gC, gap="small"), "Market", _MKT_C,
-              [f"{px_of_now[c]:.4f}" for c in codes],
-              sub="price trading now", tip="The live market price of each contract")
+              [_px_fmt(px_of_now[c]) for c in codes],
+              sub="rate trading now" if _rq else "price trading now",
+              tip="The live market rate of each DI" if _rq
+                  else "The live market price of each contract")
     # editable BOTH ways: these price cells re-solve the §2 odds when typed into,
     # and re-derive from the §2 odds whenever those change
     def _fpx_edit():
         tgt = [float(st.session_state.get(f"sp{bank_key}_fpx_{c}", px_of_now[c]))
                for c in codes]
-        # invert (linear), then refine: the inversion is simple-average while the
-        # forward pricing compounds, so iterate the ~1-2bp convexity wedge away
+        # invert (linear/log-linear), then refine: the inversion and the forward
+        # pricing use slightly different compounding, so iterate the wedge away
         adj, ip2 = list(tgt), None
         for _ in range(3):
-            ip2 = stirpaths.implied_path(bank, contracts, adj, asof, r0, spreads,
-                                         stub_rate=stub)
+            if _rq:
+                ip2 = stirpaths.di_implied_path(bank, contracts, adj, asof, r0)
+            else:
+                ip2 = stirpaths.implied_path(bank, contracts, adj, asof, r0, spreads,
+                                             stub_rate=stub)
             vs = [stirpaths.MeetingView(m_, max(float(b_), 0.0) / hike_bp,
                                         max(-float(b_), 0.0) / cut_bp, hike_bp, cut_bp)
                   for m_, b_ in zip(ip2.meetings, ip2.per_meeting_bp)]
             fn_ = stirpaths.scenario_rate_fn(r0, vs, asof=asof, stub_rate=stub)
-            fwd = [fedpath.price(c_, fn_, compound=(p_.compound and compound))
-                   - spread_of.get(c_.code, 0.0) / 100.0
-                   for p_, c_ in zip(owner, contracts)]
+            if _rq:
+                fwd = [stirpaths.di_fair_rate(c_, fn_, asof) for c_ in contracts]
+            else:
+                fwd = [fedpath.price(c_, fn_, compound=(p_.compound and compound))
+                       - spread_of.get(c_.code, 0.0) / 100.0
+                       for p_, c_ in zip(owner, contracts)]
             adj = [a_ + (t_ - f_) for a_, t_, f_ in zip(adj, tgt, fwd)]
         for m_, bp_ in zip(ip2.meetings, ip2.per_meeting_bp):
             lab_ = fedpath.meeting_label(m_)
@@ -10099,9 +10149,12 @@ def render_stir_bank(bank_key: str) -> None:
                 st.session_state[mv_key(lab_)] = round(
                     _stir_signed_pct(float(bp_), hike_bp, cut_bp) / 100.0, 3)
 
+    _fpx_lo, _fpx_hi, _fpx_step = (0.5, 40.0, 0.01) if _rq else (90.0, 100.0, 0.005)
+
     def _fpx_bump(k: str, d: float) -> None:
-        st.session_state[k] = round(min(100.0, max(90.0,
-                                    float(st.session_state.get(k, 96.0)) + d)), 4)
+        st.session_state[k] = round(min(_fpx_hi, max(_fpx_lo,
+                                    float(st.session_state.get(k, r0 if _rq else 96.0))
+                                    + d)), 4)
         _fpx_edit()                                 # a stepped price re-solves the odds too
 
     _fwrap = f"sp{bank_key}_fpxwrap"
@@ -10139,7 +10192,7 @@ def render_stir_bank(bank_key: str) -> None:
             c_.markdown(f"<div class='sp-cell' style='border:1px solid "
                         f"rgba(245,197,24,0.35);color:#F5C518;font-weight:600' "
                         f"title='Your fair for {code} under your §2 odds'>"
-                        f"{fair_of[code]:.4f}</div>", unsafe_allow_html=True)
+                        f"{_px_fmt(fair_of[code])}</div>", unsafe_allow_html=True)
     _d_cols = st.columns(gC, gap="small")
     _d_cols[0].markdown(_rail("Δ bp", "#E8EAED", "your fair − market price",
                               "The gap between your fair value and the live market, in "
@@ -10419,8 +10472,9 @@ def render_stir_bank(bank_key: str) -> None:
                     _fk = f"sp{bank_key}_fpx_{wc_code}"
                     with st.container(key=f"sp{bank_key}_vf_{i}"):
                         fin, fbtn = st.columns([3.1, 0.9], gap="small")
-                        fin.number_input(wc_code, min_value=90.0, max_value=100.0,
-                                         step=0.005, format="%.4f", key=_fk,
+                        fin.number_input(wc_code, min_value=_fpx_lo, max_value=_fpx_hi,
+                                         step=_fpx_step,
+                                         format="%.3f" if _rq else "%.4f", key=_fk,
                                          label_visibility="collapsed",
                                          on_change=_fpx_edit,
                                          help=f"Where {wc_code} lands under your odds — "
@@ -10436,7 +10490,7 @@ def render_stir_bank(bank_key: str) -> None:
                 elif wc_code and wc_code in fair_of:
                     st.markdown(f"<div class='sp-cell' style='opacity:0.45;color:#F5C518' "
                                 f"title='Same contract ({wc_code}) — edit on its first "
-                                f"row above'>{fair_of[wc_code]:.4f}</div>",
+                                f"row above'>{_px_fmt(fair_of[wc_code])}</div>",
                                 unsafe_allow_html=True)
                 else:
                     st.markdown("<div class='sp-cell'>—</div>", unsafe_allow_html=True)
@@ -10449,11 +10503,18 @@ def render_stir_bank(bank_key: str) -> None:
                "more hawkish/dovish than the market). **INTO** / **SETTLE** = the quarterly "
                "future the decision settles into and its latest stored settlement.")
     if bf is not None:
-        _bits = [f"market odds fit from **{bf.n_instruments} liquid instruments** — quarterlies "
-                 "+ monthlies/serials, independent of the products displayed above"]
+        _bits = [(f"market odds fit from **{bf.n_instruments} DI maturities** — consecutive "
+                  "zeros difference out single Copom meetings, so most meetings are "
+                  "structurally pinned")
+                 if _rq else
+                 (f"market odds fit from **{bf.n_instruments} liquid instruments** — quarterlies "
+                  "+ monthlies/serials, independent of the products displayed above")]
         if ip.stub is not None and _stub_arg is None:
             _bits.append(f"front stub **solved from the market**: {ip.stub:.3f}%")
-        if _anchor is not None:
+        if _rq and bf.anchor is not None:
+            _bits.append(f"current {bank.rate_name} per the {bf.anchor[1]} front DI: "
+                         f"**{bf.anchor[0]:.2f}%** (anchors the fit)")
+        elif _anchor is not None:
             _av = _anchor[0] + basis_bp / 100.0
             _bits.append(f"current {proxy} per the {_anchor[1]} clean month: **{_av:.3f}%**"
                          + (" (anchors the fit)" if _anchor_used
@@ -10516,6 +10577,7 @@ def render_stir_bank(bank_key: str) -> None:
         if live and live[0].code in px_of_now:
             fronts.append(f"{p.short} front {live[0].code} @ {px_of_now[live[0].code]:.4f}")
     _stir_term_chart(prods, bank, strips, px_of_now, fair_of, asof,
+                     y_title="DI rate (%)" if _rq else "Futures price",
                      front_note="   ·   ".join(fronts))
 
     # ---- WIRP-style combined chart: rate lines over cumulative-steps bars ----
@@ -10562,8 +10624,10 @@ def render_stir_bank(bank_key: str) -> None:
     st.caption("The WIRP read: bars = cumulative hikes/cuts the market prices through "
                "each meeting (right axis) · solid line = the same thing as a rate level "
                "(left axis) · dashed gold = where YOUR odds put the rate. This chart is "
-               "the futures chart above turned upside-down — price = 100 − rate, so a "
-               "falling strip IS a rising path.")
+               + ("the DI chart above in meeting steps — same direction, DIs are "
+                "quoted as rates." if _rq else
+                "the futures chart above turned upside-down — price = 100 − rate, "
+                "so a falling strip IS a rising path."))
 
     # ---- contract-windows timeline (the meeting-risk Gantt), now secondary ---
     with st.expander("🗓️ Contract windows & meeting-risk timeline"):
@@ -10706,7 +10770,11 @@ def render_stir_bank(bank_key: str) -> None:
             _go("Strategy Builder")
             st.rerun()
 
-    # ---- PDF export — the Meeting-Risk Map (all three banks) -----------------
+    # ---- PDF export — the Meeting-Risk Map (price-quoted banks) --------------
+    if _rq:
+        st.caption("Meeting-Risk Map PDF for Brazil lands once the report engine "
+                   "learns DI rate-space — the G3 template draws price windows.")
+        return
     st.divider()
     bank_short = {"FED": "Fed", "ECB": "ECB", "BOE": "BoE"}[bank_key]
     if st.button(f"📈 Generate {bank_short} Meeting-Risk Map (PDF)", type="primary",
@@ -15912,6 +15980,16 @@ if active == "Fed Path":
     render_stir_bank("FED"); st.stop()
 if active == "ECB Path":
     render_stir_bank("ECB"); st.stop()
+if active == "BCB Path":
+    # TEMPORARY safe placeholder: the DI engine is live (src/stirpaths) but the
+    # cockpit's rate-quoted rendering is landing next — routing straight into
+    # render_stir_bank would run price-math on DI rate quotes.
+    st.markdown(f"<h3>{_flag_img('BCB', 17)}&nbsp; Banco Central do Brasil — "
+                "implied path &amp; meeting scenarios</h3>", unsafe_allow_html=True)
+    st.info("The Brazil cockpit is being built right now — the DI engine (Copom-step "
+            "fit on the B3 DI curve) is already live underneath; the page lands "
+            "shortly. Nothing here pulls Bloomberg.")
+    st.stop()
 if active == "BoE Path":
     render_stir_bank("BOE"); st.stop()
 if active == "STIR Cross":
