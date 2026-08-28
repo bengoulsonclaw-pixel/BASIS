@@ -53,6 +53,7 @@ from src import expiries
 from src import tascore
 from src import markethours
 from src import blocksizes
+from src import bbgcodes
 from src import futyield
 from src import optbuilder
 from src import equities
@@ -1161,6 +1162,7 @@ _GROUP_TABS = {
                            ("🕒 Market Hours", "Market Hours"),
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield"),
+                           ("🔤 BBG Codes", "BBG Codes"),
                            ("📄 Tearsheet", "Product Tearsheet"),
                            ("🧭 Macro Compass", "Macro Compass")],
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
@@ -7214,6 +7216,244 @@ def render_block_sizes() -> None:
                 "on the Universe page appears here with blank cells until you fill it in.")
 
 
+# ══════════════════════════════════════════════════════════════════════════════════════
+# BBG Codes — the symbol database (Market Information)
+# ══════════════════════════════════════════════════════════════════════════════════════
+def _bbg_source_chip(source: str, verified: bool = False) -> str:
+    """Provenance badge. The desk must see at a glance whether a date came off the Terminal
+    or out of our rule engine — a rule date is a good estimate of the standard cycle, never
+    the exchange's calendar, and must not leave here dressed as fact."""
+    if verified:
+        return ("<span style='background:#1B4D3E;color:#7FE0B0;padding:1px 7px;"
+                "border-radius:9px;font-size:0.72rem;font-weight:600'>✓ observed</span>")
+    if source == "observed":
+        return ("<span style='background:#1B3A4D;color:#7FC8E0;padding:1px 7px;"
+                "border-radius:9px;font-size:0.72rem;font-weight:600'>seen in chain</span>")
+    return ("<span style='background:#4D411B;color:#E0CE7F;padding:1px 7px;"
+            "border-radius:9px;font-size:0.72rem;font-weight:600'>rule-derived</span>")
+
+
+def _bbg_fmt(d) -> str:
+    return f"{d:%a %d %b %Y}" if d else "—"
+
+
+def render_bbg_codes() -> None:
+    """Bloomberg symbol ⇄ product/expiry, both directions, plus a browsable book.
+
+    Runs entirely on data already on disk (see src/bbgcodes.py) — this page never pulls from
+    Bloomberg. Weeklies and dailies are NOT covered, and the page says so rather than
+    guessing a root it cannot know."""
+    view = st.session_state.setdefault("bbg_view", "Decode")
+    vc1, vc2, vc3 = st.columns(3)
+    if vc1.button("🔎 Decode a symbol", use_container_width=True, key="bbg_tab_dec",
+                  type="primary" if view == "Decode" else "secondary"):
+        st.session_state["bbg_view"] = view = "Decode"; st.rerun()
+    if vc2.button("🗓️ Build from a date", use_container_width=True, key="bbg_tab_bld",
+                  type="primary" if view == "Build" else "secondary"):
+        st.session_state["bbg_view"] = view = "Build"; st.rerun()
+    if vc3.button("📖 Browse the book", use_container_width=True, key="bbg_tab_brw",
+                  type="primary" if view == "Browse" else "secondary"):
+        st.session_state["bbg_view"] = view = "Browse"; st.rerun()
+
+    st.subheader("🔤 Bloomberg Codes")
+
+    obs = bbgcodes.observed()
+    asof = next((v.get("asof") for v in obs.values() if v.get("asof")), None)
+    n_exp = sum(len(v) for v in bbgcodes.observed_expiries().values())
+
+    # ---------------------------------------------------------------- DECODE
+    if view == "Decode":
+        st.caption(
+            "Paste any Bloomberg futures or option symbol — outright (`CLZ6 Comdty`), option "
+            "(`CLZ6C 80 Comdty`) or generic (`CLA Comdty`) — and get the product it names, "
+            "the contract month, and when it stops trading.")
+        # `key` alone carries the value across reruns — passing `value=` as well makes
+        # Streamlit re-seed the box from the stale read on every rerun, and the typed
+        # symbol never commits.
+        sym = st.text_input("Symbol", placeholder="CLZ6C 80 Comdty",
+                            key="bbg_sym").strip()
+        if not sym:
+            st.info("Type a symbol above. Try `CLZ6C 80 Comdty`, `TYX6C 112.5 Comdty`, "
+                    "`ESZ6 Index` or `NGU26 Comdty`.")
+            return
+
+        d = bbgcodes.decode(sym)
+        if not d["ok"]:
+            st.error(f"Couldn't read **{sym}** — {d.get('reason') or 'unrecognised'}.")
+            st.caption("Expected shape: root + month code + year, optionally C/P + strike, "
+                       "plus the yellow key. Month codes are F G H J K M N Q U V X Z = "
+                       "Jan…Dec.")
+            hits = bbgcodes.search(sym)
+            if hits:
+                st.markdown("**Did you mean one of these products?**")
+                st.dataframe(pd.DataFrame([{"Product": h["name"], "Root": h["root"],
+                                            "Ticker": h["ticker"], "Sector": h["asset"]}
+                                           for h in hits]),
+                             hide_index=True, use_container_width=True)
+            return
+
+        prod = d["product"]
+        if d["kind"] == "generic":
+            st.warning(f"**{sym}** is the front-month generic for **{prod['name']}** — it "
+                       "rolls, so it names no single contract and has no one expiry.")
+            for w in d.get("warnings", []):
+                st.caption(f"⚠️ {w}")
+            return
+
+        m1, m2, m3 = st.columns([0.4, 0.3, 0.3])
+        m1.metric("Product", prod["name"])
+        m2.metric("Contract", d["contract"])
+        m3.metric("Type", ("Option — " + d["put_call"]) if d["kind"] == "option"
+                  else "Future (outright)")
+
+        rows = [{"": "Root", "Value": f"{d['root'].strip()}  →  {prod['name']}"},
+                {"": "Month code", "Value": f"{d['month_code']}  →  "
+                                            f"{bbgcodes.MONTH_NAME[d['month']]}"},
+                {"": "Year", "Value": str(d["year"])},
+                {"": "Yellow key", "Value": d.get("yellow_key") or "— (not given)"},
+                {"": "Sector", "Value": f"{prod['asset']} · {prod['region']}"},
+                {"": "Exchange", "Value": markethours.exchange_of(prod["ticker"],
+                                                                 prod["asset"]) or "—"}]
+        if d["kind"] == "option":
+            rows.insert(3, {"": "Put / Call", "Value": d["put_call"]})
+            rows.insert(4, {"": "Strike", "Value": d["strike"]})
+        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+
+        st.markdown("#### Expiry")
+        e1, e2 = st.columns(2)
+        with e1:
+            st.markdown("**Option expiry**")
+            st.markdown(f"### {_bbg_fmt(d.get('opt_expiry'))}")
+            if d.get("opt_expiry"):
+                st.markdown(_bbg_source_chip(d["source"], d.get("expiry_verified")),
+                            unsafe_allow_html=True)
+            else:
+                st.caption("This product has no listed option in the expiry engine.")
+        with e2:
+            st.markdown("**Futures last trade**")
+            st.markdown(f"### {_bbg_fmt(d.get('fut_expiry'))}")
+            if d.get("fut_expiry"):
+                st.markdown(_bbg_source_chip(d["source"]), unsafe_allow_html=True)
+            elif d.get("serial"):
+                st.caption(f"{bbgcodes.MONTH_NAME[d['month']]} is not a listed futures "
+                           "month — this is a **serial option**, see below.")
+
+        und = d.get("underlying")
+        if und and d.get("serial"):
+            st.info(f"**Serial option.** {d['contract']} has no future of its own — this "
+                    f"option is written on the **{und['contract']}** contract, "
+                    f"`{und['code']}`, which last trades {_bbg_fmt(und['expiry'])}.")
+        elif und and d["kind"] == "option":
+            st.caption(f"Underlying future: `{und['code']}` ({und['contract']}), "
+                       f"last trade {_bbg_fmt(und['expiry'])}.")
+        if d.get("expiry_time"):
+            st.caption(f"Indicative last-trade time: **{d['expiry_time']}** — standard "
+                       "contract; weeklies and dailies differ.")
+
+        for w in d.get("warnings", []):
+            st.warning(w)
+
+        blk = blocksizes.load_map().get(prod["ticker"], {})
+        if blk.get("fut") or blk.get("opt"):
+            st.caption(f"Minimum block size — futures **{blk.get('fut') or '—'}**, "
+                       f"options **{blk.get('opt') or '—'}** lots.")
+
+    # ---------------------------------------------------------------- BUILD
+    elif view == "Build":
+        st.caption(
+            "Pick the product and the date the client wants cover to, and this returns the "
+            "Bloomberg code. A calendar date rarely **is** an expiry, so you also get the "
+            "contract still trading on that date — usually the one you actually want.")
+        prods = bbgcodes.products()
+        c1, c2, c3 = st.columns([0.45, 0.3, 0.25])
+        labels = [f"{p['name']}  ·  {p['asset']}" for p in prods]
+        idx = c1.selectbox("Product", range(len(prods)), format_func=lambda i: labels[i],
+                           key="bbg_prod")
+        target = c2.date_input("Expiring on / cover to", value=date.today(), key="bbg_date")
+        kind = c3.radio("Contract", ["Option", "Future"], key="bbg_kind", horizontal=True)
+        prod = prods[idx]
+        res = bbgcodes.build(prod["ticker"], target, "opt" if kind == "Option" else "fut")
+
+        if res["exact"]:
+            c = res["exact"]
+            st.success(f"**{prod['name']}** — the {kind.lower()} expiring exactly on "
+                       f"{target:%a %d %b %Y} is the **{c['contract']}** contract.")
+            st.markdown(f"## `{c['code']}`")
+            st.markdown(_bbg_source_chip(c["source"], c.get("expiry_verified")),
+                        unsafe_allow_html=True)
+        elif res["live_on"]:
+            c = res["live_on"]
+            st.info(f"Nothing expires exactly on {target:%a %d %b %Y}. The **{prod['name']}** "
+                    f"{kind.lower()} still trading on that date is the **{c['contract']}** "
+                    f"contract, expiring {_bbg_fmt(c['expiry'])}.")
+            st.markdown(f"## `{c['code']}`")
+            st.markdown(_bbg_source_chip(c["source"], c.get("expiry_verified")),
+                        unsafe_allow_html=True)
+
+        if kind == "Option":
+            st.caption("Replace `<strike>` with the strike, in the product's own quote units "
+                       "(WTI in $/bbl, corn in cents, Treasuries in points).")
+            fmts = sorted(obs.get(prod["root"], {}).get("strike_fmt") or [])[:6]
+            if fmts:
+                st.caption("Strike strings seen in this product's live chain: "
+                           + ", ".join(f"`{f}`" for f in fmts))
+
+        if res["nearest"]:
+            st.markdown("#### Nearest listed expiries")
+            st.dataframe(pd.DataFrame([{
+                "Code": c["code"], "Contract": c["contract"],
+                "Expiry": _bbg_fmt(c["expiry"]),
+                "vs target": f"{c['days']:+d} days",
+                "Source": "observed" if c["source"] == "observed" else "rule-derived",
+            } for c in res["nearest"]]), hide_index=True, use_container_width=True)
+
+        for w in res["warnings"]:
+            st.warning(w)
+
+    # ---------------------------------------------------------------- BROWSE
+    else:
+        st.caption("Every product in the book with its Bloomberg root and the contract "
+                   "months it lists. Search by name, root or ticker.")
+        q = st.text_input("Search", placeholder="soy, nasdaq, CL, TYA…",
+                          key="bbg_browse_q").strip()
+        prods = bbgcodes.search(q, limit=200) if q else bbgcodes.products()
+        if q and not prods:
+            st.info(f"Nothing matches '{q}'.")
+            return
+        rows = []
+        for p in prods:
+            fut_m = expiries.listed_months(p["ticker"], p["asset"], "fut")
+            opt_m = expiries.listed_months(p["ticker"], p["asset"], "opt")
+            o = obs.get(p["root"], {})
+            rows.append({
+                "Product": p["name"], "Sector": p["asset"], "Root": p["root"].strip(),
+                "Generic": p["ticker"],
+                "Futures months": "".join(bbgcodes.MONTH_CODE[m] for m in fut_m) or "—",
+                "Option months": ("all" if len(opt_m) == 12
+                                  else "".join(bbgcodes.MONTH_CODE[m] for m in opt_m)) or "—",
+                "Series seen": len(o.get("opt_series") or ()),
+                "Exchange": markethours.exchange_of(p["ticker"], p["asset"]) or "—",
+            })
+        df = pd.DataFrame(rows)
+        st.dataframe(df, hide_index=True, use_container_width=True,
+                     height=min(620, 44 + 35 * len(rows)))
+        st.download_button("⬇️ Download as CSV", df.to_csv(index=False).encode("utf-8"),
+                           "bloomberg_codes.csv", "text/csv", key="bbg_csv")
+
+    # ---------------------------------------------------------------- footer
+    st.divider()
+    n_series = sum(len(v.get("opt_series") or ()) for v in obs.values())
+    st.caption(
+        f"**Coverage.** Quarterly and serial-monthly contracts only, across "
+        f"{len(bbgcodes.products())} products. Built from the live-chain capture"
+        + (f" of {asof}" if asof else "")
+        + f" ({n_series} option series observed) and {n_exp} option expiries read straight "
+          "off the Terminal by the weekly open-interest job, with the rule engine covering "
+          "the rest. **Weekly, daily and midcurve series are not included** — their "
+          "Bloomberg roots follow no rule derivable from the futures root, so this page "
+          "reports them as missing rather than guessing. Nothing here pulls from Bloomberg.")
+
+
 def render_fut_yield() -> None:
     """Futures price ⇄ yield converter — STIRs via the IMM convention (100 − price),
     bond futures read through the CTD (price × conversion factor → solve the yield).
@@ -8795,6 +9035,7 @@ _STIR_HOUSE = {                                   # shipped defaults ("↺ Defau
     "FED": ["SFRA Comdty"],                       # bank pages: the strip the desk trades
     "ECB": ["ERA Comdty", "TKYA Comdty"],
     "BOE": ["SFIA Comdty"],
+    "BCB": ["OD1 Comdty"],
 }
 # Real flags, not emoji: Windows renders flag emoji as bare letter pairs
 # ("US"), so the banks wear small self-contained SVG flags (base64 data URIs —
@@ -8873,7 +9114,8 @@ _STIR_TAB_FLAG_CSS = "".join(
 # Bank identity colours — Ben's explicit preference (2026-08-11): keep the
 # red/blue/green even though red/green mean direction elsewhere; a product-
 # colour palette (SR3 gold / ER purple / SONIA orange) was tried and rejected.
-_STIR_BANK_COLOR = {"FED": "#E53935", "ECB": "#1E88E5", "BOE": "#43A047"}
+_STIR_BANK_COLOR = {"FED": "#E53935", "ECB": "#1E88E5", "BOE": "#43A047",
+                    "BCB": "#FFB300"}
 
 
 def _stir_defaults() -> dict:
@@ -9287,7 +9529,7 @@ def render_stir_overview() -> None:
 
     # ---- bank cards ----------------------------------------------------------
     _dest = {"FED": "Fed Path", "ECB": "ECB Path", "BOE": "BoE Path", "BCB": "BCB Path"}
-    cards = st.columns(3)
+    cards = st.columns(len(stirpaths.BANKS))
     for col, (bk, bank) in zip(cards, stirpaths.BANKS.items()):
         ip = fits[bk]
         with col:
@@ -9342,6 +9584,9 @@ def render_stir_overview() -> None:
                         horizontal=True, label_visibility="collapsed")
     frames, mrows = [], []
     for bk, bank in stirpaths.BANKS.items():
+        if bk == "BCB":                     # Selic ~3x the G3 rates would
+            continue                        # flatten the shared axis — BCB
+                                            # lives on its own cockpit
         ip = fits[bk]
         if ip is None or not len(ip.meetings):
             continue
@@ -15972,6 +16217,8 @@ if active == "Block Sizes":
     render_block_sizes(); st.stop()
 if active == "Fut Yield":
     render_fut_yield(); st.stop()
+if active == "BBG Codes":
+    render_bbg_codes(); st.stop()
 if active == "Product Tearsheet":
     render_product_tearsheet(); st.stop()
 if active == "STIR Timeline":
@@ -15981,15 +16228,7 @@ if active == "Fed Path":
 if active == "ECB Path":
     render_stir_bank("ECB"); st.stop()
 if active == "BCB Path":
-    # TEMPORARY safe placeholder: the DI engine is live (src/stirpaths) but the
-    # cockpit's rate-quoted rendering is landing next — routing straight into
-    # render_stir_bank would run price-math on DI rate quotes.
-    st.markdown(f"<h3>{_flag_img('BCB', 17)}&nbsp; Banco Central do Brasil — "
-                "implied path &amp; meeting scenarios</h3>", unsafe_allow_html=True)
-    st.info("The Brazil cockpit is being built right now — the DI engine (Copom-step "
-            "fit on the B3 DI curve) is already live underneath; the page lands "
-            "shortly. Nothing here pulls Bloomberg.")
-    st.stop()
+    render_stir_bank("BCB"); st.stop()
 if active == "BoE Path":
     render_stir_bank("BOE"); st.stop()
 if active == "STIR Cross":
