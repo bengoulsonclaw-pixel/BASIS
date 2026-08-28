@@ -7269,9 +7269,13 @@ def render_bbg_codes() -> None:
             "the contract month, and when it stops trading.")
         # `key` alone carries the value across reruns — passing `value=` as well makes
         # Streamlit re-seed the box from the stale read on every rerun, and the typed
-        # symbol never commits.
-        sym = st.text_input("Symbol", placeholder="CLZ6C 80 Comdty",
-                            key="bbg_sym").strip()
+        # symbol never commits. The Decode button is not decoration either: a text input
+        # alone only commits on Enter or blur, which is a poor fit for paste-and-go.
+        sc1, sc2 = st.columns([0.78, 0.22])
+        sym = sc1.text_input("Symbol", placeholder="CLZ6C 80 Comdty",
+                             key="bbg_sym").strip()
+        sc2.markdown("<div style='height:1.85rem'></div>", unsafe_allow_html=True)
+        sc2.button("🔎 Decode", use_container_width=True, key="bbg_go")
         if not sym:
             st.info("Type a symbol above. Try `CLZ6C 80 Comdty`, `TYX6C 112.5 Comdty`, "
                     "`ESZ6 Index` or `NGU26 Comdty`.")
@@ -7393,10 +7397,13 @@ def render_bbg_codes() -> None:
         if kind == "Option":
             st.caption("Replace `<strike>` with the strike, in the product's own quote units "
                        "(WTI in $/bbl, corn in cents, Treasuries in points).")
-            fmts = sorted(obs.get(prod["root"], {}).get("strike_fmt") or [])[:6]
-            if fmts:
+            hint = bbgcodes.strike_hint(prod["root"])
+            if hint["examples"]:
+                step = (f" — listed every **{hint['step']:g}**" if hint["step"] else "")
                 st.caption("Strike strings seen in this product's live chain: "
-                           + ", ".join(f"`{f}`" for f in fmts))
+                           + ", ".join(f"`{f}`" for f in hint["examples"]) + step
+                           + ". Type it exactly as shown — some products drop the "
+                             "leading zero (Henry Hub lists 0.25 as `.25`).")
 
         if res["nearest"]:
             st.markdown("#### Nearest listed expiries")
@@ -9534,7 +9541,21 @@ def render_stir_overview() -> None:
         ip = fits[bk]
         with col:
             if ip is None or not len(ip.meetings):
-                st.info(f"{bank.name}: no strip priced.")
+                # proper card treatment for the no-data state, with the fix-it
+                # path spelled out (BCB until its DI quotes arrive)
+                _fix = ("No DI quotes yet — open the cockpit and press "
+                        "<b>⚡ Live pull</b>, or paste the DI strip to Claude."
+                        if bk == "BCB" else "No strip priced yet.")
+                st.markdown(
+                    f"<div style='border:1px solid rgba(128,128,128,0.28);border-left:4px "
+                    f"solid {_STIR_BANK_COLOR[bk]};border-radius:8px;"
+                    f"padding:0.7rem 0.9rem 0.55rem;min-height:10.6rem'>"
+                    f"<div style='font-weight:700;font-size:0.95rem'>{_flag_img(bk)} "
+                    f"{bank.name}</div>"
+                    f"<div style='color:#CDD3DB;font-size:0.8rem;margin-top:0.55rem'>"
+                    f"{_fix}</div></div>", unsafe_allow_html=True)
+                st.button(f"Open {bk} cockpit →", key=f"stir_card_{bk}",
+                          use_container_width=True, on_click=_go, args=(_dest[bk],))
                 continue
             nxt = ip.meetings[0]
             bp0 = float(ip.per_meeting_bp[0])
