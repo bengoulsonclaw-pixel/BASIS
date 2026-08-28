@@ -178,12 +178,14 @@ PRODUCTS: dict[str, Product] = {
     # of the named month) — a zero, not a window, so consecutive maturities
     # difference out the Copom meetings between them and there is NO front
     # stub. bp_value varies with maturity (PU DV01) — left 0, unused by the
-    # odds. root "OD" ⚠ UNVERIFIED on the Terminal; in_pull=False until Ben
-    # confirms (a brand-new pull surface the day after a -4002 cleared is
-    # asking for another review) — feed the store by paste / ⚡ button.
+    # odds. in_pull=True per Ben 2026-08-28: the DI strip rides the morning
+    # pull. Root "OD" still ⚠ UNVERIFIED on the Terminal — if it's wrong the
+    # pull records the codes as absent/rejected and the health board says so;
+    # if the enlarged request re-trips a -4002 review, the WHOLE STIR leg
+    # blanks (previous store kept) and the playbook applies.
     "OD1 Comdty": Product("OD1 Comdty", "DI 1-day (B3)", "DI", "BCB", "OD",
                           "cdi", False, True, 0.0, "#7CE0B3",
-                          has_options=False, rate_quoted=True, in_pull=False),
+                          has_options=False, rate_quoted=True, in_pull=True),
 }
 # Overnight proxy vs the policy rate, in bp (page-tunable; these seed the input):
 # SOFR ≈ target mid + 0 · €STR ≈ depo − 8 · SONIA ≈ Bank Rate + 0 (the −5 seed
@@ -285,7 +287,9 @@ def pull_universe(asof: date) -> list[tuple["Product", Contract]]:
     for p in PRODUCTS.values():
         if not p.in_pull:                           # unverified roots stay OFF the
             continue                                # morning pull (review-trip risk)
-        for c in strip(p, asof, 12 if p.quarterly else 13):
+        # cdi zeros pull 18 deep (the fit's DI depth); monthlies 13; quarterlies 12
+        n_p = 18 if p.family == "cdi" else (12 if p.quarterly else 13)
+        for c in strip(p, asof, n_p):
             out.append((p, c))
         if p.quarterly and p.ticker in SERIAL_FIT_PRODUCTS:
             for c in serial_strip(p, asof):

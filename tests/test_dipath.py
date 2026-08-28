@@ -29,9 +29,14 @@ def test_di_strip_maturities_are_first_bdays():
     assert nov.end == date(2026, 11, 2)
 
 
-def test_di_excluded_from_morning_pull():
-    # root unverified + fresh -4002 history: OD must NOT be in the pull set
-    assert not any(c.code.startswith("OD") for _, c in sp.pull_universe(ASOF))
+def test_di_in_morning_pull_at_fit_depth():
+    # in_pull=True (Ben, 2026-08-28): the DI strip rides the morning pull, and
+    # the pull depth matches the fit's 18 maturities so the store can never
+    # starve _bcb_fit the way the serials once starved the ECB
+    od = [c for p, c in sp.pull_universe(ASOF) if c.code.startswith("OD")]
+    assert len(od) == 18
+    fit_codes = {c.code for c in sp.di_strip(DI, ASOF)}
+    assert fit_codes <= {c.code for c in od}
 
 
 # ── the log-space fit ────────────────────────────────────────────────────────
