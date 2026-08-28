@@ -214,6 +214,8 @@ SPECS: dict[str, dict] = {
                 "opt": ("kth_wd_before_nth_wd", FRI, 1, 3, WED), "opt_cycle": _all(), "time": ("18:00", "London")},
     "sonia1m": {"cycle": _all(), "fut": ("last_bday",),                     # ICE 1M SONIA: calendar-month avg,
                 "time": ("18:00", "London")},                               # futures-only, no listed options
+    "cdi":     {"cycle": _all(), "fut": ("bday_before_dom", 1),             # B3 DI1: matures 1st bday of the
+                "time": ("18:00", "São Paulo")},                            # named month; trades to the prior bday
     # ── Rates — US Treasuries (CBOT), Euro govvies (Eurex), Long Gilt (ICE) ───────────────
     "ust_short": {"cycle": _q(), "fut": ("last_bday",),                     # TU / FV: last bday of month
                   "opt": ("last_wd_prior", FRI, 1), "opt_cycle": _all(), "time": ("12:01", "CT")},
@@ -294,6 +296,7 @@ FAMILY_OF: dict[str, str] = {
     # STIRs
     "SERA Comdty": "sofr1m", "SFRA Comdty": "sofr3m", "FFA Comdty": "fedfunds",
     "ERA Comdty": "euribor", "TKYA Comdty": "estr", "SFIA Comdty": "sonia",
+    "OD1 Comdty": "cdi",
     # US Treasuries
     "TUA Comdty": "ust_short", "FVA Comdty": "ust_short", "TYA Comdty": "ust_long",
     "UXYA Comdty": "ust_long", "USA Comdty": "ust_long", "WNA Comdty": "ust_long",

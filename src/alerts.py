@@ -62,6 +62,8 @@ ALERT_REPORTS = OrderedDict([
                       "email": None, "alerts": ["ECB rate decision"]}),
     ("boe_decision", {"label": "BoE rate decision", "group": "Central banks",
                       "email": None, "alerts": ["BoE rate decision"]}),
+    ("copom_decision", {"label": "Copom rate decision", "group": "Central banks",
+                        "email": None, "alerts": ["Copom rate decision"]}),
     ("iea", {"label": "IEA Oil Market Report", "group": "Energy",
              "email": None, "alerts": ["IEA OMR"]}),
     ("eia_steo", {"label": "EIA Short-Term Energy Outlook", "group": "Energy",

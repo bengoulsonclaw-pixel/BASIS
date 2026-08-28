@@ -76,6 +76,17 @@ BOE_DECISIONS: list[date] = [
     date(2027, 2, 4), date(2027, 3, 18), date(2027, 4, 29), date(2027, 6, 17),
     date(2027, 7, 29), date(2027, 9, 16), date(2027, 11, 4), date(2027, 12, 16),
 ]
+# Copom decision (announcement) dates — the SECOND day of each two-day meeting,
+# announced after the B3 close. CONFIRMED 2026-08-19 against the BCB's own
+# calendar API (macrodata.copom_decisions(), cross-checked vs the minutes feed
+# and SGS 432 by the Macro Radar session). Only Dec-2027 is still provisional —
+# the BCB had published 2027 through October at the time.
+BCB_DECISIONS: list[date] = [
+    date(2026, 1, 28), date(2026, 3, 18), date(2026, 5, 6), date(2026, 6, 17),
+    date(2026, 8, 5), date(2026, 9, 16), date(2026, 11, 4), date(2026, 12, 9),
+    date(2027, 1, 27), date(2027, 3, 17), date(2027, 4, 28), date(2027, 6, 16),
+    date(2027, 8, 4), date(2027, 9, 21), date(2027, 10, 26), date(2027, 12, 8),
+]
 
 _MONTH_CODE = "FGHJKMNQUVXZ"                     # Jan..Dec futures month codes
 _MONTHS = fedpath._MONTHS
@@ -107,6 +118,10 @@ BANKS: dict[str, Bank] = {
                 ECB_DECISIONS, 2.25, 25.0, "€"),
     "BOE": Bank("BOE", "Bank of England", "MPC", "Bank Rate",
                 BOE_DECISIONS, 3.75, 25.0, "£"),
+    # Selic target 14.00 per SGS 432 (target in force; confirmed by the Macro
+    # Radar session 2026-08-19 — SGS 1178 effective 13.90 = CDI −10bp ✓).
+    "BCB": Bank("BCB", "Banco Central do Brasil", "Copom", "Selic target",
+                BCB_DECISIONS, 14.00, 25.0, "R$"),
 }
 
 
@@ -126,6 +141,12 @@ class Product:
     has_options: bool = True
     spread_bp: float = 0.0    # settlement-index spread vs the bank's overnight proxy
     in_strip: bool = True     # part of the bank's default path-fitting strip
+    rate_quoted: bool = False # DI-style: quoted as an ANNUALIZED RATE (bd/252
+                              # compounded, zero-from-today), not 100 − rate
+    in_pull: bool = True      # fetched by the morning pull (False = store fed
+                              # by paste/live-button only — e.g. unverified
+                              # roots, kept OFF the pull to avoid tripping a
+                              # fresh Bloomberg workflow review)
 
 
 PRODUCTS: dict[str, Product] = {
@@ -152,12 +173,24 @@ PRODUCTS: dict[str, Product] = {
     "SOOA Comdty": Product("SOOA Comdty", "1M SONIA (SOO)", "SOO1", "BOE", "SOO",
                            "sonia1m", False, False, 25.0, "#FFCC80",
                            has_options=False, in_strip=False),
+    # B3 one-day interbank deposit (DI1): the Brazilian curve. RATE-quoted
+    # (annualized, business-days/252, compounded CDI from TODAY to the 1st bday
+    # of the named month) — a zero, not a window, so consecutive maturities
+    # difference out the Copom meetings between them and there is NO front
+    # stub. bp_value varies with maturity (PU DV01) — left 0, unused by the
+    # odds. root "OD" ⚠ UNVERIFIED on the Terminal; in_pull=False until Ben
+    # confirms (a brand-new pull surface the day after a -4002 cleared is
+    # asking for another review) — feed the store by paste / ⚡ button.
+    "OD1 Comdty": Product("OD1 Comdty", "DI 1-day (B3)", "DI", "BCB", "OD",
+                          "cdi", False, True, 0.0, "#7CE0B3",
+                          has_options=False, rate_quoted=True, in_pull=False),
 }
 # Overnight proxy vs the policy rate, in bp (page-tunable; these seed the input):
 # SOFR ≈ target mid + 0 · €STR ≈ depo − 8 · SONIA ≈ Bank Rate + 0 (the −5 seed
 # left a −4.7bp phantom on the BoE front fit vs the realized SFIM6 window —
 # SONIA is fixing AT Bank Rate on the real 14-Aug-2026 data).
-BANK_BASIS_SEED = {"FED": 0.0, "ECB": -8.0, "BOE": 0.0}
+BANK_BASIS_SEED = {"FED": 0.0, "ECB": -8.0, "BOE": 0.0,
+                   "BCB": -10.0}   # CDI fixes ~10bp under the Selic target
 
 
 def bank_products(bank: str) -> list[Product]:
@@ -185,8 +218,38 @@ def monthly_contract(prod: Product, year: int, month: int) -> Contract:
                     date(year, month, 1), date(ey, em, 1))
 
 
+def _first_bday(year: int, month: int) -> date:
+    d = date(year, month, 1)
+    while d.weekday() >= 5:
+        d += timedelta(days=1)
+    return d
+
+
+def di_contract(prod: Product, asof: date, year: int, month: int) -> Contract:
+    """B3 DI1: a zero from TODAY to the 1st business day of the named month —
+    the 'window' is [asof, maturity), rebuilt per asof, so meetings_in_window /
+    pair-difference pinning work unchanged."""
+    return Contract(_code(prod.root, year, month),
+                    f"{_MONTHS[month - 1]}-{year % 100:02d}", year, month,
+                    asof, _first_bday(year, month))
+
+
+def di_strip(prod: Product, asof: date, n: int = 18) -> list[Contract]:
+    """The next `n` monthly DI maturities still ahead of `asof`."""
+    out = []
+    y, m = _add_months(asof.year, asof.month, 1)
+    for _ in range(n):
+        c = di_contract(prod, asof, y, m)
+        if c.end > asof:
+            out.append(c)
+        y, m = _add_months(y, m, 1)
+    return out
+
+
 def strip(prod: Product, asof: date, n: int = 8) -> list[Contract]:
     """The front `n` contracts from `asof` — currently-accruing first."""
+    if prod.family == "cdi":                        # DI zeros, not windows
+        return di_strip(prod, asof, n)
     if prod.quarterly:
         y, m = asof.year, ((asof.month - 1) // 3) * 3 + 3
         while third_wednesday(y, m) > asof:
@@ -220,6 +283,8 @@ def pull_universe(asof: date) -> list[tuple["Product", Contract]]:
     keep both sides on this function."""
     out: list[tuple[Product, Contract]] = []
     for p in PRODUCTS.values():
+        if not p.in_pull:                           # unverified roots stay OFF the
+            continue                                # morning pull (review-trip risk)
         for c in strip(p, asof, 12 if p.quarterly else 13):
             out.append((p, c))
         if p.quarterly and p.ticker in SERIAL_FIT_PRODUCTS:
@@ -473,6 +538,77 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
     residual_bp = (np.array(prices) - fair) * 100.0
     return BankImplied(contracts, decisions, seg, np.diff(seg) * 100.0,
                        (seg[1:] - seg[0]) * 100.0, fair, residual_bp, stub_out)
+
+
+def _bd(a: date, b: date) -> int:
+    """Business days in [a, b) — weekends only. B3 holidays are approximated
+    away: one holiday inside a segment shifts its weight by 1/n, sub-bp on the
+    odds; swap in a B3 calendar table if the WIRP-BZ comparison demands it."""
+    return int(np.busday_count(a, b))
+
+
+def di_implied_path(bank: Bank, contracts: list[Contract], quotes: list[float],
+                    asof: date, asof_rate: float, lam: float = 2e-2) -> BankImplied:
+    """implied_path for RATE-QUOTED zeros (B3 DI1). Each quote is the
+    annualized bd/252-compounded CDI from asof to its maturity, so in
+    log(1+r) space the system is EXACTLY the linear meeting-step least
+    squares: log(1+Q_i) = Σ_s w_is · log(1+r_s), w = business-day fractions.
+    Same D2 ramp as the price-space fit (the data/penalty balance is
+    scale-free); no stub — a zero from today has no elapsed days.
+
+    Meetings with under ~a week of business days before the LAST maturity are
+    excluded: their only information is a sliver of the final zero, and the
+    fit printed a −42bp smoothing artifact on such a meeting in testing."""
+    max_end = max(c.end for c in contracts)
+    decisions = [m for m in bank.meetings
+                 if asof <= m
+                 and bank_effective_date(bank, m) <= max_end - timedelta(days=7)]
+    bounds = [bank_effective_date(bank, m) for m in decisions]
+    n_seg = len(bounds) + 1
+    W = np.zeros((len(contracts), n_seg))
+    for ci, c in enumerate(contracts):
+        n_i = max(1, _bd(asof, c.end))
+        lo = asof
+        for s in range(n_seg):
+            hi = bounds[s] if s < len(bounds) else c.end
+            a_, b_ = lo, min(hi, c.end)
+            if b_ > a_:
+                W[ci, s] = _bd(a_, b_) / n_i
+            lo = hi
+            if lo >= c.end:
+                break
+    z0 = float(np.log1p(asof_rate / 100.0))
+    y = np.array([float(np.log1p(q / 100.0)) for q in quotes])
+    rhs = y - W[:, 0] * z0
+    if n_seg > 1:
+        rows = [W[:, 1:]]
+        rhss = [rhs]
+        if n_seg >= 3:
+            D2 = np.zeros((n_seg - 2, n_seg))
+            for i in range(n_seg - 2):
+                w = 1.0 + max(0, i - 3) * 0.75
+                D2[i, i], D2[i, i + 1], D2[i, i + 2] = w, -2.0 * w, w
+            rows.append(lam * D2[:, 1:])
+            rhss.append(-lam * D2[:, 0] * z0)
+        sol, *_ = np.linalg.lstsq(np.vstack(rows), np.concatenate(rhss), rcond=None)
+        seg_z = np.concatenate([[z0], sol])
+    else:
+        seg_z = np.array([z0])
+    seg = (np.expm1(seg_z)) * 100.0
+    fair_q = np.expm1(W @ seg_z) * 100.0
+    residual_bp = (np.array(quotes) - fair_q) * 100.0
+    return BankImplied(contracts, decisions, seg, np.diff(seg) * 100.0,
+                       (seg[1:] - seg[0]) * 100.0, fair_q, residual_bp, None)
+
+
+def di_fair_rate(c: Contract, rate_fn, asof: date) -> float:
+    """Scenario fair DI quote (annualized %, bd/252): the compounded scenario
+    CDI from asof to maturity — exp(mean over business days of log(1+r_d))−1."""
+    zs = [float(np.log1p(rate_fn(d) / 100.0))
+          for d in _daterange(asof, c.end) if d.weekday() < 5]
+    if not zs:
+        return float(rate_fn(asof))
+    return float(np.expm1(np.mean(zs)) * 100.0)
 
 
 def implied_odds(per_meeting_bp: float, step_bp: float = 25.0) -> tuple[str, float]:
@@ -737,10 +873,12 @@ def refresh_fixings(asof: date, lookback_days: int = 130) -> dict[str, int]:
 # ── decision-day helper (Home banner + release-time popup ride the report-alert rail) ─
 _DECISION_LOCAL = {"FED": ("14:00", "America/New_York"),   # FOMC statement
                    "ECB": ("14:15", "Europe/Berlin"),      # GC press release (conf 14:45 CET)
-                   "BOE": ("12:00", "Europe/London")}      # MPC announcement + minutes
+                   "BOE": ("12:00", "Europe/London"),      # MPC announcement + minutes
+                   "BCB": ("18:30", "America/Sao_Paulo")}  # Copom, after the B3 close
 _DECISION_LABEL = {"FED": ("FOMC rate decision", "🏛️"),
                    "ECB": ("ECB rate decision", "💶"),
-                   "BOE": ("BoE rate decision", "💷")}
+                   "BOE": ("BoE rate decision", "💷"),
+                   "BCB": ("Copom rate decision", "🇧🇷")}
 
 
 def decisions_today(today: date) -> list[dict]:
@@ -774,7 +912,8 @@ STRIP_STORE = Path(__file__).resolve().parents[1] / "data" / "snapshot" / "stir_
 
 # mock path flavour per bank: (bp per move, move every k-th meeting) — mild easing FED,
 # hold-with-late-cut ECB, steady easing BOE. Purely for offline demo realism.
-_MOCK_STYLE = {"FED": (-25.0, 2), "ECB": (-25.0, 3), "BOE": (-25.0, 2)}
+_MOCK_STYLE = {"FED": (-25.0, 2), "ECB": (-25.0, 3), "BOE": (-25.0, 2),
+               "BCB": (-50.0, 1)}                  # demo: a 50bp-per-meeting cutting cycle
 
 
 def _load_strip_store() -> dict:
@@ -823,7 +962,10 @@ def refresh_strip_store(asof: date) -> int:
         return 0
     try:
         from . import bbg as blp
-        contracts = [c for _, c in pull_universe(asof)]
+        pairs = pull_universe(asof)
+        contracts = [c for _, c in pairs]
+        gate_of = {c.code: ((0.5, 40.0) if p.rate_quoted else (90.0, 100.5))
+                   for p, c in pairs}
         tickers = [f"{c.code} Comdty" for c in contracts]
         # datafeed._bdp_rows handles both the binding's shapes (narwhals LONG
         # ticker/field/value since ~2026-08, legacy wide index=ticker before)
@@ -842,12 +984,15 @@ def refresh_strip_store(asof: date) -> int:
                 v = r.get(fld)
                 if v is not None and v == v:
                     v = float(v)
-                    # Plausibility gate: a STIR future lives between ~90 and
-                    # ~100.5. The first real morning (2026-08-19) returned
-                    # ERJ7=201.0 / ERK7=397.0 for barely-listed far serials —
-                    # not prices at all — and the fit printed thousands of
-                    # phantom bp honouring them. Reject and RECORD, never store.
-                    if 90.0 < v < 100.5:
+                    # Plausibility gate, PER QUOTE TYPE: a price-quoted STIR
+                    # future lives between ~90 and ~100.5; a rate-quoted DI
+                    # between ~0.5 and 40%. The first real morning
+                    # (2026-08-19) returned ERJ7=201.0 / ERK7=397.0 for
+                    # barely-listed far serials — not prices at all — and the
+                    # fit printed thousands of phantom bp honouring them.
+                    # Reject and RECORD, never store.
+                    glo, ghi = gate_of.get(c.code, (90.0, 100.5))
+                    if glo < v < ghi:
                         out[c.code] = v
                     else:
                         rejected[c.code] = v
@@ -906,8 +1051,12 @@ def _mock_prices(prod: Product, bank: Bank, contracts: list[Contract], asof: dat
     fn = overnight_rate_fn(asof_rate, ups, moves)
     out = {}
     for i, c in enumerate(contracts):
-        p = fair_price(prod, c, fn)
-        out[c.code] = round(p + (0.5 - ((i * 7) % 5) / 4.0) * 0.004, 4)
+        if prod.rate_quoted:
+            q = di_fair_rate(c, fn, asof)
+            out[c.code] = round(q + (0.5 - ((i * 7) % 5) / 4.0) * 0.01, 3)
+        else:
+            p = fair_price(prod, c, fn)
+            out[c.code] = round(p + (0.5 - ((i * 7) % 5) / 4.0) * 0.004, 4)
     return out
 
 
@@ -1039,6 +1188,8 @@ def bank_fit(bank_key: str, asof: date, r0: float | None = None,
     registry default so a corrupt store can't hijack the level. Pass `r0` to
     override both (the page's band/rate input does)."""
     bank = BANKS[bank_key]
+    if bank_key == "BCB":
+        return _bcb_fit(asof, r0=r0, override_prices=override_prices)
     anchor = clean_month_anchor(bank_key, asof, override_prices)
     if r0 is None:
         r0 = bank.default_rate + BANK_BASIS_SEED[bank_key] / 100.0
@@ -1075,6 +1226,63 @@ def bank_fit(bank_key: str, asof: date, r0: float | None = None,
     pins = [m in singles and abs(float(a) - float(b)) < 1.5
             for m, a, b in zip(ip.meetings, ip.per_meeting_bp, tight.per_meeting_bp)]
     return BankFit(ip, pins, anchor, len(contracts))
+
+
+def _bcb_fit(asof: date, r0: float | None = None,
+             override_prices: dict | None = None) -> BankFit | None:
+    """bank_fit for Brazil: the DI strip, rate-quoted zeros, log-space fit.
+    Store-fed only (root unverified → in_pull=False): live store or page
+    overrides supply quotes; the synthetic demo covers everything else in
+    demo mode, and in live mode unquoted maturities simply drop out. The
+    ANCHOR is the front DI with no Copom before its maturity — a pure read
+    of current CDI, trusted over the provisional registry Selic (wide 3%
+    tolerance: the registry seed is a placeholder)."""
+    bank = BANKS["BCB"]
+    prod = PRODUCTS["OD1 Comdty"]
+    store = _load_strip_store()
+    have = {**store.get("settles", {}), **store.get("prices", {})}
+    live = bool(set(store.get("prices", {})) | set(store.get("settles", {})))
+    ov = override_prices or {}
+    r_seed = (r0 if r0 is not None
+              else bank.default_rate + BANK_BASIS_SEED["BCB"] / 100.0)
+    cs, qs = [], []
+    for c in di_strip(prod, asof):
+        q = ov.get(c.code, have.get(c.code))
+        if q is None:
+            if live:                                # never mock inside a real fit
+                continue
+            q = _mock_prices(prod, bank, [c], asof, r_seed)[c.code]
+        if not 0.5 < float(q) < 40.0:
+            continue
+        cs.append(c)
+        qs.append(float(q))
+    if not cs:
+        return None
+    # front-DI anchor: no meeting before its maturity = the market's own read
+    # of current CDI, hence the Selic target (CDI ≈ Selic − 10bp)
+    anchor = None
+    for c, q in zip(cs, qs):
+        if not meetings_in_window(bank, c):
+            anchor = (q - BANK_BASIS_SEED["BCB"] / 100.0, c.code)
+            break
+    if r0 is None:
+        if anchor is not None and abs(anchor[0] - bank.default_rate) <= 3.0:
+            r_seed = anchor[0] + BANK_BASIS_SEED["BCB"] / 100.0
+        r0 = r_seed
+    ip = di_implied_path(bank, cs, qs, asof, r0)
+    live_m = set(ip.meetings)
+    msets = {frozenset(x for x in meetings_in_window(bank, c) if x in live_m)
+             for c in cs}
+    singles = {next(iter(s)) for s in msets if len(s) == 1}
+    for a in msets:
+        for b in msets:
+            d = a - b
+            if len(d) == 1:
+                singles.add(next(iter(d)))
+    tight = di_implied_path(bank, cs, qs, asof, r0, lam=2e-2 * 8)
+    pins = [m in singles and abs(float(a) - float(b)) < 1.5
+            for m, a, b in zip(ip.meetings, ip.per_meeting_bp, tight.per_meeting_bp)]
+    return BankFit(ip, pins, anchor, len(cs))
 
 
 def default_bank_fit(bank_key: str, asof: date) -> BankImplied | None:

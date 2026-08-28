@@ -202,7 +202,7 @@ def test_meeting_calendars_not_running_out():
 def test_meeting_calendar_runway_frame():
     from src import health
     cal = health.meeting_calendar_runway()
-    assert set(cal["key"]) == {"FED", "ECB", "BOE"}
+    assert set(cal["key"]) == {"FED", "ECB", "BOE", "BCB"}
     assert (cal["future_meetings"] > 0).all()
     assert (cal["months_left"] > 0).all()
 
@@ -307,8 +307,11 @@ def test_realized_stub_avg_carry_convention():
 # ── decision-day helper (Home banner/popup times) ────────────────────────────
 def test_decisions_today():
     assert sp.decisions_today(date(2026, 8, 11)) == []              # no meetings that day
-    fomc = sp.decisions_today(date(2026, 9, 16))
-    assert [d["bank"] for d in fomc] == ["FED"] and fomc[0]["t"] == "14:00"
+    # 16 Sep 2026 is a DOUBLE decision day: FOMC + Copom (Copom shows 17:30 ET
+    # = 18:30 São Paulo, after the B3 close)
+    both = sp.decisions_today(date(2026, 9, 16))
+    assert [d["bank"] for d in both] == ["FED", "BCB"]
+    assert both[0]["t"] == "14:00" and both[1]["t"] == "17:30"
     ecb = sp.decisions_today(date(2026, 9, 10))
     assert [d["bank"] for d in ecb] == ["ECB"] and ecb[0]["t"] == "08:15"
     boe = sp.decisions_today(date(2026, 9, 17))
