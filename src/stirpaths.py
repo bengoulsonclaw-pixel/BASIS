@@ -82,10 +82,10 @@ BOE_DECISIONS: list[date] = [
 # and SGS 432 by the Macro Radar session). Only Dec-2027 is still provisional —
 # the BCB had published 2027 through October at the time.
 BCB_DECISIONS: list[date] = [
-    date(2026, 1, 28), date(2026, 3, 18), date(2026, 5, 6), date(2026, 6, 17),
+    date(2026, 1, 28), date(2026, 3, 18), date(2026, 4, 29), date(2026, 6, 17),
     date(2026, 8, 5), date(2026, 9, 16), date(2026, 11, 4), date(2026, 12, 9),
     date(2027, 1, 27), date(2027, 3, 17), date(2027, 4, 28), date(2027, 6, 16),
-    date(2027, 8, 4), date(2027, 9, 21), date(2027, 10, 26), date(2027, 12, 8),
+    date(2027, 8, 4), date(2027, 9, 22), date(2027, 10, 27), date(2027, 12, 8),
 ]
 
 _MONTH_CODE = "FGHJKMNQUVXZ"                     # Jan..Dec futures month codes
@@ -1150,8 +1150,9 @@ def clean_month_anchor(bank_key: str, asof: date,
     ov = override_prices or {}
     px_of = {**store.get("settles", {}), **store.get("prices", {}), **ov}
     for p in bank_products(bank_key):
-        if p.quarterly or p.ticker in FIT_EXCLUDE:
-            continue
+        if p.quarterly or p.ticker in FIT_EXCLUDE or p.rate_quoted:
+            continue                                # rate-quoted zeros: the front-DI
+                                                    # anchor lives in _bcb_fit instead
         for c in strip(p, asof, 3):
             if meetings_in_window(bank, c):
                 continue

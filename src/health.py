@@ -18,6 +18,7 @@ module surfaces it so the safety net itself is visible on the health board.
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -373,6 +374,54 @@ def meeting_calendar_runway() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def copom_calendar_drift(ttl: int = 24 * 3600) -> dict:
+    """Hardcoded BCB_DECISIONS vs the calendar the BCB actually publishes.
+
+    Brazil is the one bank whose meeting calendar we can check against its source: the
+    BCB serves it as an API (macrodata.copom_decisions), while stirpaths keeps a
+    hardcoded list like every other bank. That makes two failure modes visible that the
+    runway check alone cannot see:
+
+      * a date MOVED or was added — the runway can look healthy while the model prices a
+        meeting on a day the Copom is not sitting;
+      * the BCB EXTENDED its calendar — the published tail runs past the hardcoded one,
+        which is the cue to append the new year rather than wait for the runway to thin.
+
+    Read-only and cache-friendly: it never writes the hardcoded list, because a live feed
+    silently rewriting a traded calendar is exactly the kind of magic this codebase avoids.
+    Returns {} when the feed is unreachable, so a dead source degrades to "no opinion"
+    rather than to a false alarm.
+    """
+    try:
+        from . import macrodata, stirpaths
+    except Exception:
+        return {}
+    try:
+        live = [d for d in macrodata.copom_decisions(ttl=ttl)]
+        hard = list(getattr(stirpaths, "BCB_DECISIONS", []) or [])
+    except Exception:
+        return {}
+    if not live or not hard:
+        return {}
+    # Compare the WHOLE overlap, not just the forward window. Clamping at today hid a
+    # wrong 2026 date on the first run: past decisions still matter to anything that
+    # replays history, and a list wrong behind you is usually wrong ahead of you too.
+    lo = max(min(live), min(hard))
+    live_f = sorted(d for d in live if d >= lo)
+    hard_f = sorted(d for d in hard if d >= lo)
+    common_end = min(max(live_f), max(hard_f)) if live_f and hard_f else None
+    if common_end is None:
+        return {}
+    return {
+        "live_last": max(live_f), "hard_last": max(hard_f),
+        # mismatches WITHIN the overlap — a moved or missing decision date
+        "missing": [d for d in live_f if d <= common_end and d not in hard_f],
+        "extra": [d for d in hard_f if d <= common_end and d not in live_f],
+        # the BCB has published further than we have hardcoded
+        "extends_by": [d for d in live_f if d > max(hard_f)],
+    }
+
+
 def last_test_run() -> dict:
     """logs/last_test_run.json as written by run_tests.py (also invoked by the
     pre-push hook). {} when the suite has never run on this box."""
@@ -493,6 +542,31 @@ def checks(*, frames: pd.DataFrame | None = None, deep: dict | None = None,
     except Exception:
         add("warn", "CB calendars", "Could not read the STIR meeting calendars (stirpaths import "
             "failed) — the STIR Paths module may be broken.")
+
+    # Brazil only: the BCB publishes its Copom calendar as an API, so unlike every other
+    # bank the hardcoded list can be checked against its own source.
+    try:
+        drift = copom_calendar_drift()
+        if drift:
+            _fmt = lambda ds: ", ".join(f"{d:%d %b %Y}" for d in ds[:6])
+            if drift["missing"] or drift["extra"]:
+                add("bad", "Copom calendar",
+                    "stirpaths.BCB_DECISIONS disagrees with the calendar the BCB publishes"
+                    + (f" — missing {_fmt(drift['missing'])}" if drift["missing"] else "")
+                    + (f" — has {_fmt(drift['extra'])} which the BCB does not list"
+                       if drift["extra"] else "")
+                    + ". The DI path would price a decision on the wrong day; fix the "
+                      "hardcoded list.")
+            elif drift["extends_by"]:
+                add("warn", "Copom calendar",
+                    f"The BCB has published {len(drift['extends_by'])} further Copom "
+                    f"date(s) to {drift['live_last']:%b %Y} — append them to "
+                    f"stirpaths.BCB_DECISIONS (currently ends {drift['hard_last']:%b %Y}).")
+            else:
+                add("ok", "Copom calendar", "stirpaths.BCB_DECISIONS matches the BCB's "
+                    f"published calendar through {drift['hard_last']:%b %Y}.")
+    except Exception:
+        pass                      # the BCB feed being down is not a data-health failure
 
     try:
         from src import stirpaths as _sp
