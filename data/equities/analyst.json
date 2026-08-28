@@ -50436,7 +50436,7 @@
  },
  "CDNS US Equity": {
   "ticker": "CDNS US Equity",
-  "pulled": "2026-08-26",
+  "pulled": "2026-08-28",
   "empty": true
  },
  "COO US Equity": {
@@ -50461,12 +50461,12 @@
  },
  "SNPS US Equity": {
   "ticker": "SNPS US Equity",
-  "pulled": "2026-08-26",
+  "pulled": "2026-08-28",
   "empty": true
  },
  "CASY US Equity": {
   "ticker": "CASY US Equity",
-  "pulled": "2026-08-26",
+  "pulled": "2026-08-28",
   "empty": true
  },
  "PRU US Equity": {
@@ -50571,7 +50571,7 @@
  },
  "PSA US Equity": {
   "ticker": "PSA US Equity",
-  "pulled": "2026-08-27",
+  "pulled": "2026-08-28",
   "empty": true
  },
  "TKO US Equity": {
@@ -50596,7 +50596,7 @@
  },
  "LVS US Equity": {
   "ticker": "LVS US Equity",
-  "pulled": "2026-08-27",
+  "pulled": "2026-08-28",
   "empty": true
  },
  "ITW US Equity": {
@@ -50607,6 +50607,101 @@
  "TXT US Equity": {
   "ticker": "TXT US Equity",
   "pulled": "2026-08-27",
+  "empty": true
+ },
+ "CRM US Equity": {
+  "ticker": "CRM US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "HRL US Equity": {
+  "ticker": "HRL US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "PANW US Equity": {
+  "ticker": "PANW US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "NOW US Equity": {
+  "ticker": "NOW US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "ADSK US Equity": {
+  "ticker": "ADSK US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "WYNN US Equity": {
+  "ticker": "WYNN US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "MSTR US Equity": {
+  "ticker": "MSTR US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "IBM US Equity": {
+  "ticker": "IBM US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "ADBE US Equity": {
+  "ticker": "ADBE US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "ESS US Equity": {
+  "ticker": "ESS US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "ACGL US Equity": {
+  "ticker": "ACGL US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "UHS US Equity": {
+  "ticker": "UHS US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "MCD US Equity": {
+  "ticker": "MCD US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "TYL US Equity": {
+  "ticker": "TYL US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "KR US Equity": {
+  "ticker": "KR US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "UDR US Equity": {
+  "ticker": "UDR US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "MAA US Equity": {
+  "ticker": "MAA US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "PTC US Equity": {
+  "ticker": "PTC US Equity",
+  "pulled": "2026-08-28",
+  "empty": true
+ },
+ "ROP US Equity": {
+  "ticker": "ROP US Equity",
+  "pulled": "2026-08-28",
   "empty": true
  }
 }

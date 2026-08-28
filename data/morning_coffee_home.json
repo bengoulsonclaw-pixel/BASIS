@@ -1,36 +1,30 @@
 {
- "generated_at": "27 Aug 2026 · 07:40 ET",
- "synopsis": "Risk tone this morning is two-track: Nvidia's blowout AI-driven sales outlook has Nasdaq futures up 1.1% and the S&P firmer, reinforcing the view that the capex supercycle has legs, while Europe lags — Euro Stoxx Banks off 1.4% and the FTSE lower as fiscal nerves bite. Bund and Buxl futures are sliding, with French OATs underperforming as Paris's borrowing costs have overtaken Rome's on budget and election worries…",
- "commentary": "Risk tone this morning is two-track: Nvidia's blowout AI-driven sales outlook has Nasdaq futures up 1.1% and the S&P firmer, reinforcing the view that the capex supercycle has legs, while Europe lags — Euro Stoxx Banks off 1.4% and the FTSE lower as fiscal nerves bite. Bund and Buxl futures are sliding, with French OATs underperforming as Paris's borrowing costs have overtaken Rome's on budget and election worries — the structural repricing of term premium, with governments and AI hyperscalers competing for capital, keeps pressure on the long end globally.\n\nThe main event is Jackson Hole: Kevin Warsh delivers his first speech as Fed Chair Friday, with markets wary of his inflation approach, a reported Bessent–Warsh split over who sets the price of money, and Trump renewing his bid to oust Lisa Cook. The dollar is recouping losses into it; jobless claims at the lowest since mid-May give little cover for dovishness. In commodities, the softs are the show: arabica coffee is down 3.8% off record highs as Trump's tariff threats on Colombia were withdrawn, robusta following, while cocoa rips 4.4% higher and OJ collapses 6% — a volatile, idiosyncratic complex.\n\nEnergy is quieter but the internals matter: Brent holds near $88 with timespreads softening into expiry even as product cracks firm on falling US stockpiles, Hormuz flows keep coming through, and Putin's escalation in Ukraine plus the EU's frozen-asset plan keep a geopolitical bid under TTF (+1.7%) and Henry Hub. Copper and aluminium ease with the softer China tone. Watch Warsh on Friday — the whole rates curve, the dollar and gold trade off it.",
+ "generated_at": "28 Aug 2026 · 08:06 ET",
+ "synopsis": "Markets are in a holding pattern into Kevin Warsh's first Jackson Hole address, with traders wanting clarity on the new Fed chair's strategy for getting inflation back to target — and, notably, whether the next move risks being a hike, after KC Fed's Schmid called inflation \"stubborn\" and policy \"not restrictive.\" US equity futures drifted lower (Nasdaq -0.3%) after Thursday's AI-led surge, while Treasuries slippe…",
+ "commentary": "Markets are in a holding pattern into Kevin Warsh's first Jackson Hole address, with traders wanting clarity on the new Fed chair's strategy for getting inflation back to target — and, notably, whether the next move risks being a hike, after KC Fed's Schmid called inflation \"stubborn\" and policy \"not restrictive.\" US equity futures drifted lower (Nasdaq -0.3%) after Thursday's AI-led surge, while Treasuries slipped with the long end underperforming (Long Bond -0.26%) — a steepening bias reinforced by heavy AI-related debt issuance competing for capital and keeping term premium elevated.\n\nBunds and Gilts followed. Europe's cash bourses firmed regardless, and Japan disclosed a record ¥15.4tn ($96.5bn) of FX intervention over the past month, yet the yen still eased — worth respecting as a two-way risk in JPY futures. China is the other pillar: the PBoC unveiled sweeping credit support for the property sector, and the industrial complex responded — iron ore +0.85%, copper +0.7%, and the whites ripped, with palladium +5.4%, platinum +2.7% and silver +1.2% even as gold eased on pre-Warsh dollar steadiness; the divergence says industrial demand, not haven flows, is doing the work.\n\nIn energy, crude is soft into October Brent expiry but the products complex is where the story is: European gasoline cracks hit fresh multi-month highs, gasoil jumped 2.8%, and timespreads firmed with Gulf exports still at two-thirds of pre-war levels per reports and US–Iran diplomacy sputtering — a tightness signal despite flat flat-price. Grains rallied broadly (wheat +1.4%, corn +1.4%, bean oil +2%) and cocoa surged 5.2%.",
  "headlines": [
   {
-   "source": "Financial Times",
-   "title": "Slightly hotter than expected PCE inflation keeps Fed's September rate rise in play",
-   "time": "10:45 ET",
+   "source": "Bloomberg",
+   "title": "Fed Watchers Await Warsh's Jackson Hole Inflation Strategy",
+   "time": "",
    "tag": "Rates"
   },
   {
    "source": "Bloomberg",
-   "title": "KC Fed's Jeff Schmid on First Jackson Hole of Kevin Warsh Era",
-   "time": "07:30 ET",
-   "tag": "Rates"
+   "title": "JAPAN FX INTERVENTION IN PAST MONTH HIT RECORD 15.4 TLN YEN",
+   "time": "",
+   "tag": "FX"
   },
   {
    "source": "Bloomberg",
-   "title": "Latest Oil Market News and Analysis for Aug. 27 — Oil steadied as traders weighed progress on increasing energy flows through the Strait of Hormuz against disruptions to Russian supplies",
+   "title": "Venezuela Weighs OPEC Exit; France Just Dodges Recession",
    "time": "",
    "tag": "Energy"
   },
   {
-   "source": "Al Jazeera",
-   "title": "How a 95 percent drop in Hormuz traffic changed global shipping",
-   "time": "05:29 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "Al Jazeera",
-   "title": "Is Iran war diplomacy ramping up, as Qatar, Oman, Pakistan officials visit?",
-   "time": "06:50 ET",
+   "source": "NPR",
+   "title": "U.S. says pipelines will make Strait of Hormuz irrelevant. Energy experts disagree",
+   "time": "05:00 ET",
    "tag": "Geopolitics"
   },
   {
@@ -41,15 +35,21 @@
   },
   {
    "source": "Wall Street Journal",
+   "title": "Comex Gold, Silver Settle Lower",
+   "time": "14:01 ET",
+   "tag": "Metals"
+  },
+  {
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
   },
   {
-   "source": "Financial Times",
-   "title": "El Niño's looming threat to the global food system",
-   "time": "12:49 ET",
-   "tag": "Agriculture"
+   "source": "The Guardian",
+   "title": "Canada announces retaliatory tariffs on wide range of US goods",
+   "time": "12:17 ET",
+   "tag": "Geopolitics"
   }
  ]
 }
