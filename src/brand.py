@@ -528,6 +528,15 @@ input, textarea,
     font-weight:600;
 }
 [data-testid="stMetricDelta"] { font-family:var(--basis-mono); }
+/* Equal-height KPI cells across a row. A metric with a delta chip is one line taller
+   than one without, so a row mixing the two (Macro Radar's headline: two cells carry
+   "+123bp vs policy", two do not) rendered as ragged boxes. The COLUMNS already stretch
+   to the tallest; only the metric panel inside was shrinking to its content, so it is
+   told to fill instead. Scoped with :has() to the wrappers that actually hold a metric —
+   stretching every element container in every column would distort unrelated layouts. */
+[data-testid="stColumn"] [data-testid="stVerticalBlock"]:has([data-testid="stMetric"]),
+[data-testid="stElementContainer"]:has(> [data-testid="stMetric"]) { height:100%; }
+[data-testid="stMetric"] { height:100%; box-sizing:border-box; }
 
 /* dataframe / editor / table — ring not border, per the expander note */
 [data-testid="stDataFrame"], [data-testid="stDataEditor"], [data-testid="stTable"] {

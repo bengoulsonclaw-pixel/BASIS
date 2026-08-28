@@ -45,7 +45,7 @@ import re
 import time
 import urllib.parse
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -840,7 +840,7 @@ def sgs(sid: int | str, *, title: str = "", start: str = "1999-01-01",
         ttl: int = _DEFAULT_TTL) -> Series:
     """One BCB SGS series. No key, no rate limit worth worrying about.
 
-    Two traps, both real:
+    Three traps, all real:
 
     * **Dates are dd/mm/yyyy.** Parsed as ISO or US order, 01/07/2026 silently becomes
       January and the whole series reorders.
@@ -850,34 +850,33 @@ def sgs(sid: int | str, *, title: str = "", start: str = "1999-01-01",
       with `.asof(today)` / `.latest_actual`, never `.latest`, or the page reports a rate
       that has not been set yet as though it were current.
     * **DAILY series are capped at ten years per request** and answer a wider window with
-      HTTP 406, not with a truncated series. The Selic ones (432, 1178) are daily and hit
-      this immediately, so a 406 is retried once inside a ten-year window rather than
-      reported as a dead source.
+      HTTP 406. The Selic ones (432, 1178) are daily and hit this immediately, so the
+      request is PAGED in ten-year windows and concatenated.
 
-    api.bcb.gov.br also times out intermittently under load (seen twice while this was
-    being written), so a stale cache is preferred to a failure, as everywhere else here.
+      Retrying once inside a single ten-year window instead — which is what this did at
+      first — looks like it works and is much worse than failing: the series simply
+      begins nine years ago, and every caller reading further back gets None. On the
+      history chart that surfaced as a Selic pinned at 0% from 2012 to 2017 (Brazil's
+      policy rate was 7.25-14.25% over that stretch), because a missing policy rate was
+      being substituted with zero downstream. Silent truncation is the dangerous failure
+      mode here, not the 406.
+
+    api.bcb.gov.br also times out intermittently under load, so a stale cache is
+    preferred to a failure, as everywhere else here.
     """
     sid = str(sid)
-    url = f"{_SGS_BASE}{sid}/dados?formato=json&dataInicial={_sgs_date(start)}"
     ck = f"sgs_{sid}_{start}"
     cached = _cache_get(ck, ttl)
     if cached is None:
         try:
-            cached = json.loads(_http(url))
+            cached = json.loads(_http(f"{_SGS_BASE}{sid}/dados?formato=json"
+                                      f"&dataInicial={_sgs_date(start)}"))
             _cache_put(ck, cached)
         except Exception as e:
-            narrow = None
-            if "406" in str(e):           # daily series, window too wide — see docstring
-                try:
-                    lo = date.today().replace(year=date.today().year - 9)
-                    narrow = json.loads(_http(
-                        f"{_SGS_BASE}{sid}/dados?formato=json"
-                        f"&dataInicial={lo.strftime('%d/%m/%Y')}"))
-                    _cache_put(ck, narrow)
-                except Exception:
-                    narrow = None
-            if narrow is not None:
-                cached = narrow
+            paged = _sgs_paged(sid, start) if "406" in str(e) else None
+            if paged:
+                cached = paged
+                _cache_put(ck, cached)
             else:
                 stale = _cache_get(ck, -1)
                 if stale is None:
@@ -897,6 +896,54 @@ def sgs(sid: int | str, *, title: str = "", start: str = "1999-01-01",
         return Series(sid, title or f"SGS {sid}", "BCB (SGS)", "%", "", obs)
     except Exception as e:
         return _fail(sid, f"BCB SGS parse failed: {e}", "BCB SGS")
+
+
+def _sgs_paged(sid: str, start: str) -> list:
+    """Walk a daily SGS series in ten-year windows, the most the API will serve at once.
+
+    Each window is retried, because api.bcb.gov.br throttles rapid successive requests by
+    answering **HTTP 200 with an HTML error page** rather than a 429 or a 5xx — the same
+    "status codes lie" trap as the Fed regional sites, and the reason each payload is
+    checked for being a list instead of being trusted. The identical request that fails
+    one second succeeds the next, so a couple of retries with a pause clears it.
+
+    Returns [] if any window is still failing after its retries, so a PARTIAL history is
+    never mistaken for a complete one: silent truncation is what put a flat 0% Selic on
+    the chart from 2012 to 2017 in the first place.
+    """
+    try:
+        lo = datetime.strptime(start, "%Y-%m-%d").date()
+    except ValueError:
+        lo = date(1999, 1, 1)
+    # A year past today, not today: SGS 432 carries the policy target forward to the next
+    # Copom date, and the unpaged path returns that tail — the two must not disagree.
+    end = date(date.today().year + 1, date.today().month, min(date.today().day, 28))
+    rows, seen = [], set()
+    while lo <= end:
+        hi = min(date(lo.year + 9, lo.month, min(lo.day, 28)), end)
+        chunk = None
+        for attempt in range(4):
+            try:
+                blob = json.loads(_http(
+                    f"{_SGS_BASE}{sid}/dados?formato=json"
+                    f"&dataInicial={lo.strftime('%d/%m/%Y')}"
+                    f"&dataFinal={hi.strftime('%d/%m/%Y')}"))
+                if isinstance(blob, list):
+                    chunk = blob
+                    break
+            except Exception:
+                pass
+            time.sleep(1.5 * (attempt + 1))
+        if chunk is None:
+            return []
+        for row in chunk:
+            key = row.get("data")
+            if key and key not in seen:
+                seen.add(key)
+                rows.append(row)
+        lo = date(hi.year, hi.month, min(hi.day, 28)) + timedelta(days=1)
+        time.sleep(0.4)                   # be a good citizen between windows
+    return rows
 
 
 def _sgs_date(iso: str) -> str:

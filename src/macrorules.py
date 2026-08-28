@@ -671,14 +671,21 @@ def history_on_current_data(bank: str, *, start: date | None = None,
     out, d = [], date(start.year, start.month, 1)
     while d <= end:
         try:
-            x, _prov = inputs_from_data(bank, nairu=nairu, rstar=rstar, use_core=use_core,
-                                        data=data, when=d)
+            x, prov = inputs_from_data(bank, nairu=nairu, rstar=rstar, use_core=use_core,
+                                       data=data, when=d)
         except Exception:
+            d = _add_months_r(d, step_months)
+            continue
+        # RuleInputs DEFAULTS an unavailable policy rate to 0.0 rather than None, so a
+        # month the series does not reach looks like a central bank at zero. That is how
+        # a truncated Selic feed drew a flat 0% line across 2012-2017. Trust provenance,
+        # not the value: if the policy rate was not measured, the month does not exist.
+        if "policy rate" in prov.missing:
             d = _add_months_r(d, step_months)
             continue
         row = {r.key: r.prescribed for r in evaluate(x)
                if r.ok and r.prescribed is not None and r.key in rule_keys}
-        if len(row) == len(rule_keys) and x.policy_rate is not None:
+        if len(row) == len(rule_keys):
             row["when"], row["policy"] = d, x.policy_rate
             out.append(row)
         d = _add_months_r(d, step_months)
