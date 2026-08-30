@@ -46,8 +46,38 @@ while ($true) {
             -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
             -RedirectStandardOutput "$PSScriptRoot\logs\basis_server.log" `
             -RedirectStandardError "$PSScriptRoot\logs\basis_server_err.log"
-        # wait while THIS server lives; when it exits (or loses the port) loop around
-        Wait-Process -Id $server.Id -ErrorAction SilentlyContinue
+        # HEALTH-MONITOR instead of a blind Wait-Process (2026-08-28): the recurring outage is a
+        # HUNG server — the process is alive and even logs "Uvicorn started", but never serves
+        # :8501 — which Wait-Process cannot see (the process lives), so the server sat dead until
+        # someone killed it by hand. Now the keeper polls the health endpoint: it tolerates a slow
+        # cold boot, but if the server never comes up (6 min) or was serving and then stops, it
+        # kills the whole streamlit-on-8501 tree so the loop relaunches a fresh one. Self-heals the
+        # hang in ~1-2 min with no manual kick.
+        $everHealthy = $false
+        $bootDeadline = (Get-Date).AddSeconds(360)
+        $badAfterHealthy = 0
+        $hung = $false
+        while (-not $server.HasExited) {
+            Start-Sleep -Seconds 15
+            $healthy = $false
+            try {
+                $healthy = (Invoke-WebRequest "http://localhost:8501/_stcore/health" `
+                             -UseBasicParsing -TimeoutSec 8).StatusCode -eq 200
+            } catch { $healthy = $false }
+            if ($healthy) { $everHealthy = $true; $badAfterHealthy = 0; continue }
+            if ($everHealthy) {
+                $badAfterHealthy++
+                if ($badAfterHealthy -ge 2) { $hung = $true; break }   # served then hung (~30s) -> restart
+            } elseif ((Get-Date) -ge $bootDeadline) {
+                $hung = $true; break                                    # never served in 6 min -> restart
+            }
+        }
+        if ($hung) {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            Get-CimInstance Win32_Process -Filter "name='python.exe'" -ErrorAction SilentlyContinue |
+                Where-Object { $_.CommandLine -match 'streamlit' -and $_.CommandLine -match '8501' } |
+                ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        }
         Start-Sleep -Seconds 5          # breathe before restarting (crash loops)
     } else {
         Start-Sleep -Seconds 15

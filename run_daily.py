@@ -156,6 +156,18 @@ def run() -> pd.DataFrame:
             print(f"  Gold event study: {ev['n_trading_days']} days, {ev['sample']}")
     except Exception as e:
         print(f"  (Gold event study skipped: {e})")
+    # CVM fund store (🇧🇷 Brazil Funds). Only the current and previous month are
+    # re-downloaded — CVM revises those two daily and freezes the rest — so a routine
+    # refresh moves ~25MB, not the ~160MB a cold build costs. Guarded like every other
+    # leg: dados.cvm.gov.br truncates downloads often enough that a bad afternoon must
+    # not cost us the day's signals.
+    try:
+        from src import cvmfunds
+        met = cvmfunds.build()
+        print(f"  CVM funds: {len(met):,} share classes, "
+              f"{met['gestor'].nunique():,} gestores")
+    except Exception as e:
+        print(f"  (CVM fund store skipped: {e})")
     return df
 
 

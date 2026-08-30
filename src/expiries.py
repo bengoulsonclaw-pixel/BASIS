@@ -132,6 +132,17 @@ def _eval(rule, y: int, m: int, hol) -> date:
     if kind == "minus_bdays":                    # evaluate inner rule, then step back n business days (option offset)
         _, n, inner = rule
         return _bdays_before(_eval(inner, y, m, hol), n, hol)
+    if kind == "last_wd_prior_min_bd":           # CBOT/Eurex govvie options: last <wd> of the month
+        _, wd, pm, minbd = rule                 # `pm` before contract that precedes THAT month's last
+        yy, mm = _shift_month(y, m, -pm)        # business day by at least `minbd` business days —
+        d = _on_or_before_bday(_last_weekday(yy, mm, wd), hol)   # else step back a week. VERIFIED
+        limit = _bdays_before(_last_bday(yy, mm, hol), minbd - 1, hol)   # against observed OPT_EXPIRE_DT
+        while d >= limit:                       # (data/snapshot/oi_chain.parquet, 2026-08-28): without
+            d = _on_or_before_bday(d - timedelta(days=7), hol)   # this, Jul/Aug/Nov-26 were a week late.
+        return d
+    if kind == "split_q":                       # different rule for quarterly vs serial months —
+        _, q_rule, s_rule = rule                # ICE Euribor options: quarterlies expire WITH the future
+        return _eval(q_rule if m in (3, 6, 9, 12) else s_rule, y, m, hol)
     raise ValueError(f"unknown expiry rule kind: {kind!r}")
 
 
@@ -207,7 +218,14 @@ SPECS: dict[str, dict] = {
     "fedfunds": {"cycle": _all(), "fut": ("last_bday",), "opt": ("last_bday",),
                  "opt_cycle": _all(), "time": ("14:00", "CT")},
     "euribor": {"cycle": _all(), "fut": ("bdays_before_nth_wd", 2, 3, WED),  # 2 bd before 3rd Wed (forward-looking)
-                "opt": ("kth_wd_before_nth_wd", FRI, 1, 3, WED), "opt_cycle": _all(), "time": ("10:00", "London")},
+                # ICE splits the option cycle: the QUARTERLY option expires with its future
+                # (the Monday), the SERIALS on the Friday before the 3rd Wednesday. Both halves
+                # verified against observed OPT_EXPIRE_DT (oi_chain.parquet, 2026-08-28); the
+                # single Friday rule was 3 days early on every quarterly. SOFR is NOT like this
+                # — its quarterlies really do expire on the Friday, so its rule stays put.
+                "opt": ("split_q", ("bdays_before_nth_wd", 2, 3, WED),
+                        ("kth_wd_before_nth_wd", FRI, 1, 3, WED)),
+                "opt_cycle": _all(), "time": ("10:00", "London")},
     "estr":    {"cycle": _q(), "fut": ("bdays_before_nth_wd", 1, 3, WED),   # backward-looking, futures-only
                 "time": ("18:00", "Brussels")},
     "sonia":   {"cycle": _q(), "fut": ("bdays_before_nth_wd", 1, 3, WED),   # backward-looking
@@ -218,13 +236,13 @@ SPECS: dict[str, dict] = {
                 "time": ("18:00", "São Paulo")},                            # named month; trades to the prior bday
     # ── Rates — US Treasuries (CBOT), Euro govvies (Eurex), Long Gilt (ICE) ───────────────
     "ust_short": {"cycle": _q(), "fut": ("last_bday",),                     # TU / FV: last bday of month
-                  "opt": ("last_wd_prior", FRI, 1), "opt_cycle": _all(), "time": ("12:01", "CT")},
+                  "opt": ("last_wd_prior_min_bd", FRI, 1, 2), "opt_cycle": _all(), "time": ("12:01", "CT")},
     "ust_long": {"cycle": _q(), "fut": ("nbd_before_last_bday", 7),         # TY/UXY/US/WN: 7th bd before month-end
-                 "opt": ("last_wd_prior", FRI, 1), "opt_cycle": _all(), "time": ("12:01", "CT")},
+                 "opt": ("last_wd_prior_min_bd", FRI, 1, 2), "opt_cycle": _all(), "time": ("12:01", "CT")},
     "eur_govt": {"cycle": _q(), "fut": ("bdays_before_dom_fwd", 2, 10),     # 2 exch days before the 10th (delivery day)
-                 "opt": ("last_wd_prior", FRI, 1), "opt_cycle": _all(), "time": ("12:30", "CET")},
+                 "opt": ("last_wd_prior_min_bd", FRI, 1, 2), "opt_cycle": _all(), "time": ("12:30", "CET")},
     "gilt":    {"cycle": _q(), "fut": ("nbd_before_last_bday", 2),          # 2 bd before last bday of month
-                "opt": ("last_wd_prior", FRI, 1), "opt_cycle": _all(), "time": ("11:00", "London")},
+                "opt": ("last_wd_prior_min_bd", FRI, 1, 2), "opt_cycle": _all(), "time": ("11:00", "London")},
     # ── Energy — each with its own anchor; option offsets are NOT uniform ─────────────────
     "wti":     {"cycle": _all(), "fut": ("bdays_before_dom_prior", 3, 25, 1),
                 "opt": ("minus_bdays", 3, ("bdays_before_dom_prior", 3, 25, 1)), "opt_cycle": _all(),
@@ -373,3 +391,56 @@ def describe(ticker: str, asset: str, ref_date: date) -> dict:
         if d:
             out["opt"], out["opt_time"] = _fmt_date(d), spec.get("opt_time_label", tlabel)
     return out
+
+
+# ── per-contract-month access (used by the Bloomberg Codes database) ───────────────────
+# `describe()` answers "what's the NEXT expiry" for the Market Hours tooltip. The symbol
+# database needs the inverse: the expiry of ONE NAMED contract month (is `CLZ6` a Nov-26
+# last trade?), and the list of months a product actually lists. Same rules, addressed
+# directly instead of scanned forward.
+def spec_for(ticker: str, asset: str = "") -> dict | None:
+    """The contract-family spec behind a product, or None if the family isn't modelled."""
+    fam = _family(ticker, asset)
+    return SPECS.get(fam) if fam else None
+
+
+def listed_months(ticker: str, asset: str = "", kind: str = "fut") -> list:
+    """The delivery months a product lists, 1-12. Options carry their own cycle where
+    serial months trade against a quarterly future (`opt_cycle`)."""
+    spec = spec_for(ticker, asset)
+    if not spec:
+        return []
+    if kind == "opt":
+        return sorted(spec.get("opt_cycle", spec.get("cycle", [])))
+    return sorted(spec.get("cycle", []))
+
+
+def expiry_for(ticker: str, asset: str, year: int, month: int,
+               kind: str = "fut") -> date | None:
+    """Last-trading (kind='fut') or option-expiry (kind='opt') date for ONE contract month.
+
+    Returns None when the family is unmodelled, the month isn't listed, or the product
+    has no listed option. INDICATIVE — rule-derived, not the exchange's own calendar;
+    callers must label it as such (a harvested LAST_TRADEABLE_DT beats this every time)."""
+    spec = spec_for(ticker, asset)
+    if not spec:
+        return None
+    rule = spec.get(kind)
+    if not rule:
+        return None
+    if month not in listed_months(ticker, asset, kind):
+        return None
+    if kind == "fut" and ticker in CASH_TICKERS:
+        return None
+    try:
+        return _eval(rule, int(year), int(month), _holidays_for(ticker, asset))
+    except Exception:
+        return None
+
+
+def expiry_time(ticker: str, asset: str = "") -> str | None:
+    """Indicative last-trade time, e.g. '14:30 ET'."""
+    spec = spec_for(ticker, asset)
+    if not spec or not spec.get("time"):
+        return None
+    return f"{spec['time'][0]} {spec['time'][1]}"

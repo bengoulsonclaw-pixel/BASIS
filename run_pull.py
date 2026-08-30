@@ -25,6 +25,7 @@ logs/pull_driver.log.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -37,6 +38,8 @@ PY = ROOT / ".venv" / "Scripts" / "python.exe"
 LOG = ROOT / "logs" / "pull_driver.log"
 STATUS = SNAP / ".pull_driver_status.json"
 LOCK = SNAP / ".pull_driver.lock"
+MC_PREFS = ROOT / "data" / "mc_run_prefs.json"
+MC_DIR = Path(os.getenv("BASIS_MC_DIR", r"C:\Users\Ben\OneDrive\Personal\AI\Futures_Movements"))
 
 STALL_MIN = 8          # kill the fetch after this many minutes without a snapshot write
 FETCH_CAP_MIN = 30     # absolute fetch ceiling per attempt
@@ -71,6 +74,47 @@ def _read_status() -> dict:
         return cur if cur.get("date") == date.today().isoformat() else {}
     except Exception:
         return {}
+
+
+def _mc_after_pull_on() -> bool:
+    """The app's 'auto-run Morning Coffee + email the desk after each pull' toggle, read
+    straight from its prefs file so the driver honours it with no running app involved."""
+    try:
+        return bool(json.loads(MC_PREFS.read_text(encoding="utf-8")).get("run_after_pull", False))
+    except Exception:
+        return False
+
+
+def _global_python() -> str:
+    """Morning Coffee needs the GLOBAL CPython (anthropic / python-docx / xbbg), not this
+    driver's .venv — mirrors app.py's morning_coffee_python()."""
+    base = Path(os.path.expandvars(r"%LOCALAPPDATA%\Python"))
+    for exe in sorted(base.glob("pythoncore-*-64/python.exe"), reverse=True):
+        if exe.exists():
+            return str(exe)
+    return "python"
+
+
+def _run_morning_coffee() -> bool:
+    """Build + EMAIL the Morning Coffee. Best-effort: a failure NEVER fails the pull (the
+    snapshot is already safe on disk). It reads the snapshot + IMAP + web — no Terminal
+    needed — so it is fine to run after the user has closed Bloomberg. The send is confirmed
+    from the CLI's own 'Email sent' log line."""
+    main_py = MC_DIR / "main.py"
+    if not main_py.exists():
+        _log(f"Morning Coffee: project not found at {MC_DIR} — skipping")
+        return False
+    try:
+        env = {**os.environ, "PYTHONUTF8": "1"}
+        _log("Morning Coffee: building the report and emailing the desk…")
+        r = subprocess.run([_global_python(), str(main_py)], cwd=str(MC_DIR),
+                           capture_output=True, text=True, timeout=900, env=env)
+        ok = r.returncode == 0 and "Email sent" in (r.stdout or "")
+        _log(f"Morning Coffee: {'SENT ✓' if ok else 'did NOT confirm a send'} (rc={r.returncode})")
+        return ok
+    except Exception as e:
+        _log(f"Morning Coffee: FAILED — {e!r}")
+        return False
 
 
 def _preflight() -> str:
@@ -192,7 +236,8 @@ def main() -> int:
     LOCK.write_text(str(datetime.now()), encoding="utf-8")
     try:
         runs = _read_status().get("runs", 0) + 1
-        _status(runs=runs, outcome="running")
+        _status(runs=runs, outcome="running", phase="preflight", mc="",
+                started=datetime.now().isoformat(timespec="seconds"))
         _log(f"=== driver run #{runs} (auto={auto}) ===")
 
         reason = _preflight()
@@ -203,6 +248,7 @@ def main() -> int:
         _log("pre-flight OK — Bloomberg serving")
 
         t0 = time.time()
+        _status(phase="fetch")
         ok = _run_phase(["--fetch"], STALL_MIN, FETCH_CAP_MIN, "fetch")
         if not ok:
             _log("fetch attempt 1 failed/stalled — ONE clean retry (the playbook)")
@@ -215,6 +261,8 @@ def main() -> int:
                     detail="both fetch attempts stalled/failed — see logs/pull_driver_*.log")
             return 1
 
+        # fetch done — Bloomberg is no longer needed; the app now says "safe to close the Terminal"
+        _status(phase="compute")
         ok = _run_phase(["--compute"], None, COMPUTE_CAP_MIN, "compute")
         if not ok:
             _status(outcome="compute_failed",
@@ -222,6 +270,7 @@ def main() -> int:
             return 1
         _compute_partial = _LAST_RC == 2
 
+        _status(phase="backup")
         _log("pushing the data backup…")
         try:
             sys.path.insert(0, str(ROOT))
@@ -230,15 +279,22 @@ def main() -> int:
         except Exception as e:
             _log(f"backup push failed (non-fatal): {e!r}")
 
+        # Morning Coffee — driver-owned (2026-08-28) so it runs on EVERY completed pull
+        # (manual OR --auto), survives any app/session state, and its progress shows in the
+        # app's pull status bar. Reads snapshot + IMAP + web, so no Terminal is needed.
+        if _mc_after_pull_on():
+            _status(phase="coffee", mc="running")
+            _status(mc="sent" if _run_morning_coffee() else "failed")
+
         mins = (time.time() - t0) / 60
         if _compute_partial:
-            _status(outcome="compute_partial",
+            _status(outcome="compute_partial", phase="done",
                     detail=f"complete in {mins:.1f} min, but some compute steps FAILED — "
                            f"see logs/pull_driver_compute.log; those stores are stale until "
                            f"'Re-run signals'. Do NOT re-pull, the Bloomberg data is fine")
             _log(f"=== DONE in {mins:.1f} min — WITH FAILED COMPUTE STEPS ===")
             return 0
-        _status(outcome="ok", detail=f"complete in {mins:.1f} min")
+        _status(outcome="ok", phase="done", detail=f"complete in {mins:.1f} min")
         _log(f"=== DONE in {mins:.1f} min ===")
         return 0
     finally:

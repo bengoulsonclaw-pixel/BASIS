@@ -1186,8 +1186,9 @@ _GROUP_TABS = {
     "Fundamentals":       [("AG Fundamentals", "AG Fundamentals"),
                            ("🛢️ OPEC Report", "OPEC Report"),
                            ("🥇 Precious Metals", "Precious Metals"),
-                           ("🥇 Gold Engine", "Gold Engine"),
-                           ("🇧🇷 Brazil Production", "Brazil Production")],
+                           ("🥇 Gold Engine", "Gold Engine")],
+    "Brazil Fundamentals": [("🇧🇷 Brazil Production", "Brazil Production"),
+                            ("🇧🇷 Brazil Funds", "Brazil Funds")],
     "Seasonality":        [("📅 Product Seasonality", "Seasonality"),
                            ("🔀 Spread Seasonality", "Seasonality Spreads")],
 }
@@ -15945,6 +15946,10 @@ with st.sidebar:
                 st.caption(_group)
                 for _s in _strats:
                     _nav_button(_s, _s)
+        # Brazil Fundamentals — its own module (Ben 2026-08-29): Brazil Production + Brazil Funds,
+        # moved out of Fundamentals into their own tab-group (see _GROUP_TABS above).
+        _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Brazil Fundamentals", "Brazil Production")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Correlations", "Product Correlations")
         _n_mod += 1
@@ -16301,6 +16306,11 @@ if active == "Gold Engine":
     goldpage.render(); st.stop()
 if active == "Brazil Production":
     render_brazil_production(); st.stop()
+if active == "Brazil Funds":
+    # Body in src/cvmfundspage.py — the CVM daily-filings screener carries four tabs of
+    # real content and app.py is long enough already.
+    from src import cvmfundspage
+    cvmfundspage.render(); st.stop()
 if active == "Release Calendar":
     render_releases(); st.stop()
 if active == "Recipients":
