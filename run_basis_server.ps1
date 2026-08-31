@@ -46,31 +46,33 @@ while ($true) {
             -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
             -RedirectStandardOutput "$PSScriptRoot\logs\basis_server.log" `
             -RedirectStandardError "$PSScriptRoot\logs\basis_server_err.log"
-        # HEALTH-MONITOR instead of a blind Wait-Process (2026-08-28): the recurring outage is a
-        # HUNG server — the process is alive and even logs "Uvicorn started", but never serves
-        # :8501 — which Wait-Process cannot see (the process lives), so the server sat dead until
-        # someone killed it by hand. Now the keeper polls the health endpoint: it tolerates a slow
-        # cold boot, but if the server never comes up (6 min) or was serving and then stops, it
-        # kills the whole streamlit-on-8501 tree so the loop relaunches a fresh one. Self-heals the
-        # hang in ~1-2 min with no manual kick.
+        # HEALTH-MONITOR (revised 2026-08-29): the FIRST version killed the server after just ~30s
+        # of failed health checks — which over-killed a perfectly HEALTHY server whenever the machine
+        # was briefly busy (a 96s test-suite run starved the health handler and the server got
+        # needlessly restarted). This version is deliberately conservative: it restarts ONLY on
+        # (a) a process that has EXITED, (b) a boot that never comes up in ~7 min, or (c) a server
+        # that stays unresponsive CONTINUOUSLY for 5 MINUTES — a genuine multi-minute hang. Any
+        # transient slowness (test runs, heavy renders, GC) resets the timer and is ignored, so the
+        # keeper never fights a server that is merely busy.
         $everHealthy = $false
-        $bootDeadline = (Get-Date).AddSeconds(360)
-        $badAfterHealthy = 0
+        $bootDeadline = (Get-Date).AddSeconds(420)   # ~7 min cold-boot allowance
+        $unhealthySince = $null
         $hung = $false
         while (-not $server.HasExited) {
-            Start-Sleep -Seconds 15
+            Start-Sleep -Seconds 20
             $healthy = $false
             try {
                 $healthy = (Invoke-WebRequest "http://localhost:8501/_stcore/health" `
-                             -UseBasicParsing -TimeoutSec 8).StatusCode -eq 200
+                             -UseBasicParsing -TimeoutSec 20).StatusCode -eq 200
             } catch { $healthy = $false }
-            if ($healthy) { $everHealthy = $true; $badAfterHealthy = 0; continue }
-            if ($everHealthy) {
-                $badAfterHealthy++
-                if ($badAfterHealthy -ge 2) { $hung = $true; break }   # served then hung (~30s) -> restart
-            } elseif ((Get-Date) -ge $bootDeadline) {
-                $hung = $true; break                                    # never served in 6 min -> restart
+            if ($healthy) { $everHealthy = $true; $unhealthySince = $null; continue }
+            if (-not $everHealthy) {
+                if ((Get-Date) -ge $bootDeadline) { $hung = $true; break }   # never came up in ~7 min
+                continue
             }
+            # was serving, now not — only a CONTINUOUS 5-min outage counts as a real hang
+            if ($null -eq $unhealthySince) { $unhealthySince = Get-Date }
+            if (((Get-Date) - $unhealthySince).TotalSeconds -ge 300) { $hung = $true; break }
         }
         if ($hung) {
             Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
