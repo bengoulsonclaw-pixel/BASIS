@@ -315,6 +315,16 @@ def test_fund_name_is_trimmed_not_translated(raw, want):
     assert cf.tidy_fund_name(raw) == want
 
 
+@pytest.mark.parametrize("raw, want", [
+    ("BB TOP FIXED INCOME SHORT TERM AUTOMATICO II", "BB Top Fixed Income Short Term Automatico II"),
+    ("XP MACRO FUNDO DE INVESTIMENTO FINANCEIRO MULTIMERCADO III", "XP Macro III"),
+])
+def test_roman_series_markers_survive_title_casing(raw, want):
+    """Brazilian managers number their series, and the ordinary rule reads a roman numeral
+    as a word: II title-cases to "Ii" and III to "Iii"."""
+    assert cf.tidy_fund_name(raw) == want
+
+
 def test_a_fund_that_is_all_boilerplate_keeps_its_full_name():
     """Stripping must never leave a row with nothing to identify it by."""
     assert cf.tidy_fund_name("FUNDO DE INVESTIMENTO FINANCEIRO") != ""

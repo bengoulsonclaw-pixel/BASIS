@@ -5,7 +5,8 @@ rule: src/cvmfunds.py. This module is presentation only — nothing here compute
 return, because everything is precomputed into data/signals/cvm_funds by the daily pull
 (app-wide rule: a page must not do 7m rows of work on open).
 
-Four tabs:
+Four sections, switched by the segmented control (the house pattern for in-page
+sections — Company Fundamentals and Colleague Access use the same one):
 
   Screener   the fund table, filtered. The default filter is the defensible one —
              multi-strategy, ex-feeder, ex-exclusive, ex-pension — and the page says so
@@ -15,7 +16,8 @@ Four tabs:
              between the top three managers, which is the point.
   Flows      who raised and who bled. A performance table cannot answer this, and for
              a broker it is usually the more useful question.
-  Fund       one share class: NAV against CDI, drawdown, assets and flows.
+  Fund       managers by assets, one opening to the funds underneath it; picking one
+             draws that share class — NAV against CDI, drawdown, assets and flows.
 
 EVERYTHING DESCRIPTIVE IS SHOWN IN ENGLISH
 
@@ -23,7 +25,7 @@ CVM publishes in Portuguese. Classes, ANBIMA strategies and investor types are
 translated (src/cvmfunds.py holds the vocabulary), and fund and manager names are tidied
 down to the part that identifies them — the legal boilerplate every Brazilian fund
 carries says nothing about which fund it is. Names are never TRANSLATED, only trimmed,
-and the Fund tab prints the full registered name and CNPJ, because that is what you
+and the Fund section prints the full registered name and CNPJ, because that is what you
 quote to a client and type into a vendor system.
 
 WHY %CDI IS BLANK SO OFTEN
@@ -44,6 +46,8 @@ from src import auth, brand, cvmfunds
 
 _BN = 1e9
 _MM = 1e6
+
+_VIEWS = ["🔎 Screener", "🏦 Managers", "💸 Flows", "📈 Fund"]
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────────────
@@ -363,16 +367,141 @@ def _tab_flows(met: pd.DataFrame) -> None:
         colorers=[([f"Flow {win}", "% of assets", "12m"], _move_colour)])
 
 
-def _tab_fund(met: pd.DataFrame) -> None:
-    d = cvmfunds.screen(met, cvm_class=None, min_aum=50 * _MM)
+# The picker shows managers first and opens ONE at a time. Streamlit executes the body of
+# a collapsed expander, so a real expander per manager would have built ~20,000 fund
+# buttons on every rerun; rendering only the open manager's funds keeps it to a few dozen.
+_MGR_PAGE = 40            # managers listed before the search box is the way through
+_FUND_PAGE = 60           # funds listed inside one manager — Itaú alone runs over 1,200
+# The app styles every button as chrome — uppercase, letter-spaced, centred — which is
+# right for a nav tab and wrong for a row of data. These rows carry names the page went to
+# some trouble to tidy, and "BB Top Fixed Income Short Term Automático II" shouted back as
+# "BB TOP FIXED INCOME SHORT TERM AUTOMÁTICO II" undoes that. Scoped to these two keys via
+# Streamlit's st-key-<key> container class so no other button is touched.
+_ROW_CSS = """<style>
+.bf-cell{text-align:right;padding-top:.6rem;font-variant-numeric:tabular-nums;
+         font-size:.86rem;line-height:1.2}
+[class*="st-key-bfm_"] button, [class*="st-key-bff_"] button,
+[class*="st-key-bfm_"] button *, [class*="st-key-bff_"] button *{
+  text-transform:none!important; letter-spacing:0!important;
+  justify-content:flex-start!important; text-align:left!important}
+[class*="st-key-bff_"] button{font-weight:400!important}
+[class*="st-key-bfm_"] button{font-weight:600!important}
+</style>"""
+
+
+def _fund_key(row) -> str:
+    """A share class is a CNPJ plus a subclass — the CNPJ alone is not unique."""
+    return f"{row['cnpj']}|{row['subclass'] or ''}"
+
+
+def _open_manager(gestor: str) -> None:
+    """Clicking the open manager closes it; clicking another opens that one instead."""
+    st.session_state["fnd_mgr"] = None if st.session_state.get("fnd_mgr") == gestor else gestor
+
+
+def _select_fund(key: str) -> None:
+    st.session_state["fnd_key"] = key
+
+
+def _cell(col, text: str, colour: str) -> None:
+    col.markdown(f"<div class='bf-cell' style='color:{colour}'>{text}</div>",
+                 unsafe_allow_html=True)
+
+
+def _fund_picker(met: pd.DataFrame):
+    """Managers by assets, one expanding to its funds. Returns the chosen row, or None.
+
+    Search matches funds AND managers, on the English label and the registered name
+    alike, so a fund outside its manager's top few is still reachable — the old flat
+    dropdown was capped at 4,000 of ~20,000 classes and the rest simply could not be
+    opened.
+    """
+    pal, cc = brand.palette(), brand.chart_colors()
+    f1, f2 = st.columns([3, 1])
+    q = f1.text_input("Search", "", key="fnd_q", placeholder="fund, manager or CNPJ",
+                      label_visibility="collapsed").strip()
+    floor = f2.number_input("Min assets (R$m)", min_value=0, value=50, step=25,
+                            key="fnd_floor", label_visibility="collapsed") * _MM
+
+    d = cvmfunds.screen(met, cvm_class=None, min_aum=floor)
     if d.empty:
-        st.info("Nothing in the store yet.")
+        st.info("Nothing in the store at that size.")
+        return None
+    if q:
+        digits = "".join(ch for ch in q if ch.isdigit())
+        hit = False
+        for col in ("name_en", "name", "gestor_en", "gestor"):
+            hit = hit | d[col].str.contains(q, case=False, na=False, regex=False)
+        if len(digits) >= 6:
+            hit = hit | d["cnpj"].str.contains(digits, na=False, regex=False)
+        d = d[hit]
+        if d.empty:
+            st.info(f"Nothing matches “{q}”.")
+            return None
+
+    # Grouped on the REGISTERED gestor, never the label — see _resolve_label_clashes.
+    agg = (d.groupby("gestor")
+            .agg(label=("gestor_en", "first"), aum=("aum", "sum"), funds=("cnpj", "nunique"))
+            .sort_values("aum", ascending=False))
+
+    open_mgr = st.session_state.get("fnd_mgr")
+    if open_mgr not in agg.index:
+        open_mgr = agg.index[0]
+        st.session_state["fnd_mgr"] = open_mgr
+
+    shown = agg.head(_MGR_PAGE)
+    if open_mgr not in shown.index:          # keep the open one visible however deep it sits
+        shown = pd.concat([agg.loc[[open_mgr]], shown])
+    st.caption(f"**{len(agg):,}** managers · **{d['cnpj'].nunique():,}** funds · "
+               f"showing the top {len(shown)} by assets"
+               + (" — search to reach the rest" if len(agg) > len(shown) else ""))
+    st.markdown(_ROW_CSS, unsafe_allow_html=True)
+
+    sel_key = st.session_state.get("fnd_key")
+    for gestor, m in shown.iterrows():
+        is_open = gestor == open_mgr
+        c0, c1, c2 = st.columns([6, 2, 1.6])
+        c0.button(f"{'▾' if is_open else '▸'}  {m['label']}", key=f"bfm_{gestor}",
+                  on_click=_open_manager, args=(gestor,), use_container_width=True,
+                  type="primary" if is_open else "secondary")
+        _cell(c1, _brl(m["aum"]), pal["text"])
+        _cell(c2, f"{m['funds']:,} funds", pal["text_dim"])
+        if not is_open:
+            continue
+        funds = d[d["gestor"] == gestor].sort_values("aum", ascending=False)
+        for _, r in funds.head(_FUND_PAGE).iterrows():
+            k = _fund_key(r)
+            s0, s1, s2, s3 = st.columns([0.35, 5.65, 2, 1.6])
+            s0.write("")
+            label = r["name_en"] + (f"  ·  {r['subclass']}" if r["subclass"] else "")
+            s1.button(label, key=f"bff_{k}", on_click=_select_fund, args=(k,),
+                      use_container_width=True,
+                      type="primary" if k == sel_key else "secondary")
+            _cell(s2, _brl(r["aum"], "m", 0), pal["text_dim"])
+            ret = r["ret_12m"]
+            _cell(s3, _pct(ret), pal["text_dim"] if ret != ret
+                  else (cc["long"] if ret > 0 else cc["short"]))
+        if len(funds) > _FUND_PAGE:
+            st.caption(f"    …{len(funds) - _FUND_PAGE:,} more under this manager — "
+                       f"search by fund name to reach them.")
+
+    # The click lands on the NEXT rerun, so a fresh session (or a search that filtered the
+    # selection away) still needs a fund to show.
+    keys = d.apply(_fund_key, axis=1)
+    if sel_key not in set(keys):
+        top = d[d["gestor"] == open_mgr].sort_values("aum", ascending=False)
+        if top.empty:
+            return None
+        sel_key = _fund_key(top.iloc[0])
+        st.session_state["fnd_key"] = sel_key
+    return d[keys == sel_key].iloc[0]
+
+
+def _tab_fund(met: pd.DataFrame) -> None:
+    row = _fund_picker(met)
+    if row is None:
         return
-    d = d.sort_values("aum", ascending=False)
-    labels = (d["name_en"] + "  ·  " + d["gestor_en"]
-              + d["subclass"].apply(lambda s: f"  ·  {s}" if s else ""))
-    pick = st.selectbox("Fund", labels.tolist()[:4000], index=0, key="fnd_pick")
-    row = d.iloc[labels.tolist()[:4000].index(pick)]
+    st.divider()
 
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Assets", _brl(row["aum"], "m", 0))
@@ -497,15 +626,19 @@ def render() -> None:
         return
 
     st.divider()
-    tabs = st.tabs(["🔎 Screener", "🏦 Managers", "💸 Flows", "📈 Fund"])
-    with tabs[0]:
-        _tab_screener(met)
-    with tabs[1]:
+    # A segmented control, not st.tabs: the same in-page section switcher Company
+    # Fundamentals and Colleague Access use. Tabs mark the active one with a thin
+    # underline that reads as decoration rather than as "you are here".
+    view = st.segmented_control("Section", _VIEWS, default=_VIEWS[0], key="cvm_view",
+                                label_visibility="collapsed")
+    if view == _VIEWS[1]:
         _tab_managers(met)
-    with tabs[2]:
+    elif view == _VIEWS[2]:
         _tab_flows(met)
-    with tabs[3]:
+    elif view == _VIEWS[3]:
         _tab_fund(met)
+    else:                      # clicking the active segment deselects it — stay put
+        _tab_screener(met)
 
     st.divider()
     st.caption("Source: **CVM — Portal Dados Abertos** (daily filings + the fund/class/"

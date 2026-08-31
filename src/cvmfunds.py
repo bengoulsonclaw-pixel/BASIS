@@ -229,6 +229,10 @@ _MGR_FORMS = {"ltda", "ltda.", "s.a.", "s.a", "sa", "s/a", "dtvm", "ctvm", "cctv
 # Joining words that stay lower-case inside a name, once it is not the first word.
 _LOWER_WORDS = {"de", "do", "da", "dos", "das", "e", "of", "the", "and", "no", "na"}
 
+# Series markers, and they are everywhere in Brazilian fund names. Left to the ordinary
+# rule they carry vowels and title-case into "Ii" and "Iii".
+_ROMAN = {"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"}
+
 _MARK = "\x00"
 
 
@@ -332,8 +336,8 @@ def _smart_title(words: list[str]) -> str:
         core = _deaccent(w).strip(".,-()&/").lower()
         if not core:
             out.append(w)
-        elif len(core) <= 4 and not re.search(r"[aeiouy]", core):
-            out.append(w.upper())                       # BTG, SPX, UBS, BB, JGP, G5
+        elif core in _ROMAN or (len(core) <= 4 and not re.search(r"[aeiouy]", core)):
+            out.append(w.upper())                       # BTG, SPX, UBS, BB, JGP, G5, III
         elif i and core in _LOWER_WORDS:
             out.append(w.lower())
         else:
