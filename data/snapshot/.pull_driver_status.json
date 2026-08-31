@@ -1,10 +1,10 @@
 {
  "date": "2026-08-31",
- "runs": 2,
- "outcome": "preflight_refused",
- "phase": "preflight",
+ "runs": 3,
+ "outcome": "running",
+ "phase": "backup",
  "mc": "",
- "started": "2026-08-31T07:06:00",
- "when": "2026-08-31T07:06:07",
+ "started": "2026-08-31T08:01:49",
+ "when": "2026-08-31T08:14:02",
  "detail": "Bloomberg -4002 WORKFLOW_REVIEW_NEEDED block active - ring the Help Desk; pulling is pointless until cleared"
 }
