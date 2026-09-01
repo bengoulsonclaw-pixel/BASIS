@@ -11,3 +11,7 @@ when_et,label,n_tickers,est_hits,n_new_securities
 2026-08-28 07:42:02-0400,morning snapshot,89,6203,0
 2026-08-31 08:05:56-0400,morning snapshot,89,6235,0
 2026-09-01 06:52:06-0400,morning snapshot,89,6228,0
+2026-09-01 07:07:35-0400,weekly-option root probe,3,6,0
+2026-09-01 07:09:46-0400,weekly-option root probe,3,109,0
+2026-09-01 07:44:12-0400,S&P weekly root pattern probe,1,43,0
+2026-09-01 07:45:09-0400,S&P weekly root pattern probe,1,28,0

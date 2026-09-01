@@ -39,7 +39,12 @@ while ($true) {
         # touching repo files raced Streamlit's watcher into KeyError crashes
         # (run_daily / src.universe / src.strategies) at import and mid-session.
         # Code changes reach it by restarting the server, not by saving files.
-        $server = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\python.exe" `
+        # pythonw.exe (2026-09-01), NOT python.exe: on Windows 11 the default console host is
+        # Windows Terminal, which IGNORES -WindowStyle Hidden and shows the server's console anyway
+        # (Ben was left with stray "…python.exe" terminal windows cluttering the taskbar). pythonw is
+        # the GUI-subsystem Python — it allocates NO console at all, so nothing can surface. stdout/
+        # stderr are still redirected to the log files below, so we lose no logging.
+        $server = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\pythonw.exe" `
             -ArgumentList "-m", "streamlit", "run", "app.py", "--server.port", "8501", `
                           "--server.headless", "true", "--browser.gatherUsageStats", "false", `
                           "--server.fileWatcherType", "none" `
