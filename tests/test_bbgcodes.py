@@ -143,10 +143,17 @@ def test_build_falls_back_to_the_contract_live_on_that_date():
                for w in r["warnings"])
 
 
-def test_build_always_declares_the_weekly_gap():
-    """Weeklies are absent by design; the page must never let that pass unsaid."""
-    r = bbgcodes.build("ESA Index", date(2026, 12, 18), "opt")
-    assert any("Weekly and daily" in w for w in r["warnings"])
+def test_build_states_the_weekly_position_either_way():
+    """Whatever the state, the page says it. For a product whose weekly scheme is KNOWN
+    (S&P, learned from the Terminal 2026-09-01) the caveat is the listed horizon; for one
+    still unlearned it is that the roots haven't been read off the Terminal yet. Silence
+    would read as 'no weeklies exist', which is never what we mean."""
+    es = bbgcodes.build("ESA Index", date(2026, 12, 18), "opt")
+    assert any("listed horizon" in w or "decade-old" in w.lower() for w in es["warnings"])
+    assert not any("not in this database yet" in w for w in es["warnings"])
+
+    cl = bbgcodes.build("CLA Comdty", date(2026, 12, 18), "opt")
+    assert any("not in this database yet" in w for w in cl["warnings"])
 
 
 # ── strike formats ────────────────────────────────────────────────────────────────────
@@ -182,3 +189,116 @@ def test_search_finds_by_name_and_root():
     assert any(p["name"] == "Nasdaq 100 E-mini" for p in bbgcodes.search("nasdaq"))
     assert any(p["name"] == "Corn" for p in bbgcodes.search("corn"))
     assert bbgcodes.search("") == []
+
+
+# ── weeklies ──────────────────────────────────────────────────────────────────────────
+# These dates are not our arithmetic checking itself — they are what the TERMINAL returned
+# during probe_weekly_pattern.py on 2026-09-01, transcribed. If the generator ever stops
+# reproducing them it has drifted from Bloomberg, and the probe output is the authority.
+@pytest.mark.parametrize("year,month,week,expected", [
+    (2026, 9, 1, date(2026, 9, 4)),    # NAME "S&P Emini 1st Wee Sep26"
+    (2026, 9, 2, date(2026, 9, 11)),   # NAME "S&P Emini 2nd Wee Sep26"
+    (2026, 9, 3, date(2026, 9, 18)),   # NAME "S&P Emini 3rd Wk  Sep26"
+    (2026, 9, 4, date(2026, 9, 25)),   # NAME "S&P Emini 4th Wee Sep26"
+    (2016, 12, 1, date(2016, 12, 2)),  # the one-digit-year cross-check: Z6 -> 2016
+    (2016, 12, 2, date(2016, 12, 9)),
+    (2016, 12, 4, date(2016, 12, 23)),
+    (2017, 1, 1, date(2017, 1, 6)),
+    (2017, 1, 2, date(2017, 1, 13)),
+    (2017, 1, 4, date(2017, 1, 27)),
+])
+def test_weekly_expiries_match_the_terminal(year, month, week, expected):
+    got = [w for w in bbgcodes.weekly_series("ESA Index", year, month)
+           if w["week"] == week]
+    assert got, f"week {week} of {month}/{year} not generated"
+    assert got[0]["expiry"] == expected
+
+
+def test_week_five_absent_when_the_month_has_four_fridays():
+    """September 2026 has Fridays on the 4th, 11th, 18th and 25th — no fifth. The probe
+    found 5EU6C did not resolve, and the generator must agree rather than inventing it."""
+    weeks = {w["week"] for w in bbgcodes.weekly_series("ESA Index", 2026, 9)}
+    assert weeks == {1, 2, 3, 4}
+    # December 2016 does have five Fridays
+    assert 5 in {w["week"] for w in bbgcodes.weekly_series("ESA Index", 2016, 12)}
+
+
+def test_decode_weekly_symbol():
+    d = bbgcodes.decode("2EU6C 7660 Index")
+    assert d["ok"] and d["weekly"] is True and d["week"] == 2
+    assert d["product"]["name"] == "S&P 500 E-mini"
+    assert d["opt_expiry"] == date(2026, 9, 11)
+    assert d["kind"] == "option" and d["put_call"] == "Call"
+
+
+def test_weekly_root_does_not_collide_with_a_futures_root():
+    """'2E' must resolve as an S&P weekly, and ordinary roots must be untouched by it."""
+    assert bbgcodes.decode("2EU6C 7660 Index")["weekly"] is True
+    assert bbgcodes.decode("ESZ6C 7000 Index").get("weekly") is not True
+    assert bbgcodes.decode("CLZ6C 80 Comdty").get("weekly") is not True
+
+
+def test_weekly_beyond_the_listed_horizon_is_flagged():
+    """Bloomberg lists only a few weeks out. Past that, a one-digit year can resolve to a
+    decade-old contract (Z6 returned Dec-2016 in the probe), so the page must not present
+    a far-dated weekly as a tradeable code."""
+    d = bbgcodes.decode("4EZ6C 2540 Index")
+    assert d["ok"] and d["weekly"] is True
+    assert any("BEYOND the listed horizon" in w for w in d["warnings"])
+
+
+def test_impossible_week_is_flagged_not_invented():
+    d = bbgcodes.decode("5EU6C 7660 Index")
+    assert d["opt_expiry"] is None
+    assert any("no 5th Friday" in w for w in d["warnings"])
+
+
+def test_build_offers_a_weekly_on_an_exact_date():
+    r = bbgcodes.build("ESA Index", date(2026, 9, 11), "opt")
+    assert r["exact"] is not None
+    assert r["exact"].get("weekly") is True
+    assert r["exact"]["code"].startswith("2EU6C")
+
+
+def test_products_without_a_learned_weekly_scheme_say_so():
+    """Silence would read as 'no weeklies exist'. It must read as 'not learned yet'."""
+    r = bbgcodes.build("CLA Comdty", date(2026, 12, 1), "opt")
+    assert any("not in this database yet" in w for w in r["warnings"])
+
+
+# ── contract with the page ────────────────────────────────────────────────────────────
+# render_bbg_codes() reads these keys directly. A missing one is a KeyError in front of
+# Ben mid-conversation with a client, and the Streamlit widgets cannot be driven from the
+# browser harness on this box — so the page/engine contract is asserted here instead.
+DECODE_KEYS = {"ok", "kind", "product", "root", "contract", "month", "month_code", "year",
+               "opt_expiry", "fut_expiry", "expiry", "expiry_kind", "source", "warnings",
+               "yellow_key", "underlying", "serial", "weekly"}
+WEEKLY_EXTRA = {"week", "week_label"}
+
+
+@pytest.mark.parametrize("symbol", [
+    "2EU6C 7660 Index",      # weekly
+    "CLZ6C 80 Comdty",       # monthly option
+    "TYX6C 112.5 Comdty",    # serial option
+    "ESZ6 Index",            # outright future
+])
+def test_decode_result_has_every_key_the_page_reads(symbol):
+    d = bbgcodes.decode(symbol)
+    missing = {k for k in DECODE_KEYS if k not in d}
+    assert not missing, f"{symbol} decode is missing {sorted(missing)}"
+    if d.get("weekly"):
+        assert not (WEEKLY_EXTRA - set(d)), f"{symbol} missing {WEEKLY_EXTRA - set(d)}"
+
+
+@pytest.mark.parametrize("ticker,target", [
+    ("ESA Index", date(2026, 9, 11)),     # lands on a weekly
+    ("ESA Index", date(2026, 9, 15)),     # lands on nothing
+    ("CLA Comdty", date(2026, 12, 1)),    # product with no weekly scheme
+])
+def test_build_rows_have_every_key_the_page_reads(ticker, target):
+    r = bbgcodes.build(ticker, target, "opt")
+    for row in r["nearest"] + [x for x in (r["exact"], r["live_on"]) if x]:
+        for k in ("code", "contract", "expiry", "days", "source"):
+            assert k in row, f"{ticker} row missing {k}: {row}"
+        if row.get("weekly"):
+            assert "label" in row and "listed" in row

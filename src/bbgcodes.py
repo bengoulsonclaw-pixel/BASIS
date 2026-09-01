@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from . import expiries, universe as u
@@ -219,10 +219,6 @@ def harvested() -> dict:
         return {}
 
 
-def has_weeklies(root: str) -> bool:
-    return bool((harvested().get(root) or {}).get("series"))
-
-
 # ── product metadata ──────────────────────────────────────────────────────────────────
 def _record(tk: str, root: str) -> dict:
     name, _px, asset, region = u.INSTRUMENTS[tk]
@@ -252,6 +248,101 @@ def look_alikes(root: str) -> list:
     return out if len(out) > 1 else []
 
 
+# ── WEEKLY series ─────────────────────────────────────────────────────────────────────
+# Weekly options are NOT reachable through any option chain — OPT_CHAIN on the future
+# returns only standard series, and CHAIN_TICKERS / OPT_CHAIN_FULL return nothing at all
+# (probe_weekly_opts.py, 2026-09-01). They are only reachable if you already know the root,
+# and the root is not derivable from the futures root. So each product's weekly scheme has
+# to be LEARNED ONCE and recorded here; after that every weekly is pure arithmetic and no
+# Bloomberg request is ever needed again.
+#
+# S&P confirmed by probe_weekly_pattern.py on 2026-09-01: week N carries root "<N>E", the
+# ordinary calendar month code, and expires on the Nth Friday. Verified 10/10 across three
+# months in two different decades (Sep-26 weeks 1-4; Dec-16 weeks 1,2,4; Jan-17 weeks 1,2,4)
+# — and week 5 correctly does NOT exist in a month with only four Fridays.
+#
+# TO ADD A PRODUCT: read ONE weekly ticker off the Terminal (Bloomberg names them
+# "... 1st Wee ..."), confirm the week-to-root mapping, and add an entry. Nothing else.
+FRI = 4
+WEEKLY_SPECS: dict = {
+    "ESA Index": {
+        "roots": {1: "1E", 2: "2E", 3: "3E", 4: "4E", 5: "5E"},
+        "weekday": FRI, "label": "Friday weekly",
+        "verified": "probe 2026-09-01, 10/10 across Sep-26 / Dec-16 / Jan-17",
+    },
+}
+
+# Bloomberg lists only a few weeks of weeklies at a time. Beyond that horizon a constructed
+# code does not merely fail — with a one-digit year it can RESOLVE TO A DECADE-OLD EXPIRED
+# CONTRACT (asking for Z6 = Dec-2026 returned Dec-2016 during the probe). So generated
+# weeklies are bounded, and anything past the bound is labelled unlisted rather than served.
+WEEKLY_HORIZON_DAYS = 70
+
+
+def weekly_root_map() -> dict:
+    """(weekly root, yellow key) -> (product ticker, week number)."""
+    out = {}
+    for tk, spec in WEEKLY_SPECS.items():
+        key = _strip_key(tk)[1]
+        for wk, root in spec["roots"].items():
+            out[(root, key)] = (tk, wk)
+    return out
+
+
+def has_weeklies(ticker: str) -> bool:
+    """True when this product's weekly scheme is known. False means NOT YET LEARNED — never
+    that the product has no weeklies."""
+    return ticker in WEEKLY_SPECS
+
+
+def nth_weekday_of(year: int, month: int, n: int, weekday: int):
+    """The n-th <weekday> of a month, or None when the month doesn't have that many."""
+    first = date(year, month, 1)
+    d = first + timedelta(days=(weekday - first.weekday()) % 7 + 7 * (n - 1))
+    return d if d.month == month else None
+
+
+def weekly_series(ticker: str, year: int, month: int) -> list:
+    """Every listed weekly series for one product-month.
+
+    Week N expires on the Nth <weekday> of the month, stepped back to the previous exchange
+    day if that falls on a holiday (the same holiday calendars the rest of the expiry engine
+    uses). A month with four Fridays simply has no week 5 — the absence is the rule working,
+    not a gap."""
+    spec = WEEKLY_SPECS.get(ticker)
+    if not spec:
+        return []
+    asset = u.INSTRUMENTS.get(ticker, ("", 0, "", ""))[2]
+    hol = expiries._holidays_for(ticker, asset)
+    key = _strip_key(ticker)[1]
+    out = []
+    for wk, root in sorted(spec["roots"].items()):
+        raw = nth_weekday_of(year, month, wk, spec["weekday"])
+        if raw is None:
+            continue
+        exp = expiries._on_or_before_bday(raw, hol)
+        out.append({
+            "week": wk, "root": root,
+            "stem": f"{root}{MONTH_CODE[month]}{year % 10}",
+            "code": f"{root}{MONTH_CODE[month]}{year % 10}C <strike> {key}",
+            "expiry": exp, "moved": exp != raw,
+            "contract": f"{MONTH_NAME[month]} {year}",
+            "label": f"week {wk} ({spec['label']})",
+        })
+    return out
+
+
+def weeklies_between(ticker: str, start: date, end: date) -> list:
+    """Weekly series expiring in a date window, across month boundaries."""
+    out, y, m = [], start.year, start.month
+    while date(y, m, 1) <= end:
+        for rec in weekly_series(ticker, y, m):
+            if start <= rec["expiry"] <= end:
+                out.append(rec)
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return sorted(out, key=lambda r: r["expiry"])
+
+
 def strike_hint(root: str, n: int = 6) -> dict:
     """How this product's strikes are WRITTEN, and how far apart they sit.
 
@@ -275,6 +366,43 @@ def strike_hint(root: str, n: int = 6) -> dict:
     lo = max(0, mid - n // 2)
     return {"step": min(diffs) if diffs else None,
             "examples": [s for _v, s in pairs[lo:lo + n]]}
+
+
+def _decode_weekly(root: str, code: str, yy: int, digits: int, key: str,
+                   ticker: str, week: int) -> dict:
+    """Decode a weekly series stem, e.g. '2EU6' -> S&P week 2 of Sep 2026."""
+    month, year = CODE_MONTH[code], _year(yy, digits)
+    prod = _record(ticker, root)
+    spec = WEEKLY_SPECS[ticker]
+    series = [w for w in weekly_series(ticker, year, month) if w["week"] == week]
+    exp = series[0]["expiry"] if series else None
+    horizon = date.today() + timedelta(days=WEEKLY_HORIZON_DAYS)
+    out = {"ok": True, "root": root, "product": prod, "month_code": code, "month": month,
+           "year": year, "contract": f"{MONTH_NAME[month]} {year}",
+           "fut_expiry": None, "opt_expiry": exp,
+           "expiry_time": expiries.expiry_time(ticker, prod["asset"]),
+           "source": "rule", "expiry_verified": False, "weekly": True, "week": week,
+           "week_label": f"week {week} ({spec['label']})",
+           "underlying": underlying_future(ticker, _root_from_generic(ticker) or "",
+                                           month, year),
+           "serial": False, "listed_observed": False, "warnings": []}
+    if exp is None:
+        out["warnings"].append(
+            f"{MONTH_NAME[month]} {year} has no {week}th "
+            f"{'Friday' if spec['weekday'] == FRI else 'weekday'}, so this series should "
+            "not exist. If the Terminal resolves it, the week numbering differs from what "
+            "we recorded — tell me and I'll re-probe.")
+    elif exp > horizon:
+        out["warnings"].append(
+            "This is BEYOND the listed horizon — Bloomberg lists only a few weeks of "
+            "weeklies at a time. The date below is arithmetic, and the code is not yet "
+            "tradeable. Worse, with a one-digit year the Terminal may resolve it to a "
+            "decade-old expired contract instead of refusing it.")
+    if series and series[0]["moved"]:
+        out["warnings"].append(
+            "The nominal expiry fell on an exchange holiday, so it steps back to the "
+            "previous business day.")
+    return out
 
 
 def underlying_future(ticker: str, root: str, month: int, year: int) -> dict | None:
@@ -368,6 +496,13 @@ def _decode_stem(stem: str, key: str) -> dict:
     if not parts:
         return {"ok": False}
     root, code, yy, digits = parts
+
+    # A WEEKLY root ('2E') is not a futures root and resolves through its own map.
+    wk_hit = weekly_root_map().get((root, key)) or (
+        weekly_root_map().get((root, "Index")) if not key else None)
+    if wk_hit:
+        return _decode_weekly(root, code, yy, digits, key, *wk_hit)
+
     prod = product_of(root, key)
     if not prod:
         return {"ok": False}
@@ -388,7 +523,7 @@ def _decode_stem(stem: str, key: str) -> dict:
            "fut_expiry": fx, "opt_expiry": ox,
            "expiry_time": expiries.expiry_time(prod["ticker"], asset),
            "source": "observed" if (seen or exp_verified) else "rule",
-           "expiry_verified": exp_verified, "underlying": und,
+           "expiry_verified": exp_verified, "underlying": und, "weekly": False,
            "serial": bool(und and (und["month"], und["year"]) != (month, year)),
            "listed_observed": seen, "warnings": []}
     # The one-digit year is only worth flagging when the decade is genuinely contestable.
@@ -473,16 +608,49 @@ def build(ticker: str, target: date, kind: str = "opt", n: int = 3) -> dict:
     live = [c for c in cands if c["expiry"] >= target]
     out["live_on"] = live[0] if live else None
 
+    # ---- weeklies, where the product's scheme is known ------------------------------
+    if kind == "opt" and has_weeklies(ticker):
+        horizon = date.today() + timedelta(days=WEEKLY_HORIZON_DAYS)
+        for w in weeklies_between(ticker, target - timedelta(days=21),
+                                  target + timedelta(days=21)):
+            rec = {"code": w["code"], "stem": w["stem"], "contract": w["contract"],
+                   "month": month_of(w["expiry"]), "year": w["expiry"].year,
+                   "expiry": w["expiry"], "source": "rule", "weekly": True,
+                   "week": w["week"], "label": w["label"],
+                   "listed": w["expiry"] <= horizon,
+                   "days": (w["expiry"] - target).days}
+            cands.append(rec)
+            if w["expiry"] == target and (out["exact"] is None
+                                          or not out["exact"].get("weekly")):
+                out["exact"] = rec
+        cands.sort(key=lambda c: c["expiry"])
+        out["nearest"] = sorted(cands, key=lambda c: abs(c["days"]))[:max(n, 5)]
+        out["nearest"].sort(key=lambda c: c["expiry"])
+        live = [c for c in cands if c["expiry"] >= target]
+        out["live_on"] = live[0] if live else out["live_on"]
+        out["weeklies"] = True
+
     if out["exact"] is None:
         out["warnings"].append(
             f"No {'option' if kind == 'opt' else 'futures'} expiry falls exactly on "
             f"{target:%a %d %b %Y} — the nearest listed expiries are shown instead.")
-    if not has_weeklies(root):
+    if kind == "opt" and has_weeklies(ticker):
         out["warnings"].append(
-            "Weekly and daily series are NOT in this database (only quarterlies and "
-            "serial monthlies). If the client wants a weekly, this page cannot name it "
-            "— check the Terminal.")
+            "Bloomberg lists only a few weeks of weeklies at a time. A code beyond that "
+            "horizon does not simply fail — with a one-digit year it can resolve to a "
+            "DECADE-OLD expired contract (asking for Z6 = Dec-2026 returned Dec-2016). "
+            "Rows marked 'not yet listed' are arithmetic, not tradeable codes.")
+    elif kind == "opt":
+        out["warnings"].append(
+            f"Weekly and daily series for {prod['name']} are not in this database yet — "
+            "only quarterlies and serial monthlies. The Bloomberg root for a weekly can't "
+            "be derived from the futures root; it has to be read off the Terminal once "
+            "(they're named \"… 1st Wee …\") and added to bbgcodes.WEEKLY_SPECS.")
     return out
+
+
+def month_of(d: date) -> int:
+    return d.month
 
 
 def _code(root: str, month: int, year: int, yd: int, suffix: str, kind: str) -> str:
