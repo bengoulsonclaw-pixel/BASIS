@@ -15,3 +15,5 @@ when_et,label,n_tickers,est_hits,n_new_securities
 2026-09-01 07:09:46-0400,weekly-option root probe,3,109,0
 2026-09-01 07:44:12-0400,S&P weekly root pattern probe,1,43,0
 2026-09-01 07:45:09-0400,S&P weekly root pattern probe,1,28,0
+2026-09-01 08:37:07-0400,weekly family confirmation probe,11,45,0
+2026-09-01 08:37:54-0400,weekly family confirmation probe,4,27,0

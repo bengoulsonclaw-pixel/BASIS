@@ -15,12 +15,23 @@ Nothing here pulls from Bloomberg. Every symbol is derived from data already on 
   • src/expiries.py — 50 contract families of holiday-aware expiry rules.
   • data/price_store/deep_contract.parquet — a decade of contracts actually observed as front.
 
-COVERAGE, STATED HONESTLY. The observed cache holds quarterlies and SERIAL MONTHLIES only —
-every stem in it is root+month+year, none carry a weekly/daily root. `expiries.py` says the
-same on its own face ("weeklies/dailies ignored"). So weekly, daily and midcurve series are
-NOT in this database, and this module reports them as unharvested rather than guessing: their
-Bloomberg roots follow no rule that can be derived from the futures root, and only OPT_CHAIN
-knows them. `harvest.json` below is the slot they land in if that pull is ever made.
+COVERAGE, STATED HONESTLY.
+Quarterlies and serial monthlies come from the sources above, for the whole book.
+
+WEEKLIES are a different animal and were the hard part. They are not in any option chain —
+`OPT_CHAIN` on the dated future or the generic returns standard series only, and
+`CHAIN_TICKERS` / `OPT_CHAIN_FULL` return nothing at all on futures (probe_weekly_opts.py).
+They resolve only if you already know the root, and the root is not derivable from the
+futures root: the 10-year is `1M` while `1C` is the BOND. So each product's scheme is
+LEARNED ONCE — candidate letters from the CME "BBG Code List" workbook Ben supplied,
+every one then confirmed live (probe_weekly_families.py, 12/12) — and recorded in
+WEEKLY_SPECS below. After that every weekly is arithmetic: no Bloomberg request, ever.
+
+Twelve products are covered. WTI and gold are NOT, because their workbook rows show a
+single root for all five weeks rather than a per-week root, so the rule plainly differs;
+day-of-week (Mon/Tue/Wed/Thu) series are unlearned everywhere for the same reason. Those
+report as "not learned yet" per product rather than guessing — absence of a root must
+never read as absence of weeklies.
 
 PROVENANCE IS PART OF THE ANSWER. Every code and date carries a source label — "observed"
 (seen in a live chain / harvested), or "rule" (derived from expiries.py, indicative). The
@@ -264,13 +275,62 @@ def look_alikes(root: str) -> list:
 # TO ADD A PRODUCT: read ONE weekly ticker off the Terminal (Bloomberg names them
 # "... 1st Wee ..."), confirm the week-to-root mapping, and add an entry. Nothing else.
 FRI = 4
+
+
+def _wk(letter: str) -> dict:
+    """Weeks 1-5 for a product whose weekly root is <week number> + `letter`."""
+    return {n: f"{n}{letter}" for n in range(1, 6)}
+
+
+# Every entry below was CONFIRMED ON THE TERMINAL, not merely read off a document. The
+# candidate letters came from the CME "BBG Code List" workbook (Ben, 2026-09-01) — its
+# 'ALL Exch' sheet maps each product to its Bloomberg ticker, and the rows named
+# "... Week N" carry roots beginning with the week number. Each was then probed live
+# (probe_weekly_families.py): week 1 must resolve AND land on the 1st Friday, week 2 on
+# the 2nd. 12/12 pass.
+#
+# The workbook writes some roots with a trailing 'A' ('1XA') and some without ('1M'). The
+# probe settled it: 'A' is Bloomberg's front-generic marker, NOT part of the root — '1X'
+# resolves, '1XA' is merely its generic. Every root here is the bare form.
+#
+# It also corrected a guess that had failed in probe 1: '1C' is the BOND, not the 10-year
+# (NAME "US TRS BND FRI WK1"). The 10-year is '1M'. No amount of guessing would have found
+# that; the workbook is what made this tractable.
 WEEKLY_SPECS: dict = {
-    "ESA Index": {
-        "roots": {1: "1E", 2: "2E", 3: "3E", 4: "4E", 5: "5E"},
-        "weekday": FRI, "label": "Friday weekly",
-        "verified": "probe 2026-09-01, 10/10 across Sep-26 / Dec-16 / Jan-17",
-    },
+    # ── equity index ────────────────────────────────────────────────────────────────
+    "ESA Index":  {"roots": _wk("E"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: 10/10 across Sep-26/Dec-16/Jan-17"},
+    "NQA Index":  {"roots": _wk("O"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (NSD100 EMIN WK1)"},
+    # ── US Treasuries ───────────────────────────────────────────────────────────────
+    "TUA Comdty": {"roots": _wk("W"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (US 2Y NOTE FRI WK1)"},
+    "FVA Comdty": {"roots": _wk("I"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (US 5Y NOTE FRI WK1)"},
+    "TYA Comdty": {"roots": _wk("M"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (US 6-7 NOTE FRI W1)"},
+    "USA Comdty": {"roots": _wk("C"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (US TRS BND FRI WK1)"},
+    "WNA Comdty": {"roots": _wk("J"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (US ULT BND FRI WK1)"},
+    # ── grains / oilseeds ───────────────────────────────────────────────────────────
+    "C A Comdty": {"roots": _wk("X"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (Corn Option W1)"},
+    "W A Comdty": {"roots": _wk("Z"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (Wheat Option W1)"},
+    "S A Comdty": {"roots": _wk("S"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (Soybean Option W1)"},
+    "SMA Comdty": {"roots": _wk("D"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (Soybean Meal Wk 1)"},
+    "BOA Comdty": {"roots": _wk("A"), "weekday": FRI, "label": "Friday weekly",
+                   "verified": "probe 2026-09-01: wk1+wk2 (Soybean Oil Wk 1)"},
 }
+
+# STILL UNLEARNED, and deliberately absent rather than guessed: WTI and Gold. Their Friday
+# weeklies appear in the workbook under a SINGLE Bloomberg root for all five weeks (CLWA,
+# XGCA) rather than a per-week root, so the week must be addressed some other way and the
+# <week><letter> rule does not apply. Day-of-week (Mon/Tue/Wed/Thu) series are unlearned
+# for every product for the same reason. Probe before adding either.
 
 # Bloomberg lists only a few weeks of weeklies at a time. Beyond that horizon a constructed
 # code does not merely fail — with a one-digit year it can RESOLVE TO A DECADE-OLD EXPIRED
@@ -620,9 +680,16 @@ def build(ticker: str, target: date, kind: str = "opt", n: int = 3) -> dict:
                    "listed": w["expiry"] <= horizon,
                    "days": (w["expiry"] - target).days}
             cands.append(rec)
-            if w["expiry"] == target and (out["exact"] is None
-                                          or not out["exact"].get("weekly")):
-                out["exact"] = rec
+            # A weekly can land on the SAME day as a monthly — corn's week-4 August
+            # weekly expires the last Friday of August, which is also the September
+            # monthly's expiry. Both are correct codes; the MONTHLY keeps `exact`
+            # because it is the far more liquid line, and the coincidence is named
+            # rather than hidden, since quoting the thin one by accident is a real risk.
+            if w["expiry"] == target:
+                if out["exact"] is None:
+                    out["exact"] = rec
+                else:
+                    out.setdefault("also_exact", []).append(rec)
         cands.sort(key=lambda c: c["expiry"])
         out["nearest"] = sorted(cands, key=lambda c: abs(c["days"]))[:max(n, 5)]
         out["nearest"].sort(key=lambda c: c["expiry"])
@@ -634,6 +701,11 @@ def build(ticker: str, target: date, kind: str = "opt", n: int = 3) -> dict:
         out["warnings"].append(
             f"No {'option' if kind == 'opt' else 'futures'} expiry falls exactly on "
             f"{target:%a %d %b %Y} — the nearest listed expiries are shown instead.")
+    for alt in out.get("also_exact", []):
+        out["warnings"].append(
+            f"{target:%a %d %b %Y} is ALSO the {alt['label']} — `{alt['code']}`. Two "
+            "different contracts expire that day; the monthly above is the liquid one, "
+            "the weekly is the thin one. Make sure the client means the one you quote.")
     if kind == "opt" and has_weeklies(ticker):
         out["warnings"].append(
             "Bloomberg lists only a few weeks of weeklies at a time. A code beyond that "

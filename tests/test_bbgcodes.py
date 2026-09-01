@@ -126,11 +126,16 @@ def test_quarterly_option_is_not_flagged_serial():
 
 # ── building ──────────────────────────────────────────────────────────────────────────
 def test_build_finds_exact_expiry():
-    """Corn's Sep-26 option expires the last Friday of August."""
+    """Corn's Sep-26 option expires the last Friday of August — which is ALSO corn's
+    week-4 August weekly. The monthly must win `exact` (it is the liquid line) and the
+    weekly must be named rather than hidden, so nobody quotes the thin one by accident."""
     r = bbgcodes.build("C A Comdty", date(2026, 8, 28), "opt")
     assert r["exact"] is not None
     assert r["exact"]["contract"] == "Sep 2026"
     assert r["exact"]["code"].startswith("C U6C")
+    assert not r["exact"].get("weekly")
+    assert any(a.get("weekly") for a in r.get("also_exact", []))
+    assert any("ALSO the week" in w for w in r["warnings"])
 
 
 def test_build_falls_back_to_the_contract_live_on_that_date():
@@ -302,3 +307,87 @@ def test_build_rows_have_every_key_the_page_reads(ticker, target):
             assert k in row, f"{ticker} row missing {k}: {row}"
         if row.get("weekly"):
             assert "label" in row and "listed" in row
+
+
+# ── the twelve weekly families ────────────────────────────────────────────────────────
+# Candidate roots came from Ben's CME "BBG Code List" workbook; each was then CONFIRMED
+# live by probe_weekly_families.py on 2026-09-01 — week 1 resolving on the 1st Friday and
+# week 2 on the 2nd, 12/12. The tickers and dates below are transcribed from that output,
+# so this is the Terminal checking our arithmetic, not our arithmetic checking itself.
+WEEK1_SEP26 = date(2026, 9, 4)
+WEEK2_SEP26 = date(2026, 9, 11)
+
+
+@pytest.mark.parametrize("ticker,letter,name", [
+    ("ESA Index",  "E", "S&P 500 E-mini"),
+    ("NQA Index",  "O", "Nasdaq 100 E-mini"),
+    ("TUA Comdty", "W", "US 2Y Note"),
+    ("FVA Comdty", "I", "US 5Y Note"),
+    ("TYA Comdty", "M", "US 10Y Note"),
+    ("USA Comdty", "C", "US Long Bond"),
+    ("WNA Comdty", "J", "Ultra US Bond"),
+    ("C A Comdty", "X", "Corn"),
+    ("W A Comdty", "Z", "Wheat (Chicago)"),
+    ("S A Comdty", "S", "Soybeans"),
+    ("SMA Comdty", "D", "Soybean Meal"),
+    ("BOA Comdty", "A", "Soybean Oil"),
+])
+def test_weekly_family_roots_and_dates(ticker, letter, name):
+    """Root is <week><letter> with NO trailing 'A' (the workbook quoted generics), and
+    week N lands on the Nth Friday."""
+    spec = bbgcodes.WEEKLY_SPECS[ticker]
+    assert spec["roots"][1] == f"1{letter}"
+    assert spec["roots"][2] == f"2{letter}"
+    assert not spec["roots"][1].endswith("A") or letter == "A"
+
+    series = {w["week"]: w for w in bbgcodes.weekly_series(ticker, 2026, 9)}
+    assert series[1]["expiry"] == WEEK1_SEP26
+    assert series[2]["expiry"] == WEEK2_SEP26
+    assert series[1]["stem"] == f"1{letter}U6"
+
+
+@pytest.mark.parametrize("symbol,name,week,expiry", [
+    ("1MU6C 107.75 Comdty", "US 10Y Note", 1, WEEK1_SEP26),
+    ("1IU6C 105.75 Comdty", "US 5Y Note", 1, WEEK1_SEP26),
+    ("1WU6C 102.75 Comdty", "US 2Y Note", 1, WEEK1_SEP26),
+    ("1CU6C 109 Comdty", "US Long Bond", 1, WEEK1_SEP26),
+    ("1JU6C 110 Comdty", "Ultra US Bond", 1, WEEK1_SEP26),
+    ("1OU6C 29150 Index", "Nasdaq 100 E-mini", 1, WEEK1_SEP26),
+    ("1XU6C 512 Comdty", "Corn", 1, WEEK1_SEP26),
+    ("2XU6C 512 Comdty", "Corn", 2, WEEK2_SEP26),
+    ("1ZU6C 760 Comdty", "Wheat (Chicago)", 1, WEEK1_SEP26),
+    ("1SU6C 1276 Comdty", "Soybeans", 1, WEEK1_SEP26),
+    ("1DU6C 337 Comdty", "Soybean Meal", 1, WEEK1_SEP26),
+    ("1AU6C 71.75 Comdty", "Soybean Oil", 1, WEEK1_SEP26),
+])
+def test_decode_every_confirmed_weekly(symbol, name, week, expiry):
+    """Exact tickers the Terminal resolved during the probe."""
+    d = bbgcodes.decode(symbol)
+    assert d["ok"] and d["weekly"] is True
+    assert d["product"]["name"] == name
+    assert d["week"] == week
+    assert d["opt_expiry"] == expiry
+
+
+def test_weekly_roots_never_shadow_a_futures_root():
+    """A weekly root that collided with a real futures root would silently rename the
+    product — the same class of failure as the SM/CC yellow-key trap."""
+    futures = {r for r, _k in bbgcodes._build_root_map()}
+    clashes = [r for r, _k in bbgcodes.weekly_root_map() if r in futures]
+    assert not clashes, f"weekly roots shadowing futures roots: {clashes}"
+
+
+def test_no_two_products_share_a_weekly_root_and_key():
+    seen = {}
+    for (root, key), (ticker, _wk) in bbgcodes.weekly_root_map().items():
+        prev = seen.setdefault((root, key), ticker)
+        assert prev == ticker, f"{root} {key} claimed by {prev} and {ticker}"
+
+
+def test_wti_and_gold_weeklies_stay_unlearned():
+    """Their workbook rows show ONE root for all five weeks (CLWA, XGCA), so the
+    <week><letter> rule does not apply. Guessing one would be worse than saying nothing."""
+    assert not bbgcodes.has_weeklies("CLA Comdty")
+    assert not bbgcodes.has_weeklies("GCA Comdty")
+    r = bbgcodes.build("CLA Comdty", date(2026, 9, 4), "opt")
+    assert any("not in this database yet" in w for w in r["warnings"])
