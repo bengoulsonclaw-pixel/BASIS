@@ -370,6 +370,7 @@ def _tab_flows(met: pd.DataFrame) -> None:
 # The picker shows managers first and opens ONE at a time. Streamlit executes the body of
 # a collapsed expander, so a real expander per manager would have built ~20,000 fund
 # buttons on every rerun; rendering only the open manager's funds keeps it to a few dozen.
+_LIST_H = 430             # the picker is a bounded scroll box, so the chart stays in view
 _MGR_PAGE = 40            # managers listed before the search box is the way through
 _FUND_PAGE = 60           # funds listed inside one manager — Itaú alone runs over 1,200
 # The app styles every button as chrome — uppercase, letter-spaced, centred — which is
@@ -444,56 +445,72 @@ def _fund_picker(met: pd.DataFrame):
             .agg(label=("gestor_en", "first"), aum=("aum", "sum"), funds=("cnpj", "nunique"))
             .sort_values("aum", ascending=False))
 
-    open_mgr = st.session_state.get("fnd_mgr")
-    if open_mgr not in agg.index:
-        open_mgr = agg.index[0]
-        st.session_state["fnd_mgr"] = open_mgr
+    # The first render opens the biggest manager; after that the state belongs to the
+    # user and None is a LEGITIMATE value — every manager closed. Treating None as
+    # "nothing valid, fall back to the top one" is what made the open manager impossible
+    # to close: clicking it set None, and the fallback immediately reopened it.
+    if "fnd_mgr" not in st.session_state:
+        st.session_state["fnd_mgr"] = agg.index[0]
+    open_mgr = st.session_state["fnd_mgr"]
+    if open_mgr is not None and open_mgr not in agg.index:
+        open_mgr = None                      # a search filtered it away: close, do not jump
 
     shown = agg.head(_MGR_PAGE)
-    if open_mgr not in shown.index:          # keep the open one visible however deep it sits
-        shown = pd.concat([agg.loc[[open_mgr]], shown])
+    if open_mgr is not None and open_mgr not in shown.index:
+        shown = pd.concat([agg.loc[[open_mgr]], shown])   # keep it visible however deep
     st.caption(f"**{len(agg):,}** managers · **{d['cnpj'].nunique():,}** funds · "
                f"showing the top {len(shown)} by assets"
                + (" — search to reach the rest" if len(agg) > len(shown) else ""))
     st.markdown(_ROW_CSS, unsafe_allow_html=True)
 
     sel_key = st.session_state.get("fnd_key")
-    for gestor, m in shown.iterrows():
-        is_open = gestor == open_mgr
-        c0, c1, c2 = st.columns([6, 2, 1.6])
-        c0.button(f"{'▾' if is_open else '▸'}  {m['label']}", key=f"bfm_{gestor}",
-                  on_click=_open_manager, args=(gestor,), use_container_width=True,
-                  type="primary" if is_open else "secondary")
-        _cell(c1, _brl(m["aum"]), pal["text"])
-        _cell(c2, f"{m['funds']:,} funds", pal["text_dim"])
-        if not is_open:
-            continue
-        funds = d[d["gestor"] == gestor].sort_values("aum", ascending=False)
-        for _, r in funds.head(_FUND_PAGE).iterrows():
-            k = _fund_key(r)
-            s0, s1, s2, s3 = st.columns([0.35, 5.65, 2, 1.6])
-            s0.write("")
-            label = r["name_en"] + (f"  ·  {r['subclass']}" if r["subclass"] else "")
-            s1.button(label, key=f"bff_{k}", on_click=_select_fund, args=(k,),
-                      use_container_width=True,
-                      type="primary" if k == sel_key else "secondary")
-            _cell(s2, _brl(r["aum"], "m", 0), pal["text_dim"])
-            ret = r["ret_12m"]
-            _cell(s3, _pct(ret), pal["text_dim"] if ret != ret
-                  else (cc["long"] if ret > 0 else cc["short"]))
-        if len(funds) > _FUND_PAGE:
-            st.caption(f"    …{len(funds) - _FUND_PAGE:,} more under this manager — "
-                       f"search by fund name to reach them.")
+    # A bounded, scrolling box. Open a manager with 60 funds and an unbounded list pushes
+    # the chart thousands of pixels down the page, so clicking a fund looks like it did
+    # nothing at all — the thing you asked for happened where you could not see it.
+    with st.container(height=_LIST_H):
+        for gestor, m in shown.iterrows():
+            is_open = gestor == open_mgr
+            c0, c1, c2 = st.columns([6, 2, 1.6])
+            c0.button(f"{'▾' if is_open else '▸'}  {m['label']}", key=f"bfm_{gestor}",
+                      on_click=_open_manager, args=(gestor,), use_container_width=True,
+                      type="primary" if is_open else "secondary")
+            _cell(c1, _brl(m["aum"]), pal["text"])
+            _cell(c2, f"{m['funds']:,} funds", pal["text_dim"])
+            if not is_open:
+                continue
+            funds = d[d["gestor"] == gestor].sort_values("aum", ascending=False)
+            for _, r in funds.head(_FUND_PAGE).iterrows():
+                k = _fund_key(r)
+                s0, s1, s2, s3 = st.columns([0.35, 5.65, 2, 1.6])
+                s0.write("")
+                label = r["name_en"] + (f"  ·  {r['subclass']}" if r["subclass"] else "")
+                s1.button(label, key=f"bff_{k}", on_click=_select_fund, args=(k,),
+                          use_container_width=True,
+                          type="primary" if k == sel_key else "secondary")
+                _cell(s2, _brl(r["aum"], "m", 0), pal["text_dim"])
+                ret = r["ret_12m"]
+                _cell(s3, _pct(ret), pal["text_dim"] if ret != ret
+                      else (cc["long"] if ret > 0 else cc["short"]))
+            if len(funds) > _FUND_PAGE:
+                st.caption(f"    …{len(funds) - _FUND_PAGE:,} more under this manager — "
+                           f"search by fund name to reach them.")
 
     # The click lands on the NEXT rerun, so a fresh session (or a search that filtered the
     # selection away) still needs a fund to show.
     keys = d.apply(_fund_key, axis=1)
-    if sel_key not in set(keys):
-        top = d[d["gestor"] == open_mgr].sort_values("aum", ascending=False)
-        if top.empty:
-            return None
-        sel_key = _fund_key(top.iloc[0])
-        st.session_state["fnd_key"] = sel_key
+    if sel_key in set(keys):
+        return d[keys == sel_key].iloc[0]
+    # The click lands on the NEXT rerun, so a fresh session still needs something to draw.
+    # With every manager closed there is nothing to fall back TO, and guessing a fund the
+    # user never picked would be worse than saying so.
+    if open_mgr is None:
+        st.info("Open a manager above and pick one of its funds to chart it.")
+        return None
+    top = d[d["gestor"] == open_mgr].sort_values("aum", ascending=False)
+    if top.empty:
+        return None
+    sel_key = _fund_key(top.iloc[0])
+    st.session_state["fnd_key"] = sel_key
     return d[keys == sel_key].iloc[0]
 
 
