@@ -111,7 +111,7 @@ def fetch_weather() -> list:
            "&current=temperature_2m,weather_code,is_day")
     out = []
     try:
-        data = json.loads(urllib.request.urlopen(url, timeout=15).read())
+        data = json.loads(urllib.request.urlopen(url, timeout=3).read())
         if isinstance(data, dict):            # single-location returns an object
             data = [data]
         for d in data:

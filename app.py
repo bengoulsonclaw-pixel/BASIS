@@ -2328,9 +2328,32 @@ def _landing_macro(day_iso: str) -> list:
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
 def _earnings_times(bbg_tickers: tuple) -> dict:
     """{bloomberg ticker: '06:30 ET' | None} via Yahoo for the day's reporters —
-    Bloomberg's field is date-only, Yahoo's earnings timestamp carries the hour."""
+    Bloomberg's field is date-only, Yahoo's earnings timestamp carries the hour.
+
+    The earnings store (earnings_events.json) carries the chips but NOT the hour, so
+    these stay live per-ticker Yahoo lookups on the front page — BOUNDED here so a slow
+    or hanging one can't stall the render: the (≤10) names are fetched CONCURRENTLY under
+    a short wall-clock budget, and any that miss it come back None (the chip simply shows
+    no time, exactly as for an unmapped name). Cached 6h, so this runs only on a miss.
+    Same threaded yfin.info fan-out the fundamentals pull already uses."""
+    from concurrent import futures
     from src import yfin
-    return {b: yfin.earnings_time_et(b) for b in bbg_tickers}
+    out = {b: None for b in bbg_tickers}
+    if not bbg_tickers:
+        return out
+    ex = futures.ThreadPoolExecutor(max_workers=min(8, len(bbg_tickers)))
+    futs = {ex.submit(yfin.earnings_time_et, b): b for b in bbg_tickers}
+    try:
+        for f in futures.as_completed(futs, timeout=6.0):
+            try:
+                out[futs[f]] = f.result()
+            except Exception:
+                pass
+    except futures.TimeoutError:
+        pass                          # laggards keep their None — never block past the budget
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
+    return out
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)

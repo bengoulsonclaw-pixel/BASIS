@@ -375,7 +375,9 @@ def _fetch_phase() -> dict | None:
     skew = get_skew_components(tickers, atm=iv)
     ts = get_term_structure(tickers, atm=iv)
     pc = get_putcall(tickers)                         # options OI & volume, puts vs calls
-    live = get_live_quote(tickers)                    # current px vs prior settle (CHG_*_1D)
+    # last_prices=prices: the cash indices already have PX_LAST in the history frame
+    # pulled above, so the live quote reads their 'last' from it instead of re-pulling.
+    live = get_live_quote(tickers, last_prices=prices)  # current px vs prior settle (CHG_*_1D)
     live_as_of = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
 
     _save(prices, "prices")
@@ -606,7 +608,10 @@ def _compute_phase(include_equities: bool = False) -> dict:
 
     try:
         from src import brazilprod
-        _bz = brazilprod.build(force=True)
+        # Un-forced: build()'s 20h freshness guard still rebuilds on a once-daily pull
+        # (the prior store is ~24h old > 20h) but skips the ~40MB USDA re-download when
+        # the pull is re-run within the day — forcing it re-downloaded every time.
+        _bz = brazilprod.build()
         _err = [e for e in (_bz.get("errors") or []) if e.get("level") != "warning"]
         print(f"  Brazil production store: {len(_bz.get('commodities') or {})} commodities"
               + (f", {len(_err)} source failures" if _err else ""))
@@ -642,6 +647,19 @@ def _compute_phase(include_equities: bool = False) -> dict:
         print(f"  Option flow export: {optflow.export_today()} row(s)")
     except Exception as e:
         _step_failed("Option flow export", e)
+
+    # External daily stores — macro-surprise accrual, the gold driver model (~40s) and
+    # the CVM Brazil-funds build (~59s). Split out of run_daily.run() (2026-09-07) so the
+    # heavy external I/O runs ONCE here in the pull, not on every interactive "Re-run
+    # signals" / Refresh COT / Refresh AG recompute (all of which call run_daily.run()).
+    # Runs BEFORE the signals rebuild below; guarded like every other step — a dead
+    # source leaves its last good store in place and never blocks the pull.
+    try:
+        import run_daily
+        run_daily.refresh_daily_stores()
+        print("  External daily stores refreshed (gold / CVM / macro-surprise)")
+    except Exception as e:
+        _step_failed("External daily stores (gold/CVM/surprise)", e)
 
     # Flagged opportunities — THE signal cross-section the Home page shows
     # (data/signals/opportunities.parquet + meta.json). Rebuilt HERE (2026-09-07) so a completed

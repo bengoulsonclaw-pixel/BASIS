@@ -90,6 +90,18 @@ def run() -> pd.DataFrame:
         hotsheet.stamp_today(log=print)
     except Exception as e:
         print(f"  (Hot Sheet refresh skipped: {e})")
+    return df
+
+
+def refresh_daily_stores() -> None:
+    """The heavy EXTERNAL daily stores — macro-surprise accrual, the gold driver
+    model (~40s cold) and the CVM Brazil-funds build (~59s). Split out of run()
+    (2026-09-07) so they fire ONCE per pull (snapshot._compute_phase) and NOT on every
+    interactive signal recompute — Re-run signals (app.py), the page-load fallback,
+    Refresh COT, Refresh AG — which all call run() and used to drag minutes of external
+    I/O onto a button click, risking a multi-minute render hang. Each leg is guarded
+    exactly as it was inside run(): a dead source degrades to its last good cache and
+    never aborts the rest, and this whole function never raises."""
     # Gold Driver Model: eight external sources and a walk-forward fit, ~40s cold —
     # far too slow to run on page-open, so it lands on disk here (gold_features.parquet
     # + gold_model.json) like seasonality and the Hot Sheet. Never fails the rebuild;
@@ -168,7 +180,6 @@ def run() -> pd.DataFrame:
               f"{met['gestor'].nunique():,} gestores")
     except Exception as e:
         print(f"  (CVM fund store skipped: {e})")
-    return df
 
 
 if __name__ == "__main__":

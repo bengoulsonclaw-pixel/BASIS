@@ -524,8 +524,47 @@ def from_store(commodity: str) -> dict | None:
     return (blob.get("commodities") or {}).get(commodity)
 
 
+# ── freshness guard (mirrors brazilprod._is_fresh) ───────────────────────────
+# LATEST_YEAR is a CLOSED year, so anm_metals.json is byte-identical day to day, yet a
+# naive refresh re-parses the ~93MB CFEM CSV on every pull. Reuse the existing store
+# when it is present, <20h old, AND newer than every cached source CSV (so the source
+# has not been re-downloaded since the store was written); re-parse only when a CSV
+# moves or the store is stale/missing.
+_STORE_MAX_AGE_H = 20.0
+
+
+def _cached_csvs() -> list:
+    """The CFEM arrecadacao CSVs _cached() has already downloaded to data/cache/."""
+    try:
+        return list(CACHE.glob("CFEM_Arrecadacao_*.csv"))
+    except OSError:
+        return []
+
+
+def _store_is_current() -> bool:
+    """True when the store can be reused as-is: it exists, is <20h old, and is newer
+    than every cached source CSV (i.e. the 93MB source has not changed since the store
+    was written). No cached CSV to check against → False (re-parse to be safe)."""
+    if not STORE.exists() or (time.time() - STORE.stat().st_mtime) >= _STORE_MAX_AGE_H * 3600:
+        return False
+    st = STORE.stat().st_mtime
+    csvs = _cached_csvs()
+    return bool(csvs) and all(p.stat().st_mtime <= st for p in csvs)
+
+
 def refresh(year: int = LATEST_YEAR, force: bool = False) -> dict:
-    """Every commodity, gated, named, and written to the signals store."""
+    """Every commodity, gated, named, and written to the signals store.
+
+    Freshness-guarded (see _store_is_current): a re-run within the day whose source CSV
+    is unchanged returns the existing store untouched instead of re-parsing 93MB. `force`
+    always re-parses; the return shape is identical either way."""
+    if not force and _store_is_current():
+        try:
+            cached = json.loads(STORE.read_text(encoding="utf-8"))
+            if cached.get("commodities") and cached.get("year") == year:
+                return cached                 # unchanged source → keep the existing store
+        except (OSError, ValueError):
+            pass                              # unreadable store → fall through and rebuild
     rows = load_rows(year, force=force)
     out = {"year": year, "n_rows": len(rows), "commodities": {}}
     for name in COMMODITIES:

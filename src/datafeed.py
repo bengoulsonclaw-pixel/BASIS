@@ -1455,15 +1455,19 @@ def _read_live():
     return df
 
 
-def get_live_quote(tickers) -> pd.DataFrame:
+def get_live_quote(tickers, last_prices: "pd.DataFrame | None" = None) -> pd.DataFrame:
     """Per-ticker live quote — DataFrame indexed by ticker with columns
     ['last','net','pct']: current price, plus net and % change vs the prior
     settlement (previous trading day's close -> now). Empty frame if unavailable.
     Mode-agnostic seam like get_history: bloomberg pulls live, snapshot reads
-    live.parquet, mock synthesises a small overnight move."""
+    live.parquet, mock synthesises a small overnight move.
+
+    `last_prices` (bloomberg mode only) is a settlement-history frame already in hand —
+    the caller's get_history output. When given, the cash indices' 'last' is read from
+    it instead of re-pulling a PX_LAST they already carry from history + deepstore."""
     tickers = list(tickers)
     if MODE == "bloomberg":
-        return _bloomberg_live_quote(tickers)
+        return _bloomberg_live_quote(tickers, last_prices=last_prices)
     if MODE == "snapshot":
         live = _read_live()
         if live is not None:
@@ -1471,20 +1475,45 @@ def get_live_quote(tickers) -> pd.DataFrame:
     return _mock_live_quote(tickers)
 
 
-def _bloomberg_live_quote(tickers) -> pd.DataFrame:
+def _bloomberg_live_quote(tickers, last_prices: "pd.DataFrame | None" = None) -> pd.DataFrame:
     from . import bbg as blp
-    pdf = _coerce_pd(blp.bdp(tickers=list(tickers), flds=LIVE_FIELDS))
-    if pdf is None or len(pdf) == 0:
+    tickers = list(tickers)
+    # Cash indices (PRICE_FIELD_OVERRIDE) have no PX_SETTLE and already carry a PX_LAST
+    # from the settlement-history pull (_bloomberg_history + deepstore); asking for it
+    # again in this live bdp just re-fetches a field we hold. When the caller hands us
+    # that history frame, request PX_LAST only on the rest of the book and read the cash
+    # indices' 'last' from the frame — they still get the two change fields. With no
+    # frame in hand we fall back to the original all-three-fields pull for everyone.
+    have_frame = last_prices is not None and not getattr(last_prices, "empty", True)
+    cash = [t for t in tickers if t in PRICE_FIELD_OVERRIDE] if have_frame else []
+    non_cash = [t for t in tickers if t not in cash]
+
+    rows: dict = {}
+
+    def _ingest(pdf):
+        if pdf is None or len(pdf) == 0:
+            return
+        lower = {str(c).lower(): c for c in pdf.columns}
+        if {"ticker", "field", "value"}.issubset(lower):          # long / tidy
+            tcol, fcol, vcol = lower["ticker"], lower["field"], lower["value"]
+            for _, r in pdf.iterrows():
+                rows.setdefault(r[tcol], {})[str(r[fcol]).upper()] = r[vcol]
+        else:                                                     # wide: index=ticker
+            for tk, r in pdf.iterrows():
+                rows.setdefault(tk, {}).update({str(c).upper(): r[c] for c in pdf.columns})
+
+    if non_cash:
+        _ingest(_coerce_pd(blp.bdp(tickers=non_cash, flds=LIVE_FIELDS)))
+    if cash:
+        _ingest(_coerce_pd(blp.bdp(tickers=cash, flds=["CHG_NET_1D", "CHG_PCT_1D"])))
+        for tk in cash:                       # 'last' from the settlement frame in hand
+            if tk in last_prices.columns:
+                s = last_prices[tk].dropna()
+                if len(s):
+                    rows.setdefault(tk, {})["PX_LAST"] = float(s.iloc[-1])
+
+    if not rows:
         return pd.DataFrame(columns=_LIVE_COLS)
-    lower = {str(c).lower(): c for c in pdf.columns}
-    rows = {}
-    if {"ticker", "field", "value"}.issubset(lower):              # long / tidy
-        tcol, fcol, vcol = lower["ticker"], lower["field"], lower["value"]
-        for _, r in pdf.iterrows():
-            rows.setdefault(r[tcol], {})[str(r[fcol]).upper()] = r[vcol]
-    else:                                                         # wide: index=ticker
-        for tk, r in pdf.iterrows():
-            rows[tk] = {str(c).upper(): r[c] for c in pdf.columns}
     out = {tk: {"last": _num(d.get("PX_LAST")),
                 "net":  _num(d.get("CHG_NET_1D")),
                 "pct":  _num(d.get("CHG_PCT_1D"))}
