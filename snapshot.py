@@ -643,6 +643,19 @@ def _compute_phase(include_equities: bool = False) -> dict:
     except Exception as e:
         _step_failed("Option flow export", e)
 
+    # Flagged opportunities — THE signal cross-section the Home page shows
+    # (data/signals/opportunities.parquet + meta.json). Rebuilt HERE (2026-09-07) so a completed
+    # pull leaves the signals current on its own — no separate "Re-run signals" click. This was
+    # always the intended pull flow (see run_daily.run's note: the compute's Hot Sheet stamp runs
+    # BEFORE this rebuild, which re-stamps the sheet on the fresh opportunities). Wrapped as a
+    # compute step: a failure marks the pull 'partial' (signals stale until Re-run) not a crash.
+    try:
+        import run_daily
+        _sig = run_daily.run()
+        print(f"  Signals rebuilt: {len(_sig)} opportunities flagged")
+    except Exception as e:
+        _step_failed("Signals rebuild (run_daily)", e)
+
     # Manifest from the ON-DISK snapshot (the fetch phase's files) — works whether the
     # compute phase runs seconds or hours after the fetch. `created` = the pull moment
     # (live.parquet's write time), not when the math happened to run.

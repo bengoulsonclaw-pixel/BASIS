@@ -1,37 +1,37 @@
 {
- "generated_at": "28 Aug 2026 · 08:06 ET",
- "synopsis": "Markets are in a holding pattern into Kevin Warsh's first Jackson Hole address, with traders wanting clarity on the new Fed chair's strategy for getting inflation back to target — and, notably, whether the next move risks being a hike, after KC Fed's Schmid called inflation \"stubborn\" and policy \"not restrictive.\" US equity futures drifted lower (Nasdaq -0.3%) after Thursday's AI-led surge, while Treasuries slippe…",
- "commentary": "Markets are in a holding pattern into Kevin Warsh's first Jackson Hole address, with traders wanting clarity on the new Fed chair's strategy for getting inflation back to target — and, notably, whether the next move risks being a hike, after KC Fed's Schmid called inflation \"stubborn\" and policy \"not restrictive.\" US equity futures drifted lower (Nasdaq -0.3%) after Thursday's AI-led surge, while Treasuries slipped with the long end underperforming (Long Bond -0.26%) — a steepening bias reinforced by heavy AI-related debt issuance competing for capital and keeping term premium elevated.\n\nBunds and Gilts followed. Europe's cash bourses firmed regardless, and Japan disclosed a record ¥15.4tn ($96.5bn) of FX intervention over the past month, yet the yen still eased — worth respecting as a two-way risk in JPY futures. China is the other pillar: the PBoC unveiled sweeping credit support for the property sector, and the industrial complex responded — iron ore +0.85%, copper +0.7%, and the whites ripped, with palladium +5.4%, platinum +2.7% and silver +1.2% even as gold eased on pre-Warsh dollar steadiness; the divergence says industrial demand, not haven flows, is doing the work.\n\nIn energy, crude is soft into October Brent expiry but the products complex is where the story is: European gasoline cracks hit fresh multi-month highs, gasoil jumped 2.8%, and timespreads firmed with Gulf exports still at two-thirds of pre-war levels per reports and US–Iran diplomacy sputtering — a tightness signal despite flat flat-price. Grains rallied broadly (wheat +1.4%, corn +1.4%, bean oil +2%) and cocoa surged 5.2%.",
+ "generated_at": "07 Sep 2026 · 01:58 ET",
+ "synopsis": "Energy owns the tape this morning. The US and Iran traded tanker attacks over the weekend and Tehran says it will declare a restricted zone outside the Strait of Hormuz, stoking fears of prolonged disruption to flows through the waterway — Brent is up 1.2% at $97.4 and WTI 1.2% at $92.6, with OPEC+ holding quotas unchanged even as the war shutters swathes of Mideast output.",
+ "commentary": "Energy owns the tape this morning. The US and Iran traded tanker attacks over the weekend and Tehran says it will declare a restricted zone outside the Strait of Hormuz, stoking fears of prolonged disruption to flows through the waterway — Brent is up 1.2% at $97.4 and WTI 1.2% at $92.6, with OPEC+ holding quotas unchanged even as the war shutters swathes of Mideast output. The real strain is in products: heating oil +1.9% and gasoil +2.3%, with a Ukrainian strike on Rosneft's big Ryazan refinery tightening distillates further, and TTF gas up 3.6%.\n\nDiesel is the spoiler for inflation doves — crude futures arguably still aren't reflecting physical tightness. That feeds directly into an already hawkish rates picture. A hot jobs report has lifted Fed hike odds, talk of an ECB \"insurance\" hike is circulating, and the structural forces behind the bond reset — sticky inflation, heavy government issuance — aren't letting up. Treasuries, Bunds, OATs and gilts are all offered, long end leading, with the AfD's German state-election win adding a political wrinkle for European duration.\n\nHigher real rates are trumping geopolitics in metals: gold is off 0.5% despite the Hormuz escalation, silver and copper softer too. The exception to the cautious tone is Asia, where tech strength drove the Nikkei up 2% and KOSPI 4.6%; US and European index futures are flat-to-soft. Elsewhere, China's $45bn bank recapitalization plan is supporting iron ore (+1.1%), while grains are broadly lower — CBOT wheat down 2.7% — and robusta coffee firm.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "Fed Watchers Await Warsh's Jackson Hole Inflation Strategy",
-   "time": "",
-   "tag": "Rates"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "JAPAN FX INTERVENTION IN PAST MONTH HIT RECORD 15.4 TLN YEN",
-   "time": "",
-   "tag": "FX"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Venezuela Weighs OPEC Exit; France Just Dodges Recession",
-   "time": "",
+   "title": "Iran, US Trade Tanker Attacks as Conflict Escalates",
+   "time": "01:02 ET",
    "tag": "Energy"
   },
   {
-   "source": "NPR",
-   "title": "U.S. says pipelines will make Strait of Hormuz irrelevant. Energy experts disagree",
-   "time": "05:00 ET",
+   "source": "Al Jazeera",
+   "title": "Iran to announce restricted zone outside Strait of Hormuz",
+   "time": "22:41 ET",
    "tag": "Geopolitics"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
-   "tag": "Energy"
+   "source": "Financial Times",
+   "title": "US economy smashes forecast with 162,000 jobs added in August",
+   "time": "15:04 ET",
+   "tag": "Macro"
+  },
+  {
+   "source": "BBC News",
+   "title": "Trump calls for interest rate cut after jobs figures raise hike bets",
+   "time": "13:23 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "BBC News",
+   "title": "China to pump $54bn into state banks and insurers to boost economy",
+   "time": "22:26 ET",
+   "tag": "Macro"
   },
   {
    "source": "Wall Street Journal",
@@ -41,15 +41,15 @@
   },
   {
    "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "09:05 ET",
+   "tag": "Energy"
+  },
+  {
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
-  },
-  {
-   "source": "The Guardian",
-   "title": "Canada announces retaliatory tariffs on wide range of US goods",
-   "time": "12:17 ET",
-   "tag": "Geopolitics"
   }
  ]
 }

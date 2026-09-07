@@ -1,5 +1,5 @@
 {
- "asof": "2026-09-01T13:06:36",
+ "asof": "2026-09-07T07:06:33",
  "events": [
   {
    "date": "2021-08-02",
@@ -1314,16 +1314,6 @@
   {
    "date": "2026-08-03",
    "icon": "",
-   "label": "CRNX",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "CRNX US Equity",
-   "sub": "Crinetics Pharmaceuticals \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Crinetics Pharmaceuticals \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 9bn"
-  },
-  {
-   "date": "2026-08-03",
-   "icon": "",
    "label": "TWST",
    "color": "#C62828",
    "auto": false,
@@ -1384,10 +1374,20 @@
   {
    "date": "2026-08-03",
    "icon": "",
-   "label": "\u22ef 18 more",
+   "label": "INDV",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "INDV US Equity",
+   "sub": "Indivior Pharmaceuticals Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Indivior Pharmaceuticals Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+  },
+  {
+   "date": "2026-08-03",
+   "icon": "",
+   "label": "\u22ef 17 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Indivior Pharmaceuticals Inc, Atkore, Alamo Group, Kosmos Energy, Sally Beauty Holdings Inc, Oric Pharmaceuticals, Backblaze Inc Class A, Design Therapeutics, Ibotta Class A, Si Bone, Metallus Inc, Costamare Bulkers Holdings Ltd, Clearpoint Neuro Inc, Viemed Healthcare Inc, Freightcar America Inc, Keros Therapeutics, Site Centers, Commercial Vehicle Group Inc"
+   "tip": "Atkore, Alamo Group, Kosmos Energy, Sally Beauty Holdings, Oric Pharmaceuticals, Backblaze Inc Class A, Design Therapeutics, Ibotta Class A, Si Bone, Metallus Inc, Costamare Bulkers Holdings Ltd, Clearpoint Neuro Inc, Viemed Healthcare Inc, Freightcar America Inc, Keros Therapeutics, Site Centers, Commercial Vehicle Group Inc"
   },
   {
    "date": "2026-08-04",
@@ -2584,8 +2584,8 @@
    "color": "#1565C0",
    "auto": false,
    "bbg": "AI US Equity",
-   "sub": "C3 Ai Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "C3 Ai Inc Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+   "sub": "C3 Ai Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "C3 Ai Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
   },
   {
    "date": "2026-09-02",
@@ -2780,8 +2780,8 @@
    "color": "#1565C0",
    "auto": false,
    "bbg": "BRZE US Equity",
-   "sub": "Braze Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Braze Inc Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+   "sub": "Braze Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Braze Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-09-08",
@@ -3658,8 +3658,8 @@
    "color": "#283593",
    "auto": false,
    "bbg": "GS US Equity",
-   "sub": "Goldman Sachs Group Inc \u00b7 S&P 500, Dow Jones 30 \u00b7 US",
-   "tip": "Goldman Sachs Group Inc \u2014 Financials \u00b7 S&P 500, Dow Jones 30 \u00b7 US \u00b7 313bn"
+   "sub": "Goldman Sachs Group \u00b7 S&P 500, Dow Jones 30 \u00b7 US",
+   "tip": "Goldman Sachs Group \u2014 Financials \u00b7 S&P 500, Dow Jones 30 \u00b7 US \u00b7 313bn"
   },
   {
    "date": "2026-10-13",
@@ -4241,7 +4241,7 @@
    "label": "\u22ef 30 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Deutsche Boerse Ag, Msci Inc, Eqt, Quest Diagnostics Inc, Omnicom Group Inc, Keycorp, Equifax, Pentair, Gatx, Balchem, Fulton Financial, Pennymac Financial Services, Nicolet Bankshares Inc, Amc Entertainment Holdings Inc Cla, Monarch Casino And Resort, Bank First Corp, Peoples Bancorp Inc, Columbia Financial Inc, Mercantile Bank Corp, Trustco Bank Corp, Hanmi Financial Corp, Capital City Bank Inc, Smartfinancial Inc, Orrstown Financial Services Inc, Pennymac Mortgage Investment Trust, Bar Harbor Bankshares, Bridgewater Bancshares Inc, Greene County Bancorp Inc, Fs Bancorp Inc, Fvcbankcorp Inc"
+   "tip": "Deutsche Boerse Ag, Msci, Eqt, Quest Diagnostics Inc, Omnicom Group Inc, Keycorp, Equifax, Pentair, Gatx, Balchem, Fulton Financial, Pennymac Financial Services, Nicolet Bankshares Inc, Amc Entertainment Holdings Inc Cla, Monarch Casino And Resort, Bank First Corp, Peoples Bancorp Inc, Columbia Financial Inc, Mercantile Bank Corp, Trustco Bank Corp, Hanmi Financial Corp, Capital City Bank Inc, Smartfinancial Inc, Orrstown Financial Services Inc, Pennymac Mortgage Investment Trust, Bar Harbor Bankshares, Bridgewater Bancshares Inc, Greene County Bancorp Inc, Fs Bancorp Inc, Fvcbankcorp Inc"
   },
   {
    "date": "2026-10-21",
@@ -4310,8 +4310,8 @@
    "color": "#616161",
    "auto": false,
    "bbg": "T US Equity",
-   "sub": "At&T Inc \u00b7 S&P 500 \u00b7 US",
-   "tip": "At&T Inc \u2014 Communication \u00b7 S&P 500 \u00b7 US \u00b7 173bn"
+   "sub": "At&T \u00b7 S&P 500 \u00b7 US",
+   "tip": "At&T \u2014 Communication \u00b7 S&P 500 \u00b7 US \u00b7 173bn"
   },
   {
    "date": "2026-10-21",
@@ -4346,7 +4346,7 @@
   {
    "date": "2026-10-21",
    "icon": "",
-   "label": "\u22ef 70 more",
+   "label": "\u22ef 69 more",
    "color": "#616161",
    "auto": false,
    "tip": "Elevance Health Inc, United Rentals, Teradyne, Westinghouse Air Brake Technologie, United Airlines Holdings, Northern Trust, Teledyne Technologies Inc, Las Vegas Sands, Veralto Corp, Packaging Corp Of America, Southwest Airlines, Nvr, Old National Bancorp, Essential Properties Realty Trust, Selective Insurance Group, Unifirst, Oceaneering International Inc, Patterson Uti Energy Inc, Sl Green Realty Reit Corp, Texas Capital Bancshares, United Community Banks Inc, Cathay General Bancorp, Cvb Financial Corp, Badger Meter, Wesbanco, M I Homes Inc, Townebank, Goosehead Insurance Class A, Bankunited, Banc Of California, Wd-40, First Merchants, Kaiser Aluminium, Ofg Bancorp, Stewart Info Services Corp, Happen, Getty Realty Reit, City Holding, Century Communities Inc, Live Oak Bancshares\u2026"
@@ -4958,8 +4958,8 @@
    "color": "#283593",
    "auto": false,
    "bbg": "SPGI US Equity",
-   "sub": "S&P Global Inc \u00b7 S&P 500 \u00b7 US",
-   "tip": "S&P Global Inc \u2014 Financials \u00b7 S&P 500 \u00b7 US \u00b7 127bn"
+   "sub": "S&P Global \u00b7 S&P 500 \u00b7 US",
+   "tip": "S&P Global \u2014 Financials \u00b7 S&P 500 \u00b7 US \u00b7 127bn"
   },
   {
    "date": "2026-10-29",
@@ -5321,7 +5321,7 @@
    "label": "\u22ef 151 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Live Nation Entertainment, Sysco, Martin Marietta Materials, Kimberly Clark, Zoetis Inc Class A, Labcorp Holdings, Super Micro Computer Inc, Leidos Holdings, Zebra Technologies Corp Class A, Associated British Foods Plc, Gartner, Jack Henry And Associates Inc, Pinnacle West, Skyworks Solutions, Kymera Therapeutics, Spyre Therapeutics Inc, Vaxcyte, Jackson Financial Class A, Immunitybio Inc, Molson Coors Brewing Class B, Ssr Mining, Rhythm Pharmaceuticals, Mosaic, Silicon Laboratories, Hinge Health Class A, Macerich Reit, Super Group, Zeta Global Holdings Class A, Enpro, Liquidia, Cogent Biosciences, Qualys, Kodiak Gas Services Inc, Mercury General, Zalando, Mercury Systems Inc, Novanta, Radian Group, Xometry Class A, California Resources\u2026"
+   "tip": "Live Nation Entertainment, Sysco, Martin Marietta Materials, Kimberly Clark, Zoetis Inc Class A, Labcorp Holdings, Super Micro Computer Inc, Leidos Holdings, Zebra Technologies Corp Class A, Associated British Foods Plc, Gartner, Jack Henry And Associates Inc, Pinnacle West, Skyworks Solutions, Kymera Therapeutics, Spyre Therapeutics Inc, Vaxcyte, Jackson Financial Class A, Immunitybio, Molson Coors Brewing Class B, Ssr Mining, Rhythm Pharmaceuticals, Mosaic, Silicon Laboratories, Hinge Health Class A, Macerich Reit, Super Group, Zeta Global Holdings Class A, Enpro, Liquidia, Cogent Biosciences, Qualys, Kodiak Gas Services Inc, Mercury General, Zalando, Mercury Systems Inc, Novanta, Radian Group, Xometry Class A, California Resources\u2026"
   },
   {
    "date": "2026-11-04",
@@ -5700,16 +5700,6 @@
   {
    "date": "2026-11-09",
    "icon": "",
-   "label": "APGE",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "APGE US Equity",
-   "sub": "Apogee Therapeutics \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Apogee Therapeutics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 10bn"
-  },
-  {
-   "date": "2026-11-09",
-   "icon": "",
    "label": "HIMS",
    "color": "#C62828",
    "auto": false,
@@ -5750,10 +5740,20 @@
   {
    "date": "2026-11-09",
    "icon": "",
-   "label": "\u22ef 48 more",
+   "label": "BTDR",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "BTDR US Equity",
+   "sub": "Bitdeer Technologies Group Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Bitdeer Technologies Group Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-11-09",
+   "icon": "",
+   "label": "\u22ef 47 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Bitdeer Technologies Group Class A, Biohaven, Keel Infrastructure Corp, Sonida Senior Living, Septerna, Quantum Computing, Surgery Partners, Harrow, Dole Plc, Annexon, Sable Offshore Class A, Olema Pharmaceuticals, Compass Diversified, American Public Education, Viant Technology Inc Class A, Lincoln Educational Services Corp, Alpha And Omega Semiconductor, Green Dot Class A, Hallador Energy, Ceva, Cannae Holdings Inc, Energy Vault Holdings, Prokidney Corp Class A, Alti Global Inc Class A, Gemini Space Station Inc Class A, Caledonia Mining Plc, Consolidated Water Ltd, Summit Midstream Corp, Bally S, Natural Gas Services Group, International Money Express Inc, Iheartmedia Class A, Powerfleet, Velo3D Inc, Bakkt Inc Class A, Perspective Therapeutics, Repay Holdings Corp Class A, Telos Corporation Corp, Microvast Holdings, Infinity Natural Resources Inc Cla\u2026"
+   "tip": "Biohaven, Keel Infrastructure Corp, Sonida Senior Living, Septerna, Quantum Computing, Surgery Partners, Harrow, Dole Plc, Annexon, Sable Offshore Class A, Olema Pharmaceuticals, Compass Diversified, American Public Education, Viant Technology Inc Class A, Lincoln Educational Services Corp, Alpha And Omega Semiconductor, Green Dot Class A, Hallador Energy, Ceva, Cannae Holdings Inc, Energy Vault Holdings, Prokidney Corp Class A, Alti Global Inc Class A, Gemini Space Station Inc Class A, Caledonia Mining Plc, Consolidated Water Ltd, Summit Midstream Corp, Bally S, Natural Gas Services Group, International Money Express Inc, Iheartmedia Class A, Powerfleet, Velo3D Inc, Bakkt Inc Class A, Perspective Therapeutics, Repay Holdings Corp Class A, Telos Corporation Corp, Microvast Holdings, Infinity Natural Resources Inc Cla, Futurefuel Corp\u2026"
   },
   {
    "date": "2026-11-10",

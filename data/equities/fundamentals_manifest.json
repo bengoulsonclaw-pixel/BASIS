@@ -1,8 +1,8 @@
 {
-  "last_pull": "2026-08-31",
+  "last_pull": "2026-09-07",
   "source": "yfinance",
   "n_tickers": 709,
   "n_fields": 30,
-  "n_dates": 9,
+  "n_dates": 10,
   "last_heavy_pull": "2026-08-25"
 }

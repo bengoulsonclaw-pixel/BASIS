@@ -2642,8 +2642,10 @@ def _pull_status_fragment() -> None:
     """Auto-refreshing pull status. Mounted (by the Home block) only while a pull is active or
     its result is still unacknowledged, so there is no idle polling. Every few seconds it re-reads
     the driver's status FILE and redraws the staged bar — hands-free, and correct even if the
-    click session dropped. Display only — the cache refresh + rerun live in the Home block, because
-    a fragment must not app-rerun (that halts the outer script before the rest of the page renders)."""
+    click session dropped. On a page LOAD the Home-block gate does the cache-refresh + rerun BEFORE
+    this mounts (a fragment app-rerun mid-initial-render halts the outer script); this fragment only
+    app-reruns for the IDLE case — a pull that finishes between the user's clicks, when just this
+    auto-refresh is running — guarded to fire exactly once per pull (the block just below the bar)."""
     try:
         stat = json.loads((ROOT / "data" / "snapshot" /
                            ".pull_driver_status.json").read_text(encoding="utf-8"))
@@ -2663,6 +2665,16 @@ def _pull_status_fragment() -> None:
     _c, _x = st.columns([0.955, 0.045], vertical_alignment="center")
     with _c:
         _pull_stage_bar(stat)
+    # Auto-refresh the sidebar the moment a pull finishes while the page is IDLE. On a real page
+    # load the Home-block gate runs BEFORE this fragment and sets _pull_refreshed_for first, so
+    # this is a no-op then; it fires ONLY on an idle auto-refresh cycle (a standalone fragment run,
+    # NOT the mid-page render the docstring warns about) — exactly once per pull — so the fresh
+    # snapshot date and rebuilt signals land in the sidebar without the user reloading.
+    if (stat.get("outcome") == "ok"
+            and st.session_state.get("_pull_refreshed_for") != stat.get("when")):
+        st.session_state["_pull_refreshed_for"] = stat.get("when")
+        load_signals.clear()
+        st.rerun(scope="app")
     if not running:
         _x.button("✕", key="pull_banner_dismiss", help="Dismiss until the next pull",
                   on_click=lambda w=stat.get("when"):
