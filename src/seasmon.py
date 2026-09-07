@@ -657,9 +657,15 @@ def _radar_payload() -> dict:
 
     this_wk = _this_iso_week()
     try:
-        _mt = int((deepstore.STORE_DIR / "deep_prices.parquet").stat().st_mtime)
-        # v4 = windows carry the fixed-date cross-check + Friday end labels
-        _ck = f"v4|{_mt}|{this_wk}"            # invalidates on a new data day or week roll
+        # Key off the store's LAST DATA DATE, not the parquet mtime: the daily fetch
+        # rewrites deep_prices every pull (bumping mtime) even when no new trading day
+        # landed, which needlessly reran the ~40-60s scan below. The decade-long window
+        # set only moves when a genuinely new day lands. Read just the 'date' column —
+        # no full re-read of the store (the scan, not this read, is the cost here).
+        _pp = deepstore.STORE_DIR / "deep_prices.parquet"
+        _dd = pd.Timestamp(pd.read_parquet(_pp, columns=["date"])["date"].max()).strftime("%Y-%m-%d")
+        # v5 = key rides the last data date; windows carry the fixed-date cross-check + Friday labels
+        _ck = f"v5|{_dd}|{this_wk}"            # invalidates on a new data day or week roll
     except Exception:
         _ck = None
     if _ck:
