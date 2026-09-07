@@ -620,15 +620,13 @@ def _compute_phase(include_equities: bool = False) -> dict:
     except Exception as e:
         _step_failed("Brazil production store", e)
 
-    # Hot Sheet — stamp today's cross-module highlights into the daily history
-    # (data/signals/hotsheet_history.parquet: NEW/streak badges + the Weekly Review's
-    # week aggregation read it). Runs LAST so it sees everything just refreshed above;
-    # same-day re-runs replace today only, past days stay frozen.
-    try:
-        from src import hotsheet
-        hotsheet.stamp_today(log=print)
-    except Exception as e:
-        _step_failed("Hot Sheet stamp", e)
+    # Hot Sheet — the daily stamp (data/signals/hotsheet_history.parquet: NEW/streak badges + the
+    # Weekly Review's week aggregation) now happens ONCE, at the very end of this phase inside
+    # run_daily.run() (below), AFTER the fresh opportunities are written — so it stamps on TODAY's
+    # signals, not yesterday's. The old early stamp here was fully overwritten by that final one
+    # (same-day re-stamps replace today only) and nothing between the two consumes the sheet —
+    # deskday.export / optflow.export_today / refresh_daily_stores are all hot-sheet-free — so it
+    # was a wasted full provider collect() every pull. Dropped 2026-09-07 (Tier-2 efficiency).
 
     # Desk day export — today's reports / decisions / majors / expiries for the
     # Morning Coffee PDF's page 2 (data/signals/desk_calendar.json). Pure calendar

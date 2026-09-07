@@ -1131,8 +1131,34 @@ def _term_charts(threshold):
 #  One Streamlit script; st.session_state.active selects the view. The sidebar
 #  is pure nav; the dispatch near the bottom renders the active page.
 # ===========================================================================
-def _load_snap():
+@st.cache_data(ttl=60, show_spinner=False)
+def _load_snap_cached(mtime: float):
     return json.loads(SNAPSHOT_MANIFEST.read_text()) if SNAPSHOT_MANIFEST.exists() else None
+
+
+def _load_snap():
+    """The snapshot MANIFEST, parsed. Cached on the file's mtime (ttl 60s) so the sidebar and the
+    several page bodies that each call it (twice per Home render) reparse it only when a pull
+    rewrites it. NB: the pull-STATUS file the auto-refresh gate reads is a DIFFERENT file
+    (.pull_driver_status.json) and stays uncached — this is the manifest loader only."""
+    try:
+        _mt = SNAPSHOT_MANIFEST.stat().st_mtime if SNAPSHOT_MANIFEST.exists() else 0.0
+    except Exception:
+        _mt = 0.0
+    return _load_snap_cached(_mt)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _calendar_events_cached(day_iso: str) -> list:
+    """repcal.calendar_events() cached per ET day — it rebuilds ~12 months of oil releases, ~52
+    COT dates, the CB decision calendar and the USDA slate on every call, and render_landing /
+    render_home / the Reports Calendar page each hit it on every rerun. Keyed on today's ET date
+    (calendar_events() anchors its 12-month window on `now`), so it refreshes at the day roll."""
+    return repcal.calendar_events()
+
+
+def _calendar_events() -> list:
+    return _calendar_events_cached(datetime.now(ZoneInfo("America/New_York")).date().isoformat())
 
 
 def _go(dest: str) -> None:
@@ -1241,11 +1267,12 @@ def _data_badge(snap, side: str = "FICC") -> None:
         st.warning("DEMO MODE — synthetic", icon="⚠️")
 
 
-def _ficc_moves_frame() -> pd.DataFrame:
-    """Overnight per-contract move frame — columns Market · Sector · pct · last · sigma, STIRs
-    excluded, sorted by σ (biggest movers first). σ = the move ÷ the contract's own ~1-month daily
-    move std. Shared by the Overnight-moves table and the on-screen FICC heatmap so both read from
-    one source (the underlying Bloomberg calls are cached). Empty frame when there's no live quote."""
+@st.cache_data(ttl=60, show_spinner=False)
+def _ficc_moves_frame_cached(snap_mtime: float, ticker_sig: tuple) -> pd.DataFrame:
+    """The heavy body of _ficc_moves_frame, memoised. `snap_mtime` (snapshot-manifest write time)
+    and `ticker_sig` (the enabled-ticker/sector-filter signature) are the cache KEY only — the body
+    re-reads the live enabled set — so a new pull or a sector-chip toggle yields a fresh frame while
+    ordinary Home reruns reuse it."""
     live = get_live_quote(list(universe.enabled_tickers()))
     live = live.dropna(subset=["pct"]) if not live.empty else live
     if live.empty:
@@ -1268,6 +1295,23 @@ def _ficc_moves_frame() -> pd.DataFrame:
             for tk, r in live.iterrows()
             if INSTRUMENTS.get(tk, (tk, 0.0, "", ""))[2] not in {"STIRs"}]   # STIRs: price vol ≈ 0
     return pd.DataFrame(rows).sort_values("sigma", ascending=False)
+
+
+def _ficc_moves_frame() -> pd.DataFrame:
+    """Overnight per-contract move frame — columns Market · Sector · pct · last · sigma, STIRs
+    excluded, sorted by σ (biggest movers first). σ = the move ÷ the contract's own ~1-month daily
+    move std. Shared by the Overnight-moves table and the on-screen FICC heatmap so both read from
+    one source. Cached on (snapshot mtime, enabled-ticker signature) so Home reruns reuse the frame
+    but a new pull or a sector-chip toggle recomputes it. Empty frame when there's no live quote."""
+    try:
+        _mt = SNAPSHOT_MANIFEST.stat().st_mtime if SNAPSHOT_MANIFEST.exists() else 0.0
+    except Exception:
+        _mt = 0.0
+    try:
+        _sig = tuple(sorted(universe.enabled_tickers()))
+    except Exception:
+        _sig = ()
+    return _ficc_moves_frame_cached(_mt, _sig)
 
 
 def _all_filtered_off() -> bool:
@@ -1943,8 +1987,9 @@ def _eia_weekly_today(today) -> list:
     return out
 
 
-def _todays_releases(today=None) -> list:
-    """Fundamental reports releasing today: {name, icon, color, t (HH:MM ET), fire_ms}. ET-dated."""
+def _todays_releases_impl(today) -> list:
+    """Fundamental reports releasing today: {name, icon, color, t (HH:MM ET), fire_ms}. ET-dated.
+    Pure builder — reached through the per-ET-day cache in _todays_releases()."""
     from datetime import datetime
     from zoneinfo import ZoneInfo
     from src import agdata, release_cal, repcal
@@ -1987,6 +2032,23 @@ def _todays_releases(today=None) -> list:
         o["fire_ms"] = int(datetime(today.year, today.month, today.day, hh, mm, tzinfo=et).timestamp() * 1000)
         o["key"] = alerts.key_for_release(o["name"])       # for the per-report banner/popup toggles
     return out
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _todays_releases_cached(day_iso: str) -> list:
+    """_todays_releases_impl cached per ET day — the list rebuilds the 12-month oil slate, the COT
+    test and the CB decision calendar, and every FICC page hits it (report banner + release popup,
+    via render_report_popup). Keyed on the ET date so it refreshes at the day roll."""
+    from datetime import date as _date
+    return _todays_releases_impl(_date.fromisoformat(day_iso))
+
+
+def _todays_releases(today=None) -> list:
+    """Fundamental reports releasing today: {name, icon, color, t (HH:MM ET), fire_ms}. ET-dated."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    today = today or datetime.now(ZoneInfo("America/New_York")).date()
+    return _todays_releases_cached(today.isoformat())
 
 
 def render_report_banner() -> None:
@@ -2501,7 +2563,7 @@ def render_landing() -> None:
     except Exception:
         pass
 
-    ficc_ev = repcal.calendar_events()
+    ficc_ev = _calendar_events()
     try:                              # + the ECO-page majors (CPI, PPI, NFP…) with times
         ficc_ev = ficc_ev + _landing_macro(day.isoformat())
     except Exception:
@@ -3068,7 +3130,7 @@ def render_home() -> None:
     _off = st.session_state["home_day"]
     _day = _add_weekdays(_base, _off)
 
-    ficc_ev = repcal.calendar_events()
+    ficc_ev = _calendar_events()
     try:
         ficc_ev = ficc_ev + _landing_macro(_day.isoformat())
     except Exception:
@@ -9067,7 +9129,7 @@ def render_releases() -> None:
     n4.markdown(f"<div style='font-size:21px;font-weight:700;padding-top:2px'>{_cmod.month_name[cm]} {cy}</div>",
                 unsafe_allow_html=True)
 
-    st.markdown(repcal.month_html(repcal.calendar_events(), cy, cm, today), unsafe_allow_html=True)
+    st.markdown(repcal.month_html(_calendar_events(), cy, cm, today), unsafe_allow_html=True)
     st.caption("🌍 WASDE · 🌽 Crop Production · 🌾 Grain Stocks · 🌱 Plantings · 🚜 Acreage · 🐄 Cattle on Feed · "
                "🐖 Hogs & Pigs · 🛢️ Oil outlooks (OPEC / EIA / IEA) · 🧭 COT (weekly, Fri) · "
                "🏛️ FOMC · 💶 ECB · 💷 BoE MPC rate decisions &nbsp;·&nbsp; ★ = auto-emails the desk.")
@@ -15971,7 +16033,7 @@ with st.sidebar:
     df, meta = load_signals()
     try:        # desk scope row (desk-aware): FICC = markets/signals, Equities = stocks/indices
         if _side == "Equities":
-            _uni = equities.cached_universe()
+            _uni = _eq_universe()          # already cached (ttl 1800); identical to cached_universe()
             _n_stk = len({c["ticker"] for rows in _uni.values() for c in rows})
             st.markdown(f'<div class="bt-sect" style="margin-top:.15rem">'
                         f'{_n_stk} stocks · {len(_uni)} indices</div>', unsafe_allow_html=True)

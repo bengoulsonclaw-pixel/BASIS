@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 
 from src import universe, tascore, specs
+from src.datafeed import get_history_ta, get_volume_history
 from src.strategies import (mean_reversion, trend, ma_crossover, ma_crossover_swing,
                             flag_breakout, support_resistance, fibonacci, breakout_retest,
                             momentum, bollinger, elliott_wave, ichimoku, obv, mfi,
@@ -27,6 +28,18 @@ STRATEGIES = [mean_reversion, trend, ma_crossover, ma_crossover_swing, flag_brea
               support_resistance, fibonacci, breakout_retest, momentum, bollinger,
               elliott_wave, ichimoku, obv, mfi, donchian, aroon, carry, volatility, skew,
               termstructure, cot, putcall, ag_fundamentals]
+
+# Price-based TA modules whose find_opportunities() fetches get_history_ta(TREND_UNIVERSE)
+# internally — run() builds that frame ONCE and injects it instead of each re-reading the parquet
+# and re-running the deep-store upgrade (see run()). Parity-verified row-for-row against every
+# module's own self-fetch. obv/mfi take history ONLY: they self-fetch their own non-FX volume, and
+# a full-universe volume frame would drag FX names (which carry volume columns) into their loop.
+# breakout_retest also uses the full-universe volume frame, so it takes both. flag_breakout is left
+# OUT so its `history is None` branch still persists the visual-report flag cache; mean_reversion
+# loops its own PAIRS; vol/positioning/carry/ag own their data.
+_HIST_ONLY = {trend, ma_crossover, ma_crossover_swing, support_resistance, fibonacci, momentum,
+              bollinger, elliott_wave, ichimoku, donchian, aroon, obv, mfi}
+_HIST_VOL = {breakout_retest}
 
 
 
@@ -62,7 +75,30 @@ def _gold_leg_stamp(leg: str) -> None:
 def run() -> pd.DataFrame:
     SIGNALS_DIR.mkdir(parents=True, exist_ok=True)
     universe.reload()                                 # pick up any edits to data/universe.json
-    frames = [mod.find_opportunities() for mod in STRATEGIES]
+    # Build the shared price/yield history (and volume) frames ONCE for the price-based TA modules
+    # (_HIST_ONLY / _HIST_VOL above) rather than let each independently re-read the prices+yields
+    # parquet and re-run the deep-store panama upgrade inside get_history_ta — the same
+    # build-once-and-inject pattern sigcache.compute_day uses. Built AFTER universe.reload() so the
+    # TREND_UNIVERSE (mutated in place by reload) is current. Guarded independently: a failure to
+    # build either frame just leaves the affected modules to self-fetch exactly as before.
+    _hist = _vols = None
+    try:
+        _hist = get_history_ta(list(universe.TREND_UNIVERSE))
+    except Exception:
+        _hist = None
+    try:
+        _vols = get_volume_history(list(universe.TREND_UNIVERSE))
+    except Exception:
+        _vols = None
+
+    def _flag(mod) -> pd.DataFrame:
+        if _hist is not None and _vols is not None and mod in _HIST_VOL:
+            return mod.find_opportunities(history=_hist, volume=_vols)
+        if _hist is not None and mod in _HIST_ONLY:
+            return mod.find_opportunities(history=_hist)
+        return mod.find_opportunities()
+
+    frames = [_flag(mod) for mod in STRATEGIES]
     df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     # Fixed income runs on YIELDS in the technical strategies, so relabel those rows' market
     # name to the yield/rate (e.g. "US 10Y Note (yield)", "3M SOFR (rate)") — one chokepoint
