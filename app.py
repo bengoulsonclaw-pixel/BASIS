@@ -2561,7 +2561,10 @@ def _pull_driver_alive() -> bool:
     try:
         out = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
-             "(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+             # BOTH python.exe AND pythonw.exe (2026-09-07): the driver is spawned via
+             # sys.executable, which became pythonw.exe once the server went windowless.
+             # Matching only python.exe made this cry "killed mid-run" over a perfectly live pull.
+             "(Get-CimInstance Win32_Process -Filter \"Name='python.exe' OR Name='pythonw.exe'\" | "
              "Where-Object { $_.CommandLine -match 'run_pull' }).Count"],
             capture_output=True, text=True, timeout=10)
         return int((out.stdout or "0").strip() or 0) > 0
