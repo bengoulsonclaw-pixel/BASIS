@@ -9,6 +9,8 @@ credentials.json
 token.json
 data/eia_key.txt
 data/unsplash_key.txt
+data/cme_creds.json
+data/cme_creds.txt
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
