@@ -2722,6 +2722,43 @@ def _pull_stage_bar(stat: dict) -> None:
         st.info("⏳ **Pulling…** keep the Terminal open.")
 
 
+def _dismiss_pull_banner(when: str) -> None:
+    """Dismiss the pull-status banner PERSISTENTLY: set the session flag AND write `ack`
+    into .pull_driver_status.json, so the × survives a browser close/reopen. Session-state
+    alone forgot the dismissal — which is why a finished/failed banner re-nagged on the next
+    launch. Best-effort; a status-file write hiccup must not break the dismiss."""
+    st.session_state["pull_banner_seen"] = when
+    try:
+        _p = ROOT / "data" / "snapshot" / ".pull_driver_status.json"
+        _s = json.loads(_p.read_text(encoding="utf-8"))
+        if _s.get("when") == when:
+            _s["ack"] = when
+            _p.write_text(json.dumps(_s, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _resolve_compute_partial() -> None:
+    """Retire a `compute_partial` pull banner after a successful 'Re-run signals'. The stores
+    the pull's compute couldn't finish are now rebuilt, so the 'some compute steps failed —
+    stores are stale until Re-run signals' warning has served its purpose: flip the recorded
+    outcome to ok and ack it so it stops showing. It persisted across reopens otherwise — the
+    banner literally promised Re-run signals would clear it, but the handler never did. Best-
+    effort; a status-file hiccup must never break the rebuild itself."""
+    try:
+        _p = ROOT / "data" / "snapshot" / ".pull_driver_status.json"
+        _s = json.loads(_p.read_text(encoding="utf-8"))
+        if _s.get("outcome") == "compute_partial":
+            _base = str(_s.get("detail", "")).split(",")[0].strip()
+            _s["outcome"] = "ok"
+            _s["detail"] = (_base or "pull complete") + " — signals rebuilt"
+            _s["ack"] = _s.get("when")
+            _s["resolved"] = datetime.now(ZoneInfo("America/New_York")).isoformat()
+            _p.write_text(json.dumps(_s, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
 @st.fragment(run_every=5)
 def _pull_status_fragment() -> None:
     """Auto-refreshing pull status. Mounted (by the Home block) only while a pull is active or
@@ -2745,8 +2782,12 @@ def _pull_status_fragment() -> None:
                    "re-pull (that re-spends the day's Bloomberg allowance).")
         return
     running = stat.get("outcome") in ("running", "retrying")
-    if not running and st.session_state.get("pull_banner_seen") == stat.get("when"):
-        return                                         # finished and dismissed — show nothing
+    # Dismiss/resolve is PERSISTENT via `ack` == this pull's `when` in the status file — it
+    # survives a browser close/reopen (session_state alone forgot it, so a dismissed — or
+    # Re-run-signals-resolved — banner used to re-nag on every relaunch). Either signal hides it.
+    if not running and (st.session_state.get("pull_banner_seen") == stat.get("when")
+                        or stat.get("ack") == stat.get("when")):
+        return                                         # finished and dismissed/resolved — show nothing
     _c, _x = st.columns([0.955, 0.045], vertical_alignment="center")
     with _c:
         _pull_stage_bar(stat)
@@ -2762,8 +2803,7 @@ def _pull_status_fragment() -> None:
         st.rerun(scope="app")
     if not running:
         _x.button("✕", key="pull_banner_dismiss", help="Dismiss until the next pull",
-                  on_click=lambda w=stat.get("when"):
-                      st.session_state.__setitem__("pull_banner_seen", w))
+                  on_click=_dismiss_pull_banner, args=(stat.get("when"),))
 
 
 def _md_add_cb(seat: str) -> None:
@@ -3260,6 +3300,7 @@ def render_home() -> None:
     if IS_ADMIN and st.session_state.pop("rerun_signals_go", False):
         with st.spinner("Recomputing all signals…"):
             run_daily.run()
+        _resolve_compute_partial()   # stores are fresh now — retire any "compute steps failed" banner
         load_signals.clear(); st.rerun()
     # (Excel export + Weekly Review buttons and the old banners removed in the
     #  2026-08-20 redesign per Ben — Excel lives on via `snapshot.py --excel`.)
