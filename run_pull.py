@@ -167,7 +167,15 @@ _LAST_RC = 0          # exit code of the last phase — 2 = compute ran but some
 def _run_phase(args: list[str], stall_min: float | None, cap_min: float, tag: str) -> bool:
     """Run snapshot.py with the given args; kill on write-stall or the hard cap."""
     import os
-    env = {**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"}
+    # bloomberg for the fetch (it pulls the Terminal); SNAPSHOT for the compute — by then the user
+    # has closed the Terminal (the app says "safe to close" the moment the fetch is done), and the
+    # compute reads the just-fetched snapshot from disk. run_daily's signal rebuild (added to the
+    # compute 2026-09-07) is the ONE compute step that goes through the mode-switched datafeed, so a
+    # bloomberg compute made it reach a now-dead Terminal ("request workers are dead", 2026-09-08).
+    # Snapshot mode reads the fetched data instead. The manifest's `source` label is read from
+    # .fetch_meta.json (written by the fetch, snapshot.py:482), so it stays correct either way.
+    _mode = "snapshot" if "--compute" in args else "bloomberg"
+    env = {**os.environ, "DATAFEED_MODE": _mode, "PYTHONUTF8": "1"}
     LOG.parent.mkdir(parents=True, exist_ok=True)
     out = (ROOT / "logs" / f"pull_driver_{tag}.log").open("w", encoding="utf-8")
     proc = subprocess.Popen([str(PY), "-u", str(ROOT / "snapshot.py"), *args],
