@@ -765,6 +765,44 @@ def window_years(weekly: pd.DataFrame, ticker: str, start: int, weeks: int) -> p
     return block.sum(axis=1, min_count=max(2, weeks - 2)).dropna()
 
 
+def window_paths(weekly: pd.DataFrame, ticker: str, start: int, weeks: int) -> pd.DataFrame:
+    """SEAG-style overlay data for one window: every stored year's cumulative walk
+    through the stretch, week by week, rebased to 0 at the window start — the
+    Bloomberg Seasonality Chart's normalized lines, on the finder's own arithmetic
+    (each year's final point IS its window_years entry). Long frame [year, step,
+    wdate, cum]; `wdate` maps steps onto the label's reference calendar (wrapping
+    windows continue into the next year) so the x-axis reads as dates. A partial
+    current year is included as far as it has run."""
+    if weekly is None or weekly.empty or ticker not in weekly.columns:
+        return pd.DataFrame()
+    piv = _year_pivot(weekly[ticker])
+    if piv.empty:
+        return pd.DataFrame()
+    yrs = sorted(piv.columns)
+    nxt = piv.reindex(columns=[y + 1 for y in yrs])
+    nxt.columns = yrs
+    ext = pd.concat([piv, nxt.iloc[:WIN_MAX]], axis=0).T
+    block = ext.iloc[:, start - 1:start - 1 + weeks]
+    d0 = pd.Timestamp("2001-01-01") + pd.Timedelta(days=(int(start) - 1) * 7)
+    rows = []
+    for y in yrs:
+        vals = block.loc[y]
+        n_have = int(vals.notna().sum())
+        if n_have == 0:
+            continue
+        trail = vals[::-1].notna().cumsum()[::-1]        # NaNs only allowed at the tail
+        run = vals[trail > 0]
+        if run.isna().sum() > 2 and n_have < weeks - 2:  # holey mid-history year — skip
+            continue
+        cum = 0.0
+        rows.append({"year": int(y), "step": 0, "wdate": d0, "cum": 0.0})
+        for i, v in enumerate(run.fillna(0.0).to_numpy(), start=1):
+            cum += float(v)
+            rows.append({"year": int(y), "step": i,
+                         "wdate": d0 + pd.Timedelta(days=i * 7), "cum": cum})
+    return pd.DataFrame(rows)
+
+
 def window_weeks(ticker: str, year: int, start: int, weeks: int) -> pd.DataFrame:
     """One year's walk through one window, week by week: every Friday inside the
     window with the ACTUAL level (raw front settle; benchmark yield % for FI) and
