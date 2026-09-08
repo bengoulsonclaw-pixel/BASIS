@@ -60,12 +60,15 @@
               color: #c9c9c9; font-size: 5.5pt; line-height: 1.6; letter-spacing: .1px;
               overflow-wrap: anywhere; }
 
-  /* Title band, three tiers: the desk masthead (the shared sheet's h1), the piece's own topic
-     under it in house gold, then the date line — smaller and quieter than the shared .sub,
-     which is sized for a band with only two tiers. Overridden HERE, never in the shared sheet. */
-  .titleband .topic { color: var(--yellow); font-weight: 700; font-size: 14.5pt;
+  /* Title band, three tiers: the desk masthead (the shared sheet's h1 — never touched here),
+     the piece's own topic under it, then the date line. The topic is WHITE and the date line
+     keeps the shared .sub exactly as every other report renders it — 12pt gold italic (Ben,
+     2026-09-09). The band's only difference from the rest of the deck is a line ADDED, with
+     nothing changed; a client reading three XP reports in a row sees the same furniture in the
+     same colours. Only the top margin is set here, to space the new tier. */
+  .titleband .topic { color: #FFFFFF; font-weight: 700; font-size: 14.5pt;
                       line-height: 1.15; margin-top: 1.4mm; }
-  .titleband .sub { color: #D9DDE2; font-size: 10pt; margin-top: 1.4mm; }
+  .titleband .sub { margin-top: 1.4mm; }
 
   /* The one-line idea sits in the house trigger box (amber, yellow left rule), written the
      way every other report writes it: a bold lead-in flowing into the sentence.
