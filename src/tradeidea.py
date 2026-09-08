@@ -46,6 +46,7 @@ from reportkit import pretty_date, data_uri, launch_chromium      # noqa: E402
 TEMPLATES = Path(__file__).parent.parent / "templates"
 ASSETS = TEMPLATES / "assets"
 LAYOUT_FILE = ROOT / "data" / "tradeidea_layout.json"
+LAYOUTS_FILE = ROOT / "data" / "tradeidea_layouts.json"
 
 # ---------------------------------------------------------------------------
 # The section catalogue. key -> (title, kind, weight, prompt/extra). `weight` is that
@@ -139,8 +140,45 @@ def default_payload(desk: str = "FICC", sector: str = "") -> dict:
     }
 
 
+# Saved layouts live as a NAMED set — "Macro piece", "Trade idea", "Chart pack" — because the
+# same template now serves genuinely different shapes of note and one remembered default can't
+# cover them. LAYOUT_FILE (the single default this started with) is imported once and left alone.
+def list_layouts() -> dict:
+    """{name: payload} of every saved layout, oldest file format included."""
+    try:
+        data = json.loads(LAYOUTS_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and isinstance(data.get("layouts"), dict):
+            return data["layouts"]
+    except Exception:
+        pass
+    old = load_layout()                     # one-time migration of the single default
+    return {"My default": old} if old else {}
+
+
+def save_named_layout(name: str, payload: dict) -> None:
+    """Store `payload` under `name`, replacing any layout of that name."""
+    name = (name or "").strip()[:60]
+    if not name:
+        return
+    layouts = list_layouts()
+    layouts[name] = payload
+    _write_layouts(layouts)
+
+
+def delete_layout(name: str) -> None:
+    layouts = list_layouts()
+    if layouts.pop(name, None) is not None:
+        _write_layouts(layouts)
+
+
+def _write_layouts(layouts: dict) -> None:
+    LAYOUTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LAYOUTS_FILE.write_text(json.dumps({"layouts": layouts}, indent=2), encoding="utf-8")
+
+
 def load_layout() -> dict | None:
-    """The layout saved as the desk's default from the builder, or None."""
+    """The ORIGINAL single saved default (pre-named-layouts), or None. Still read on first
+    use so nobody's saved default is lost, and still what the builder opens on."""
     try:
         return json.loads(LAYOUT_FILE.read_text(encoding="utf-8"))
     except Exception:
@@ -158,7 +196,7 @@ def file_stem(payload: dict) -> str:
     words = "".join(c if c.isalnum() else " " for c in
                     (payload.get("headline") or "Trade Idea")).split()
     sector = "".join(c if c.isalnum() else " " for c in (payload.get("sector") or "")).split()
-    return "_".join(["XP"] + words[:8] + sector[:3] + ["TEMPLATE"])
+    return "_".join(["XP"] + words[:6] + sector[:2] + ["TEMPLATE"])
 
 
 def _sections(payload: dict) -> list[dict]:

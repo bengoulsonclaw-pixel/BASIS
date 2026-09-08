@@ -974,6 +974,17 @@ div.st-key-home_rerun button p, div.st-key-eq_refresh button p {
     .land-hero svg { max-width:72vw; height:auto; }
     .land-tag { font-size:clamp(8.5px,2.55vw,17px) !important;
                 letter-spacing:.2em !important; white-space:nowrap; }
+    /* Hot Sheet rows: prose full width, spark + metric side by side, and the jump arrow
+       and "draft a note" together — stacked they were two full-width bars per item. */
+    [class*="st-key-hsrow_"] [data-testid="stHorizontalBlock"] { flex-wrap:wrap !important; gap:.3rem !important; }
+    [class*="st-key-hsrow_"] [data-testid="stColumn"]:nth-child(1) { flex:0 0 100% !important; }
+    /* basis 0, not a percentage: a percentage basis pushed the second button onto a line of
+       its own. At basis 0 the spark and metric simply share whatever the two 40px buttons leave. */
+    [class*="st-key-hsrow_"] [data-testid="stColumn"]:nth-child(2),
+    [class*="st-key-hsrow_"] [data-testid="stColumn"]:nth-child(3) { flex:1 1 0 !important; min-width:0 !important; }
+    [class*="st-key-hsrow_"] [data-testid="stColumn"]:nth-child(4),
+    [class*="st-key-hsrow_"] [data-testid="stColumn"]:nth-child(5) {
+        flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
     /* Trade Idea layout builder: each section's tick + arrows stay on ONE row. Stacked,
        eleven sections became forty-odd rows of full-width arrow buttons and the list was
        unusable on a phone. The kind caption ("writing box") is the one thing that goes. */

@@ -5434,10 +5434,62 @@ def _hs_spark(vals: list, pal: dict) -> str:
             f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="2.4" fill="{pal["gold"]}"/></svg>')
 
 
+# A phrase per Hot Sheet tag, for the heading a drafted note opens with. Only what the tag
+# already asserts — the flagged condition, not a view about it.
+_HS_TAG_PHRASE = {
+    "SEAS": "seasonal window", "CURVE": "curve dislocation", "VOL": "implied vs realized",
+    "SKEW": "skew", "TERM": "vol term structure", "COT": "positioning", "FLOW": "option activity",
+    "TA": "technical signal", "MR": "mean reversion", "TREND": "trend", "CORR": "correlation",
+    "PC": "put/call ratio", "OI": "open interest", "ROLL": "roll", "MACRO": "macro",
+}
+
+
+def _ti_seed_from_item(it: dict) -> dict:
+    """Turn a Hot Sheet line into the START of a note: the product, what was flagged, and the
+    sector it sits in. ONLY the heading travels — never the argument. What the piece says is
+    the writer's, which is what keeps this module's compliance story simple (and what Ben
+    asked for): BASIS points at the subject, the desk writes the view."""
+    text = str(it.get("text") or "")
+    m = re.search(r"\*\*(.+?)\*\*", text)                           # the bold product name
+    subject = m.group(1).strip() if m else (it.get("ticker") or "").strip()
+    phrase = _HS_TAG_PHRASE.get(str(it.get("tag") or "").upper()) or (it.get("section") or "")
+    # The parenthetical AFTER the name — a SEAS window label ("10 Sep – 8 Nov"). Searching the
+    # whole line instead grabs the brackets inside the name itself ("Ultra 10Y Note (yield)",
+    # "Wheat (KC)") and the heading comes out as "…— seasonal window yield".
+    detail = re.search(r"\((.+?)\)", text[m.end():] if m else text)
+    detail = detail.group(1).strip() if detail else ""
+    # Only a SHORT, label-like parenthetical earns a place in the heading — a date window
+    # ("10 Sep → 9 Nov") reads as a subject; a stats blob ("1M 25.9 vs 3M 35.8 vols") is the
+    # module's working, and belongs in the writer's paragraph if anywhere.
+    if len(detail) > 24 or "," in detail or " vs " in detail:
+        detail = ""
+    bits = [b for b in (phrase, detail) if b]
+    headline = " — ".join([b for b in (subject, " ".join(bits)) if b]) or "Trade Idea"
+    sector = ""
+    try:                    # the product's own asset class, so the note is filed like everything else
+        rec = universe.INSTRUMENTS.get(it.get("ticker") or "")
+        sector = rec[2] if rec else ""
+    except Exception:
+        sector = ""
+    return {"headline": headline[:90], "sector": sector,
+            "desk": "Equities" if it.get("book") == "equities" else "FICC",
+            "from": f'{it.get("tag", "")} · {it.get("section", "")}'.strip(" ·")}
+
+
+def _hs_draft(it: dict) -> None:
+    """on_click: seed the Trade Idea builder from this line and jump straight to it."""
+    st.session_state["ti_seed"] = _ti_seed_from_item(it)
+    _go("Trade Idea")
+
+
 def _hs_row(it: dict, uid: str, pal: dict) -> None:
     """One Hot Sheet line: tag chip + badge + prose, the story's sparkline, the
     metric column with its heat gauge, and the jump into the owning module."""
-    c_txt, c_spark, c_met, c_go = st.columns([8, 3, 3, 1])
+    # Keyed container so the phone CSS (brand.py) can lay the row out: prose full width,
+    # sparkline + metric side by side, and the two buttons together rather than as two
+    # full-width bars per item.
+    _row = st.container(key=f"hsrow_{uid}")
+    c_txt, c_spark, c_met, c_go, c_draft = _row.columns([8, 3, 3, 1, 1])
     _pair = _HS_HUES.get(hotsheet.TAG_HUE.get(it["tag"], ""))
     _hue = (_pair[0 if pal["name"] == "dark" else 1]) if _pair else pal["gold"]
     _ring = _hue if _pair else pal["label_ring"]
@@ -5468,6 +5520,10 @@ def _hs_row(it: dict, uid: str, pal: dict) -> None:
     if it["page"]:
         c_go.button("→", key=f"hs_{uid}", help=f"Open {it['page'].removeprefix('eq:')}",
                     on_click=_hs_go, args=(it["page"],))
+    # Write it up: opens the Trade Idea builder on this subject. The heading and sector are
+    # filled in from the line; not one word of the argument is (see _ti_seed_from_item).
+    c_draft.button("📝", key=f"hsd_{uid}", help="Draft a client note on this",
+                   on_click=_hs_draft, args=(it,))
 
 
 def _hs_flow_section(flow: list, pal: dict) -> None:
@@ -8026,10 +8082,93 @@ def _ti_move(sid: str, delta: int) -> None:
     secs.insert(j, secs.pop(i))
 
 
+def _ti_set_sector(desk: str, sector: str) -> None:
+    """Point the sector widget at `sector`, using the free-text box for anything off-list."""
+    opts = ["—"] + TI_SECTORS.get(desk, [])
+    if sector in opts:
+        st.session_state[f"ti_sector_{desk}"] = sector
+    elif sector:
+        st.session_state[f"ti_sector_{desk}"] = "Other…"
+        st.session_state["ti_sector_other"] = sector
+    else:
+        st.session_state[f"ti_sector_{desk}"] = "—"
+
+
+def _ti_take_seed() -> None:
+    """Consume a seed left by the Hot Sheet's 📝 button. Widget keys are written BEFORE the
+    widgets are made, which is the only way to set a Streamlit widget that already has state."""
+    seed = st.session_state.pop("ti_seed", None)
+    if not seed:
+        return
+    st.session_state["ti_desk"] = seed.get("desk", "FICC")
+    st.session_state["ti_headline"] = seed.get("headline", "")
+    _ti_set_sector(seed.get("desk", "FICC"), seed.get("sector", ""))
+    st.session_state["ti_from"] = seed.get("from", "")
+
+
+def _ti_apply_layout(name: str) -> None:
+    """on_click: load a saved layout over the builder. Sections get FRESH ids — reusing the
+    saved ones would let stale widget state (a title typed under that id earlier this session)
+    win over what was actually saved."""
+    lay = tradeidea.list_layouts().get(name)
+    if not lay:
+        return
+    secs = []
+    for item in lay.get("sections") or tradeidea.DEFAULT_SECTIONS:
+        if isinstance(item, str):
+            spec = tradeidea.SECTIONS.get(item)
+            if spec:
+                secs.append(dict(spec, id=uuid.uuid4().hex[:8], preset_title=spec["title"]))
+        else:
+            secs.append(dict(item, id=uuid.uuid4().hex[:8]))
+    st.session_state["ti_secs"] = secs
+    desk = lay.get("desk", "FICC")
+    st.session_state["ti_desk"] = desk
+    st.session_state["ti_headline"] = lay.get("headline") or tradeidea.HEADLINES.get(desk, "")
+    _ti_set_sector(desk, lay.get("sector", ""))
+    st.session_state["ti_oneline"] = bool(lay.get("oneline", True))
+    st.session_state["ti_subject"] = bool(lay.get("subject_bar", True))
+    st.session_state["ti_pages"] = int(lay.get("pages", 1))
+    st.session_state["ti_loaded"] = name
+
+
+def _ti_layout_bar(payload_fn) -> None:
+    """Saved layouts: load one, save the current shape under a name, delete one. Named rather
+    than a single default because the same template now carries genuinely different pieces —
+    a macro write-up, a trade idea, a chart pack."""
+    layouts = tradeidea.list_layouts()
+    names = sorted(layouts)
+    b1, b2, b3, b4 = st.columns([0.34, 0.14, 0.34, 0.18])
+    pick = b1.selectbox("Saved layouts", ["—"] + names, key="ti_layout_pick",
+                        label_visibility="collapsed",
+                        help="Load a shape you saved earlier.")
+    b2.button("Load", key="ti_layout_load", disabled=pick == "—", use_container_width=True,
+              on_click=_ti_apply_layout, args=(pick,))
+    name = b3.text_input("Save as", key="ti_layout_name", label_visibility="collapsed",
+                         placeholder="Save this layout as…")
+    if b4.button("💾 Save", key="ti_layout_save", disabled=not name.strip(),
+                 use_container_width=True):
+        tradeidea.save_named_layout(name.strip(), payload_fn())
+        st.success(f"Saved “{name.strip()}”.")
+        st.rerun()
+    if pick != "—" and st.session_state.get("ti_confirm_del"):
+        d1, d2 = st.columns([0.5, 0.5])
+        if d1.button(f"Delete “{pick}”", key="ti_layout_del_yes", use_container_width=True):
+            tradeidea.delete_layout(pick)
+            st.session_state["ti_confirm_del"] = False
+            st.rerun()
+        d2.button("Cancel", key="ti_layout_del_no", use_container_width=True,
+                  on_click=lambda: st.session_state.update(ti_confirm_del=False))
+    elif pick != "—":
+        st.button("🗑 Delete this layout", key="ti_layout_del", type="tertiary",
+                  on_click=lambda: st.session_state.update(ti_confirm_del=True))
+
+
 def _ti_layout_ui() -> dict:
     """The builder: desk, sector, headline, then the sections — named, typed and ordered by the
     writer. Returns the payload that src/tradeidea.py renders."""
     saved = tradeidea.load_layout() or {}
+    _ti_take_seed()
     c1, c2 = st.columns([1, 1.6])
     desk = c1.segmented_control("Desk", ["FICC", "Equities"],
                                 default=saved.get("desk", "FICC"), key="ti_desk") or "FICC"
@@ -8050,6 +8189,9 @@ def _ti_layout_ui() -> dict:
         help="The black title band, and the file name. Whatever the piece is about — "
              "“US 10y Seasonality”, “Global Macro Trade Idea”.")
 
+    if st.session_state.get("ti_from"):
+        st.caption(f"Started from the Hot Sheet · **{st.session_state['ti_from']}** — the heading "
+                   "and sector are filled in; every word of the note is yours.")
     st.markdown("**Sections** — name each one, pick what goes in it, order them with the arrows.")
     secs = _ti_sections()
     # Keyed container so the phone CSS (brand.py) can hold each row's controls in ONE row —
@@ -8160,6 +8302,8 @@ def render_trade_idea() -> None:
     left, right = st.columns([1.15, 1], gap="large")
     with left:
         payload = _ti_layout_ui()
+        st.markdown("**Saved layouts**")
+        _ti_layout_bar(lambda: payload)
     if not payload["sections"]:
         right.info("Tick at least one section to build the template.")
         return
@@ -8178,15 +8322,11 @@ def render_trade_idea() -> None:
                    "neither prints on the copy they send out.")
 
     _stem = tradeidea.file_stem(payload)
-    d1, d2, d3 = st.columns(3)
+    d1, d2 = st.columns(2)
     d1.download_button("⬇️  Blank template (PDF)", data=_pdf, file_name=f"{_stem}.pdf",
                        mime="application/pdf", key="ti_dl_pdf", use_container_width=True)
     d2.download_button("⬇️  Fillable copy (HTML)", data=_html, file_name=f"{_stem}.html",
                        mime="text/html", key="ti_dl_html", use_container_width=True)
-    if IS_ADMIN and d3.button("💾  Save as my default layout", key="ti_save_layout",
-                              use_container_width=True):
-        tradeidea.save_layout(payload)
-        st.success("Saved — the builder opens on this layout from now on.")
     with st.expander("How the fillable copy works", expanded=False):
         st.markdown(
             "- Open the `.html` attachment — it opens in Edge/Chrome like any document, works "
