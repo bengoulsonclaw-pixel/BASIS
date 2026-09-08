@@ -2,7 +2,7 @@
 
 Every other report in this repo renders a computed view; this one deliberately renders
 nothing but the XP layout (inset black sidebar, yellow stripe, title band, banners,
-compliance disclaimer) under a fixed `GLOBAL MACRO TRADE IDEA` headline, so a colleague
+compliance disclaimer) under a fixed `Global Macro Trade Idea` headline, so a colleague
 can drop their own idea into it and send it on to clients in house style.
 
 Two artefacts off the same template (templates/tradeidea.html):

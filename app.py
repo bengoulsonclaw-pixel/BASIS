@@ -7958,7 +7958,7 @@ def render_trade_idea() -> None:
     disclaimer as every other report, so it stays in lockstep with them)."""
     st.subheader("📝 Trade Idea — blank house template")
     st.caption(
-        "The XP report layout with a **GLOBAL MACRO TRADE IDEA** headline and an empty body, "
+        "The XP report layout with a **Global Macro Trade Idea** headline and an empty body, "
         "ready for someone else to write into. The email carries **two attachments**: the blank "
         "**PDF** (the finished look) and a **fillable HTML** copy — the recipient opens that in "
         "any browser, clicks each dashed box and types, then presses **Ctrl + P → Save as PDF** "
