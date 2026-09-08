@@ -1158,7 +1158,13 @@ def clean_month_anchor(bank_key: str, asof: date,
             continue                                # rate-quoted zeros: the front-DI
                                                     # anchor lives in _bcb_fit instead
         for c in strip(p, asof, 3):
-            if meetings_in_window(bank, c):
+            # CLEAN means no decision between TODAY and the month's end — not
+            # merely none inside the month. A future no-meeting month (Nov-26)
+            # sits AFTER earlier meetings and reads the post-move rate: on
+            # 8 Sep 2026 it anchored r0 at 3.87 and printed a phantom -30%
+            # September cut into an actually-hiking market.
+            if any(asof <= bank_effective_date(bank, m) < c.end
+                   for m in bank.meetings):
                 continue
             px = px_of.get(c.code)
             if px is None:

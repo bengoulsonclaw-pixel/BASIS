@@ -191,3 +191,17 @@ def test_fit_instruments_rejects_implausible_prices(fake_store):
     _, contracts, _, _ = sp.fit_instruments("BOE", ASOF)
     assert "SFIH7" not in [c.code for c in contracts]
     assert {"SFIU6", "SFIZ6"} <= {c.code for c in contracts}
+
+
+def test_clean_month_anchor_rejects_future_clean_months(fake_store):
+    """Calendar-roll trap (bit for real on 8 Sep 2026): a FUTURE no-meeting
+    month (Nov-26) sits after the Sep+Oct decisions and reads the POST-move
+    rate — anchoring r0 there printed a phantom -30% September cut into a
+    hiking market. Clean = no decision between ASOF and the month's end."""
+    sep8 = date(2026, 9, 8)
+    # November monthly priced, no earlier monthlies: must NOT anchor
+    fake_store({"SERX6": 96.13})
+    assert sp.clean_month_anchor("FED", sep8) is None
+    # ...but the CURRENT month anchors when it is genuinely meeting-free
+    fake_store({"FFQ6": 96.3675})
+    assert sp.clean_month_anchor("FED", date(2026, 8, 14)) is not None
