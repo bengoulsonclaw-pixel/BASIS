@@ -1,0 +1,197 @@
+<!doctype html>
+{#- GLOBAL MACRO TRADE IDEA — the desk's blank house template.
+
+    Renders in two variants off the same markup (`editable`):
+      • editable=False → the blank PDF (dashed boxes + italic grey prompts) that shows the
+        finished look. Built by src/tradeidea.py → reportkit.render_pdf.
+      • editable=True  → a self-contained .html the recipient opens in any browser: every
+        box is click-to-type, the prompts vanish as they write, and Ctrl+P → Save as PDF
+        gives back the identical house layout (the toolbar, dashed guides and prompts are
+        all screen-only). Typing autosaves to that browser's localStorage.
+
+    Everything else — sidebar, yellow stripe, title band, banners, disclaimer — comes from
+    the shared _report_style.html / _disclaimer.html, so this page stays in lockstep with
+    every other report. Don't restyle here what belongs there. -#}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>XP Inc. Global Macro — Trade Idea</title>
+{% include "_report_style.html" %}
+<style>
+  /* ---- screen: paint an A4 sheet so the browser view matches the printed page ----------
+     .sidebar is position:fixed for print (it must repeat on every page); on screen that
+     would peg it to the viewport rather than the sheet, so it's re-anchored to .sheet. */
+  @media screen {
+    body { background: #E9EBEE; }
+    .sheet { position: relative; width: 8.27in; min-height: 11.69in; margin: 0.35in auto 0.7in;
+             background: #fff; padding: 0.3in 0; box-shadow: 0 2px 14px rgba(0,0,0,.18); }
+    .sidebar { position: absolute; top: 0.3in; bottom: 0.3in; }
+  }
+
+  /* ---- the writing areas -------------------------------------------------------------
+     Guides are dashed on screen and in the blank template; they disappear when the filled
+     copy is printed, leaving clean house-style prose. Min-heights are set so the empty
+     template fills one A4 page down to the disclaimer — see src/tradeidea.py. */
+  .field { font-size: 9.5pt; line-height: 1.45; color: #333; padding: 2mm 2.5mm;
+           border: 0.75pt dashed #C7CBD1; margin-top: 1.5mm; }
+  .field:focus { outline: 2px solid var(--yellow); outline-offset: 1pt; }
+  /* Sized so the EMPTY template is exactly one A4 page, disclaimer and all — verified by
+     rasterising the PDF, not by eye. Change one and re-check the page count. */
+  .field.h-trade { min-height: 0.85in; }
+  .field.h-why   { min-height: 1.60in; }
+  .field.h-risk  { min-height: 1.05in; }
+  .field.h-exec  { min-height: 1.05in; }
+
+  /* Prompt text: shown in the blank PDF, and in the browser until the writer types. */
+  .ph:empty::before { content: attr(data-ph); color: #9AA0A7; font-style: italic; }
+  .banner .ph:empty::before { color: #C9CDD2; font-style: italic; }   /* on black — house grey floor */
+  .sidebar .ph:empty::before { color: #A9AFB6; font-style: italic; }
+
+  /* "Produced by" — the shared style bakes Ben's name into .sidebar::after, which would be wrong
+     on a colleague's client note, so this one template replaces it with a real (mirrored) block:
+     the writer types their name/email ONCE in Contact above and the credit follows. Geometry and
+     type are copied from _report_style.html's ::after so the foot of the sidebar is unchanged. */
+  .sidebar::after { content: none; }
+  .produced { position: absolute; left: 0.14in; right: 0.14in; bottom: 0.2in;
+              color: #c9c9c9; font-size: 5.5pt; line-height: 1.6; letter-spacing: .1px;
+              overflow-wrap: anywhere; }
+
+  /* The one-line idea sits in the house trigger box (amber, yellow left rule). */
+  .trigger .lbl { font-weight: 700; color: var(--warn-tx); text-transform: uppercase;
+                  font-size: 8pt; letter-spacing: .3px; display: block; margin-bottom: 1mm; }
+  .trigger .ph { display: block; min-height: 0.34in; }
+
+  /* Screen-only toolbar for the editable copy. */
+  .editbar { position: sticky; top: 0; z-index: 5; background: var(--black); color: #fff;
+             font-family: Arial, sans-serif; font-size: 12px; padding: 8px 14px;
+             display: flex; align-items: center; gap: 12px; border-bottom: 3px solid var(--yellow); }
+  .editbar b { color: var(--yellow); letter-spacing: .3px; }
+  .editbar .hint { color: #C9CDD2; }
+  .editbar button { font: inherit; background: var(--yellow); color: #111; border: 0;
+                    padding: 5px 11px; cursor: pointer; font-weight: 700; }
+  .editbar button.ghost { background: transparent; color: #DDD; border: 1px solid #555; font-weight: 400; }
+  .saved { color: #8BE6A0; min-width: 5.5em; }
+
+  @media print {
+    .editbar { display: none !important; }
+    .edit .field { border: none; }                       /* the filled copy prints clean;
+                                                            the blank template keeps its guides */
+    .edit .ph:empty::before { content: ""; }             /* unwritten prompts never print */
+    .edit .field { min-height: 0; }                      /* the filled copy sets its own height */
+  }
+</style>
+</head>
+{%- set ce = 'contenteditable="true" spellcheck="true"' if editable else '' -%}
+<body class="{{ 'edit' if editable else 'blank' }}">
+{% if editable %}
+<div class="editbar">
+  <b>XP TRADE IDEA TEMPLATE</b>
+  <span class="hint">Click any dashed box and type. When you're done: <b>Ctrl&nbsp;+&nbsp;P → Save as PDF</b> — the guides and this bar don't print.</span>
+  <span style="flex:1"></span>
+  <span class="saved" id="saved"></span>
+  <button onclick="window.print()">Save as PDF</button>
+  <button class="ghost" onclick="clearAll()">Clear</button>
+</div>
+{% endif %}
+
+<div class="sheet">
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name ph" id="f_name" data-ph="Your name" {{ ce|safe }}></div>
+      <div class="email ph" id="f_mail1" data-ph="your.name@xpi.com.br" {{ ce|safe }}></div>
+      <div class="email ph" id="f_mail2" data-ph="Futures.Offshore@xpi.us" {{ ce|safe }}></div>
+    </div>
+    <div class="produced">Produced by<br>
+      <span class="ph" id="f_prodname" data-ph="Your name"></span><br>
+      <span class="ph" id="f_prodmail" data-ph="your.name@xpi.com.br"></span></div>
+  </div>
+
+  <div class="content">
+    <div class="titleband">
+      <h1>GLOBAL MACRO TRADE IDEA</h1>
+      <div class="sub"><span id="f_date" {{ ce|safe }}>{{ asof }}</span>
+        &nbsp;|&nbsp; XP Inc. Global Macro</div>
+    </div>
+
+    <div class="trigger">
+      <span class="lbl">The idea in one line</span>
+      <span class="ph" id="f_oneline"
+            data-ph="e.g. the market, the direction and the reason, in a single sentence." {{ ce|safe }}></span>
+    </div>
+
+    <div class="banner"><span class="mkt ph" id="f_market" data-ph="Market / instrument" {{ ce|safe }}></span>
+      <span class="sig ph" id="f_side" data-ph="Long / Short" {{ ce|safe }}></span></div>
+    <div class="field h-trade ph" id="f_trade" {{ ce|safe }}
+         data-ph="The trade — what to buy or sell, which contract or expiry, size or ratio, and the horizon."></div>
+
+    <div class="banner">Rationale</div>
+    <div class="field h-why ph" id="f_why" {{ ce|safe }}
+         data-ph="Why now — the macro or relative-value argument, the data or positioning behind it, and what the market is currently pricing."></div>
+
+    <div class="banner">Risks &amp; Invalidation</div>
+    <div class="field h-risk ph" id="f_risk" {{ ce|safe }}
+         data-ph="What would make this wrong — the events, levels or data that invalidate the argument."></div>
+
+    <div class="banner">Execution &amp; Levels</div>
+    <div class="field h-exec ph" id="f_exec" {{ ce|safe }}
+         data-ph="Entry, target and stop; liquidity, roll or expiry considerations."></div>
+
+    <hr class="rule">
+    {% include "_disclaimer.html" %}
+  </div>
+</div>
+
+{% if editable %}
+<script>
+  /* Autosave to this browser only — nothing leaves the machine. Keyed per field id so a
+     half-written idea survives an accidental tab close. */
+  var KEY = "basis_trade_idea_v1";
+  var fields = Array.prototype.slice.call(document.querySelectorAll("[contenteditable]"));
+  function load() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+      fields.forEach(function (el) { if (saved[el.id]) el.innerHTML = saved[el.id]; });
+    } catch (e) { /* private window / storage blocked — just start blank */ }
+  }
+  var timer = null;
+  function save() {
+    var out = {};
+    fields.forEach(function (el) { if (el.innerHTML.trim()) out[el.id] = el.innerHTML; });
+    try {
+      localStorage.setItem(KEY, JSON.stringify(out));
+      var s = document.getElementById("saved");
+      s.textContent = "Saved";
+      clearTimeout(timer); timer = setTimeout(function () { s.textContent = ""; }, 1500);
+    } catch (e) { /* storage blocked — typing still works, it just isn't kept */ }
+  }
+  function clearAll() {
+    if (!confirm("Clear everything you've typed and start from the blank template?")) return;
+    fields.forEach(function (el) { el.innerHTML = ""; });
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+  /* Paste as PLAIN text — pasting from Word/Bloomberg otherwise drags its own fonts and
+     colours in and breaks the house style. */
+  document.addEventListener("paste", function (e) {
+    if (!e.target.isContentEditable) return;
+    e.preventDefault();
+    document.execCommand("insertText", false, (e.clipboardData || window.clipboardData).getData("text"));
+  });
+  /* The sidebar's "Produced by" credit mirrors the Contact block — typed once, shown twice. */
+  function mirror() {
+    var pairs = [["f_name", "f_prodname"], ["f_mail1", "f_prodmail"]];
+    pairs.forEach(function (p) {
+      var src = document.getElementById(p[0]), dst = document.getElementById(p[1]);
+      if (src && dst) dst.textContent = src.textContent.trim();
+    });
+  }
+  document.addEventListener("input", function (e) {
+    if (e.target.isContentEditable) { mirror(); save(); }
+  });
+  load();
+  mirror();
+</script>
+{% endif %}
+</body>
+</html>

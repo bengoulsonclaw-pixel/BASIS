@@ -55,6 +55,7 @@ from src import markethours
 from src import blocksizes
 from src import bbgcodes
 from src import futyield
+from src import tradeidea
 from src import optbuilder
 from src import equities
 from src import eqfunda
@@ -95,6 +96,7 @@ FLAG_DETAIL_FILE = ROOT / "data" / "signals" / "flag_breakout.parquet"
 CONVREPORT_CLI = ROOT / "src" / "convreport.py"   # the merged "Technical Analysis" report (was the Conviction Screen)
 CURVEREPORT_CLI = ROOT / "src" / "curvereport.py"
 SEASREPORT_CLI = ROOT / "src" / "seasreport.py"     # Seasonality Monitor client PDF (2026-08-22)
+TRADEIDEA_CLI = ROOT / "src" / "tradeidea.py"       # blank client-facing Trade Idea template
 SNAPSHOT_CLI = ROOT / "snapshot.py"
 SNAPSHOT_DIR = ROOT / "data" / "snapshot"
 SNAPSHOT_MANIFEST = SNAPSHOT_DIR / "manifest.json"
@@ -514,11 +516,16 @@ def _recipient_picker(state_key: str, recipients_key: str):
     return sel
 
 
-def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_name, intro_html=None):
+def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_name, intro_html=None,
+                    extra_attachments=None, body_note=None, button_label=None):
     """Shared 'Email this report' block. Admins get the full recipient picker (desk/report contact
     lists, unchanged). Colleagues get a single-click send to their own logged-in address only —
     the recipient comes straight from the authenticated session, never from anything a colleague's
-    session can edit, so there is no path from this UI to an arbitrary address."""
+    session can edit, so there is no path from this UI to an arbitrary address.
+
+    `extra_attachments` ([(bytes, filename, mime_subtype), …]) rides alongside the PDF — the Trade
+    Idea template sends its fillable .html copy that way; `body_note` replaces the mail's default
+    "Full detail is in the attached PDF." line."""
     if not pdf_bytes:
         return
     user = CURRENT_USER
@@ -527,8 +534,8 @@ def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_na
         to_list = _recipient_picker(state_key, recipients_key)
         c1, c2 = st.columns([1, 4])
         confirm = c1.checkbox("Confirm", key=f"{state_key}_confirm")
-        clicked = c2.button("📤 Email report now", disabled=not (confirm and to_list),
-                            key=f"{state_key}_send")
+        clicked = c2.button(button_label or "📤 Email report now",
+                            disabled=not (confirm and to_list), key=f"{state_key}_send")
     else:
         to_list = [user["email"]]
         st.caption(f"Sends a copy to **{user['email']}** — your own address only.")
@@ -546,7 +553,8 @@ def email_report_ui(state_key, recipients_key, pdf_bytes, subject, attachment_na
                     sent = _mail.send_report_email(
                         _p, subject=subject,
                         intro_html=intro_html or f"<p>Please find the attached {attachment_name}.</p>",
-                        attachment_name=attachment_name, report_key=recipients_key, to_override=to_list)
+                        attachment_name=attachment_name, report_key=recipients_key, to_override=to_list,
+                        extra_attachments=extra_attachments, body_note=body_note)
                 auth.record_send(user["email"], recipients_key)
                 st.success("Emailed to " + ", ".join(sent) + ".")
             except Exception as _e:
@@ -1189,6 +1197,7 @@ _GROUP_TABS = {
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield"),
                            ("🔤 BBG Codes", "BBG Codes"),
+                           ("📝 Trade Idea", "Trade Idea"),
                            ("📄 Tearsheet", "Product Tearsheet"),
                            ("🧭 Macro Compass", "Macro Compass")],
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
@@ -7921,6 +7930,75 @@ def render_fut_yield() -> None:
         st.metric("P&L", f"{_mbp * _mlots * _dv:,.0f} {volbt.currency(_btk)}",
                   help="Yield move × futures DV01 × lots. A yield FALL is a price RISE.")
         st.caption(f"≈ {_mbp * _dv / volbt.point_value(_btk):.4f} price points per lot.")
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _trade_idea_files(day_iso: str) -> tuple[bytes, bytes]:
+    """Build the blank Trade Idea template — (pdf_bytes, html_bytes). Rendered in a subprocess
+    like every other report (headless Chromium doesn't belong in the Streamlit thread). Cached
+    on the ET date because the only thing that varies is the date in the title band."""
+    with tempfile.TemporaryDirectory() as _t:
+        _pdf = Path(_t) / tradeidea.PDF_NAME
+        _html = Path(_t) / tradeidea.HTML_NAME
+        r = subprocess.run([sys.executable, str(TRADEIDEA_CLI), str(_pdf), "--html", str(_html)],
+                           capture_output=True, text=True, timeout=180)
+        if r.returncode != 0 or not _pdf.exists():
+            raise RuntimeError((r.stderr or r.stdout or "unknown error")[-2000:])
+        return _pdf.read_bytes(), _html.read_bytes()
+
+
+def render_trade_idea() -> None:
+    """The blank GLOBAL MACRO TRADE IDEA template — the house layout with nothing in it.
+
+    Deliberately the one page here that computes nothing: it exists so a colleague can put
+    their OWN idea into the desk's format and send it to clients. Two files go out together —
+    the blank PDF (what the finished page looks like) and a fillable .html of the same page
+    that opens in any browser, types like a document and prints straight back to PDF. Engine:
+    src/tradeidea.py + templates/tradeidea.html (same sidebar, banners and compliance
+    disclaimer as every other report, so it stays in lockstep with them)."""
+    st.subheader("📝 Trade Idea — blank house template")
+    st.caption(
+        "The XP report layout with a **GLOBAL MACRO TRADE IDEA** headline and an empty body, "
+        "ready for someone else to write into. The email carries **two attachments**: the blank "
+        "**PDF** (the finished look) and a **fillable HTML** copy — the recipient opens that in "
+        "any browser, clicks each dashed box and types, then presses **Ctrl + P → Save as PDF** "
+        "to get the identical house page back with the guides and prompts gone. Nothing in it is "
+        "generated by BASIS: every word is the sender's, and the compliance disclaimer rides "
+        "along automatically.")
+    try:
+        _pdf, _html = _trade_idea_files(
+            datetime.now(ZoneInfo("America/New_York")).date().isoformat())
+    except Exception as e:
+        st.error(f"Template build failed:\n\n{e}")
+        return
+
+    c1, c2 = st.columns(2)
+    c1.download_button("⬇️  Blank template (PDF)", data=_pdf, file_name=tradeidea.PDF_NAME,
+                       mime="application/pdf", key="ti_dl_pdf", use_container_width=True)
+    c2.download_button("⬇️  Fillable copy (HTML)", data=_html, file_name=tradeidea.HTML_NAME,
+                       mime="text/html", key="ti_dl_html", use_container_width=True)
+    with st.expander("How the fillable copy works", expanded=False):
+        st.markdown(
+            "- Open the `.html` attachment — it opens in Edge/Chrome like any document, works "
+            "offline and needs nothing installed.\n"
+            "- Type into the **Contact**, headline, **The trade**, **Rationale**, "
+            "**Risks & invalidation** and **Execution & levels** boxes. The grey prompts vanish "
+            "as you write, and the name/email you enter also fills the *Produced by* credit.\n"
+            "- Typing is saved in that browser, so a closed tab doesn't lose the draft.\n"
+            "- **Ctrl + P → Save as PDF** (portrait, A4, background graphics on) produces the "
+            "client copy. The toolbar, dashed guides and any box left empty do not print.")
+    st.markdown("---")
+    email_report_ui(
+        "ti_email", "tradeidea", _pdf,
+        subject="XP Global Macro — Trade Idea template",
+        attachment_name=tradeidea.PDF_NAME,
+        intro_html="<p>Attached is the blank <b>Global Macro Trade Idea</b> template in the desk's "
+                   "report format.</p>",
+        extra_attachments=[(_html, tradeidea.HTML_NAME, "octet-stream")],
+        body_note="The PDF shows the finished layout. To write your own idea, open the attached "
+                  "HTML file in any browser, click each dashed box and type, then press "
+                  "Ctrl + P and choose \"Save as PDF\" — the guides and prompts don't print.",
+        button_label="📤 Email the template now")
 
 
 def render_product_tearsheet() -> None:
@@ -16466,6 +16544,8 @@ if active == "Fut Yield":
     render_fut_yield(); st.stop()
 if active == "BBG Codes":
     render_bbg_codes(); st.stop()
+if active == "Trade Idea":
+    render_trade_idea(); st.stop()
 if active == "Product Tearsheet":
     render_product_tearsheet(); st.stop()
 if active == "STIR Timeline":

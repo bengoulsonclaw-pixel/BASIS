@@ -241,20 +241,26 @@ def send_email(pdf_path: Path, asof, dry_run: bool = False, to_override=None, su
 
 
 def send_report_email(pdf_path, subject, intro_html, attachment_name,
-                      report_key="", to_override=None, dry_run=False):
+                      report_key="", to_override=None, dry_run=False,
+                      extra_attachments=None, body_note=None):
     """Generic desk emailer for the visual client reports (Volatility / Skew / Term / …):
     a short branded body with the PDF attached. Reuses this module's Gmail credentials and
     recipient list (data/email_recipients.json keyed by report_key, else the Morning Coffee
-    desk list). Returns the recipient list it sent to."""
+    desk list). Returns the recipient list it sent to.
+
+    `extra_attachments` — optional [(bytes, filename, mime_subtype), …] sent alongside the PDF
+    (the Trade Idea template rides its fillable .html copy in this way). `body_note` replaces
+    the default "Full detail is in the attached PDF." line, for a mail where that isn't true."""
     sender, app_pw, recipients = load_email_cfg()
     recipients = to_override or _managed_recipients(report_key, recipients)
     pdf_path = Path(pdf_path)
+    note = body_note or "Full detail is in the attached PDF."
     html = (
         '<div style="font-family:Arial,Helvetica,sans-serif;color:#222;font-size:14px;">'
         f'{intro_html}'
-        '<p>Full detail is in the attached PDF.</p>'
+        f'<p>{note}</p>'
         f'{DISCLAIMER_HTML}</div>')
-    text = ("Full detail is in the attached PDF.\n\n"
+    text = (f"{note}\n\n"
             f"{DISCLAIMER_TEXT}")
     msg = MIMEMultipart("mixed")
     msg["From"], msg["To"], msg["Subject"] = sender, ", ".join(recipients), subject
@@ -266,6 +272,10 @@ def send_report_email(pdf_path, subject, intro_html, attachment_name,
         ap = MIMEApplication(f.read(), _subtype="pdf")
     ap.add_header("Content-Disposition", "attachment", filename=attachment_name)
     msg.attach(ap)
+    for blob, fname, subtype in (extra_attachments or []):
+        extra = MIMEApplication(blob, _subtype=subtype)
+        extra.add_header("Content-Disposition", "attachment", filename=fname)
+        msg.attach(extra)
     if dry_run:
         print(f"[dry-run] would send '{subject}' to {recipients}")
         return recipients
