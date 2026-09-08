@@ -80,6 +80,8 @@
   .chartbox.has img { display: block; }
   .chartbox.has .dropz { display: none; }
   .chartbox input[type=file] { display: none; }
+  .chartcap { font-size: 7.5pt; color: #666; font-style: italic; margin-top: 1mm; }
+  .chartcap:empty::before { color: #A9AEB4; }
 
   /* Screen-only toolbar for the editable copy. */
   .editbar { position: sticky; top: 0; z-index: 5; background: var(--black); color: #fff;
@@ -163,20 +165,22 @@
             {% for r in range(s.rows) %}
             <tr>{% for c in s.cols %}
               <td class="cell{% if not loop.first %} center{% endif %}"><span class="ph"
-                  id="f_{{ s.key }}_{{ r }}_{{ loop.index0 }}"
+                  id="f_{{ s.eid }}_{{ r }}_{{ loop.index0 }}"
                   data-ph="{{ s.prompts[loop.index0] if r == 0 else '' }}" {{ ce|safe }}></span></td>{% endfor %}
             </tr>
             {% endfor %}
           </tbody>
         </table>
       {% elif s.kind == 'chart' %}
-        <div class="chartbox fitme" id="f_{{ s.key }}" data-w="{{ s.weight }}">
+        <div class="chartbox fitme" id="f_{{ s.eid }}" data-w="{{ s.weight }}">
           <div class="dropz">{{ s.prompt }}</div>
           <img alt="">
           {% if editable %}<input type="file" accept="image/*">{% endif %}
         </div>
+        {# Where a screenshot came from, in the report's own fine print. Empty prints nothing. #}
+        <div class="chartcap ph" id="f_{{ s.eid }}_cap" data-ph="{{ s.caption }}" {{ ce|safe }}></div>
       {% else %}
-        <div class="field fitme ph" id="f_{{ s.key }}" data-w="{{ s.weight }}"
+        <div class="field fitme ph" id="f_{{ s.eid }}" data-w="{{ s.weight }}"
              data-ph="{{ s.prompt }}" {{ ce|safe }}></div>
       {% endif %}
     {% endfor %}

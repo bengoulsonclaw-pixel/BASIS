@@ -111,6 +111,15 @@ SECTIONS: dict[str, dict] = {
     },
 }
 
+# Column sets for a table section. "Custom" is whatever the builder types — a note about
+# option pricing wants different headings from one about futures levels, and both are ordinary
+# house tables underneath.
+TABLE_PRESETS = {
+    "Trade levels": ["Instrument", "Direction", "Entry", "Target", "Stop", "Horizon"],
+    "Option pricing": ["Structure", "Expiry", "Strikes", "Price", "Breakeven", "Max risk"],
+    "Calendar": ["Date", "Event", "Why it matters"],
+}
+
 # The classic one-pager, and what the builder opens on.
 DEFAULT_SECTIONS = ["trade", "why", "risk", "levels"]
 
@@ -144,25 +153,51 @@ def save_layout(payload: dict) -> None:
 
 
 def file_stem(payload: dict) -> str:
-    """`XP_Trade_Idea_Energy_TEMPLATE` — sector in the name so a desk full of these is sortable."""
-    bits = ["XP", "Trade", "Idea"]
-    sector = (payload.get("sector") or "").strip()
-    if sector:
-        bits += [w for w in "".join(c if c.isalnum() else " " for c in sector).split()]
-    return "_".join(bits + ["TEMPLATE"])
+    """`XP_US_10y_Seasonality_Energy_TEMPLATE` — built from the HEADLINE, not a fixed name: the
+    piece may be about anything, and the writer already typed what it is."""
+    words = "".join(c if c.isalnum() else " " for c in
+                    (payload.get("headline") or "Trade Idea")).split()
+    sector = "".join(c if c.isalnum() else " " for c in (payload.get("sector") or "")).split()
+    return "_".join(["XP"] + words[:8] + sector[:3] + ["TEMPLATE"])
 
 
 def _sections(payload: dict) -> list[dict]:
-    """The chosen keys resolved against the catalogue, in the order the builder set."""
+    """Resolve the builder's section list into what the template renders.
+
+    A section arrives either as a catalogue KEY (the quick-add presets, and every layout saved
+    before the builder learned to name its own sections) or as a full INSTANCE dict — the same
+    fields, but with a title, columns and prompt the writer chose. Instances are what let one
+    template serve a note about anything: a section is just a titled box of a given kind, and
+    the same kind can appear as many times as the piece needs.
+    """
     out = []
-    rows = payload.get("rows") or {}
-    for key in payload.get("sections") or DEFAULT_SECTIONS:
-        spec = SECTIONS.get(key)
-        if not spec:
-            continue                     # a key from an older saved layout — skip, don't crash
-        s = dict(spec, key=key, height=MIN_BOX_IN)
-        if s["kind"] == "table":
-            s["rows"] = int(rows.get(key, spec.get("rows", 3)))
+    legacy_rows = payload.get("rows") or {}
+    for i, item in enumerate(payload.get("sections") or DEFAULT_SECTIONS):
+        if isinstance(item, str):                       # catalogue key (or an older layout)
+            spec = SECTIONS.get(item)
+            if not spec:
+                continue                                # a key we no longer ship — skip, don't crash
+            s = dict(spec, id=item)
+            if s["kind"] == "table":
+                s["rows"] = int(legacy_rows.get(item, spec.get("rows", 3)))
+        else:
+            s = dict(item)
+        kind = s.get("kind", "prose")
+        # `eid` is what the markup keys every box, cell and saved draft on. It must be unique
+        # per section AND stable across rebuilds (the fillable copy's autosave is keyed on it),
+        # so it comes from the instance id the builder minted, not from the position.
+        s["eid"] = "".join(c if c.isalnum() else "_" for c in str(s.get("id") or f"s{i}"))
+        s["kind"] = kind
+        s.setdefault("title", "Section")
+        s.setdefault("prompt", "")
+        s.setdefault("weight", 2.2 if kind == "chart" else (0.0 if kind == "table" else 1.0))
+        if kind == "table":
+            s["cols"] = [c for c in (s.get("cols") or TABLE_PRESETS["Trade levels"]) if str(c).strip()]
+            s["prompts"] = list(s.get("prompts") or [])[:len(s["cols"])]
+            s["prompts"] += [""] * (len(s["cols"]) - len(s["prompts"]))
+            s["rows"] = max(1, min(20, int(s.get("rows", 3))))
+        if kind == "chart":
+            s.setdefault("caption", "Source: Bloomberg")
         out.append(s)
     return out
 

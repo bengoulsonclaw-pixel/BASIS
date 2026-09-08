@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from datetime import datetime, date, timedelta, time as dtime, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -7972,17 +7973,62 @@ def _trade_idea_files(payload_json: str) -> tuple[bytes, bytes, bytes]:
     return pdf_bytes, html_bytes, preview
 
 
-def _ti_move(key: str, delta: int) -> None:
+def _ti_new(kind: str, title: str = "", **extra) -> dict:
+    """A fresh section instance. The id is minted once and never changes: the fillable copy's
+    autosave is keyed on it, so a section keeps its draft when the layout is rebuilt."""
+    inst = {"id": uuid.uuid4().hex[:8], "kind": kind, "title": title or
+            {"prose": "New section", "table": "Table", "chart": "Chart"}[kind], "prompt": ""}
+    if kind == "table":
+        inst.update(cols=list(tradeidea.TABLE_PRESETS["Trade levels"]), rows=3,
+                    prompts=list(tradeidea.SECTIONS["levels"]["prompts"]))
+    if kind == "chart":
+        inst.update(prompt=tradeidea.SECTIONS["chart"]["prompt"], caption="Source: Bloomberg",
+                    weight=2.2)
+    return inst
+
+
+def _ti_sections() -> list:
+    """The working section list, seeded from the saved default layout (or the classic one-pager)."""
+    if "ti_secs" not in st.session_state:
+        saved = (tradeidea.load_layout() or {}).get("sections") or tradeidea.DEFAULT_SECTIONS
+        out = []
+        for item in saved:
+            if isinstance(item, str):        # catalogue key, incl. every layout saved before this
+                spec = tradeidea.SECTIONS.get(item)
+                if spec:
+                    out.append(dict(spec, id=uuid.uuid4().hex[:8],
+                                    preset_title=spec["title"]))
+            else:
+                out.append(dict(item, id=item.get("id") or uuid.uuid4().hex[:8]))
+        st.session_state["ti_secs"] = out
+    return st.session_state["ti_secs"]
+
+
+def _ti_add(kind: str = "prose", preset_key: str = "") -> None:
+    """on_click: append a section — a blank one of `kind`, or one of the catalogue presets."""
+    secs = _ti_sections()
+    if preset_key:
+        spec = tradeidea.SECTIONS[preset_key]
+        secs.append(dict(spec, id=uuid.uuid4().hex[:8], preset_title=spec["title"]))
+    else:
+        secs.append(_ti_new(kind))
+
+
+def _ti_drop(sid: str) -> None:
+    st.session_state["ti_secs"] = [s for s in _ti_sections() if s["id"] != sid]
+
+
+def _ti_move(sid: str, delta: int) -> None:
     """on_click: shuffle one section up/down the running order."""
-    order = st.session_state["ti_order"]
-    i = order.index(key)
-    j = max(0, min(len(order) - 1, i + delta))
-    order.insert(j, order.pop(i))
+    secs = _ti_sections()
+    i = next(n for n, s in enumerate(secs) if s["id"] == sid)
+    j = max(0, min(len(secs) - 1, i + delta))
+    secs.insert(j, secs.pop(i))
 
 
 def _ti_layout_ui() -> dict:
-    """The builder: desk, sector, headline, then the section list with tick-boxes and arrows.
-    Returns the payload that src/tradeidea.py renders."""
+    """The builder: desk, sector, headline, then the sections — named, typed and ordered by the
+    writer. Returns the payload that src/tradeidea.py renders."""
     saved = tradeidea.load_layout() or {}
     c1, c2 = st.columns([1, 1.6])
     desk = c1.segmented_control("Desk", ["FICC", "Equities"],
@@ -8000,50 +8046,93 @@ def _ti_layout_ui() -> dict:
         if sector == "—":
             sector = ""
     headline = st.text_input(
-        "Headline", key=f"ti_head_{desk}", value=tradeidea.HEADLINES[desk],
-        help="The black title band. Defaults per desk; edit it for a one-off note.")
+        "Headline", key="ti_headline", value=saved.get("headline") or tradeidea.HEADLINES[desk],
+        help="The black title band, and the file name. Whatever the piece is about — "
+             "“US 10y Seasonality”, “Global Macro Trade Idea”.")
 
-    st.markdown("**Sections** — tick what this note needs, then order them with the arrows.")
-    catalogue = list(tradeidea.SECTIONS)
-    # Keyed container so the phone CSS (brand.py) can hold each row's tick + arrows in ONE
-    # row — stacked, eleven sections turn into forty rows of full-width buttons.
-    saved_order = [k for k in (saved.get("sections") or tradeidea.DEFAULT_SECTIONS) if k in catalogue]
-    order = st.session_state.setdefault(
-        "ti_order", saved_order + [k for k in catalogue if k not in saved_order])
-    for k in catalogue:                       # a section added to the catalogue since last time
-        if k not in order:
-            order.append(k)
-    default_on = set(saved.get("sections") or tradeidea.DEFAULT_SECTIONS)
-    chosen, rows = [], {}
+    st.markdown("**Sections** — name each one, pick what goes in it, order them with the arrows.")
+    secs = _ti_sections()
+    # Keyed container so the phone CSS (brand.py) can hold each row's controls in ONE row —
+    # stacked, a dozen sections turn into a screen-long ladder of full-width buttons.
     with st.container(key="ti_rows"):
-        for pos, key in enumerate(list(order)):
-            spec = tradeidea.SECTIONS[key]
-            cc = st.columns([0.34, 0.30, 0.20, 0.08, 0.08], vertical_alignment="center")
-            on = cc[0].checkbox(spec["title"], value=key in default_on, key=f"ti_on_{key}")
-            cc[1].caption({"prose": "writing box", "table": "blank table",
-                           "chart": "chart / diagram box"}[spec["kind"]])
-            if spec["kind"] == "table":
-                rows[key] = int(cc[2].number_input(
-                    "Rows", 1, 10, int((saved.get("rows") or {}).get(key, spec["rows"])),
-                    key=f"ti_rows_{key}", label_visibility="collapsed", disabled=not on))
-            cc[3].button("↑", key=f"ti_up_{key}", disabled=pos == 0, on_click=_ti_move,
-                         args=(key, -1), use_container_width=True)
-            cc[4].button("↓", key=f"ti_dn_{key}", disabled=pos == len(order) - 1, on_click=_ti_move,
-                         args=(key, 1), use_container_width=True)
-            if on:
-                chosen.append(key)
+        for pos, sec in enumerate(list(secs)):
+            sid = sec["id"]
+            cc = st.columns([0.40, 0.22, 0.18, 0.07, 0.07, 0.06], vertical_alignment="center")
+            sec["title"] = cc[0].text_input("Title", value=sec.get("title", ""), key=f"ti_t_{sid}",
+                                            label_visibility="collapsed")
+            # Rename a standard section and its stock prompt no longer describes it — "The trade
+            # — what to buy or sell…" under a heading about US fiscal policy is worse than no
+            # prompt at all. Chart prompts stay: they instruct rather than guide.
+            if (sec.get("preset_title") and sec["kind"] == "prose"
+                    and sec["title"].strip() != sec["preset_title"]):
+                sec["prompt"] = ""
+                sec.pop("preset_title", None)
+            kinds = ["Writing box", "Table", "Chart / image"]
+            kind_of = {"prose": 0, "table": 1, "chart": 2}
+            new_kind = cc[1].selectbox("Kind", kinds, index=kind_of.get(sec["kind"], 0),
+                                       key=f"ti_k_{sid}", label_visibility="collapsed")
+            new_kind = ["prose", "table", "chart"][kinds.index(new_kind)]
+            if new_kind != sec["kind"]:                # retyped: rebuild its innards, keep name+id
+                sec.update({k: v for k, v in _ti_new(new_kind, sec["title"]).items() if k != "id"})
+            if sec["kind"] == "table":
+                with cc[2]:
+                    names = list(tradeidea.TABLE_PRESETS)
+                    cur = next((n for n, c in tradeidea.TABLE_PRESETS.items()
+                                if c == sec.get("cols")), "Custom")
+                    pick = st.selectbox("Columns", names + ["Custom"], key=f"ti_cp_{sid}",
+                                        index=(names + ["Custom"]).index(cur),
+                                        label_visibility="collapsed")
+                    if pick != "Custom" and tradeidea.TABLE_PRESETS[pick] != sec.get("cols"):
+                        sec["cols"] = list(tradeidea.TABLE_PRESETS[pick])
+                        sec["prompts"] = []
+                    sec["rows"] = int(st.number_input("Rows", 1, 12, int(sec.get("rows", 3)),
+                                                      key=f"ti_r_{sid}", label_visibility="collapsed"))
+            elif sec["kind"] == "chart":
+                sec["caption"] = cc[2].text_input("Source", value=sec.get("caption", ""),
+                                                  key=f"ti_c_{sid}", label_visibility="collapsed",
+                                                  placeholder="Source line")
+            cc[3].button("↑", key=f"ti_up_{sid}", disabled=pos == 0, on_click=_ti_move,
+                         args=(sid, -1), use_container_width=True)
+            cc[4].button("↓", key=f"ti_dn_{sid}", disabled=pos == len(secs) - 1, on_click=_ti_move,
+                         args=(sid, 1), use_container_width=True)
+            cc[5].button("✕", key=f"ti_x_{sid}", on_click=_ti_drop, args=(sid,),
+                         use_container_width=True, help="Remove this section")
+            if sec["kind"] == "table" and st.session_state.get(f"ti_cp_{sid}") == "Custom":
+                sec["cols"] = [c.strip() for c in st.text_input(
+                    "Columns", value=", ".join(sec.get("cols", [])), key=f"ti_cc_{sid}",
+                    label_visibility="collapsed",
+                    help="Column headings, comma separated.").split(",") if c.strip()]
+                sec["prompts"] = []
+
+    a1, a2, a3, a4 = st.columns([0.24, 0.20, 0.24, 0.32])
+    a1.button("➕ Writing box", key="ti_add_prose", on_click=_ti_add, args=("prose",),
+              use_container_width=True)
+    a2.button("➕ Table", key="ti_add_table", on_click=_ti_add, args=("table",),
+              use_container_width=True)
+    a3.button("➕ Chart / image", key="ti_add_chart", on_click=_ti_add, args=("chart",),
+              use_container_width=True)
+    with a4:      # the standard sections, pre-titled and pre-prompted, one click each
+        _pk = st.selectbox("Add a standard section", ["—"] +
+                           [f'{v["title"]}' for v in tradeidea.SECTIONS.values()],
+                           key="ti_preset_pick", label_visibility="collapsed")
+        if _pk != "—":
+            _key = next(k for k, v in tradeidea.SECTIONS.items() if v["title"] == _pk)
+            st.button(f"➕ Add “{_pk}”", key="ti_add_preset", on_click=_ti_add,
+                      args=("prose", _key), use_container_width=True)
 
     e1, e2, e3 = st.columns(3)
     oneline = e1.checkbox("“The idea in one line” box", value=saved.get("oneline", True),
                           key="ti_oneline")
     subject = e2.checkbox("Instrument / direction bar", value=saved.get("subject_bar", True),
                           key="ti_subject")
-    pages = e3.radio("Writing space", [1, 2], index=int(saved.get("pages", 1)) - 1, horizontal=True,
-                     key="ti_pages", format_func=lambda n: f"{n} page" + ("" if n == 1 else "s"),
+    pages = e3.radio("Writing space", [1, 2, 3], index=int(saved.get("pages", 1)) - 1,
+                     horizontal=True, key="ti_pages",
+                     format_func=lambda n: f"{n} page" + ("" if n == 1 else "s"),
                      help="How much room the blank boxes get. The sections share whatever the "
                           "furniture leaves, so the template always fills the sheet.")
-    return {"desk": desk, "sector": sector, "headline": headline.strip() or tradeidea.HEADLINES[desk],
-            "sections": chosen, "rows": rows, "oneline": oneline, "subject_bar": subject,
+    return {"desk": desk, "sector": sector,
+            "headline": headline.strip() or tradeidea.HEADLINES[desk],
+            "sections": [dict(s) for s in secs], "oneline": oneline, "subject_bar": subject,
             "pages": int(pages),
             "asof": datetime.now(ZoneInfo("America/New_York")).date().isoformat()}
 
@@ -14456,6 +14545,13 @@ def _seas_wspan(start, weeks) -> str:
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
+def _seas_window_paths(ticker: str, start: int, weeks: int, mode: str):
+    """SEAG-style per-year cumulative paths through one window (weekly basis)."""
+    _mo, wk = _seas_changes(mode)
+    return seasmon.window_paths(wk, ticker, start, weeks)
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
 def _seas_window_years(ticker: str, start: int, weeks: int, mode: str):
     """Per-year moves of one window on BOTH bases: (weekly-aligned, fixed-date)."""
     _mo, wk = _seas_changes(mode)
@@ -14527,6 +14623,56 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
         "SEAG-style read anyone can reproduce on a terminal; blue = the finder's weekly "
         "alignment. Years where the two bars disagree in sign are the drift-fragile ones — "
         "the window's edges, not its middle, decided them.")
+
+    # the SEAG overlay: every year's normalized walk through the window (Ben's ask,
+    # 2026-09-08 — "show what it is we are flagging", the Bloomberg Seasonality Chart look)
+    paths = _seas_window_paths(ticker, int(row["start"]), int(row["weeks"]), MODE)
+    if paths is not None and not paths.empty:
+        cur_iso = date.today().isocalendar()[0]
+        hist = paths[paths["year"] != cur_iso]
+        cur = paths[paths["year"] == cur_iso]
+        med_path = (hist.groupby("wdate")["cum"].median().reset_index()
+                    if not hist.empty else pd.DataFrame())
+        x_enc = alt.X("wdate:T", title=None,
+                      axis=alt.Axis(format="%d %b", labelFontSize=12))
+        yr_lines = alt.Chart(hist).mark_line(strokeWidth=1.4, opacity=0.75).encode(
+            x=x_enc,
+            y=alt.Y("cum:Q", title=f"cum move ({unit})", scale=alt.Scale(zero=False)),
+            color=alt.Color("year:O", scale=alt.Scale(scheme="category10"),
+                            legend=alt.Legend(orient="right", title=None,
+                                              labelFontSize=11, symbolStrokeWidth=3)),
+            tooltip=[alt.Tooltip("year:O"), alt.Tooltip("wdate:T", format="%d %b"),
+                     alt.Tooltip("cum:Q", title=f"cum ({unit})", format="+,.1f")])
+        layers = [alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+            color=cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="y:Q"), yr_lines]
+        if not med_path.empty:
+            layers.append(alt.Chart(med_path).mark_line(
+                color=cc["ink"], strokeWidth=3, strokeDash=[7, 4]).encode(
+                x=x_enc, y="cum:Q",
+                tooltip=[alt.Tooltip("wdate:T", format="%d %b"),
+                         alt.Tooltip("cum:Q", title=f"median ({unit})", format="+,.1f")]))
+        if not cur.empty and len(cur) > 1:
+            layers.append(alt.Chart(cur).mark_line(
+                color=cc["halo"], strokeWidth=5.2).encode(x=x_enc, y="cum:Q"))
+            layers.append(alt.Chart(cur).mark_line(
+                color=cc["accent"], strokeWidth=3.2).encode(
+                x=x_enc, y="cum:Q",
+                tooltip=[alt.Tooltip("year:O"), alt.Tooltip("wdate:T", format="%d %b"),
+                         alt.Tooltip("cum:Q", title=f"{cur_iso} cum ({unit})",
+                                     format="+,.1f")]))
+        brand.show_chart(alt.layer(*layers).properties(
+            height=300,
+            title=f"{universe.yield_name(ticker)} — every year's walk through "
+                  f"{row['label']}, rebased to 0 at the start"))
+        _cur_note = (f" **Gold** = {cur_iso}'s run so far." if not cur.empty and len(cur) > 1
+                     else f" {cur_iso}'s line joins as soon as the window has a week on the clock.")
+        st.caption(
+            "The Bloomberg-SEAG view of the same window: each line is one stored year's "
+            "cumulative path through the stretch, normalized to zero at the window start "
+            "(weekly closes, the finder's basis — each line's endpoint is that year's bar "
+            f"above). **Dashed** = the median path across the stored years.{_cur_note} "
+            + ("For FI this runs in yield space — a RISING line here is the SEAG price "
+               "chart falling." if seasmon.unit_of(ticker) == "bp" else ""))
 
     # one year, Friday by Friday — the addends behind that year's streak entry
     yr_opts = sorted((int(y) for y in wy.index), reverse=True)
