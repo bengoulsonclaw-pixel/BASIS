@@ -1115,13 +1115,15 @@ def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
             continue
         if live and c.code not in have and c.code not in ov:
             continue
-        # Drop nearly-dead contracts (>70% of the window already elapsed):
-        # they are one number about HISTORY, and when a policy move sits in
-        # that history the stub model cannot honour them — TKYK6 (96%
-        # realized, straddling the June ECB hike) alone dragged the solved
-        # stub 3bp low and printed +12pts of phantom front odds.
+        # Drop only WHOLLY-dead contracts (>95% elapsed — under a week of
+        # forward info). The old 70% cutoff was armour for the single-stub
+        # era (TKYK6, 96% realized across the June hike, dragged one shared
+        # stub 3bp low); per-window-start stub GROUPS absorb a straddled
+        # move into that contract's own unknown, so a 79%-elapsed front now
+        # helps instead of poisons — dropping it cost the BoE 8bp of front-
+        # meeting identification every late-quarter (calendar-roll sweep).
         total = max(1, (c.end - c.start).days)
-        if (min(asof, c.end) - c.start).days / total > 0.70:
+        if (min(asof, c.end) - c.start).days / total > 0.95:
             continue
         px = ov.get(c.code)
         if px is None:

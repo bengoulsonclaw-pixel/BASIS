@@ -105,13 +105,15 @@ def test_fit_instruments_store_filter_and_exclusions(fake_store):
     assert "SOOU6" not in codes                    # ...and SOO always excluded
 
 
-def test_fit_instruments_drops_nearly_dead_contracts(fake_store):
-    # SFIM6 (Jun-Sep window) is ~64% elapsed on 14 Aug — kept; give it a
-    # late-August asof where it crosses 70% and it must drop out.
+def test_fit_instruments_drops_only_wholly_dead_contracts(fake_store):
+    # With per-window-start stub groups an 80%-elapsed front HELPS (its own
+    # group absorbs straddled history) — only >95% elapsed drops. SFIM6
+    # (Jun17–Sep16): kept at 14 Aug (64%) and 1 Sep (84%), out on 14 Sep (98%).
     fake_store({"SFIM6": 96.2525, "SFIU6": 96.155})
-    late = date(2026, 9, 1)                        # ~84% of Jun17-Sep16 elapsed
-    _, contracts, _, _ = sp.fit_instruments("BOE", late)
-    assert "SFIM6" not in [c.code for c in contracts]
+    _, contracts, _, _ = sp.fit_instruments("BOE", date(2026, 9, 1))
+    assert "SFIM6" in [c.code for c in contracts]
+    _, contracts_late, _, _ = sp.fit_instruments("BOE", date(2026, 9, 14))
+    assert "SFIM6" not in [c.code for c in contracts_late]
     _, contracts_aug, _, _ = sp.fit_instruments("BOE", ASOF)
     assert "SFIM6" in [c.code for c in contracts_aug]
 
