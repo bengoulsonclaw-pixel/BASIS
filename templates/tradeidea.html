@@ -1,16 +1,21 @@
 <!doctype html>
-{#- GLOBAL MACRO TRADE IDEA — the desk's blank house template.
+{#- Trade Idea — the desk's BLANK house template, assembled by the layout builder.
 
-    Renders in two variants off the same markup (`editable`):
-      • editable=False → the blank PDF (dashed boxes + italic grey prompts) that shows the
-        finished look. Built by src/tradeidea.py → reportkit.render_pdf.
-      • editable=True  → a self-contained .html the recipient opens in any browser: every
-        box is click-to-type, the prompts vanish as they write, and Ctrl+P → Save as PDF
-        gives back the identical house layout (the toolbar, dashed guides and prompts are
-        all screen-only). Typing autosaves to that browser's localStorage.
+    The section list, its order and each section's kind (prose / table / chart) all come from
+    the payload the app writes; nothing here is hard-coded but the furniture. See
+    src/tradeidea.py for the catalogue and for how the writing boxes are sized.
 
-    Everything else — sidebar, yellow stripe, title band, banners, disclaimer — comes from
-    the shared _report_style.html / _disclaimer.html, so this page stays in lockstep with
+    Two variants off the same markup (`editable`):
+      • editable=False → the blank PDF (dashed guides + grey prompts) that shows the finished
+        look. Built by src/tradeidea.py → reportkit.render_pdf.
+      • editable=True  → a self-contained .html the recipient opens in any browser: every box
+        is click-to-type, table cells included, chart boxes take a dropped image, the prompts
+        vanish as they write, and Ctrl+P → Save as PDF gives back the identical house layout
+        (toolbar, dashed guides and prompts are all screen-only). Typing autosaves to that
+        browser's localStorage.
+
+    Everything else — sidebar, yellow stripe, title band, banners, tables, disclaimer — comes
+    from the shared _report_style.html / _disclaimer.html, so this page stays in lockstep with
     every other report. Don't restyle here what belongs there. -#}
 <html lang="en">
 <head>
@@ -30,22 +35,21 @@
 
   /* ---- the writing areas -------------------------------------------------------------
      Guides are dashed on screen and in the blank template; they disappear when the filled
-     copy is printed, leaving clean house-style prose. Min-heights are set so the empty
-     template fills one A4 page down to the disclaimer — see src/tradeidea.py. */
+     copy is printed, leaving clean house-style prose. The min-heights are MEASURED and
+     baked in per section by src/tradeidea.py (_fit_boxes) so that whatever mix of sections
+     you pick, the blank template fills the page instead of trailing off half way down. */
   .field { font-size: 9.5pt; line-height: 1.45; color: #333; padding: 2mm 2.5mm;
            border: 0.75pt dashed #C7CBD1; margin-top: 1.5mm; }
-  .field:focus { outline: 2px solid var(--yellow); outline-offset: 1pt; }
-  /* Sized so the EMPTY template is exactly one A4 page, disclaimer and all — verified by
-     rasterising the PDF, not by eye. Change one and re-check the page count. */
-  .field.h-trade { min-height: 0.85in; }
-  .field.h-why   { min-height: 1.60in; }
-  .field.h-risk  { min-height: 1.05in; }
-  .field.h-exec  { min-height: 1.05in; }
+  .field:focus, .cell span:focus { outline: 2px solid var(--yellow); outline-offset: 1pt; }
+  /* Floor height, in case the measuring pass is ever skipped. Deliberately a CLASS rule:
+     the baked-in #id rules must outrank it, and an inline style would outrank them. */
+  .fitme { min-height: 0.55in; }
 
   /* Prompt text: shown in the blank PDF, and in the browser until the writer types. */
   .ph:empty::before { content: attr(data-ph); color: #9AA0A7; font-style: italic; }
   .banner .ph:empty::before { color: #C9CDD2; font-style: italic; }   /* on black — house grey floor */
   .sidebar .ph:empty::before { color: #A9AFB6; font-style: italic; }
+  td .ph:empty::before { color: #A9AEB4; font-style: italic; }
 
   /* "Produced by" — the shared style bakes Ben's name into .sidebar::after, which would be wrong
      on a colleague's client note, so this one template replaces it with a real (mirrored) block:
@@ -57,10 +61,25 @@
               overflow-wrap: anywhere; }
 
   /* The one-line idea sits in the house trigger box (amber, yellow left rule), written the
-     way every other report writes it: a bold lead-in flowing into the sentence. */
-  /* inline, NOT inline-block: an inline-block can't break across lines, so a long one-liner
+     way every other report writes it: a bold lead-in flowing into the sentence.
+     inline, NOT inline-block: an inline-block can't break across lines, so a long one-liner
      was pushed whole onto the line below the lead-in instead of flowing after it. */
   .trigger .ph { display: inline; }
+
+  /* Table sections (Trade Ideas to Execute / Catalysts): house table styling from the shared
+     sheet, with every cell click-to-type in the fillable copy. */
+  .cell span { display: block; min-height: 1.5em; }
+
+  /* Chart / diagram box: drop, paste or click to insert an image in the fillable copy; an
+     empty box is a dashed placeholder that never prints. */
+  .chartbox { border: 0.75pt dashed #C7CBD1; margin-top: 1.5mm; display: flex;
+              align-items: center; justify-content: center; text-align: center;
+              font-size: 9.5pt; color: #9AA0A7; font-style: italic; padding: 2mm; }
+  .chartbox img { display: none; width: 100%; }
+  .chartbox.has { border: none; padding: 0; display: block; min-height: 0 !important; }
+  .chartbox.has img { display: block; }
+  .chartbox.has .dropz { display: none; }
+  .chartbox input[type=file] { display: none; }
 
   /* Screen-only toolbar for the editable copy. */
   .editbar { position: sticky; top: 0; z-index: 5; background: var(--black); color: #fff;
@@ -72,13 +91,16 @@
                     padding: 5px 11px; cursor: pointer; font-weight: 700; }
   .editbar button.ghost { background: transparent; color: #DDD; border: 1px solid #555; font-weight: 400; }
   .saved { color: #8BE6A0; min-width: 5.5em; }
+  .edit .chartbox { cursor: pointer; }
+  .edit .chartbox.over { border-color: var(--yellow); background: #FFFDF2; }
 
   @media print {
     .editbar { display: none !important; }
-    .edit .field { border: none; }                       /* the filled copy prints clean;
+    .edit .field, .edit .chartbox { border: none; }      /* the filled copy prints clean;
                                                             the blank template keeps its guides */
     .edit .ph:empty::before { content: ""; }             /* unwritten prompts never print */
-    .edit .field { min-height: 0; }                      /* the filled copy sets its own height */
+    .edit .field { min-height: 0 !important; }           /* the filled copy sets its own height */
+    .edit .chartbox:not(.has) { display: none; }         /* an unused chart box leaves no gap */
   }
 </style>
 </head>
@@ -87,7 +109,7 @@
 {% if editable %}
 <div class="editbar">
   <b>XP Trade Idea template</b>
-  <span class="hint">Click any dashed box and type. When you're done: <b>Ctrl&nbsp;+&nbsp;P → Save as PDF</b> — the guides and this bar don't print.</span>
+  <span class="hint">Click any dashed box and type{% if has_chart %}; drop, paste or click a chart box to add an image{% endif %}. When you're done: <b>Ctrl&nbsp;+&nbsp;P → Save as PDF</b> — the guides and this bar don't print.</span>
   <span style="flex:1"></span>
   <span class="saved" id="saved"></span>
   <button onclick="window.print()">Save as PDF</button>
@@ -111,33 +133,53 @@
 
   <div class="content">
     <div class="titleband">
-      <h1>Global Macro Trade Idea</h1>
+      <h1>{{ headline }}</h1>
       <div class="sub"><span id="f_date" {{ ce|safe }}>{{ asof }}</span>
-        &nbsp;|&nbsp; XP Inc. Global Macro</div>
+        &nbsp;|&nbsp; XP Inc. Global Macro{% if sector %} &middot; {{ sector }}{% endif %}</div>
     </div>
 
+    {% if oneline %}
     <div class="trigger">
       <b>The idea in one line.</b>
       <span class="ph" id="f_oneline"
             data-ph="The market, the direction and the reason, in a single sentence." {{ ce|safe }}></span>
     </div>
+    {% endif %}
 
-    <div class="banner"><span class="mkt ph" id="f_market" data-ph="Market / instrument" {{ ce|safe }}></span>
+    {# The subject bar is the trade's identity — instrument left, side right — so it sits above
+       the sections whichever ones were picked, rather than riding on the first section's banner
+       (which read oddly when that section was, say, Market Context). #}
+    {% if subject_bar %}
+    <div class="banner"><span class="mkt ph" id="f_market" data-ph="{{ market_ph }}" {{ ce|safe }}></span>
       <span class="sig ph" id="f_side" data-ph="Long / Short" {{ ce|safe }}></span></div>
-    <div class="field h-trade ph" id="f_trade" {{ ce|safe }}
-         data-ph="The trade — what to buy or sell, which contract or expiry, size or ratio, and the horizon."></div>
+    {% endif %}
 
-    <div class="banner">Rationale</div>
-    <div class="field h-why ph" id="f_why" {{ ce|safe }}
-         data-ph="Why now — the macro or relative-value argument, the data or positioning behind it, and what the market is currently pricing."></div>
-
-    <div class="banner">Risks &amp; Invalidation</div>
-    <div class="field h-risk ph" id="f_risk" {{ ce|safe }}
-         data-ph="What would make this wrong — the events, levels or data that invalidate the argument."></div>
-
-    <div class="banner">Execution &amp; Levels</div>
-    <div class="field h-exec ph" id="f_exec" {{ ce|safe }}
-         data-ph="Entry, target and stop; liquidity, roll or expiry considerations."></div>
+    {% for s in sections %}
+      <div class="banner">{{ s.title }}</div>
+      {% if s.kind == 'table' %}
+        <table>
+          <thead><tr>{% for c in s.cols %}<th{% if not loop.first %} class="center"{% endif %}>{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for r in range(s.rows) %}
+            <tr>{% for c in s.cols %}
+              <td class="cell{% if not loop.first %} center{% endif %}"><span class="ph"
+                  id="f_{{ s.key }}_{{ r }}_{{ loop.index0 }}"
+                  data-ph="{{ s.prompts[loop.index0] if r == 0 else '' }}" {{ ce|safe }}></span></td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif s.kind == 'chart' %}
+        <div class="chartbox fitme" id="f_{{ s.key }}" data-w="{{ s.weight }}">
+          <div class="dropz">{{ s.prompt }}</div>
+          <img alt="">
+          {% if editable %}<input type="file" accept="image/*">{% endif %}
+        </div>
+      {% else %}
+        <div class="field fitme ph" id="f_{{ s.key }}" data-w="{{ s.weight }}"
+             data-ph="{{ s.prompt }}" {{ ce|safe }}></div>
+      {% endif %}
+    {% endfor %}
 
     <hr class="rule">
     {% include "_disclaimer.html" %}
@@ -147,37 +189,79 @@
 {% if editable %}
 <script>
   /* Autosave to this browser only — nothing leaves the machine. Keyed per field id so a
-     half-written idea survives an accidental tab close. */
-  var KEY = "basis_trade_idea_v1";
+     half-written idea survives an accidental tab close. Images live under their OWN key: a
+     big chart can blow the storage quota, and when it does the text must still be saved. */
+  var KEY = "basis_trade_idea_v1", IMGKEY = KEY + "_img";
   var fields = Array.prototype.slice.call(document.querySelectorAll("[contenteditable]"));
+  var boxes = Array.prototype.slice.call(document.querySelectorAll(".chartbox"));
+  var lastBox = boxes.length ? boxes[0] : null;
+
+  function flash() {
+    var s = document.getElementById("saved");
+    s.textContent = "Saved";
+    clearTimeout(window._tiTimer);
+    window._tiTimer = setTimeout(function () { s.textContent = ""; }, 1500);
+  }
+  function setImage(box, src, persist) {
+    box.querySelector("img").src = src;
+    box.classList.add("has");
+    if (persist !== false) saveImages();
+  }
   function load() {
     try {
       var saved = JSON.parse(localStorage.getItem(KEY) || "{}");
       fields.forEach(function (el) { if (saved[el.id]) el.innerHTML = saved[el.id]; });
     } catch (e) { /* private window / storage blocked — just start blank */ }
+    try {
+      var imgs = JSON.parse(localStorage.getItem(IMGKEY) || "{}");
+      boxes.forEach(function (b) { if (imgs[b.id]) setImage(b, imgs[b.id], false); });
+    } catch (e) { /* ditto */ }
   }
-  var timer = null;
   function save() {
     var out = {};
     fields.forEach(function (el) { if (el.innerHTML.trim()) out[el.id] = el.innerHTML; });
-    try {
-      localStorage.setItem(KEY, JSON.stringify(out));
-      var s = document.getElementById("saved");
-      s.textContent = "Saved";
-      clearTimeout(timer); timer = setTimeout(function () { s.textContent = ""; }, 1500);
-    } catch (e) { /* storage blocked — typing still works, it just isn't kept */ }
+    try { localStorage.setItem(KEY, JSON.stringify(out)); flash(); } catch (e) {}
   }
+  function saveImages() {
+    var out = {};
+    boxes.forEach(function (b) { if (b.classList.contains("has")) out[b.id] = b.querySelector("img").src; });
+    try { localStorage.setItem(IMGKEY, JSON.stringify(out)); flash(); } catch (e) {
+      /* quota — the chart stays on the page, it just isn't kept for next time */
+    }
+  }
+  function readImage(box, file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    var fr = new FileReader();
+    fr.onload = function () { setImage(box, fr.result); };
+    fr.readAsDataURL(file);
+  }
+  boxes.forEach(function (box) {
+    var input = box.querySelector("input[type=file]");
+    box.addEventListener("click", function () { lastBox = box; if (input) input.click(); });
+    box.addEventListener("dragover", function (e) { e.preventDefault(); box.classList.add("over"); });
+    box.addEventListener("dragleave", function () { box.classList.remove("over"); });
+    box.addEventListener("drop", function (e) {
+      e.preventDefault(); box.classList.remove("over"); lastBox = box;
+      readImage(box, e.dataTransfer.files[0]);
+    });
+    if (input) input.addEventListener("change", function () { readImage(box, input.files[0]); });
+  });
   function clearAll() {
     if (!confirm("Clear everything you've typed and start from the blank template?")) return;
     fields.forEach(function (el) { el.innerHTML = ""; });
-    try { localStorage.removeItem(KEY); } catch (e) {}
+    boxes.forEach(function (b) { b.classList.remove("has"); b.querySelector("img").removeAttribute("src"); });
+    try { localStorage.removeItem(KEY); localStorage.removeItem(IMGKEY); } catch (e) {}
   }
-  /* Paste as PLAIN text — pasting from Word/Bloomberg otherwise drags its own fonts and
-     colours in and breaks the house style. */
+  /* Paste: an image on the clipboard (a chart copied out of Bloomberg or Excel) goes into the
+     chart box you last clicked; anything else pastes as PLAIN text, because pasting from Word
+     otherwise drags its own fonts and colours in and breaks the house style. */
   document.addEventListener("paste", function (e) {
+    var cb = e.clipboardData || window.clipboardData;
+    var img = cb && cb.files && cb.files.length ? cb.files[0] : null;
+    if (img && /^image\//.test(img.type) && lastBox) { e.preventDefault(); readImage(lastBox, img); return; }
     if (!e.target.isContentEditable) return;
     e.preventDefault();
-    document.execCommand("insertText", false, (e.clipboardData || window.clipboardData).getData("text"));
+    document.execCommand("insertText", false, cb.getData("text"));
   });
   /* The sidebar's "Produced by" credit mirrors the Contact block — typed once, shown twice. */
   function mirror() {

@@ -1,10 +1,12 @@
 {
  "date": "2026-09-08",
  "runs": 1,
- "outcome": "compute_partial",
+ "outcome": "ok",
  "phase": "done",
  "mc": "sent",
  "started": "2026-09-08T09:48:30",
  "when": "2026-09-08T10:10:08",
- "detail": "complete in 21.6 min, but some compute steps FAILED \u2014 see logs/pull_driver_compute.log; those stores are stale until 'Re-run signals'. Do NOT re-pull, the Bloomberg data is fine"
+ "detail": "complete in 21.6 min \u2014 signals rebuilt (compute retry, 10:36)",
+ "ack": "2026-09-08T10:10:08",
+ "resolved": "2026-09-08T18:36:12"
 }

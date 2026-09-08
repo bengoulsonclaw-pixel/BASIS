@@ -7931,70 +7931,191 @@ def render_fut_yield() -> None:
         st.caption(f"≈ {_mbp * _dv / volbt.point_value(_btk):.4f} price points per lot.")
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def _trade_idea_files(day_iso: str) -> tuple[bytes, bytes]:
-    """Build the blank Trade Idea template — (pdf_bytes, html_bytes). Rendered in a subprocess
-    like every other report (headless Chromium doesn't belong in the Streamlit thread). Cached
-    on the ET date because the only thing that varies is the date in the title band."""
+# ---------------------------------------------------------------------------
+# Trade Idea — the blank house template, and the layout builder that shapes it
+# ---------------------------------------------------------------------------
+TI_SECTORS = {
+    # The app's own taxonomies, so the sector on a note matches the sector everywhere else.
+    "FICC": list(universe.ASSET_CLASSES) + ["Fixed Income", "Cross-asset / Macro"],
+    "Equities": list(equities.GICS_SECTORS) + ["Index / Macro"],
+}
+
+
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=48)
+def _trade_idea_files(payload_json: str) -> tuple[bytes, bytes, bytes]:
+    """Build one layout — (pdf_bytes, html_bytes, page1_png). Rendered in a subprocess like
+    every other report (headless Chromium doesn't belong in the Streamlit thread), and cached
+    on the payload so flicking a section on and off doesn't rebuild what's already built."""
+    payload = json.loads(payload_json)
+    stem = tradeidea.file_stem(payload)
     with tempfile.TemporaryDirectory() as _t:
-        _pdf = Path(_t) / tradeidea.PDF_NAME
-        _html = Path(_t) / tradeidea.HTML_NAME
-        r = subprocess.run([sys.executable, str(TRADEIDEA_CLI), str(_pdf), "--html", str(_html)],
+        _p = Path(_t) / "layout.json"
+        _pdf = Path(_t) / f"{stem}.pdf"
+        _html = Path(_t) / f"{stem}.html"
+        _p.write_text(payload_json, encoding="utf-8")
+        r = subprocess.run([sys.executable, str(TRADEIDEA_CLI), str(_pdf),
+                            "--html", str(_html), "--payload", str(_p)],
                            capture_output=True, text=True, timeout=180)
         if r.returncode != 0 or not _pdf.exists():
             raise RuntimeError((r.stderr or r.stdout or "unknown error")[-2000:])
-        return _pdf.read_bytes(), _html.read_bytes()
+        pdf_bytes, html_bytes = _pdf.read_bytes(), _html.read_bytes()
+    try:                        # page-1 thumbnail, so the builder shows what it is building
+        import io
+        import pypdfium2 as pdfium
+        doc = pdfium.PdfDocument(pdf_bytes)
+        buf = io.BytesIO()
+        doc[0].render(scale=1.4).to_pil().save(buf, format="PNG")
+        doc.close()
+        preview = buf.getvalue()
+    except Exception:
+        preview = b""
+    return pdf_bytes, html_bytes, preview
+
+
+def _ti_move(key: str, delta: int) -> None:
+    """on_click: shuffle one section up/down the running order."""
+    order = st.session_state["ti_order"]
+    i = order.index(key)
+    j = max(0, min(len(order) - 1, i + delta))
+    order.insert(j, order.pop(i))
+
+
+def _ti_layout_ui() -> dict:
+    """The builder: desk, sector, headline, then the section list with tick-boxes and arrows.
+    Returns the payload that src/tradeidea.py renders."""
+    saved = tradeidea.load_layout() or {}
+    c1, c2 = st.columns([1, 1.6])
+    desk = c1.segmented_control("Desk", ["FICC", "Equities"],
+                                default=saved.get("desk", "FICC"), key="ti_desk") or "FICC"
+    # "—" first so the sector is a deliberate choice: defaulting to whatever heads the list
+    # would stamp (say) Indices on an energy note that nobody thought to change.
+    sectors = ["—"] + TI_SECTORS[desk]
+    with c2:
+        sector = st.selectbox("Sector", sectors + ["Other…"], key=f"ti_sector_{desk}",
+                              index=sectors.index(saved["sector"]) if saved.get("sector") in sectors else 0,
+                              help="Rides in the title band's sub-line and in the file name.")
+        if sector == "Other…":
+            sector = st.text_input("Sector name", key="ti_sector_other",
+                                   placeholder="e.g. Freight").strip()
+        if sector == "—":
+            sector = ""
+    headline = st.text_input(
+        "Headline", key=f"ti_head_{desk}", value=tradeidea.HEADLINES[desk],
+        help="The black title band. Defaults per desk; edit it for a one-off note.")
+
+    st.markdown("**Sections** — tick what this note needs, then order them with the arrows.")
+    catalogue = list(tradeidea.SECTIONS)
+    saved_order = [k for k in (saved.get("sections") or tradeidea.DEFAULT_SECTIONS) if k in catalogue]
+    order = st.session_state.setdefault(
+        "ti_order", saved_order + [k for k in catalogue if k not in saved_order])
+    for k in catalogue:                       # a section added to the catalogue since last time
+        if k not in order:
+            order.append(k)
+    default_on = set(saved.get("sections") or tradeidea.DEFAULT_SECTIONS)
+    chosen, rows = [], {}
+    for pos, key in enumerate(list(order)):
+        spec = tradeidea.SECTIONS[key]
+        cc = st.columns([0.34, 0.30, 0.20, 0.08, 0.08], vertical_alignment="center")
+        on = cc[0].checkbox(spec["title"], value=key in default_on, key=f"ti_on_{key}")
+        cc[1].caption({"prose": "writing box", "table": "blank table",
+                       "chart": "chart / diagram box"}[spec["kind"]])
+        if spec["kind"] == "table":
+            rows[key] = int(cc[2].number_input(
+                "Rows", 1, 10, int((saved.get("rows") or {}).get(key, spec["rows"])),
+                key=f"ti_rows_{key}", label_visibility="collapsed", disabled=not on))
+        cc[3].button("↑", key=f"ti_up_{key}", disabled=pos == 0, on_click=_ti_move,
+                     args=(key, -1), use_container_width=True)
+        cc[4].button("↓", key=f"ti_dn_{key}", disabled=pos == len(order) - 1, on_click=_ti_move,
+                     args=(key, 1), use_container_width=True)
+        if on:
+            chosen.append(key)
+
+    e1, e2, e3 = st.columns(3)
+    oneline = e1.checkbox("“The idea in one line” box", value=saved.get("oneline", True),
+                          key="ti_oneline")
+    subject = e2.checkbox("Instrument / direction bar", value=saved.get("subject_bar", True),
+                          key="ti_subject")
+    pages = e3.radio("Writing space", [1, 2], index=int(saved.get("pages", 1)) - 1, horizontal=True,
+                     key="ti_pages", format_func=lambda n: f"{n} page" + ("" if n == 1 else "s"),
+                     help="How much room the blank boxes get. The sections share whatever the "
+                          "furniture leaves, so the template always fills the sheet.")
+    return {"desk": desk, "sector": sector, "headline": headline.strip() or tradeidea.HEADLINES[desk],
+            "sections": chosen, "rows": rows, "oneline": oneline, "subject_bar": subject,
+            "pages": int(pages),
+            "asof": datetime.now(ZoneInfo("America/New_York")).date().isoformat()}
 
 
 def render_trade_idea() -> None:
-    """The blank Global Macro Trade Idea template — the house layout with nothing in it.
-    Its own sidebar module (Ben, 2026-09-08); it opened life as a Market Information tab.
+    """The blank Trade Idea template, and the layout builder that shapes it. Its own module in
+    the Cross-asset group (Ben, 2026-09-08) — both desks write ideas.
 
     Deliberately the one page here that computes nothing: it exists so a colleague can put
-    their OWN idea into the desk's format and send it to clients. Two files go out together —
+    their OWN idea into the desk's format and send it to clients. You pick the desk, the
+    sector and which sections the note needs (and their order); two files go out together —
     the blank PDF (what the finished page looks like) and a fillable .html of the same page
     that opens in any browser, types like a document and prints straight back to PDF. Engine:
     src/tradeidea.py + templates/tradeidea.html (same sidebar, banners and compliance
     disclaimer as every other report, so it stays in lockstep with them)."""
     st.subheader("📝 Trade Idea — blank house template")
     st.caption(
-        "The XP report layout with a **Global Macro Trade Idea** headline and an empty body, "
-        "ready for someone else to write into. The email carries **two attachments**: the blank "
-        "**PDF** (the finished look) and a **fillable HTML** copy — the recipient opens that in "
-        "any browser, clicks each dashed box and types, then presses **Ctrl + P → Save as PDF** "
-        "to get the identical house page back with the guides and prompts gone. Nothing in it is "
-        "generated by BASIS: every word is the sender's, and the compliance disclaimer rides "
-        "along automatically.")
+        "The XP report layout with an empty body, ready for someone else to write into. Build "
+        "the skeleton the idea needs on the left; the email carries **two attachments** — the "
+        "blank **PDF** (the finished look) and a **fillable HTML** copy the recipient opens in "
+        "any browser, clicks each dashed box to type into, then prints with **Ctrl + P → Save "
+        "as PDF** to get the identical house page back. Nothing in it is generated by BASIS: "
+        "every word is the sender's, and the compliance disclaimer rides along automatically.")
+
+    left, right = st.columns([1.15, 1], gap="large")
+    with left:
+        payload = _ti_layout_ui()
+    if not payload["sections"]:
+        right.info("Tick at least one section to build the template.")
+        return
+    _json = json.dumps(payload, sort_keys=True)
     try:
-        _pdf, _html = _trade_idea_files(
-            datetime.now(ZoneInfo("America/New_York")).date().isoformat())
+        with st.spinner("Laying out the template…"):
+            _pdf, _html, _png = _trade_idea_files(_json)
     except Exception as e:
         st.error(f"Template build failed:\n\n{e}")
         return
+    with right:
+        st.markdown("**Preview** — page 1 of the blank template")
+        if _png:
+            st.image(_png, use_container_width=True)
+        st.caption("The dashed guides and grey prompts are the template talking to the writer — "
+                   "neither prints on the copy they send out.")
 
-    c1, c2 = st.columns(2)
-    c1.download_button("⬇️  Blank template (PDF)", data=_pdf, file_name=tradeidea.PDF_NAME,
+    _stem = tradeidea.file_stem(payload)
+    d1, d2, d3 = st.columns(3)
+    d1.download_button("⬇️  Blank template (PDF)", data=_pdf, file_name=f"{_stem}.pdf",
                        mime="application/pdf", key="ti_dl_pdf", use_container_width=True)
-    c2.download_button("⬇️  Fillable copy (HTML)", data=_html, file_name=tradeidea.HTML_NAME,
+    d2.download_button("⬇️  Fillable copy (HTML)", data=_html, file_name=f"{_stem}.html",
                        mime="text/html", key="ti_dl_html", use_container_width=True)
+    if IS_ADMIN and d3.button("💾  Save as my default layout", key="ti_save_layout",
+                              use_container_width=True):
+        tradeidea.save_layout(payload)
+        st.success("Saved — the builder opens on this layout from now on.")
     with st.expander("How the fillable copy works", expanded=False):
         st.markdown(
             "- Open the `.html` attachment — it opens in Edge/Chrome like any document, works "
             "offline and needs nothing installed.\n"
-            "- Type into the **Contact**, headline, **The trade**, **Rationale**, "
-            "**Risks & invalidation** and **Execution & levels** boxes. The grey prompts vanish "
-            "as you write, and the name/email you enter also fills the *Produced by* credit.\n"
+            "- Type into the **Contact**, headline and section boxes; table cells are typed the "
+            "same way. The grey prompts vanish as you write, and the name/email you enter also "
+            "fills the *Produced by* credit.\n"
+            "- A **chart** box takes a dropped image file, a click-to-choose, or a chart pasted "
+            "straight from Bloomberg or Excel.\n"
             "- Typing is saved in that browser, so a closed tab doesn't lose the draft.\n"
             "- **Ctrl + P → Save as PDF** (portrait, A4, background graphics on) produces the "
             "client copy. The toolbar, dashed guides and any box left empty do not print.")
     st.markdown("---")
     email_report_ui(
         "ti_email", "tradeidea", _pdf,
-        subject="XP Global Macro — Trade Idea template",
-        attachment_name=tradeidea.PDF_NAME,
-        intro_html="<p>Attached is the blank <b>Global Macro Trade Idea</b> template in the desk's "
+        subject=f"XP {payload['headline']} — template"
+                + (f" ({payload['sector']})" if payload["sector"] else ""),
+        attachment_name=f"{_stem}.pdf",
+        intro_html=f"<p>Attached is a blank <b>{payload['headline']}</b> template in the desk's "
                    "report format.</p>",
-        extra_attachments=[(_html, tradeidea.HTML_NAME, "octet-stream")],
+        extra_attachments=[(_html, f"{_stem}.html", "octet-stream")],
         body_note="The PDF shows the finished layout. To write your own idea, open the attached "
                   "HTML file in any browser, click each dashed box and type, then press "
                   "Ctrl + P and choose \"Save as PDF\" — the guides and prompts don't print.",
@@ -16251,11 +16372,6 @@ with st.sidebar:
         _nav_button(f"{_n_mod:02d} · STIR Paths", "STIR Timeline")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Macro Rate Radar", "Macro Radar")
-        # Trade Idea is a module in its own right (Ben, 2026-09-08) — it was briefly a tab
-        # under Market Information, but it publishes rather than analyses and nothing else
-        # in that group belongs with it.
-        _n_mod += 1
-        _nav_button(f"{_n_mod:02d} · Trade Idea", "Trade Idea")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
@@ -16272,6 +16388,9 @@ with st.sidebar:
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
     _nav_button("Strategy Builder", "Strategy Builder")
+    # Trade Idea sits here rather than in the FICC list (Ben, 2026-09-08): the builder covers
+    # both desks, so the page has to be reachable from both.
+    _nav_button("Trade Idea", "Trade Idea")
     if IS_ADMIN:
         st.markdown('<div class="bt-sect">System</div>', unsafe_allow_html=True)
         _nav_button("Alert Settings", "Recipients")
@@ -16470,8 +16589,8 @@ def render_universe():
 # Destinations shared across BOTH desks (Cross-asset / System sidebar sections) — reachable from
 # either desk's sidebar, so they must fall through this Equities-only gate to the generic dispatch
 # chain below rather than being swallowed by its else-branch back into the Equities home page.
-_SHARED_DESTS = {"Recipients", "Strategy Builder", "Data health", "Universe", "Colleague Access",
-                 "Compliance", "User Admin", "User Activity", "Landing"}
+_SHARED_DESTS = {"Recipients", "Strategy Builder", "Trade Idea", "Data health", "Universe",
+                 "Colleague Access", "Compliance", "User Admin", "User Activity", "Landing"}
 
 # Defense-in-depth: even though colleague sessions never see the nav buttons/tabs that set `active`
 # to one of these admin-only destinations, refuse to render them for a non-admin session regardless

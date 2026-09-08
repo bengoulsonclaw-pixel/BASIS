@@ -52281,7 +52281,7 @@
  },
  "ADSK US Equity": {
   "ticker": "ADSK US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "WYNN US Equity": {
@@ -52631,7 +52631,7 @@
  },
  "ADBE US Equity": {
   "ticker": "ADBE US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "ESS US Equity": {
@@ -52676,12 +52676,12 @@
  },
  "PTC US Equity": {
   "ticker": "PTC US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "ROP US Equity": {
   "ticker": "ROP US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "PYPL US Equity": {
@@ -63769,77 +63769,77 @@
  },
  "FICO US Equity": {
   "ticker": "FICO US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "BEN US Equity": {
   "ticker": "BEN US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "ALAB US Equity": {
   "ticker": "ALAB US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "KLAC US Equity": {
   "ticker": "KLAC US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "EFX US Equity": {
   "ticker": "EFX US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "DASH US Equity": {
   "ticker": "DASH US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "TMUS US Equity": {
   "ticker": "TMUS US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "CCEP US Equity": {
   "ticker": "CCEP US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "NFLX US Equity": {
   "ticker": "NFLX US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "NRG US Equity": {
   "ticker": "NRG US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "SNDK US Equity": {
   "ticker": "SNDK US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "KMB US Equity": {
   "ticker": "KMB US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "ASML US Equity": {
   "ticker": "ASML US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "CMI US Equity": {
   "ticker": "CMI US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "TRI US Equity": {
   "ticker": "TRI US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
   "empty": true
  },
  "VST US Equity": {
@@ -63854,7 +63854,17 @@
  },
  "BR US Equity": {
   "ticker": "BR US Equity",
-  "pulled": "2026-09-07",
+  "pulled": "2026-09-08",
+  "empty": true
+ },
+ "NWS US Equity": {
+  "ticker": "NWS US Equity",
+  "pulled": "2026-09-08",
+  "empty": true
+ },
+ "KIM US Equity": {
+  "ticker": "KIM US Equity",
+  "pulled": "2026-09-08",
   "empty": true
  }
 }
