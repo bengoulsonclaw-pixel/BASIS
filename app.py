@@ -1197,7 +1197,6 @@ _GROUP_TABS = {
                            ("📦 Block Sizes", "Block Sizes"),
                            ("🧮 Fut / Yield", "Fut Yield"),
                            ("🔤 BBG Codes", "BBG Codes"),
-                           ("📝 Trade Idea", "Trade Idea"),
                            ("📄 Tearsheet", "Product Tearsheet"),
                            ("🧭 Macro Compass", "Macro Compass")],
     "STIR Paths":         [("🗓️ Rates Home", "STIR Timeline"),
@@ -7948,7 +7947,8 @@ def _trade_idea_files(day_iso: str) -> tuple[bytes, bytes]:
 
 
 def render_trade_idea() -> None:
-    """The blank GLOBAL MACRO TRADE IDEA template — the house layout with nothing in it.
+    """The blank Global Macro Trade Idea template — the house layout with nothing in it.
+    Its own sidebar module (Ben, 2026-09-08); it opened life as a Market Information tab.
 
     Deliberately the one page here that computes nothing: it exists so a colleague can put
     their OWN idea into the desk's format and send it to clients. Two files go out together —
@@ -16251,6 +16251,11 @@ with st.sidebar:
         _nav_button(f"{_n_mod:02d} · STIR Paths", "STIR Timeline")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Macro Rate Radar", "Macro Radar")
+        # Trade Idea is a module in its own right (Ben, 2026-09-08) — it was briefly a tab
+        # under Market Information, but it publishes rather than analyses and nothing else
+        # in that group belongs with it.
+        _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · Trade Idea", "Trade Idea")
     else:
         st.markdown('<div class="bt-sect">Equities modules · US + EU indices</div>',
                     unsafe_allow_html=True)
