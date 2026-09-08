@@ -281,6 +281,17 @@ def run_equities() -> dict:
             m["equities"] = eq.get("indices", {})
             m["equities_pulled"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
             (SNAP / "manifest.json").write_text(json.dumps(m, indent=2))
+            # Success stamp for the keeper-driven Auto-pull (run_basis_server.ps1): the
+            # UNAMBIGUOUS "today's equities pull succeeded" signal the always-on server
+            # keeper checks each cycle, so it retries a missed/killed run until the day's
+            # pull genuinely succeeds and then stops firing. Laptop-LOCAL date (pd.Timestamp
+            # .now() is naive local, same clock the user sets the Auto-pull time in). Only
+            # written on real success (eq['ok']); a disabled pull leaves no stamp. Best-
+            # effort — a stamp-write hiccup must never fail an otherwise-good pull.
+            try:
+                (SNAP / ".eq_pull_ok").write_text(pd.Timestamp.now().strftime("%Y-%m-%d"))
+            except Exception:
+                pass
         return eq
     finally:
         try:

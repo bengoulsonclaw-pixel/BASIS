@@ -31,6 +31,80 @@ if (Test-Path "$PSScriptRoot\playwright-browsers") {
 }
 New-Item -ItemType Directory -Force -Path "$PSScriptRoot\logs" | Out-Null
 
+# ===========================================================================
+#  EQUITIES AUTO-PULL TRIGGER (2026-09-08) — replaces the flaky "BASIS Equities
+#  Auto Pull" scheduled task, which fired ONLY if the laptop happened to be awake
+#  at the set minute and never retried a missed/interrupted run (it got killed
+#  mid-pull today). This always-on keeper now owns the trigger: every ~15-20s it
+#  checks whether today's equities pull is due and not yet done, and if so fires
+#  it hidden — so it keeps retrying across sleep / wake / interruptions until the
+#  day's pull genuinely SUCCEEDS (snapshot.py writes data\snapshot\.eq_pull_ok
+#  with today's date on success; this reads it back and stops once it matches).
+#
+#  DEFENSIVE BY DESIGN: the entire body is wrapped so it can NEVER throw or block
+#  the server keeper's health loop — any error just means "don't fire this cycle".
+#  It only ever Start-Process'es a fire-and-forget launcher (non-blocking).
+#
+#  Anti-spam (an equities pull takes ~5-7 min) — fires only when ALL hold:
+#    enabled  AND  now >= today's HH:MM  AND  .eq_pull_ok missing / != today
+#    AND  no fresh .eq_pull.lock (< 12 min old = a pull already running)
+#    AND  the in-memory cooldown $script:eqLastFire is null or >= 12 min ago.
+# ===========================================================================
+$script:eqLastFire = $null
+function Invoke-EqAutoPull {
+    try {
+        $root = $PSScriptRoot
+        $cfgPath = Join-Path $root 'data\eq_autopull.json'
+        if (-not (Test-Path $cfgPath)) { return }
+        $cfg = $null
+        try {
+            $cfg = Get-Content -Raw -LiteralPath $cfgPath -ErrorAction Stop | ConvertFrom-Json
+        } catch { return }                       # unreadable / half-written JSON — skip this cycle
+        if ($null -eq $cfg -or -not $cfg.enabled) { return }
+
+        # Scheduled time (laptop wall clock, "HH:MM"). Any malformed value -> the cast
+        # throws, the outer catch swallows it, and we simply don't fire.
+        $parts = ([string]$cfg.time).Split(':')
+        if ($parts.Count -lt 2) { return }
+        $hh = [int]$parts[0]
+        $mm = [int]$parts[1]
+        $now = Get-Date
+        $due = $now.Date.AddHours($hh).AddMinutes($mm)   # today at HH:MM:00 local
+        if ($now -lt $due) { return }            # not yet time today
+
+        $today = $now.ToString('yyyy-MM-dd')
+
+        # Already succeeded today? .eq_pull_ok holds the last successful pull's local date.
+        $okPath = Join-Path $root 'data\snapshot\.eq_pull_ok'
+        if (Test-Path $okPath) {
+            $stamp = ''
+            try { $stamp = (Get-Content -Raw -LiteralPath $okPath -ErrorAction Stop).Trim() } catch { $stamp = '' }
+            if ($stamp -eq $today) { return }    # done for today — nothing to do
+        }
+
+        # A pull already in flight? snapshot.run_equities() writes .eq_pull.lock while it
+        # runs; treat one < 12 min old as "running" so we don't launch a second.
+        $lockPath = Join-Path $root 'data\snapshot\.eq_pull.lock'
+        if (Test-Path $lockPath) {
+            try {
+                $ageMin = ((Get-Date) - (Get-Item -LiteralPath $lockPath).LastWriteTime).TotalMinutes
+                if ($ageMin -ge 0 -and $ageMin -lt 12) { return }
+            } catch { }
+        }
+
+        # In-memory cooldown — belt-and-braces against re-firing while a just-launched
+        # pull is still spinning up (before it has written its lock file).
+        if ($null -ne $script:eqLastFire -and
+            ((Get-Date) - $script:eqLastFire).TotalMinutes -lt 12) { return }
+
+        $vbs = Join-Path $root 'run_eq_autopull_hidden.vbs'
+        if (-not (Test-Path $vbs)) { return }
+        $script:eqLastFire = Get-Date
+        Start-Process 'wscript.exe' -ArgumentList ('"' + $vbs + '"') `
+            -WindowStyle Hidden -ErrorAction SilentlyContinue
+    } catch { }                                  # never let the trigger disturb the keeper
+}
+
 while ($true) {
     $listening = @(Get-NetTCPConnection -LocalPort 8501 -State Listen `
                        -ErrorAction SilentlyContinue).Count
@@ -65,6 +139,7 @@ while ($true) {
         $hung = $false
         while (-not $server.HasExited) {
             Start-Sleep -Seconds 20
+            try { Invoke-EqAutoPull } catch { }   # keeper-driven equities Auto-pull (defensive; never blocks health)
             $healthy = $false
             try {
                 $healthy = (Invoke-WebRequest "http://localhost:8501/_stcore/health" `
@@ -88,5 +163,6 @@ while ($true) {
         Start-Sleep -Seconds 5          # breathe before restarting (crash loops)
     } else {
         Start-Sleep -Seconds 15
+        try { Invoke-EqAutoPull } catch { }       # keeper-driven equities Auto-pull (fires whether or not this keeper spawned the server)
     }
 }

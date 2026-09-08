@@ -3481,14 +3481,21 @@ def _equities_heatmap(index_keys) -> None:
                     height=height + 6, scrolling=False)
 
 
-# ── Equities auto-pull (Windows Task Scheduler) ──────────────────────────────
-# The ⏰ control left of "Pull equities data": a daily scheduled run of
-# `snapshot.py --equities` via run_eq_autopull.bat, so e.g. a 09:00 ET pull
-# lands fresh data for the US open without touching the app. The task runs
-# whether or not BASIS is open (it's a Task Scheduler job, not an app thread).
-_EQ_AUTOPULL_TASK = "BASIS Equities Auto Pull"
+# ── Equities auto-pull (keeper-driven) ───────────────────────────────────────
+# The ⏰ control left of "Pull equities data": a daily run of `snapshot.py
+# --equities` (via run_eq_autopull.bat) that lands fresh data for the US open
+# without touching the app. The TRIGGER is the always-on BASIS server keeper
+# (run_basis_server.ps1), NOT a Windows scheduled task any more: the keeper reads
+# eq_autopull.json every ~15-20s and fires the pull when it's due and today's
+# hasn't yet succeeded (snapshot writes data/snapshot/.eq_pull_ok on success), so
+# a missed / killed run is retried across sleep, wake and interruptions until it
+# lands — the old scheduled task ran only if the laptop was awake at the exact
+# minute and never retried (it got killed mid-pull, 2026-09-08). _EQ_AUTOPULL_TASK
+# is kept only to DELETE that legacy task; _EQ_AUTOPULL_BAT documents what the
+# keeper's hidden launcher (run_eq_autopull_hidden.vbs) fires.
+_EQ_AUTOPULL_TASK = "BASIS Equities Auto Pull"   # legacy task name — retired on Save/cleanup
 _EQ_AUTOPULL_FILE = ROOT / "data" / "eq_autopull.json"
-_EQ_AUTOPULL_BAT = ROOT / "run_eq_autopull.bat"
+_EQ_AUTOPULL_BAT = ROOT / "run_eq_autopull.bat"  # fired by run_eq_autopull_hidden.vbs via the keeper
 _EQ_PULL_LOCK = ROOT / "data" / "snapshot" / ".eq_pull.lock"
 
 
@@ -3547,34 +3554,36 @@ def _eq_autopull_cfg() -> dict:
 
 
 def _eq_autopull_apply(enabled: bool, hhmm: str) -> tuple[bool, str]:
-    """Create/refresh (or delete) the Windows scheduled task at the given LAPTOP
-    wall time (user choice: no timezone conversion — what you set is when it runs)."""
-    if enabled:
-        cmd = ["schtasks", "/Create", "/F", "/TN", _EQ_AUTOPULL_TASK,
-               "/TR", f'"{_EQ_AUTOPULL_BAT}"',
-               "/SC", "WEEKLY", "/D", "MON,TUE,WED,THU,FRI",
-               "/ST", hhmm]
-    else:
-        cmd = ["schtasks", "/Delete", "/F", "/TN", _EQ_AUTOPULL_TASK]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    err = (r.stderr or r.stdout or "").strip()
-    # deleting a task that never existed is success, not failure
-    ok = r.returncode == 0 or (not enabled and "cannot find" in err.lower())
-    # No catch-up on purpose: the task runs only if the laptop is ON at the scheduled time; a run
-    # missed because it was off/asleep is simply skipped (schtasks' default — StartWhenAvailable off).
-    if ok:
+    """Save the Auto-pull config at the given LAPTOP wall time (user choice: no timezone
+    conversion — what you set is when it runs). The TRIGGER is no longer a Windows scheduled
+    task: the always-on BASIS server keeper (run_basis_server.ps1) reads this file every
+    ~15-20s and fires `snapshot.py --equities` (via run_eq_autopull.bat) when the day's pull
+    is due and hasn't yet succeeded — retrying across sleep/wake/interruptions until it does.
+    So this just persists {enabled, time} and retires the legacy scheduled task if it lingers."""
+    try:
         _EQ_AUTOPULL_FILE.parent.mkdir(parents=True, exist_ok=True)
         _EQ_AUTOPULL_FILE.write_text(json.dumps(
             {"enabled": enabled, "time": hhmm}, indent=2))
-    return ok, err
+    except Exception as e:
+        return False, str(e)
+    # Cleanup: delete the old "BASIS Equities Auto Pull" scheduled task (the keeper owns the
+    # trigger now). Deleting a task that never existed is fine — "cannot find" is not a failure,
+    # and neither is the whole call throwing (schtasks missing / access) — the config is saved.
+    try:
+        subprocess.run(["schtasks", "/Delete", "/F", "/TN", _EQ_AUTOPULL_TASK],
+                       capture_output=True, text=True)
+    except Exception:
+        pass
+    return True, ""
 
 
 def _eq_autopull_control(col) -> None:
     cfg = _eq_autopull_cfg()
     _lbl = (f"⏰ Auto-pull · {cfg['time']}" if cfg["enabled"] else "⏰ Auto-pull · off")
     with col.popover(_lbl, use_container_width=True,
-                     help="Schedule an automatic daily equities pull (weekdays) — runs even "
-                          "when BASIS is closed, via Windows Task Scheduler."):
+                     help="Schedule an automatic daily equities pull — the always-on BASIS "
+                          "server keeper runs it and keeps retrying until the day's pull "
+                          "succeeds, even across sleep/wake. Runs whether or not BASIS is open."):
         _cur = dtime(*(int(x) for x in cfg["time"].split(":")))
         _t = st.time_input("Pull daily at (laptop time)", value=_cur, step=300,
                            key="eq_ap_time")
@@ -3585,15 +3594,17 @@ def _eq_autopull_control(col) -> None:
                 st.session_state["eq_ap_saved"] = True
                 st.rerun()
             else:
-                st.error(f"Couldn't update the scheduled task:\n\n{msg or 'no output'}")
+                st.error(f"Couldn't save the Auto-pull settings:\n\n{msg or 'no output'}")
         if st.session_state.pop("eq_ap_saved", False):
             st.success("Saved.")
-        st.caption((f"**On** — weekdays at {cfg['time']} laptop time. "
+        st.caption((f"**On** — from {cfg['time']} laptop time each day. "
                     if cfg["enabled"] else "**Off.** ")
                    + "Runs the same job as **Pull equities data** (Yahoo quotes/history + "
                      "weekly fundamentals + the **Technical Analysis** backfill & signals; Bloomberg "
-                     "membership only if the Terminal is up), then syncs the VPS. It runs only if the "
-                     "laptop is **on** at pull time — a missed run is skipped, not caught up later. "
+                     "membership only if the Terminal is up), then syncs the VPS. Fired by the "
+                     "always-on BASIS **server keeper**, which keeps retrying until the day's pull "
+                     "actually succeeds — surviving sleep, wake and interruptions (no longer a "
+                     "one-shot that's skipped if the laptop was asleep at the set minute). "
                      "Log: %LOCALAPPDATA%\\basis_eq_autopull.log")
 
 
