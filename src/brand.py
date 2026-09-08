@@ -974,6 +974,16 @@ div.st-key-home_rerun button p, div.st-key-eq_refresh button p {
     .land-hero svg { max-width:72vw; height:auto; }
     .land-tag { font-size:clamp(8.5px,2.55vw,17px) !important;
                 letter-spacing:.2em !important; white-space:nowrap; }
+    /* Trade Idea layout builder: each section's tick + arrows stay on ONE row. Stacked,
+       eleven sections became forty-odd rows of full-width arrow buttons and the list was
+       unusable on a phone. The kind caption ("writing box") is the one thing that goes. */
+    .st-key-ti_rows [data-testid="stHorizontalBlock"] { flex-wrap:nowrap !important; gap:.3rem !important; }
+    .st-key-ti_rows [data-testid="stColumn"]:nth-child(1) { flex:1 1 auto !important; min-width:0 !important; }
+    .st-key-ti_rows [data-testid="stColumn"]:nth-child(2) { display:none !important; }
+    .st-key-ti_rows [data-testid="stColumn"]:nth-child(3) { flex:0 0 64px !important; min-width:64px !important; }
+    .st-key-ti_rows [data-testid="stColumn"]:nth-child(4),
+    .st-key-ti_rows [data-testid="stColumn"]:nth-child(5) {
+        flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
     /* day nav ‹ date › : keep it one row (stacked, it read as three empty bars) */
     .st-key-land_nav [data-testid="stHorizontalBlock"] { flex-wrap:nowrap !important; gap:.4rem !important; }
     .st-key-land_nav [data-testid="stColumn"]:first-child,

@@ -8005,6 +8005,8 @@ def _ti_layout_ui() -> dict:
 
     st.markdown("**Sections** — tick what this note needs, then order them with the arrows.")
     catalogue = list(tradeidea.SECTIONS)
+    # Keyed container so the phone CSS (brand.py) can hold each row's tick + arrows in ONE
+    # row — stacked, eleven sections turn into forty rows of full-width buttons.
     saved_order = [k for k in (saved.get("sections") or tradeidea.DEFAULT_SECTIONS) if k in catalogue]
     order = st.session_state.setdefault(
         "ti_order", saved_order + [k for k in catalogue if k not in saved_order])
@@ -8013,22 +8015,23 @@ def _ti_layout_ui() -> dict:
             order.append(k)
     default_on = set(saved.get("sections") or tradeidea.DEFAULT_SECTIONS)
     chosen, rows = [], {}
-    for pos, key in enumerate(list(order)):
-        spec = tradeidea.SECTIONS[key]
-        cc = st.columns([0.34, 0.30, 0.20, 0.08, 0.08], vertical_alignment="center")
-        on = cc[0].checkbox(spec["title"], value=key in default_on, key=f"ti_on_{key}")
-        cc[1].caption({"prose": "writing box", "table": "blank table",
-                       "chart": "chart / diagram box"}[spec["kind"]])
-        if spec["kind"] == "table":
-            rows[key] = int(cc[2].number_input(
-                "Rows", 1, 10, int((saved.get("rows") or {}).get(key, spec["rows"])),
-                key=f"ti_rows_{key}", label_visibility="collapsed", disabled=not on))
-        cc[3].button("↑", key=f"ti_up_{key}", disabled=pos == 0, on_click=_ti_move,
-                     args=(key, -1), use_container_width=True)
-        cc[4].button("↓", key=f"ti_dn_{key}", disabled=pos == len(order) - 1, on_click=_ti_move,
-                     args=(key, 1), use_container_width=True)
-        if on:
-            chosen.append(key)
+    with st.container(key="ti_rows"):
+        for pos, key in enumerate(list(order)):
+            spec = tradeidea.SECTIONS[key]
+            cc = st.columns([0.34, 0.30, 0.20, 0.08, 0.08], vertical_alignment="center")
+            on = cc[0].checkbox(spec["title"], value=key in default_on, key=f"ti_on_{key}")
+            cc[1].caption({"prose": "writing box", "table": "blank table",
+                           "chart": "chart / diagram box"}[spec["kind"]])
+            if spec["kind"] == "table":
+                rows[key] = int(cc[2].number_input(
+                    "Rows", 1, 10, int((saved.get("rows") or {}).get(key, spec["rows"])),
+                    key=f"ti_rows_{key}", label_visibility="collapsed", disabled=not on))
+            cc[3].button("↑", key=f"ti_up_{key}", disabled=pos == 0, on_click=_ti_move,
+                         args=(key, -1), use_container_width=True)
+            cc[4].button("↓", key=f"ti_dn_{key}", disabled=pos == len(order) - 1, on_click=_ti_move,
+                         args=(key, 1), use_container_width=True)
+            if on:
+                chosen.append(key)
 
     e1, e2, e3 = st.columns(3)
     oneline = e1.checkbox("“The idea in one line” box", value=saved.get("oneline", True),
