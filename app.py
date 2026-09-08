@@ -5464,14 +5464,14 @@ def _ti_seed_from_item(it: dict) -> dict:
     if len(detail) > 24 or "," in detail or " vs " in detail:
         detail = ""
     bits = [b for b in (phrase, detail) if b]
-    headline = " — ".join([b for b in (subject, " ".join(bits)) if b]) or "Trade Idea"
+    topic = " — ".join([b for b in (subject, " ".join(bits)) if b]) or "Trade Idea"
     sector = ""
     try:                    # the product's own asset class, so the note is filed like everything else
         rec = universe.INSTRUMENTS.get(it.get("ticker") or "")
         sector = rec[2] if rec else ""
     except Exception:
         sector = ""
-    return {"headline": headline[:90], "sector": sector,
+    return {"topic": topic[:90], "sector": sector,
             "desk": "Equities" if it.get("book") == "equities" else "FICC",
             "from": f'{it.get("tag", "")} · {it.get("section", "")}'.strip(" ·")}
 
@@ -8101,7 +8101,7 @@ def _ti_take_seed() -> None:
     if not seed:
         return
     st.session_state["ti_desk"] = seed.get("desk", "FICC")
-    st.session_state["ti_headline"] = seed.get("headline", "")
+    st.session_state["ti_topic"] = seed.get("topic", "")
     _ti_set_sector(seed.get("desk", "FICC"), seed.get("sector", ""))
     st.session_state["ti_from"] = seed.get("from", "")
 
@@ -8124,7 +8124,9 @@ def _ti_apply_layout(name: str) -> None:
     st.session_state["ti_secs"] = secs
     desk = lay.get("desk", "FICC")
     st.session_state["ti_desk"] = desk
-    st.session_state["ti_headline"] = lay.get("headline") or tradeidea.HEADLINES.get(desk, "")
+    st.session_state["ti_doctype"] = lay.get("doctype") or tradeidea.DOCTYPES.get(desk, "")
+    # `headline` is the pre-2026-09 key for the topic — an older saved layout still loads.
+    st.session_state["ti_topic"] = lay.get("topic") or lay.get("headline") or ""
     _ti_set_sector(desk, lay.get("sector", ""))
     st.session_state["ti_oneline"] = bool(lay.get("oneline", True))
     st.session_state["ti_subject"] = bool(lay.get("subject_bar", True))
@@ -8165,7 +8167,7 @@ def _ti_layout_bar(payload_fn) -> None:
 
 
 def _ti_layout_ui() -> dict:
-    """The builder: desk, sector, headline, then the sections — named, typed and ordered by the
+    """The builder: desk, sector, masthead + topic, then the sections — named, typed and ordered by the
     writer. Returns the payload that src/tradeidea.py renders."""
     saved = tradeidea.load_layout() or {}
     _ti_take_seed()
@@ -8184,10 +8186,20 @@ def _ti_layout_ui() -> dict:
                                    placeholder="e.g. Freight").strip()
         if sector == "—":
             sector = ""
-    headline = st.text_input(
-        "Headline", key="ti_headline", value=saved.get("headline") or tradeidea.HEADLINES[desk],
-        help="The black title band, and the file name. Whatever the piece is about — "
-             "“US 10y Seasonality”, “Global Macro Trade Idea”.")
+    # Two tiers, two fields: the masthead says who this is from and what kind of note it is
+    # (constant across a desk's output), the topic says what THIS one is about.
+    h1, h2 = st.columns([1, 2])
+    doctype = h1.text_input("Document type", key="ti_doctype",
+                            value=saved.get("doctype") or tradeidea.DOCTYPES[desk],
+                            help=f"Reads as “{tradeidea.BRAND} — …” in the title band.")
+    topic = h2.text_input(
+        "Topic", key="ti_topic", value=saved.get("topic") or saved.get("headline") or "",
+        placeholder="What this piece is about",
+        help="The gold line under the masthead, and the file name — e.g. “US 10Y Note "
+             "(yield) — seasonal window 10 Sep → 9 Nov”.")
+    st.caption(f"Title band: **{tradeidea.BRAND} — "
+               f"{doctype.strip() or tradeidea.DOCTYPES[desk]}**"
+               + (f" · {topic.strip()}" if topic.strip() else ""))
 
     if st.session_state.get("ti_from"):
         st.caption(f"Started from the Hot Sheet · **{st.session_state['ti_from']}** — the heading "
@@ -8273,7 +8285,7 @@ def _ti_layout_ui() -> dict:
                      help="How much room the blank boxes get. The sections share whatever the "
                           "furniture leaves, so the template always fills the sheet.")
     return {"desk": desk, "sector": sector,
-            "headline": headline.strip() or tradeidea.HEADLINES[desk],
+            "doctype": doctype.strip() or tradeidea.DOCTYPES[desk], "topic": topic.strip(),
             "sections": [dict(s) for s in secs], "oneline": oneline, "subject_bar": subject,
             "pages": int(pages),
             "asof": datetime.now(ZoneInfo("America/New_York")).date().isoformat()}
@@ -8331,7 +8343,7 @@ def render_trade_idea() -> None:
         st.markdown(
             "- Open the `.html` attachment — it opens in Edge/Chrome like any document, works "
             "offline and needs nothing installed.\n"
-            "- Type into the **Contact**, headline and section boxes; table cells are typed the "
+            "- Type into the **Contact**, topic and section boxes; table cells are typed the "
             "same way. The grey prompts vanish as you write, and the name/email you enter also "
             "fills the *Produced by* credit.\n"
             "- A **chart** box takes a dropped image file, a click-to-choose, or a chart pasted "
@@ -8342,10 +8354,11 @@ def render_trade_idea() -> None:
     st.markdown("---")
     email_report_ui(
         "ti_email", "tradeidea", _pdf,
-        subject=f"XP {payload['headline']} — template"
+        subject=f"{tradeidea.BRAND} — {payload['doctype']} template"
+                + (f": {payload['topic']}" if payload["topic"] else "")
                 + (f" ({payload['sector']})" if payload["sector"] else ""),
         attachment_name=f"{_stem}.pdf",
-        intro_html=f"<p>Attached is a blank <b>{payload['headline']}</b> template in the desk's "
+        intro_html=f"<p>Attached is a blank <b>{payload['doctype']}</b> template in the desk's "
                    "report format.</p>",
         extra_attachments=[(_html, f"{_stem}.html", "octet-stream")],
         body_note="The PDF shows the finished layout. To write your own idea, open the attached "

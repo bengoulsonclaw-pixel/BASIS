@@ -124,7 +124,12 @@ TABLE_PRESETS = {
 # The classic one-pager, and what the builder opens on.
 DEFAULT_SECTIONS = ["trade", "why", "risk", "levels"]
 
-HEADLINES = {"FICC": "Global Macro Trade Idea", "Equities": "Equity Trade Idea"}
+# The title band reads in three tiers (Ben, 2026-09-08): the desk's masthead leads, the piece's
+# own topic sits under it, and the date line goes beneath that. The masthead is the constant —
+# a client should see who this is from before they see what it is about.
+BRAND = "XP Global Macro"
+DOCTYPES = {"FICC": "Trade Idea", "Equities": "Equity Trade Idea"}
+HEADLINES = {k: f"{BRAND} — {v}" for k, v in DOCTYPES.items()}   # kept: older layouts read it
 MARKET_PROMPT = {"FICC": "Market / instrument", "Equities": "Company / index"}
 
 # A4 content box in CSS px at 96dpi, less the 0.30in top/bottom @page margins.
@@ -134,7 +139,8 @@ MIN_BOX_IN = 0.55          # a writing box never gets less than this, however ma
 
 def default_payload(desk: str = "FICC", sector: str = "") -> dict:
     return {
-        "desk": desk, "sector": sector, "headline": HEADLINES.get(desk, HEADLINES["FICC"]),
+        "desk": desk, "sector": sector,
+        "doctype": DOCTYPES.get(desk, DOCTYPES["FICC"]), "topic": "",
         "sections": list(DEFAULT_SECTIONS), "oneline": True, "subject_bar": True, "pages": 1,
         "rows": {}, "asof": None,
     }
@@ -191,10 +197,12 @@ def save_layout(payload: dict) -> None:
 
 
 def file_stem(payload: dict) -> str:
-    """`XP_US_10y_Seasonality_Energy_TEMPLATE` — built from the HEADLINE, not a fixed name: the
-    piece may be about anything, and the writer already typed what it is."""
+    """`XP_US_10y_Seasonality_Bonds_TEMPLATE` — built from the TOPIC, not a fixed name: the piece
+    may be about anything, and the writer already typed what it is. (`headline` is the pre-2026-09
+    key for the same thing.)"""
     words = "".join(c if c.isalnum() else " " for c in
-                    (payload.get("headline") or "Trade Idea")).split()
+                    (payload.get("topic") or payload.get("headline")
+                     or payload.get("doctype") or "Trade Idea")).split()
     sector = "".join(c if c.isalnum() else " " for c in (payload.get("sector") or "")).split()
     return "_".join(["XP"] + words[:6] + sector[:2] + ["TEMPLATE"])
 
@@ -249,7 +257,10 @@ def render_html(payload: dict | None = None, editable: bool = False) -> str:
     return env.get_template("tradeidea.html").render(
         editable=editable,
         asof=pretty_date(p.get("asof") or date.today()),
-        headline=p.get("headline") or HEADLINES["FICC"],
+        masthead=f'{BRAND} — {p.get("doctype") or DOCTYPES.get(p.get("desk"), DOCTYPES["FICC"])}',
+        # `headline` was this field's name before the band grew a masthead line — an older
+        # saved layout carries the topic there, so it still counts as one.
+        topic=p.get("topic") or p.get("headline") or "",
         sector=p.get("sector") or "",
         oneline=bool(p.get("oneline", True)),
         subject_bar=bool(p.get("subject_bar", True)),

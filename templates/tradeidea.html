@@ -60,6 +60,13 @@
               color: #c9c9c9; font-size: 5.5pt; line-height: 1.6; letter-spacing: .1px;
               overflow-wrap: anywhere; }
 
+  /* Title band, three tiers: the desk masthead (the shared sheet's h1), the piece's own topic
+     under it in house gold, then the date line — smaller and quieter than the shared .sub,
+     which is sized for a band with only two tiers. Overridden HERE, never in the shared sheet. */
+  .titleband .topic { color: var(--yellow); font-weight: 700; font-size: 14.5pt;
+                      line-height: 1.15; margin-top: 1.4mm; }
+  .titleband .sub { color: #D9DDE2; font-size: 10pt; margin-top: 1.4mm; }
+
   /* The one-line idea sits in the house trigger box (amber, yellow left rule), written the
      way every other report writes it: a bold lead-in flowing into the sentence.
      inline, NOT inline-block: an inline-block can't break across lines, so a long one-liner
@@ -135,9 +142,11 @@
 
   <div class="content">
     <div class="titleband">
-      <h1>{{ headline }}</h1>
-      <div class="sub"><span id="f_date" {{ ce|safe }}>{{ asof }}</span>
-        &nbsp;|&nbsp; XP Inc. Global Macro{% if sector %} &middot; {{ sector }}{% endif %}</div>
+      <h1>{{ masthead }}</h1>
+      <div class="topic ph" id="f_topic" data-ph="What this piece is about"
+           {{ ce|safe }}>{{ topic }}</div>
+      <div class="sub"><span id="f_date" {{ ce|safe }}>{{ asof }}</span>{% if sector %}
+        &nbsp;&middot;&nbsp; {{ sector }}{% endif %}</div>
     </div>
 
     {% if oneline %}
