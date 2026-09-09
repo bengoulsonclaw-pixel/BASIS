@@ -8351,15 +8351,23 @@ def render_trade_idea() -> None:
         st.markdown("**Preview** — page 1 of the blank template")
         if _png:
             st.image(_png, use_container_width=True)
-        st.caption("The dashed guides and grey prompts are the template talking to the writer — "
+        st.caption("**This is a picture, not the document** — you can't type into it, and nor "
+                   "can you type into the PDF. Writing happens in the **fillable HTML** copy: "
+                   "download it below, open it in Edge or Chrome, and click any dashed box. The "
+                   "dashed guides and grey prompts are the template talking to the writer — "
                    "neither prints on the copy they send out.")
 
     _stem = tradeidea.file_stem(payload)
     d1, d2 = st.columns(2)
-    d1.download_button("⬇️  Blank template (PDF)", data=_pdf, file_name=f"{_stem}.pdf",
-                       mime="application/pdf", key="ti_dl_pdf", use_container_width=True)
-    d2.download_button("⬇️  Fillable copy (HTML)", data=_html, file_name=f"{_stem}.html",
-                       mime="text/html", key="ti_dl_html", use_container_width=True)
+    d1.download_button("⬇️  Blank template (PDF) — read-only", data=_pdf,
+                       file_name=f"{_stem}.pdf", mime="application/pdf", key="ti_dl_pdf",
+                       use_container_width=True,
+                       help="Shows the finished look. Nothing in a PDF can be typed into.")
+    d2.download_button("✍️  Fillable copy (HTML) — write in this one", data=_html,
+                       file_name=f"{_stem}.html", mime="text/html", key="ti_dl_html",
+                       use_container_width=True,
+                       help="Open it in Edge or Chrome (double-click the downloaded file), click "
+                            "any dashed box and type. Ctrl+P → Save as PDF when you're done.")
     with st.expander("How the fillable copy works", expanded=False):
         st.markdown(
             "- Open the `.html` attachment — it opens in Edge/Chrome like any document, works "

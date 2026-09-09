@@ -96,6 +96,40 @@
   .chartcap { font-size: 7.5pt; color: #666; font-style: italic; margin-top: 1mm; }
   .chartcap:empty::before { color: #A9AEB4; }
 
+  /* ---- the fillable copy's form fields ------------------------------------------------
+     Real <textarea>s, one code path for every slot. They inherit the surrounding type, grow
+     to fit what is typed (so nothing is ever clipped when it prints), paste as plain text for
+     free — and, the reason for the rewrite, they are editable in EVERY viewer. The earlier
+     build used contenteditable, which a read-only renderer (an email preview pane, a chat
+     attachment preview, a sandboxed frame) ignores SILENTLY: the page looks perfect and simply
+     will not take a keystroke. A text box cannot be mistaken for a picture. */
+  .fld { font: inherit; color: inherit; letter-spacing: inherit; background: transparent;
+         border: 0; padding: 0; margin: 0; width: 100%; display: block; resize: none;
+         overflow: hidden; box-sizing: border-box; }
+  .fld::placeholder { color: #9AA0A7; font-style: italic; opacity: 1; }
+  /* set while printing (see beforeprint): the filled copy is sized by what is in it */
+  .printing .fitme, .printing textarea.field.fld { min-height: 0 !important; }
+  .fld:focus { outline: 2px solid var(--yellow); outline-offset: 1pt; }
+  /* the prose box keeps its dashed guide — type + two classes, so it outranks .fld's reset */
+  textarea.field.fld { border: 0.75pt dashed #C7CBD1; padding: 2mm 2.5mm; }
+  /* slots that live INSIDE a line rather than owning one */
+  .trigger .fld, .banner .fld, .sub .fld { display: inline-block; vertical-align: top; }
+  .trigger .fld { width: calc(100% - 1.62in); }
+  .banner .mkt.fld { flex: 1 1 auto; width: auto; }
+  .banner .sig.fld { flex: 0 0 2.3in; width: 2.3in; text-align: right; }
+  .sub .fld { width: 2.6in; }
+  td.center .fld { text-align: center; }
+  /* `font: inherit` takes the PARENT's font — right for a slot inside a banner or the title
+     band, wrong for one that carries its own type (the reference line, a chart's source), which
+     would otherwise print at body size. Re-assert those; the compound selector outranks .fld. */
+  textarea.tableref.fld { font-size: 8.5pt; font-style: italic; }
+  textarea.chartcap.fld { font-size: 7.5pt; font-style: italic; color: #666; }
+  /* prompts on the dark furniture, at the house grey floors */
+  .banner .fld::placeholder { color: #C9CDD2; }
+  .titleband .fld::placeholder { color: #99A2AE; }
+  .sidebar .fld::placeholder { color: #A9AFB6; }
+  td .fld::placeholder { color: #A9AEB4; }
+
   /* Screen-only toolbar for the editable copy. */
   .editbar { position: sticky; top: 0; z-index: 5; background: var(--black); color: #fff;
              font-family: Arial, sans-serif; font-size: 12px; padding: 8px 14px;
@@ -111,20 +145,37 @@
 
   @media print {
     .editbar { display: none !important; }
-    .edit .field, .edit .chartbox { border: none; }      /* the filled copy prints clean;
+    .edit .field, .edit .chartbox,
+    .edit textarea.field.fld { border: none; }           /* the filled copy prints clean;
                                                             the blank template keeps its guides */
     .edit .ph:empty::before { content: ""; }             /* unwritten prompts never print */
-    .edit .field { min-height: 0 !important; }           /* the filled copy sets its own height */
+    .edit .field { min-height: 0 !important; }           /* the filled copy sets its own height:
+                                                            the auto-grown inline height governs */
+    .fld:focus { outline: none; }
     .edit .chartbox:not(.has) { display: none; }         /* an unused chart box leaves no gap */
   }
 </style>
 </head>
-{%- set ce = 'contenteditable="true" spellcheck="true"' if editable else '' -%}
+{#- Every writable slot goes through `slot()`. The BLANK variant emits a static div/span
+    (dashed guide + grey prompt, exactly what the PDF shows); the FILLABLE one emits a real
+    <input>/<textarea>. Form fields rather than contenteditable, after Ben couldn't type into
+    the earlier build: contenteditable is inert in any viewer that renders HTML read-only
+    (an email preview pane, a chat attachment preview, a sandboxed iframe), and it fails
+    SILENTLY — the page looks right and simply ignores you. A text box is a text box
+    everywhere, it pastes as plain text for free, and it cannot be mistaken for a picture. -#}
+{% macro slot(id, cls, ph, tag='div', value='', attrs='') -%}
+{%- if editable -%}
+<textarea id="{{ id }}" class="{{ cls }} fld" placeholder="{{ ph }}" rows="1"
+ spellcheck="true" {{ attrs|safe }}>{{ value }}</textarea>
+{%- else -%}
+<{{ tag }} id="{{ id }}" class="{{ cls }} ph" data-ph="{{ ph }}" {{ attrs|safe }}>{{ value }}</{{ tag }}>
+{%- endif -%}
+{%- endmacro %}
 <body class="{{ 'edit' if editable else 'blank' }}">
 {% if editable %}
 <div class="editbar">
   <b>XP Trade Idea template</b>
-  <span class="hint">Click any dashed box and type{% if has_chart %}; drop, paste or click a chart box to add an image{% endif %}. When you're done: <b>Ctrl&nbsp;+&nbsp;P → Save as PDF</b> — the guides and this bar don't print.</span>
+  <span class="hint">Click any box and type{% if has_chart %}; drop, paste or click a chart box to add an image{% endif %}. When you're done: <b>Ctrl&nbsp;+&nbsp;P → Save as PDF</b> — the boxes and this bar don't print.</span>
   <span style="flex:1"></span>
   <span class="saved" id="saved"></span>
   <button onclick="window.print()">Save as PDF</button>
@@ -137,9 +188,9 @@
     <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
     <div class="contact">
       <div class="label">Contact</div>
-      <div class="name ph" id="f_name" data-ph="Your name" {{ ce|safe }}></div>
-      <div class="email ph" id="f_mail1" data-ph="your.name@xpi.com.br" {{ ce|safe }}></div>
-      <div class="email ph" id="f_mail2" data-ph="Futures.Offshore@xpi.us" {{ ce|safe }}></div>
+      {{ slot("f_name", "name", "Your name") }}
+      {{ slot("f_mail1", "email", "your.name@xpi.com.br") }}
+      {{ slot("f_mail2", "email", "Futures.Offshore@xpi.us") }}
     </div>
     <div class="produced">Produced by<br>
       <span class="ph" id="f_prodname" data-ph="Your name"></span><br>
@@ -149,17 +200,15 @@
   <div class="content">
     <div class="titleband">
       <h1>{{ masthead }}</h1>
-      <div class="topic ph" id="f_topic" data-ph="What this piece is about"
-           {{ ce|safe }}>{{ topic }}</div>
-      <div class="sub"><span id="f_date" {{ ce|safe }}>{{ asof }}</span>{% if sector %}
+      {{ slot("f_topic", "topic", "What this piece is about", value=topic) }}
+      <div class="sub">{{ slot("f_date", "datefld", asof, tag="span", value=asof) }}{% if sector %}
         &nbsp;&middot;&nbsp; {{ sector }}{% endif %}</div>
     </div>
 
     {% if oneline %}
     <div class="trigger">
       <b>The idea in one line.</b>
-      <span class="ph" id="f_oneline"
-            data-ph="The market, the direction and the reason, in a single sentence." {{ ce|safe }}></span>
+      {{ slot("f_oneline", "oneline", "The market, the direction and the reason, in a single sentence.", tag="span") }}
     </div>
     {% endif %}
 
@@ -167,8 +216,7 @@
        the sections whichever ones were picked, rather than riding on the first section's banner
        (which read oddly when that section was, say, Market Context). #}
     {% if subject_bar %}
-    <div class="banner"><span class="mkt ph" id="f_market" data-ph="{{ market_ph }}" {{ ce|safe }}></span>
-      <span class="sig ph" id="f_side" data-ph="Long / Short" {{ ce|safe }}></span></div>
+    <div class="banner">{{ slot("f_market", "mkt", market_ph, tag="span") }}{{ slot("f_side", "sig", "Long / Short", tag="span") }}</div>
     {% endif %}
 
     {% for s in sections %}
@@ -176,18 +224,17 @@
       {% if s.kind == 'table' %}
         {% if s.refline %}
         {# Where the underlying was trading when this was written. Prints nothing if unfilled. #}
-        <div class="tableref ph" id="f_{{ s.eid }}_ref"
-             data-ph="Reference: where the underlying was trading as this was written — e.g. TYA 112-14, 9 Sep 16:00 ET."
-             {{ ce|safe }}></div>
+        {{ slot("f_" ~ s.eid ~ "_ref", "tableref",
+                "Reference: where the underlying was trading as this was written — e.g. TYA 112-14, 9 Sep 16:00 ET.") }}
         {% endif %}
         <table>
           <thead><tr>{% for c in s.cols %}<th{% if not loop.first %} class="center"{% endif %}>{{ c }}</th>{% endfor %}</tr></thead>
           <tbody>
             {% for r in range(s.rows) %}
             <tr>{% for c in s.cols %}
-              <td class="cell{% if not loop.first %} center{% endif %}"><span class="ph"
-                  id="f_{{ s.eid }}_{{ r }}_{{ loop.index0 }}"
-                  data-ph="{{ s.prompts[loop.index0] if r == 0 else '' }}" {{ ce|safe }}></span></td>{% endfor %}
+              <td class="cell{% if not loop.first %} center{% endif %}">{{ slot(
+                  "f_" ~ s.eid ~ "_" ~ r ~ "_" ~ loop.index0, "cellfld",
+                  s.prompts[loop.index0] if r == 0 else "", tag="span") }}</td>{% endfor %}
             </tr>
             {% endfor %}
           </tbody>
@@ -199,10 +246,9 @@
           {% if editable %}<input type="file" accept="image/*">{% endif %}
         </div>
         {# Where a screenshot came from, in the report's own fine print. Empty prints nothing. #}
-        <div class="chartcap ph" id="f_{{ s.eid }}_cap" data-ph="{{ s.caption }}" {{ ce|safe }}></div>
+        {{ slot("f_" ~ s.eid ~ "_cap", "chartcap", s.caption) }}
       {% else %}
-        <div class="field fitme ph" id="f_{{ s.eid }}" data-w="{{ s.weight }}"
-             data-ph="{{ s.prompt }}" {{ ce|safe }}></div>
+        {{ slot("f_" ~ s.eid, "field fitme", s.prompt, attrs='data-w="' ~ s.weight ~ '"') }}
       {% endif %}
     {% endfor %}
 
@@ -217,9 +263,18 @@
      half-written idea survives an accidental tab close. Images live under their OWN key: a
      big chart can blow the storage quota, and when it does the text must still be saved. */
   var KEY = "basis_trade_idea_v1", IMGKEY = KEY + "_img";
-  var fields = Array.prototype.slice.call(document.querySelectorAll("[contenteditable]"));
+  var fields = Array.prototype.slice.call(document.querySelectorAll(".fld"));
   var boxes = Array.prototype.slice.call(document.querySelectorAll(".chartbox"));
   var lastBox = boxes.length ? boxes[0] : null;
+
+  /* Grow a field to fit what is in it. A textarea clips whatever overflows its height — on
+     screen you can scroll it, but PRINT cannot, so an unsized box would quietly cut the end
+     off the sentence. Height is reset to auto first or it can only ever grow. */
+  function grow(el) {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+  function growAll() { fields.forEach(grow); }
 
   function flash() {
     var s = document.getElementById("saved");
@@ -235,7 +290,7 @@
   function load() {
     try {
       var saved = JSON.parse(localStorage.getItem(KEY) || "{}");
-      fields.forEach(function (el) { if (saved[el.id]) el.innerHTML = saved[el.id]; });
+      fields.forEach(function (el) { if (saved[el.id]) el.value = saved[el.id]; });
     } catch (e) { /* private window / storage blocked — just start blank */ }
     try {
       var imgs = JSON.parse(localStorage.getItem(IMGKEY) || "{}");
@@ -244,7 +299,7 @@
   }
   function save() {
     var out = {};
-    fields.forEach(function (el) { if (el.innerHTML.trim()) out[el.id] = el.innerHTML; });
+    fields.forEach(function (el) { if (el.value.trim()) out[el.id] = el.value; });
     try { localStorage.setItem(KEY, JSON.stringify(out)); flash(); } catch (e) {}
   }
   function saveImages() {
@@ -273,34 +328,55 @@
   });
   function clearAll() {
     if (!confirm("Clear everything you've typed and start from the blank template?")) return;
-    fields.forEach(function (el) { el.innerHTML = ""; });
+    fields.forEach(function (el) { el.value = ""; grow(el); });
     boxes.forEach(function (b) { b.classList.remove("has"); b.querySelector("img").removeAttribute("src"); });
+    mirror();
     try { localStorage.removeItem(KEY); localStorage.removeItem(IMGKEY); } catch (e) {}
   }
-  /* Paste: an image on the clipboard (a chart copied out of Bloomberg or Excel) goes into the
-     chart box you last clicked; anything else pastes as PLAIN text, because pasting from Word
-     otherwise drags its own fonts and colours in and breaks the house style. */
+  /* An image on the clipboard (a chart copied out of Bloomberg or Excel) goes into the chart
+     box you last clicked. Text needs no handler: a textarea pastes as plain text already,
+     which is what stops Word dragging its own fonts and colours into the house style. */
   document.addEventListener("paste", function (e) {
     var cb = e.clipboardData || window.clipboardData;
     var img = cb && cb.files && cb.files.length ? cb.files[0] : null;
-    if (img && /^image\//.test(img.type) && lastBox) { e.preventDefault(); readImage(lastBox, img); return; }
-    if (!e.target.isContentEditable) return;
-    e.preventDefault();
-    document.execCommand("insertText", false, cb.getData("text"));
+    if (img && /^image\//.test(img.type) && lastBox) { e.preventDefault(); readImage(lastBox, img); }
   });
   /* The sidebar's "Produced by" credit mirrors the Contact block — typed once, shown twice. */
   function mirror() {
     var pairs = [["f_name", "f_prodname"], ["f_mail1", "f_prodmail"]];
     pairs.forEach(function (p) {
       var src = document.getElementById(p[0]), dst = document.getElementById(p[1]);
-      if (src && dst) dst.textContent = src.textContent.trim();
+      if (src && dst) dst.textContent = (src.value || "").trim();
     });
   }
   document.addEventListener("input", function (e) {
-    if (e.target.isContentEditable) { mirror(); save(); }
+    if (e.target.classList && e.target.classList.contains("fld")) {
+      grow(e.target); mirror(); save();
+    }
+  });
+  /* Chrome PRINTS placeholder text, which would put grey prompts on the client copy. Strip
+     them from anything still empty for the duration of the print, then hand them back. */
+  var stashed = [];
+  window.addEventListener("beforeprint", function () {
+    /* Drop the boxes' min-height BEFORE measuring. scrollHeight never reports less than the
+       box already occupies, so a half-filled box that the blank layout had sized at 1.6in
+       would be re-grown to 1.6in and the filled note would run onto a second page. */
+    document.body.classList.add("printing");
+    growAll();
+    stashed = [];
+    fields.forEach(function (el) {
+      if (!el.value.trim() && el.placeholder) { stashed.push([el, el.placeholder]); el.placeholder = ""; }
+    });
+  });
+  window.addEventListener("afterprint", function () {
+    document.body.classList.remove("printing");
+    growAll();
+    stashed.forEach(function (p) { p[0].placeholder = p[1]; });
+    stashed = [];
   });
   load();
   mirror();
+  growAll();
 </script>
 {% endif %}
 </body>
