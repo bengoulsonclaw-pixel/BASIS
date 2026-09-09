@@ -96,6 +96,35 @@
   .chartcap { font-size: 7.5pt; color: #666; font-style: italic; margin-top: 1mm; }
   .chartcap:empty::before { color: #A9AEB4; }
 
+  /* ---- text size ----------------------------------------------------------------------
+     `--s` scales the piece's type and vertical rhythm so a note that runs a few lines long can
+     be pulled back onto one page instead of being cut. The sizes come from the SHARED sheet in
+     absolute points, which a parent font-size can't touch, so the handful that matter are
+     re-declared here as a multiple of the base. The sidebar and the logo are deliberately NOT
+     scaled — the furniture stays put, only the writing shrinks. 1 = the house sizes exactly. */
+  body { --s: 1; }
+  .titleband h1 { font-size: calc(23pt * var(--s)); }
+  .titleband .topic { font-size: calc(14.5pt * var(--s)); }
+  .titleband .sub { font-size: calc(12pt * var(--s)); }
+  .trigger { font-size: calc(10pt * var(--s)); padding: calc(2mm * var(--s)) 3mm; }
+  .banner { font-size: calc(11pt * var(--s)); margin-top: calc(5mm * var(--s));
+            padding: calc(3.5pt * var(--s)) 6pt; }
+  .field, .fld, .summary { font-size: calc(9.5pt * var(--s)); }
+  textarea.field.fld { padding: calc(2mm * var(--s)) 2.5mm; }
+  table { font-size: calc(8.5pt * var(--s)); }
+  thead th { padding: calc(2.75pt * var(--s)) 4.5pt; }
+  tbody td { padding: calc(2.4pt * var(--s)) 4.5pt; }
+  textarea.tableref.fld, .tableref { font-size: calc(8.5pt * var(--s)); }
+  textarea.chartcap.fld, .chartcap { font-size: calc(7.5pt * var(--s)); }
+  /* The compliance block scales too, but with a FLOOR: shrinking a note is a layout choice,
+     printing a disclaimer nobody can read is not. It stops at 7pt / 6.5pt whatever --s says. */
+  .disclaimer { font-size: max(6.5pt, calc(8pt * var(--s))); margin-top: calc(4mm * var(--s)); }
+  .fine { font-size: max(6pt, calc(7.5pt * var(--s))); }
+  hr.rule { margin: calc(4mm * var(--s)) 0 calc(3mm * var(--s)); }
+  /* a pasted chart shrinks with everything else, or a tall grab alone blows the page */
+  .chartbox.has img { width: auto; max-width: 100%; max-height: calc(4.4in * var(--s));
+                      margin: 0 auto; }
+
   /* ---- the fillable copy's form fields ------------------------------------------------
      Real <textarea>s, one code path for every slot. They inherit the surrounding type, grow
      to fit what is typed (so nothing is ever clipped when it prints), paste as plain text for
@@ -140,6 +169,8 @@
                     padding: 5px 11px; cursor: pointer; font-weight: 700; }
   .editbar button.ghost { background: transparent; color: #DDD; border: 1px solid #555; font-weight: 400; }
   .saved { color: #8BE6A0; min-width: 5.5em; }
+  .sizer { display: inline-flex; align-items: center; gap: 6px; }
+  .sizer #scalePct { min-width: 3.2em; text-align: center; color: #C9CDD2; }
   .edit .chartbox { cursor: pointer; }
   .edit .chartbox.over { border-color: var(--yellow); background: #FFFDF2; }
 
@@ -175,9 +206,15 @@
 {% if editable %}
 <div class="editbar">
   <b>XP Trade Idea template</b>
-  <span class="hint">Click any box and type{% if has_chart %}; drop, paste or click a chart box to add an image{% endif %}. When you're done: <b>Ctrl&nbsp;+&nbsp;P → Save as PDF</b> — the boxes and this bar don't print.</span>
+  <span class="hint">Click any box and type{% if has_chart %}; drop, paste or click a chart box to add an image{% endif %}. Running long? <b>Fit to 1 page</b>. When you're done: <b>Ctrl&nbsp;+&nbsp;P → Save as PDF</b> — the boxes and this bar don't print.</span>
   <span style="flex:1"></span>
   <span class="saved" id="saved"></span>
+  <span class="sizer">
+    <button class="ghost" onclick="stepScale(-0.05)" title="Smaller text">A&minus;</button>
+    <span id="scalePct" title="Text size">100%</span>
+    <button class="ghost" onclick="stepScale(0.05)" title="Bigger text">A+</button>
+  </span>
+  <button class="ghost" onclick="fitToPage()" title="Shrink the text just enough to fit one page">Fit to 1 page</button>
   <button onclick="window.print()">Save as PDF</button>
   <button class="ghost" onclick="clearAll()">Clear</button>
 </div>
@@ -276,6 +313,40 @@
   }
   function growAll() { fields.forEach(grow); }
 
+  /* ---- text size ------------------------------------------------------------------------
+     One number drives every size on the page (--s). "Fit to 1 page" walks it down in 2% steps
+     until the content clears one A4 sheet, measuring with the print rules applied — the boxes
+     shrink to their content when printed, so measuring any other way answers the wrong
+     question. It stops at 0.72: past that the note stops being readable and the honest answer
+     is to cut a paragraph or give it two pages. */
+  var PAGE_PX = (11.69 - 0.6) * 96;
+  var scale = 1;
+  function setScale(s) {
+    scale = Math.max(0.6, Math.min(1.2, Math.round(s * 100) / 100));
+    document.body.style.setProperty("--s", scale);
+    var pct = document.getElementById("scalePct");
+    if (pct) pct.textContent = Math.round(scale * 100) + "%";
+    growAll();
+    save();
+  }
+  function stepScale(d) { setScale(scale + d); }
+  function contentHeight() {
+    return document.querySelector(".content").getBoundingClientRect().height;
+  }
+  function fitToPage() {
+    document.body.classList.add("printing");
+    var s = 1;
+    setScale(s);
+    while (contentHeight() > PAGE_PX && s > 0.72) { s -= 0.02; setScale(s); }
+    var over = contentHeight() > PAGE_PX;
+    document.body.classList.remove("printing");
+    growAll();
+    var note = document.getElementById("saved");
+    note.textContent = over ? "Still over a page" : Math.round(scale * 100) + "%";
+    clearTimeout(window._tiTimer);
+    window._tiTimer = setTimeout(function () { note.textContent = ""; }, over ? 4000 : 1800);
+  }
+
   function flash() {
     var s = document.getElementById("saved");
     s.textContent = "Saved";
@@ -291,6 +362,7 @@
     try {
       var saved = JSON.parse(localStorage.getItem(KEY) || "{}");
       fields.forEach(function (el) { if (saved[el.id]) el.value = saved[el.id]; });
+      if (saved._scale) setScale(parseFloat(saved._scale));
     } catch (e) { /* private window / storage blocked — just start blank */ }
     try {
       var imgs = JSON.parse(localStorage.getItem(IMGKEY) || "{}");
@@ -300,6 +372,7 @@
   function save() {
     var out = {};
     fields.forEach(function (el) { if (el.value.trim()) out[el.id] = el.value; });
+    if (scale !== 1) out._scale = scale;
     try { localStorage.setItem(KEY, JSON.stringify(out)); flash(); } catch (e) {}
   }
   function saveImages() {
