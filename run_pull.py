@@ -109,8 +109,25 @@ def _run_morning_coffee() -> bool:
         _log("Morning Coffee: building the report and emailing the desk…")
         r = subprocess.run([_global_python(), str(main_py)], cwd=str(MC_DIR),
                            capture_output=True, text=True, timeout=900, env=env)
+        # Persist Morning Coffee's OWN stdout/stderr — the driver used to DISCARD it, so a
+        # failed send (e.g. the ~6MB Gmail upload timing out, 2026-09-09) left no trace to
+        # diagnose after the fact. Every run's output now lands in pull_driver_coffee.log.
+        try:
+            (LOG.parent / "pull_driver_coffee.log").write_text(
+                f"=== Morning Coffee {datetime.now():%Y-%m-%d %H:%M:%S} (rc={r.returncode}) ===\n"
+                + (r.stdout or "") + "\n----- stderr -----\n" + (r.stderr or ""),
+                encoding="utf-8")
+        except Exception:
+            pass
         ok = r.returncode == 0 and "Email sent" in (r.stdout or "")
-        _log(f"Morning Coffee: {'SENT ✓' if ok else 'did NOT confirm a send'} (rc={r.returncode})")
+        if ok:
+            _log("Morning Coffee: SENT ✓ (rc=0)")
+        else:
+            # surface the report's own failure line into the driver log, not a bland "did NOT confirm"
+            _why = next((ln.strip() for ln in reversed((r.stdout or "").splitlines())
+                         if "Email failed" in ln or "send attempt" in ln), "")
+            _log(f"Morning Coffee: did NOT confirm a send (rc={r.returncode})"
+                 + (f" — {_why}" if _why else "") + " — see logs/pull_driver_coffee.log")
         return ok
     except Exception as e:
         _log(f"Morning Coffee: FAILED — {e!r}")
