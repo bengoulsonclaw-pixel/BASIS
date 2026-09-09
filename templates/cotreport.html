@@ -22,8 +22,21 @@
   .trigger .cheap { color: var(--pos-tx); font-weight: 700; }
   /* slim yellow sub-divider marking each sector group in the chartbook */
   .sectorband { background: var(--yellow); color: var(--black); font-weight: 700; text-transform: uppercase;
-                font-size: 10pt; letter-spacing: .6px; padding: 2.5pt 6pt; margin: 5mm 0 1.5mm;
+                font-size: 10pt; letter-spacing: .6px; padding: 2.5pt 6pt; margin: 4mm 0 1.5mm;
                 break-after: avoid; page-break-after: avoid; }
+
+  /* Chartbook: exactly TWO products per page. Each pair rides in a `.pick-page` (shared style: a
+     full-height flex column, one sheet, that spreads its children evenly). Every product's main +
+     seasonality chart is scaled to 93% so a pair — plus any sector band, or the intro on the first
+     page — always clears the sheet with margin (two full-size products nearly fill it on their own).
+     The closing product rides with the disclaimer in `.report-footer`, scaled to match. */
+  .chartbook .chart img,
+  .report-footer .section .chart img { width: 90%; margin-left: auto; margin-right: auto; }
+  .chartbook .pick-page { justify-content: space-evenly; }
+  .chartbook .prod { break-inside: avoid; }
+  .chartbook .pick-page > .prod:only-child { margin-top: auto; margin-bottom: auto; }  /* centre a lone tail product */
+  .chartbook .chart-head .banner { margin-top: 0; }
+  .chartbook .chart-head .chart-intro { margin: 1.5mm 0 0; }
 </style>
 </head>
 <body>
@@ -158,19 +171,30 @@
       too short &mdash; the study runs on the full Bloomberg price history.)</p>
     {% endif %}
 
-    <div class="banner newpage">Positioning Charts &mdash; every market</div>
-    <p class="summary" style="margin-top:2mm">
-      Per market: gross <b style="color:#1F5FA8">long</b> bars up, gross <b style="color:#C62828">short</b>
-      bars down, the <b>net</b> line over the top, and the underlying <b>price</b> on the right axis.
-      The lower panel is the COT Index; shaded bands mark the crowded zones.
-    </p>
     <div class="chartbook">
+      {# TWO products per page from here on. Each `.pick-page` is one sheet holding a pair of products
+         (spread evenly down it); the section banner + intro ride atop the first pair. The very last
+         product is handled below, paired with the disclaimer in `.report-footer`. #}
       {% set ns = namespace(sec=None) %}
-      {% for p in products[:-1] %}
-      {% if p.sector != ns.sec %}<div class="sectorband">{{ p.sector }}</div>{% set ns.sec = p.sector %}{% endif %}
-      <div class="section">
-        <div class="chart"><img src="{{ p.img }}" alt="COT chart"></div>
-        {% if p.seas %}<div class="chart"><img src="{{ p.seas }}" alt="positioning seasonality"></div>{% endif %}
+      {% set body = products[:-1] %}
+      {% for i in range(0, body|length, 2) %}
+      <div class="pick-page">
+        {% if i == 0 %}
+        <div class="chart-head">
+          <div class="banner">Positioning Charts &mdash; every market</div>
+          <p class="summary chart-intro">Gross <b style="color:#1F5FA8">long</b> / <b style="color:#C62828">short</b>
+            bars, <b>net</b> line and <b>price</b> (right axis); lower panel is the COT Index, crowded zones shaded.</p>
+        </div>
+        {% endif %}
+        {% for p in body[i:i+2] %}
+        <div class="prod">
+          {% if p.sector != ns.sec %}<div class="sectorband">{{ p.sector }}</div>{% set ns.sec = p.sector %}{% endif %}
+          <div class="section">
+            <div class="chart"><img src="{{ p.img }}" alt="COT chart"></div>
+            {% if p.seas %}<div class="chart"><img src="{{ p.seas }}" alt="positioning seasonality"></div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
       </div>
       {% endfor %}
     </div>

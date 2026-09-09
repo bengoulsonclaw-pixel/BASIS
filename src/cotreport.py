@@ -49,6 +49,18 @@ DISPLAY_WEEKS = 156      # ~3 years shown on each chart
 DEFAULT_CUTOFF = 80.0    # COT Index ≥ cutoff → crowded long; ≤ 100−cutoff → crowded short
 ASSET_ORDER = ["Indices", "STIRs", "Bonds", "FX", "Energy", "Metals", "Agriculture", "Softs"]
 
+# US Treasury futures in CME curve order, SHORT → LONG, so the Bonds block of the chartbook reads up
+# the curve instead of alphabetically ("Ultra 10Y, Ultra US Bond, US 10Y, US 2Y…"). Ticker → rank; any
+# non-bond ticker is simply absent and falls back to the alphabetical within-sector sort.
+_BOND_TENOR_ORDER = {
+    "TUA Comdty": 0,    # US 2Y Note
+    "FVA Comdty": 1,    # US 5Y Note
+    "TYA Comdty": 2,    # US 10Y Note
+    "UXYA Comdty": 3,   # Ultra 10Y Note  (basket ~9.5–10Y — a touch longer duration than the classic 10Y)
+    "USA Comdty": 4,    # US Long Bond    (classic bond future, CTD ~15–25Y)
+    "WNA Comdty": 5,    # Ultra US Bond   (~25–30Y)
+}
+
 # Embedded-chart resolution. "screen" is crisp; "email" trades sharpness for a much
 # smaller file (the report is image-heavy: ~50 charts embedded as PNGs). Set via --quality.
 CHART_DPI = 160
@@ -463,8 +475,12 @@ def render_html(detail: pd.DataFrame, hist: pd.DataFrame, asof: str, cutoff: flo
         report_date = ""
 
     products = []
-    # Chartbook order: by sector (asset class), then alphabetically by product within each sector.
-    for r in detail.sort_values(["asset", "market"], kind="stable").itertuples(index=False):
+    # Chartbook order: by sector (asset class); within a sector alphabetically, EXCEPT US Treasuries,
+    # which read short→long up the curve (see _BOND_TENOR_ORDER) rather than in alphabetical order.
+    cb = (detail.assign(_ord=detail["ticker"].map(_BOND_TENOR_ORDER).fillna(99))
+                .sort_values(["asset", "_ord", "market"], kind="stable")
+                .drop(columns="_ord"))
+    for r in cb.itertuples(index=False):
         gh = hist[hist["ticker"] == r.ticker].sort_values("date")   # full history (seasonality)
         g = gh.tail(DISPLAY_WEEKS)                                   # display window (3-panel chart)
         if g.empty:

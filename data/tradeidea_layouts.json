@@ -1,0 +1,63 @@
+{
+  "layouts": {
+    "Macro piece": {
+      "desk": "FICC",
+      "sector": "Bonds",
+      "headline": "Ultra 10Y Note (yield) \u2014 seasonal window 10 Sep \u2192 9 Nov",
+      "sections": [
+        {
+          "title": "The Trade",
+          "kind": "prose",
+          "weight": 1.0,
+          "prompt": "The trade \u2014 what to buy or sell, which contract or expiry, size or ratio, and the horizon.",
+          "id": "a5a5aab0",
+          "preset_title": "The Trade"
+        },
+        {
+          "title": "Rationale",
+          "kind": "prose",
+          "weight": 1.6,
+          "prompt": "Why now \u2014 the macro or relative-value argument, the data or positioning behind it, and what the market is currently pricing.",
+          "id": "5ebefc4b",
+          "preset_title": "Rationale"
+        },
+        {
+          "title": "Risks & Invalidation",
+          "kind": "prose",
+          "weight": 1.1,
+          "prompt": "What would make this wrong \u2014 the events, levels or data that invalidate the argument.",
+          "id": "ebedcb16",
+          "preset_title": "Risks & Invalidation"
+        },
+        {
+          "title": "Trade Ideas to Execute",
+          "kind": "table",
+          "weight": 0.0,
+          "cols": [
+            "Instrument",
+            "Direction",
+            "Entry",
+            "Target",
+            "Stop",
+            "Horizon"
+          ],
+          "prompts": [
+            "e.g. SR3Z6/H7",
+            "Long / Short",
+            "level",
+            "level",
+            "level",
+            "e.g. 3 months"
+          ],
+          "rows": 3,
+          "id": "ba459466",
+          "preset_title": "Trade Ideas to Execute"
+        }
+      ],
+      "oneline": true,
+      "subject_bar": true,
+      "pages": 1,
+      "asof": "2026-09-08"
+    }
+  }
+}
