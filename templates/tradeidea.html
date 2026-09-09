@@ -77,8 +77,11 @@
   .trigger .ph { display: inline; }
 
   /* Table sections (Trade Ideas to Execute / Catalysts): house table styling from the shared
-     sheet, with every cell click-to-type in the fillable copy. */
+     sheet, with every cell click-to-type in the fillable copy. `.tableref` is the underlying's
+     level as the piece was written — sized like the report's other fine print, sitting directly
+     above the table it qualifies (margin-bottom 0: the table's own 2mm top margin follows). */
   .cell span { display: block; min-height: 1.5em; }
+  .tableref { font-size: 8.5pt; color: #333; font-style: italic; margin-top: 2.5mm; }
 
   /* Chart / diagram box: drop, paste or click to insert an image in the fillable copy; an
      empty box is a dashed placeholder that never prints. */
@@ -171,6 +174,12 @@
     {% for s in sections %}
       <div class="banner">{{ s.title }}</div>
       {% if s.kind == 'table' %}
+        {% if s.refline %}
+        {# Where the underlying was trading when this was written. Prints nothing if unfilled. #}
+        <div class="tableref ph" id="f_{{ s.eid }}_ref"
+             data-ph="Reference: where the underlying was trading as this was written — e.g. TYA 112-14, 9 Sep 16:00 ET."
+             {{ ce|safe }}></div>
+        {% endif %}
         <table>
           <thead><tr>{% for c in s.cols %}<th{% if not loop.first %} class="center"{% endif %}>{{ c }}</th>{% endfor %}</tr></thead>
           <tbody>

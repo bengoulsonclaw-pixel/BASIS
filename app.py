@@ -8166,6 +8166,16 @@ def _ti_layout_bar(payload_fn) -> None:
                   on_click=lambda: st.session_state.update(ti_confirm_del=True))
 
 
+def _ti_preset_cols(sid: str) -> None:
+    """on_change: fill a table's headings from a preset, then bounce the picker back to its
+    placeholder so it reads as an action rather than a state the row is stuck in."""
+    pick = st.session_state.get(f"ti_cp_{sid}")
+    cols = tradeidea.TABLE_PRESETS.get(pick)
+    if cols:
+        st.session_state[f"ti_cc_{sid}"] = ", ".join(cols)
+    st.session_state[f"ti_cp_{sid}"] = "Preset…"
+
+
 def _ti_layout_ui() -> dict:
     """The builder: desk, sector, masthead + topic, then the sections — named, typed and ordered by the
     writer. Returns the payload that src/tradeidea.py renders."""
@@ -8211,52 +8221,63 @@ def _ti_layout_ui() -> dict:
     with st.container(key="ti_rows"):
         for pos, sec in enumerate(list(secs)):
             sid = sec["id"]
-            cc = st.columns([0.40, 0.22, 0.18, 0.07, 0.07, 0.06], vertical_alignment="center")
-            sec["title"] = cc[0].text_input("Title", value=sec.get("title", ""), key=f"ti_t_{sid}",
-                                            label_visibility="collapsed")
-            # Rename a standard section and its stock prompt no longer describes it — "The trade
-            # — what to buy or sell…" under a heading about US fiscal policy is worse than no
-            # prompt at all. Chart prompts stay: they instruct rather than guide.
-            if (sec.get("preset_title") and sec["kind"] == "prose"
-                    and sec["title"].strip() != sec["preset_title"]):
-                sec["prompt"] = ""
-                sec.pop("preset_title", None)
-            kinds = ["Writing box", "Table", "Chart / image"]
-            kind_of = {"prose": 0, "table": 1, "chart": 2}
-            new_kind = cc[1].selectbox("Kind", kinds, index=kind_of.get(sec["kind"], 0),
-                                       key=f"ti_k_{sid}", label_visibility="collapsed")
-            new_kind = ["prose", "table", "chart"][kinds.index(new_kind)]
-            if new_kind != sec["kind"]:                # retyped: rebuild its innards, keep name+id
-                sec.update({k: v for k, v in _ti_new(new_kind, sec["title"]).items() if k != "id"})
+            # Each row keyed on its own, so the phone CSS (brand.py) can hold THIS row's controls
+            # on one line without also flattening the table settings row underneath it.
+            with st.container(key=f"tirow_{sid}"):
+                cc = st.columns([0.46, 0.24, 0.09, 0.07, 0.07, 0.07], vertical_alignment="center")
+                sec["title"] = cc[0].text_input("Title", value=sec.get("title", ""),
+                                                key=f"ti_t_{sid}", label_visibility="collapsed")
+                # Rename a standard section and its stock prompt no longer describes it — "The
+                # trade — what to buy or sell…" under a heading about US fiscal policy is worse
+                # than no prompt at all. Chart prompts stay: they instruct rather than guide.
+                if (sec.get("preset_title") and sec["kind"] == "prose"
+                        and sec["title"].strip() != sec["preset_title"]):
+                    sec["prompt"] = ""
+                    sec.pop("preset_title", None)
+                kinds = ["Writing box", "Table", "Chart / image"]
+                kind_of = {"prose": 0, "table": 1, "chart": 2}
+                new_kind = cc[1].selectbox("Kind", kinds, index=kind_of.get(sec["kind"], 0),
+                                           key=f"ti_k_{sid}", label_visibility="collapsed")
+                new_kind = ["prose", "table", "chart"][kinds.index(new_kind)]
+                if new_kind != sec["kind"]:            # retyped: rebuild its innards, keep name+id
+                    sec.update({k: v for k, v in _ti_new(new_kind, sec["title"]).items()
+                                if k != "id"})
+                if sec["kind"] == "table":
+                    sec["rows"] = int(cc[2].number_input(
+                        "Rows", 1, 12, int(sec.get("rows", 3)), key=f"ti_r_{sid}",
+                        label_visibility="collapsed", help="Blank rows"))
+                elif sec["kind"] == "chart":
+                    sec["caption"] = cc[2].text_input("Source", value=sec.get("caption", ""),
+                                                      key=f"ti_c_{sid}", label_visibility="collapsed",
+                                                      placeholder="Source")
+                cc[3].button("↑", key=f"ti_up_{sid}", disabled=pos == 0, on_click=_ti_move,
+                             args=(sid, -1), use_container_width=True)
+                cc[4].button("↓", key=f"ti_dn_{sid}", disabled=pos == len(secs) - 1,
+                             on_click=_ti_move, args=(sid, 1), use_container_width=True)
+                cc[5].button("✕", key=f"ti_x_{sid}", on_click=_ti_drop, args=(sid,),
+                             use_container_width=True, help="Remove this section")
             if sec["kind"] == "table":
-                with cc[2]:
-                    names = list(tradeidea.TABLE_PRESETS)
-                    cur = next((n for n, c in tradeidea.TABLE_PRESETS.items()
-                                if c == sec.get("cols")), "Custom")
-                    pick = st.selectbox("Columns", names + ["Custom"], key=f"ti_cp_{sid}",
-                                        index=(names + ["Custom"]).index(cur),
-                                        label_visibility="collapsed")
-                    if pick != "Custom" and tradeidea.TABLE_PRESETS[pick] != sec.get("cols"):
-                        sec["cols"] = list(tradeidea.TABLE_PRESETS[pick])
-                        sec["prompts"] = []
-                    sec["rows"] = int(st.number_input("Rows", 1, 12, int(sec.get("rows", 3)),
-                                                      key=f"ti_r_{sid}", label_visibility="collapsed"))
-            elif sec["kind"] == "chart":
-                sec["caption"] = cc[2].text_input("Source", value=sec.get("caption", ""),
-                                                  key=f"ti_c_{sid}", label_visibility="collapsed",
-                                                  placeholder="Source line")
-            cc[3].button("↑", key=f"ti_up_{sid}", disabled=pos == 0, on_click=_ti_move,
-                         args=(sid, -1), use_container_width=True)
-            cc[4].button("↓", key=f"ti_dn_{sid}", disabled=pos == len(secs) - 1, on_click=_ti_move,
-                         args=(sid, 1), use_container_width=True)
-            cc[5].button("✕", key=f"ti_x_{sid}", on_click=_ti_drop, args=(sid,),
-                         use_container_width=True, help="Remove this section")
-            if sec["kind"] == "table" and st.session_state.get(f"ti_cp_{sid}") == "Custom":
-                sec["cols"] = [c.strip() for c in st.text_input(
+                # Columns are always editable free text — the presets are a quick fill, not a
+                # menu you have to pick from. A note may want nothing but instrument, direction
+                # and a two-way price.
+                t1, t2, t3 = st.columns([0.52, 0.22, 0.26], vertical_alignment="center")
+                cols_txt = t1.text_input(
                     "Columns", value=", ".join(sec.get("cols", [])), key=f"ti_cc_{sid}",
-                    label_visibility="collapsed",
-                    help="Column headings, comma separated.").split(",") if c.strip()]
-                sec["prompts"] = []
+                    label_visibility="collapsed", placeholder="Column headings, comma separated",
+                    help="Type the headings you want, comma separated — e.g. "
+                         "Instrument, Direction, Two-way price.")
+                cols = [c.strip() for c in cols_txt.split(",") if c.strip()]
+                if cols and cols != sec.get("cols"):
+                    sec["cols"] = cols
+                    sec["prompts"] = []            # stock cell hints no longer match the headings
+                t2.selectbox("Preset", ["Preset…"] + list(tradeidea.TABLE_PRESETS),
+                             key=f"ti_cp_{sid}", label_visibility="collapsed",
+                             on_change=_ti_preset_cols, args=(sid,),
+                             help="Fill the headings from a standard set.")
+                sec["refline"] = t3.checkbox(
+                    "Reference price line", value=sec.get("refline", True), key=f"ti_rl_{sid}",
+                    help="A line above the table for where the underlying was trading as you "
+                         "wrote — so a price still means something a week later.")
 
     a1, a2, a3, a4 = st.columns([0.24, 0.20, 0.24, 0.32])
     a1.button("➕ Writing box", key="ti_add_prose", on_click=_ti_add, args=("prose",),

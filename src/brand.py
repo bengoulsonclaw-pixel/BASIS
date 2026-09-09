@@ -985,16 +985,17 @@ div.st-key-home_rerun button p, div.st-key-eq_refresh button p {
     [class*="st-key-hsrow_"] [data-testid="stColumn"]:nth-child(4),
     [class*="st-key-hsrow_"] [data-testid="stColumn"]:nth-child(5) {
         flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
-    /* Trade Idea layout builder: each section's tick + arrows stay on ONE row. Stacked,
-       eleven sections became forty-odd rows of full-width arrow buttons and the list was
-       unusable on a phone. The kind caption ("writing box") is the one thing that goes. */
-    .st-key-ti_rows [data-testid="stHorizontalBlock"] { flex-wrap:nowrap !important; gap:.3rem !important; }
-    .st-key-ti_rows [data-testid="stColumn"]:nth-child(1) { flex:1 1 auto !important; min-width:0 !important; }
-    .st-key-ti_rows [data-testid="stColumn"]:nth-child(2) { display:none !important; }
-    .st-key-ti_rows [data-testid="stColumn"]:nth-child(3) { flex:0 0 64px !important; min-width:64px !important; }
-    .st-key-ti_rows [data-testid="stColumn"]:nth-child(4),
-    .st-key-ti_rows [data-testid="stColumn"]:nth-child(5) {
-        flex:0 0 40px !important; width:40px !important; min-width:40px !important; }
+    /* Trade Idea layout builder: a section row wraps into two lines on a phone — the title
+       across the top, then kind + its setting + the three buttons. Column 2 is the KIND picker
+       (it used to be a throwaway caption, which is why it was hidden here); it has to stay. */
+    [class*="st-key-tirow_"] [data-testid="stHorizontalBlock"] { flex-wrap:wrap !important; gap:.3rem !important; }
+    [class*="st-key-tirow_"] [data-testid="stColumn"]:nth-child(1) { flex:0 0 100% !important; }
+    [class*="st-key-tirow_"] [data-testid="stColumn"]:nth-child(2),
+    [class*="st-key-tirow_"] [data-testid="stColumn"]:nth-child(3) { flex:1 1 0 !important; min-width:0 !important; }
+    [class*="st-key-tirow_"] [data-testid="stColumn"]:nth-child(4),
+    [class*="st-key-tirow_"] [data-testid="stColumn"]:nth-child(5),
+    [class*="st-key-tirow_"] [data-testid="stColumn"]:nth-child(6) {
+        flex:0 0 38px !important; width:38px !important; min-width:38px !important; }
     /* day nav ‹ date › : keep it one row (stacked, it read as three empty bars) */
     .st-key-land_nav [data-testid="stHorizontalBlock"] { flex-wrap:nowrap !important; gap:.4rem !important; }
     .st-key-land_nav [data-testid="stColumn"]:first-child,

@@ -117,6 +117,7 @@ SECTIONS: dict[str, dict] = {
 # house tables underneath.
 TABLE_PRESETS = {
     "Trade levels": ["Instrument", "Direction", "Entry", "Target", "Stop", "Horizon"],
+    "Two-way price": ["Instrument", "Direction", "Two-way price"],
     "Option pricing": ["Structure", "Expiry", "Strikes", "Price", "Breakeven", "Max risk"],
     "Calendar": ["Date", "Event", "Why it matters"],
 }
@@ -238,6 +239,9 @@ def _sections(payload: dict) -> list[dict]:
         s.setdefault("prompt", "")
         s.setdefault("weight", 2.2 if kind == "chart" else (0.0 if kind == "table" else 1.0))
         if kind == "table":
+            # The underlying's level when the piece was written — a price quoted three days later
+            # means nothing without it, and the writer shouldn't have to build the line by hand.
+            s.setdefault("refline", True)
             s["cols"] = [c for c in (s.get("cols") or TABLE_PRESETS["Trade levels"]) if str(c).strip()]
             s["prompts"] = list(s.get("prompts") or [])[:len(s["cols"])]
             s["prompts"] += [""] * (len(s["cols"]) - len(s["prompts"]))
