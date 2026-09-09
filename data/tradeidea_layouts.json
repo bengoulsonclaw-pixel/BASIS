@@ -58,6 +58,49 @@
       "subject_bar": true,
       "pages": 1,
       "asof": "2026-09-08"
+    },
+    "10 Year": {
+      "desk": "FICC",
+      "sector": "Bonds",
+      "doctype": "Trade Idea",
+      "topic": "US 10Y Note (yield) \u2014 Seasonal Window 10 Sep \u2192 9 Nov",
+      "sections": [
+        {
+          "title": "Rationale",
+          "kind": "prose",
+          "weight": 1.6,
+          "prompt": "Why now \u2014 the macro or relative-value argument, the data or positioning behind it, and what the market is currently pricing.",
+          "id": "4239e0e9",
+          "preset_title": "Rationale"
+        },
+        {
+          "title": "Trade Ideas to Execute",
+          "kind": "table",
+          "weight": 0.0,
+          "cols": [
+            "Direction",
+            "Instrument",
+            "Two-way price"
+          ],
+          "prompts": [],
+          "rows": 3,
+          "id": "68882f45",
+          "preset_title": "Trade Ideas to Execute",
+          "refline": true
+        },
+        {
+          "id": "86437194",
+          "kind": "chart",
+          "title": "Chart",
+          "prompt": "Drop a chart image here, or click to choose one \u2014 you can also paste straight from Bloomberg or Excel.",
+          "caption": "Source: Bloomberg",
+          "weight": 2.2
+        }
+      ],
+      "oneline": true,
+      "subject_bar": true,
+      "pages": 1,
+      "asof": "2026-09-09"
     }
   }
 }

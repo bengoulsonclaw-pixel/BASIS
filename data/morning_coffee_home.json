@@ -1,42 +1,30 @@
 {
- "generated_at": "08 Sep 2026 · 05:10 ET",
- "synopsis": "Energy owns the tape this morning. Brent is pressing toward $100 (+2.4% at 99.32) and WTI is up 3.4% after Houthi strikes halted operations at Saudi energy facilities across four cities, while traders estimate Hormuz flows are running at roughly half pre-war levels; heating oil and RBOB are up 3% and 1.2%, and TTF gained 2.1% in sympathy.",
- "commentary": "Energy owns the tape this morning. Brent is pressing toward $100 (+2.4% at 99.32) and WTI is up 3.4% after Houthi strikes halted operations at Saudi energy facilities across four cities, while traders estimate Hormuz flows are running at roughly half pre-war levels; heating oil and RBOB are up 3% and 1.2%, and TTF gained 2.1% in sympathy. That supply shock is landing on a market already fretting sticky inflation — Schwab notes last week's hot jobs report lifted Fed rate-hike odds, and Bloomberg's wrap frames the equity slide squarely as oil-driven inflation jitters.\n\nThe result is classic stagflationary risk-off: S&P and Dow futures lower (the Dow also dented by a Swiss pharma trial setback hammering the SMI, -1.7%), Treasuries sold at the long end with the US Long Bond -0.4%, Bunds and Gilts softer, and gold -0.9% as higher-for-longer real rates trump the geopolitical bid. Elsewhere the yen rallied 1.4% to a seven-month high on safe-haven flows and reports a key adviser in Tokyo projects a September BoJ hike — pressuring the dollar into this week's US CPI.\n\nChina's August trade held up (exports +25% y/y, imports slightly light), supporting copper (+1.3%) and iron ore. In ags, wheat ripped 3% as Russian strikes on Kyiv resumed, reviving Black Sea supply risk, and sugar extended its supply-driven run. Watch: US CPI, further Gulf escalation headlines, and whether crude closes through $100 — that's the number that forces the rates repricing wider.",
+ "generated_at": "09 Sep 2026 · 06:07 ET",
+ "synopsis": "Energy owns the tape this morning. Brent punched through $100 for the first time since July after the US said it destroyed five Iranian tankers linked to the Revolutionary Guards following an attempted missile attack on a Navy warship, with Iran retaliating against a US base in Jordan — Brent is +2.6% at $100.48, WTI +2.1%, and the products are running harder still, heating oil +3.4% and gasoil +2.7% as cracks bou…",
+ "commentary": "Energy owns the tape this morning. Brent punched through $100 for the first time since July after the US said it destroyed five Iranian tankers linked to the Revolutionary Guards following an attempted missile attack on a Navy warship, with Iran retaliating against a US base in Jordan — Brent is +2.6% at $100.48, WTI +2.1%, and the products are running harder still, heating oil +3.4% and gasoil +2.7% as cracks bounce. The curve is doing the talking: Brent's Dec-Dec spread closed at a record on a rolling basis and prompt backwardation widened sharply, signalling a genuine supply squeeze rather than a headline pop, reinforced by recovering Chinese crude buying.\n\nTTF gas is up nearly 4% in sympathy. The transmission is straight into inflation and rates. The ECB is all but certain to hike Thursday, and the real debate is the terminal rate — bond markets are split, and much hinges on how long oil stays north of $100. Bunds, OATs and gilts are all lower, Euro Stoxx futures are off more than 1% with banks underperforming, and US index futures are soft as Treasuries slip at the belly. Any Fed easing hopes get harder to sustain with energy re-igniting headline CPI — India's inflation is already hitting 20-month highs on food and fuel.\n\nElsewhere, copper backed off its record (-0.9%) as Mideast risk weighs on growth-sensitive metals, while gold firmed on a softer dollar. The yen is bid after Treasury Secretary Bessent's \"I am the house now\" warning against shorting it post-intervention. Watch the ECB, US CPI, and whether Brent tests July's $102 high — from overbought territory.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "Brent Oil Climbs Toward $100 With Hormuz Constrained",
-   "time": "04:45 ET",
+   "title": "Brent Oil Hits $100 as US-Iran War Shows Little Sign of Abating",
+   "time": "18:03 ET",
    "tag": "Energy"
   },
   {
-   "source": "Financial Times",
-   "title": "Wave of Houthi strikes halts work at energy facilities in four Saudi cities",
-   "time": "04:48 ET",
-   "tag": "Geopolitics"
+   "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "09:05 ET",
+   "tag": "Energy"
   },
   {
    "source": "Bloomberg",
-   "title": "*CHINA AUG. EXPORTS IN USD TERMS RISE 25.0% Y/Y; EST. +25.9%",
-   "time": "",
-   "tag": "Macro"
+   "title": "Copper Falls From Record as Mideast Tensions Weigh on Metals",
+   "time": "22:44 ET",
+   "tag": "Metals"
   },
   {
-   "source": "The Guardian",
-   "title": "Canada's retaliatory US tariffs take effect as trade dispute grows",
-   "time": "00:00 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "U.S. Treasury Yields Fall But Direction for Long-End Yields Still Seen Upward",
-   "time": "05:02 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "Comex Gold, Silver Settle Lower",
-   "time": "14:01 ET",
+   "source": "Bloomberg",
+   "title": "Gold Pushes Higher as Weaker Dollar Offsets Inflation Risks",
+   "time": "19:25 ET",
    "tag": "Metals"
   },
   {
@@ -46,10 +34,22 @@
    "tag": "Agriculture"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
-   "tag": "Energy"
+   "source": "NPR",
+   "title": "Trump issues new executive orders on beef sales to pacify American cattle ranchers",
+   "time": "08:20 ET",
+   "tag": "Agriculture"
+  },
+  {
+   "source": "Financial Times",
+   "title": "US bans Canadian dairy, motorcycles and most alcoholic beverages",
+   "time": "22:57 ET",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "Financial Times",
+   "title": "July wage data bolsters case for BoJ tightening this month",
+   "time": "04:18 ET",
+   "tag": "Rates"
   }
  ]
 }
