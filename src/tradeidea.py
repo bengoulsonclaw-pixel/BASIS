@@ -132,6 +132,10 @@ BRAND = "XP Global Macro"
 DOCTYPES = {"FICC": "Trade Idea", "Equities": "Equity Trade Idea"}
 HEADLINES = {k: f"{BRAND} — {v}" for k, v in DOCTYPES.items()}   # kept: older layouts read it
 MARKET_PROMPT = {"FICC": "Market / instrument", "Equities": "Company / index"}
+# The desk's shared address, exactly as every other report in the deck prints it. This is
+# real CONTENT, not a prompt: a prompt is stripped when the copy is printed, which is how a
+# note went out with the second contact line missing.
+DESK_EMAIL = {"FICC": "Futures.Offshore@xpi.us", "Equities": "Mesa.Brasil@xpi.us"}
 
 # A4 content box in CSS px at 96dpi, less the 0.30in top/bottom @page margins.
 PAGE_PX = 11.69 * 96 - 2 * 0.30 * 96
@@ -269,6 +273,7 @@ def render_html(payload: dict | None = None, editable: bool = False) -> str:
         oneline=bool(p.get("oneline", True)),
         subject_bar=bool(p.get("subject_bar", True)),
         market_ph=MARKET_PROMPT.get(p.get("desk"), MARKET_PROMPT["FICC"]),
+        desk_email=DESK_EMAIL.get(p.get("desk"), DESK_EMAIL["FICC"]),
         sections=secs,
         has_chart=any(s["kind"] == "chart" for s in secs),
         logo=data_uri(ASSETS / "logo.png"),

@@ -97,6 +97,23 @@ def test_prose_box_is_the_house_body_size(computed):
     assert computed["fillable"]["f_p1"].startswith("12.6"), computed["fillable"]["f_p1"]
 
 
+@pytest.mark.parametrize("desk,address", sorted(ti.DESK_EMAIL.items()))
+def test_desk_address_is_content_not_a_prompt(desk, address):
+    """The desk's shared address must PRINT whether or not anyone touched that box.
+
+    It was a placeholder, and placeholders are stripped when the copy prints — so a note went
+    out with the second contact line simply gone (Ben, 2026-09-09), which is how every other
+    report in the deck renders it as fixed text. It stays editable; it just isn't a prompt.
+    """
+    blank = ti.render_html({**ti.default_payload(desk, ""), "topic": "x"}, editable=False)
+    fillable = ti.render_html({**ti.default_payload(desk, ""), "topic": "x"}, editable=True)
+    assert address in blank, f"{desk}: missing from the blank template"
+    # in the fillable copy it must be the field's VALUE (between the tags), not only its
+    # placeholder — a placeholder would vanish on print exactly as it did before.
+    body = fillable.split('id="f_mail2"', 1)[1].split("</textarea>", 1)[0]
+    assert body.rstrip().endswith(address), f"{desk}: desk address is not the field's value"
+
+
 def test_instrument_slot_stays_upper_case(computed):
     """Every banner in the deck is upper-cased by the shared sheet; a form control resets it."""
     assert "uppercase" in computed["fillable"]["f_market"]
