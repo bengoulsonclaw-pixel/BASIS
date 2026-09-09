@@ -109,7 +109,10 @@
   .trigger { font-size: calc(10pt * var(--s)); padding: calc(2mm * var(--s)) 3mm; }
   .banner { font-size: calc(11pt * var(--s)); margin-top: calc(5mm * var(--s));
             padding: calc(3.5pt * var(--s)) 6pt; }
-  .field, .fld, .summary { font-size: calc(9.5pt * var(--s)); }
+  /* NB `textarea.field.fld`, not `.fld`: the form-field block below resets type with
+     `font: inherit`, and a plain .field here would lose to it on source order — the prose box
+     then took the BODY's 16px default and printed a quarter larger than the rest of the page. */
+  .field, .summary, textarea.field.fld { font-size: calc(9.5pt * var(--s)); }
   textarea.field.fld { padding: calc(2mm * var(--s)) 2.5mm; }
   table { font-size: calc(8.5pt * var(--s)); }
   thead th { padding: calc(2.75pt * var(--s)) 4.5pt; }
@@ -144,7 +147,9 @@
   /* slots that live INSIDE a line rather than owning one */
   .trigger .fld, .banner .fld, .sub .fld { display: inline-block; vertical-align: top; }
   .trigger .fld { width: calc(100% - 1.62in); }
-  .banner .mkt.fld { flex: 1 1 auto; width: auto; }
+  /* text-transform is inherited, but a form control's UA style resets it — without this the
+     instrument would be the one banner in the deck that isn't upper case. */
+  .banner .mkt.fld { flex: 1 1 auto; width: auto; text-transform: uppercase; }
   .banner .sig.fld { flex: 0 0 2.3in; width: 2.3in; text-align: right; }
   .sub .fld { width: 2.6in; }
   td.center .fld { text-align: center; }
