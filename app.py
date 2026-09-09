@@ -8296,7 +8296,7 @@ def _ti_layout_ui() -> dict:
                       args=("prose", _key), use_container_width=True)
 
     e1, e2, e3 = st.columns(3)
-    oneline = e1.checkbox("“The idea in one line” box", value=saved.get("oneline", True),
+    oneline = e1.checkbox("“The Idea” box", value=saved.get("oneline", True),
                           key="ti_oneline")
     subject = e2.checkbox("Instrument / direction bar", value=saved.get("subject_bar", True),
                           key="ti_subject")
