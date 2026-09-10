@@ -204,21 +204,46 @@ def save_min_base(v: float) -> None:
                              encoding="utf-8")
 
 
+# How much RELATIONSHIP changed, not how many correlation points moved: the
+# Fisher z-transform (atanh) stretches the scale near ±1, where correlations are
+# statistically sticky — so 0.99→0.60 is a ~1.9σ-scale collapse of a hedge-grade
+# relationship while 0.30→0.02 (a similar raw drop) is a ~0.3 wobble between
+# strangers (Ben, 2026-09-10: the first is interesting, the second is not).
+# Clipped short of ±1 so a 0.995→0.97 rounding tremor can't masquerade as news.
+BREAK_DZ_MIN = 0.55        # ≈ losing 0.8→0.4, 0.9→0.55, 0.99→0.75 — a real break
+_Z_CLIP = 0.985
+
+
+def fisher_dz(corr_1y, corr_1m):
+    """|Δ| of the two correlations in Fisher z-space — the size of the change in
+    RELATIONSHIP terms. Works on scalars or Series."""
+    z = lambda c: np.arctanh(np.clip(c, -_Z_CLIP, _Z_CLIP))
+    return np.abs(z(np.asarray(corr_1y, dtype=float)) - z(np.asarray(corr_1m, dtype=float)))
+
+
 def percentile_extremes(metric: str, asof, *, lo: float = 5.0, hi: float = 95.0,
                         min_move: float = 0.30, n: int = 60,
-                        base_floor: float | None = None) -> pd.DataFrame:
+                        base_floor: float | None = None,
+                        dz_min: float = BREAK_DZ_MIN) -> pd.DataFrame:
     """Product pairs whose 1M correlation sits at an extreme of its own rolling
     1-year range AND has actually moved (|1M − 1Y| ≥ min_move) AND had a standing
     relationship to move from (|1Y| ≥ base_floor; None = the saved page setting)
-    — the alert feed. Percentile alone fires on pairs whose correlation barely
-    wobbles; the move floor keeps the list to breaks a desk would care about;
-    the base floor keeps out noise excursions between unrelated products."""
+    AND lost/gained enough of that relationship to matter (Fisher-z change ≥
+    dz_min) — the alert feed. Each filter kills a different false positive:
+    percentile alone fires on pairs that barely wobble; the move floor keeps
+    changes economically visible; the base floor keeps out unrelated products;
+    the z floor keeps out shallow drifts on marginal bases (0.45→0.15 is not the
+    story 0.99→0.60 is, though their raw drops are similar). Output carries `dz`
+    so consumers can rank by break size."""
     fl = min_base() if base_floor is None else float(base_floor)
     bt = top_breaks(metric, asof, n=n)
     if bt.empty:
         return bt
+    bt = bt.copy()
+    bt["dz"] = fisher_dz(bt["corr_1y"], bt["corr_1m"])
     hit = bt[(bt["corr_1y"].abs() >= fl)
              & (bt["diff"].abs() >= min_move)
+             & (bt["dz"] >= float(dz_min))
              & ((bt["pctl"] <= lo) | (bt["pctl"] >= hi))].copy()
     hit["kind"] = np.where(hit["diff"] < 0, "breakdown", "lockstep")
     return hit.reset_index(drop=True)
@@ -240,12 +265,12 @@ def radar_items() -> list:
     ex = percentile_extremes("realized", date.today())
     if ex is None or ex.empty:
         return []
-    best: dict = {}                   # dedupe unordered pairs, keep the widest move
-    for r in ex.to_dict("records"):
+    best: dict = {}                   # dedupe unordered pairs, keep the biggest BREAK
+    for r in ex.to_dict("records"):   # (Fisher-z size — relationship lost, not raw points)
         k = tuple(sorted((r["a"], r["b"])))
-        if k not in best or abs(r["diff"]) > abs(best[k]["diff"]):
+        if k not in best or r["dz"] > best[k]["dz"]:
             best[k] = r
-    rows = sorted(best.values(), key=lambda r: -abs(r["diff"]))[:RADAR_PAIRS]
+    rows = sorted(best.values(), key=lambda r: -r["dz"])[:RADAR_PAIRS]
     items = []
     for r in rows:
         kind = "breaking down" if r["kind"] == "breakdown" else "moving in lockstep"
@@ -257,7 +282,10 @@ def radar_items() -> list:
                   f"**{r['corr_1m']:+.2f}** against {r['corr_1y']:+.2f} over the year, "
                   "an extreme of the pair's own range."),
             metric=f"Δρ {r['diff']:+.2f}", sub="1M vs 1Y",
-            heat=hotsheet.heat_from_pctl(r["pctl"]),
+            # heat = the break's Fisher-z size, so losing a tight relationship
+            # (0.99→0.60, dz≈1.9) outranks a shallow drift on a marginal base —
+            # dz 1.5 (≈ 0.9→0.35) pins the gauge
+            heat=min(100.0, float(r["dz"]) / 1.5 * 100.0),
             value=r["corr_1m"], ticker="",
             page="Product Correlations", book="ficc"))
     return items
