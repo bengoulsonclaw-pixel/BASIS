@@ -1,26 +1,6 @@
 {
- "asof": "2026-09-09T09:03:12",
+ "asof": "2026-09-10T07:05:24",
  "events": [
-  {
-   "date": "2021-08-02",
-   "icon": "",
-   "label": "CRDA",
-   "color": "#283593",
-   "auto": false,
-   "bbg": "CRDA US Equity",
-   "sub": "Crawford Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Crawford Class A \u2014 Financials \u00b7 Russell 2000 \u00b7 US"
-  },
-  {
-   "date": "2023-08-03",
-   "icon": "",
-   "label": "BHA",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "BHA US Equity",
-   "sub": "Biglari Holdings Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Biglari Holdings Inc Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US"
-  },
   {
    "date": "2025-03-19",
    "icon": "",
@@ -6074,10 +6054,10 @@
   {
    "date": "2026-11-12",
    "icon": "",
-   "label": "\u22ef 78 more",
+   "label": "\u22ef 77 more",
    "color": "#616161",
    "auto": false,
-   "tip": "National Energy Services Reunited, Perpetua Resources, Alumis, Infleqtion Inc, Ataibeckley Inc, Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics Inc\u2026"
+   "tip": "National Energy Services Reunited, Perpetua Resources, Alumis, Infleqtion Inc, Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics Inc, Zura Bio Ltd Class A\u2026"
   },
   {
    "date": "2026-11-13",
