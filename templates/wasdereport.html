@@ -22,6 +22,13 @@
   .fine { font-size: 7pt; margin-top: 1.8mm; line-height: 1.35; }
   .demo { background: #FFF8E1; border-left: 3pt solid var(--yellow); padding: 2mm 3mm;
           font-size: 8pt; color: #333; margin: 2.5mm 0; }
+  /* Pin the source+disclaimer footer to the very bottom of the single page: the content column
+     is exactly one page tall (100vh = the page CONTENT box in Chromium print, margins already
+     out; -0.04in so rounding can't tip a blank page 2) and .page-foot's margin-top:auto soaks
+     up the slack. Works with the auto-fit zoom (viewport units are zoom-independent). */
+  .content { min-height: calc(100vh - 0.04in); display: flex; flex-direction: column; }
+  .page-foot { margin-top: auto; }
+  .page-foot .fine { margin-bottom: 0; }
 </style>
 </head>
 <body>
@@ -141,15 +148,18 @@
       / KC &amp; Chicago wheat; the world table is the global backdrop (China especially).
     </p>
 
-    <!-- Disclaimer in NORMAL FLOW, not .report-footer: this note is a single page by design, and
-         .report-footer's break-before would push the disclaimer onto its own (near-blank) page. -->
-    <hr class="rule">
-    <div class="fine">
-      Source: USDA FAS PS&amp;D (carries the WASDE balance sheets, refreshed each monthly release). US in million
-      bushels (corn 39.37, soybeans / wheat 36.74 bu per metric ton); world in MMT. Stocks-to-use = ending stocks
-      ÷ total use (US = domestic use + exports; world = domestic consumption). Free U.S.-government data.
+    <!-- Footer pinned to the BOTTOM of the (single) page: .content is a full-page flex column and
+         margin-top:auto drops this block flush with the sheet edge. Deliberately NOT the house
+         .report-footer — its break-before would push the disclaimer onto its own near-blank page. -->
+    <div class="page-foot">
+      <hr class="rule">
+      <div class="fine">
+        Source: USDA FAS PS&amp;D (carries the WASDE balance sheets, refreshed each monthly release). US in million
+        bushels (corn 39.37, soybeans / wheat 36.74 bu per metric ton); world in MMT. Stocks-to-use = ending stocks
+        ÷ total use (US = domestic use + exports; world = domestic consumption). Free U.S.-government data.
+      </div>
+      {% include "_disclaimer.html" %}
     </div>
-    {% include "_disclaimer.html" %}
   </div>
 </body>
 </html>
