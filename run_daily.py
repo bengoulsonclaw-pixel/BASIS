@@ -13,7 +13,7 @@ from pathlib import Path
 import pandas as pd
 
 from src import universe, tascore, specs
-from src.datafeed import get_history_ta, get_volume_history
+from src.datafeed import get_history_ta, get_volume_history, MODE
 from src.strategies import (mean_reversion, trend, ma_crossover, ma_crossover_swing,
                             flag_breakout, support_resistance, fibonacci, breakout_retest,
                             momentum, bollinger, elliott_wave, ichimoku, obv, mfi,
@@ -21,6 +21,7 @@ from src.strategies import (mean_reversion, trend, ma_crossover, ma_crossover_sw
                             volatility, skew, termstructure, cot, putcall, ag_fundamentals)
 
 SIGNALS_DIR = Path(__file__).parent / "data" / "signals"
+SNAPSHOT_DIR = Path(__file__).parent / "data" / "snapshot"
 SIGNALS_FILE = SIGNALS_DIR / "opportunities.parquet"
 META_FILE = SIGNALS_DIR / "meta.json"
 
@@ -72,8 +73,40 @@ def _gold_leg_stamp(leg: str) -> None:
         pass
 
 
+def _snapshot_source() -> str:
+    """How the on-disk snapshot was FETCHED — 'bloomberg' (real), 'mock' (synthetic), or '' (no
+    snapshot yet). The source is a property of the FETCH, recorded by snapshot.py in
+    .fetch_meta.json (manifest.json is the fallback), NOT of whatever env the compute later runs in."""
+    for name in (".fetch_meta.json", "manifest.json"):
+        try:
+            src = json.loads((SNAPSHOT_DIR / name).read_text(encoding="utf-8")).get("source", "")
+            if src:
+                return str(src)
+        except Exception:
+            continue
+    return ""
+
+
 def run() -> pd.DataFrame:
     SIGNALS_DIR.mkdir(parents=True, exist_ok=True)
+    # GUARD — never let a MOCK-mode compute overwrite the real signal caches. datafeed.MODE
+    # defaults to 'mock' when DATAFEED_MODE is unset, so a stray env-less run_daily.run() (not the
+    # app or the pull — both set snapshot) would clobber data/signals/*.parquet (opportunities.parquet
+    # AND every strategy cache: putcall, skew, volatility, …) with synthetic demo data on top of a
+    # real Bloomberg pull. That happened 2026-09-11: the Put/Call page showed a mock 13,599 for
+    # Euro-Bund while the snapshot store held the real 208,975 (Hot Sheet reads the store direct, so
+    # it stayed correct). Mirrors snapshot.py's fetch-source guard. When a REAL snapshot is on disk,
+    # refuse and return the EXISTING signals unchanged rather than rebuild from mock data. A genuine
+    # offline/demo run fetches a mock snapshot first (source == 'mock'), so it is not blocked; a fresh
+    # checkout has no snapshot (source == '') and is not blocked either.
+    if MODE == "mock" and _snapshot_source() == "bloomberg":
+        print("run_daily.run(): REFUSED — DATAFEED_MODE is 'mock' (unset?) but a real bloomberg "
+              "snapshot is on disk. Refusing to overwrite the live signals with demo data; "
+              "re-run with DATAFEED_MODE=snapshot. Returning the existing signals unchanged.")
+        try:
+            return pd.read_parquet(SIGNALS_FILE) if SIGNALS_FILE.exists() else pd.DataFrame()
+        except Exception:
+            return pd.DataFrame()
     universe.reload()                                 # pick up any edits to data/universe.json
     # Build the shared price/yield history (and volume) frames ONCE for the price-based TA modules
     # (_HIST_ONLY / _HIST_VOL above) rather than let each independently re-read the prices+yields

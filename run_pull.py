@@ -105,7 +105,12 @@ def _run_morning_coffee() -> bool:
         _log(f"Morning Coffee: project not found at {MC_DIR} — skipping")
         return False
     try:
-        env = {**os.environ, "PYTHONUTF8": "1"}
+        # DATAFEED_MODE=snapshot even though Morning Coffee reads BASIS's stores as plain files
+        # today: it runs on the GLOBAL CPython where the env is otherwise unset, and an unset
+        # DATAFEED_MODE defaults to 'mock' — so if the report (or anything it spawns) ever imports
+        # a BASIS module, it must read the real snapshot, never synthesise demo data over it. The
+        # central protection is run_daily.run()'s mock-vs-real-snapshot guard; this is belt-and-braces.
+        env = {**os.environ, "PYTHONUTF8": "1", "DATAFEED_MODE": "snapshot"}
         _log("Morning Coffee: building the report and emailing the desk…")
         r = subprocess.run([_global_python(), str(main_py)], cwd=str(MC_DIR),
                            capture_output=True, text=True, timeout=900, env=env)
