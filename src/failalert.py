@@ -122,6 +122,37 @@ def send_failure_alert(label: str, detail: str) -> bool:
     return True
 
 
+def send_notice(subject: str, body: str) -> bool:
+    """A MILD heads-up to the failure-alert list — for degraded-but-sent situations (e.g. a
+    report that went out without an optional section), where the [FAILED] wording of
+    send_failure_alert would be wrong. Plain text, no throttle (call sites fire it at most
+    once per event). Returns True if (dry-)sent; never raises."""
+    try:
+        recipients = load_recipients()
+        if not recipients:
+            return False
+        if os.environ.get("FAILALERT_DRY"):
+            print(f"[failalert DRY] would email notice '{subject}' to {recipients}\n{body}")
+            return True
+        import smtplib
+        import ssl
+        from email.mime.text import MIMEText
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        from cot_scheduled_email import load_email_cfg
+        sender, app_pw, _desk = load_email_cfg()
+        msg = MIMEText(body, "plain")
+        msg["From"], msg["To"], msg["Subject"] = sender, ", ".join(recipients), f"[NOTICE] {subject}"
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as s:
+            s.login(sender, app_pw)
+            s.sendmail(sender, recipients, msg.as_string())
+        print(f"[failalert] emailed notice to {', '.join(recipients)}.")
+        return True
+    except Exception as e:
+        print(f"[failalert] notice not sent ({e})")
+        return False
+
+
 class _Tee:
     """Mirror writes to the real stream AND a capture buffer (for the alert email)."""
 

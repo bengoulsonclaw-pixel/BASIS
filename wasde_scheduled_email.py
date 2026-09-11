@@ -68,6 +68,17 @@ def main():
             print("WASDE automatic sending is OFF (turn it on: dashboard -> Recipients -> Scheduled reports). Skipping.")
             return
 
+    # Trade-estimate prefetch: from the day before a WASDE through release day, auto-load the
+    # Dow Jones pre-report survey (data/wasde_consensus.json) so the surprise column fills —
+    # this was a manual step and the Sept 2026 note went out blank. Throttled inside; on any
+    # failure the note simply falls back to level + MoM, never blocking the send.
+    if not args.seed:
+        try:
+            from src import wasde_consensus_fetch as _wcf
+            _wcf.prefetch_if_due()
+        except Exception as e:
+            print(f"consensus prefetch skipped ({e})")
+
     marker = read_marker()
     wdate = pd.Timestamp(args.asof) if args.asof else latest_wasde()
     if wdate is None:
@@ -125,6 +136,18 @@ def main():
         MARKER.parent.mkdir(parents=True, exist_ok=True)
         MARKER.write_text(asof_str)
         print(f"Emailed '{subject}' to {', '.join(sent)}. Marker -> {asof_str}.")
+        try:      # went out without the surprise column? tell Ben, quietly (report still sent fine)
+            from src import failalert, wasde_consensus_fetch as _wcf
+            if not _wcf.has_month(wdate.strftime("%Y-%m")):
+                failalert.send_notice(
+                    f"WASDE {asof_str} sent WITHOUT the trade-surprise column",
+                    "The Dow Jones pre-report estimates could not be fetched/validated in time, so "
+                    "the note went out with the surprise column blank (level + month-over-month "
+                    "only). To backfill: add the month to data/wasde_consensus.json or run\n"
+                    f"  .venv\\Scripts\\python.exe src\\wasde_consensus_fetch.py "
+                    f"{wdate.strftime('%Y-%m')} --force\nthen re-send if wanted.")
+        except Exception as e:
+            print(f"(blank-column notice not sent: {e})")
 
 
 if __name__ == "__main__":
