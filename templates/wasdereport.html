@@ -37,7 +37,9 @@
 
   {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
 
-  <div class="content">
+  {# squeeze < 1 = the auto-fit in wasdereport.build_pdf shrinking the content (never the
+     sidebar band) just enough to keep the note on a single page #}
+  <div class="content"{% if squeeze and squeeze != 1 %} style="zoom: {{ squeeze }}"{% endif %}>
     <div class="titleband">
       <h1>WASDE &mdash; Supply &amp; Demand</h1>
       <div class="sub">Reaction &mdash; {{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>

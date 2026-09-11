@@ -255,19 +255,42 @@ def stu_fig(bar):
     return png(fig)
 
 
-def render_html(year, asof, demo=False, light=False):
+def render_html(year, asof, demo=False, light=False, squeeze=1.0, data=None):
     from reportkit import data_uri, pretty_date
-    data = build_data(year)
+    data = data if data is not None else build_data(year)
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     return env.get_template("wasdereport.html").render(
-        asof=pretty_date(asof), demo=demo, stu_img=(stu_fig(data["bar"]) if data["bar"] else ""),
+        asof=pretty_date(asof), demo=demo, squeeze=squeeze,
+        stu_img=(stu_fig(data["bar"]) if data["bar"] else ""),
         logo=data_uri(ASSETS / "logo.png"),
         watermark="" if light else data_uri(ASSETS / "building.jpg"), **data)
 
 
 def build_pdf(year, asof, out_path, demo=False, light=False):
+    """Render, then AUTO-FIT to a single page. The note is one page by design, but edits to the
+    shared house style / compliance disclaimer keep nudging it a few lines over (Aug '26: the
+    .report-footer wrap; Sep '26: the longer XP disclaimer). If a render spills, re-render the
+    SAME data (one PS&D pull) at a slightly tighter content zoom until it fits — floored at 0.85
+    so type never becomes unreadable; past the floor it ships as-is with a loud warning."""
     from reportkit import render_pdf
-    return render_pdf(render_html(year, asof, demo, light), out_path)
+    data = build_data(year)
+    out, pages = None, None
+    for squeeze in (1.0, 0.96, 0.92, 0.88, 0.85):
+        out = render_pdf(render_html(year, asof, demo, light, squeeze=squeeze, data=data), out_path)
+        try:
+            import pypdfium2 as pdfium
+            doc = pdfium.PdfDocument(str(out_path))
+            pages = len(doc)
+            doc.close()                      # release the handle before any re-render (Windows lock)
+        except Exception:
+            return out                       # can't count pages -> keep this render
+        if pages <= 1:
+            if squeeze < 1.0:
+                print(f"[fit] content squeezed to {squeeze:g} to hold the note to one page")
+            return out
+    print(f"[fit] WARNING: still {pages} pages at the {squeeze:g} zoom floor — "
+          "the template/disclaimer has grown; trim the layout")
+    return out
 
 
 def main():
