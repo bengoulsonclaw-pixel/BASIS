@@ -1,55 +1,55 @@
 {
- "generated_at": "10 Sep 2026 · 07:22 ET",
- "synopsis": "Energy is the story again this morning. Brent is holding above $102 and WTI is up 1.4% near $97.4 after crude pierced $100 with the strongest term structure on record — WTI's Dec-Dec spread hit an all-time high and Brent's equivalent the firmest since the late 1990s — a screaming signal of physical tightness, reinforced by an API crude draw and reports the Houthis are closing in on a stranglehold over the Bab al-M…",
- "commentary": "Energy is the story again this morning. Brent is holding above $102 and WTI is up 1.4% near $97.4 after crude pierced $100 with the strongest term structure on record — WTI's Dec-Dec spread hit an all-time high and Brent's equivalent the firmest since the late 1990s — a screaming signal of physical tightness, reinforced by an API crude draw and reports the Houthis are closing in on a stranglehold over the Bab al-Mandeb Strait. TTF gained almost 2% and diesel is at record highs at the pump, which is precisely the problem: the energy shock is landing in the same week as US CPI and an ECB meeting where another hike looks all but certain, with the debate now about the terminal rate.\n\nThat inflation transmission is hammering rates. Treasury futures fell along the curve with the long bond off 0.3%, ten-year yields at near three-year highs after the Treasury's upsized $6bn buyback underwhelmed, and Fed officials signalling they're prepared to hike again if inflation doesn't improve. Bunds and Buxl slipped ahead of the ECB, and the BoJ adds a global channel: with 10-year JGBs around 3% — now beating hedged Treasuries for Japanese investors — a hike is expected this month, threatening a key source of foreign demand for US paper just as competition for capital intensifies.\n\nHigher real rates and slower-growth fears crushed metals — copper down 3.6%, silver and platinum off nearly 3%, gold and iron ore lower — while equity futures are merely stabilising after Wednesday's 400-point Dow drop. In softs, coffee slumped as Colombia tariff threats were withdrawn, while sugar and cotton firmed.",
+ "generated_at": "11 Sep 2026 · 06:05 ET",
+ "synopsis": "The story this morning is energy giving back ground — and everything else breathing easier because of it. Brent dropped 3.1% to $104 and WTI slipped back below $100, retreating from multi-month highs after the IEA cut its demand estimate, warning of a \"lost period\" in global oil consumption as the Iran war drags on and the Strait of Hormuz stays shut through year-end.",
+ "commentary": "The story this morning is energy giving back ground — and everything else breathing easier because of it. Brent dropped 3.1% to $104 and WTI slipped back below $100, retreating from multi-month highs after the IEA cut its demand estimate, warning of a \"lost period\" in global oil consumption as the Iran war drags on and the Strait of Hormuz stays shut through year-end. Reports that Gulf states are weighing a rare Hormuz meeting with Iran added a diplomatic glimmer. That took the heat off a market that had sold stocks and bonds for four straight sessions on the oil-driven yield surge: S&P and Nasdaq futures are up around half a percent, Treasuries found relief at the long end, and TTF gas eased 1.9%.\n\nBut don't confuse retreat with resolution — US retail diesel just topped $6 a gallon for the first time, a supply shock that feeds straight into inflation ahead of today's pivotal August CPI. That CPI print is the whole ballgame: traders want a clear signal on whether the Fed hikes next week, with the 10-year flirting with 5% and Treasury's $6bn operation failing to break the bond-market \"fever,\" according to reports. ECB policymakers are opening the door to more hikes on energy risk, the BoJ is expected to move this month with 10-year JGBs near 3% — a global rate reset that pressures Treasury demand from Japan's $1.1tn holdings.\n\nWatch the transmission: gold and silver eased as havens unwound; grains and soybean oil tracked energy lower, though record diesel is a direct cost shock for US agriculture; cocoa bucked the tape, up 3% on supply tightness. A hot CPI reprices SOFR strips and slams the long end — position accordingly.",
  "headlines": [
   {
-   "source": "FT",
-   "title": "FirstFT: Oil hits $100 as fears rise over global supplies",
-   "time": "06:28 ET",
+   "source": "Bloomberg",
+   "title": "*IEA CUTS OIL DEMAND ESTIMATE AS IRAN WAR DRAGS ON",
+   "time": "",
    "tag": "Energy"
   },
   {
-   "source": "The Guardian",
-   "title": "Oil and gas prices jump amid Middle East escalation and Ukrainian drone attacks on Russian gas plants – business live",
-   "time": "06:15 ET",
+   "source": "Financial Times",
+   "title": "US diesel hits record $6 a gallon on Iran supply shock",
+   "time": "03:56 ET",
    "tag": "Energy"
   },
   {
-   "source": "Al Jazeera",
-   "title": "How Ukraine's deepest attack in Russia, on Arctic gas, signals new reach",
-   "time": "06:38 ET",
-   "tag": "Geopolitics"
+   "source": "BBC News",
+   "title": "Oil, gas and borrowing costs surge as fears over Middle East escalate — The price of oil jumps to $105 a barrel amid signs the Iran war will not be resolved quickly.",
+   "time": "",
+   "tag": "Energy"
   },
   {
-   "source": "Washington Post",
-   "title": "Drivers in for more pain as oil rockets back toward $100 per barrel",
-   "time": "12:06 ET",
-   "tag": "Energy"
+   "source": "Financial Times",
+   "title": "ECB prepares for 'longer-lasting' inflation as it lifts interest rates to 2.5%",
+   "time": "12:59 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Financial Times",
+   "title": "Global bond sell-off reignites as oil jumps to $109",
+   "time": "18:05 ET",
+   "tag": "Rates"
   },
   {
    "source": "Bloomberg",
-   "title": "US CPI Report to Guide Fed Decision on Rates, Impact on Economy",
-   "time": "07:00 ET",
-   "tag": "Macro"
+   "title": "Gold Rises Ahead of US CPI Print That Could Shape Fed Rate Bets",
+   "time": "19:34 ET",
+   "tag": "Metals"
   },
   {
-   "source": "FT",
-   "title": "Treasury yields jump as Bessent's $6bn buyback plan disappoints investors",
-   "time": "01:44 ET",
-   "tag": "Rates"
+   "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "09:05 ET",
+   "tag": "Energy"
   },
   {
-   "source": "FT",
-   "title": "Japan must raise rates, central banker says",
-   "time": "00:07 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "FT",
-   "title": "US bans Canadian dairy, motorcycles and most alcoholic beverages",
-   "time": "22:57 ET",
-   "tag": "Geopolitics"
+   "source": "Wall Street Journal",
+   "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
+   "time": "12:20 ET",
+   "tag": "Agriculture"
   }
  ]
 }
