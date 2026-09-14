@@ -5613,29 +5613,39 @@ def render_hotsheet(book: str = "ficc") -> None:
     meta_items = [it for it in items if it["book"] == "meta"] if book == "ficc" else []
     items = [it for it in items if it["book"] == book]
 
-    # Freshness strip — a plain "you're current" (or "refreshing" / "older data") signal so a
-    # QUIET sheet reads as healthy rather than maybe-stale (Ben, 2026-09-14). FICC only: its
-    # compute drives the signals; the equities sheet has its own pull cadence.
-    if book == "ficc":
-        _fr = health.hotsheet_freshness()
+    # Freshness strip + reconcile the CACHED caveats with the LIVE state (Ben, 2026-09-14). A
+    # plain "you're current" / "refreshing" / "older data" line so a QUIET sheet reads as
+    # healthy, not maybe-stale. FICC only: its compute drives the signals.
+    _fr = health.hotsheet_freshness() if book == "ficc" else {"state": "unknown"}
+    if book == "ficc" and meta_items:
+        # The item collection is CACHED, so it can still carry a compute-lag caveat captured
+        # mid-pull (before the compute updated the manifest). Drop it unless a LIVE check still
+        # wants it shown, so it can never contradict the freshness strip just below.
+        try:
+            _ll = health.compute_lag_h()
+            _show_lag = (np.isfinite(_ll) and _ll > health.RADAR_COMPUTE_LAG_H
+                         and _fr.get("state") != "pulling")
+            if not _show_lag:
+                meta_items = [it for it in meta_items if "compute:lag" not in str(it.get("key", ""))]
+        except Exception:
+            pass
+    if book == "ficc" and _fr.get("state") in ("pulling", "fresh", "old"):
         try:
             _settle_lbl = pd.Timestamp(_fr.get("settle")).strftime("%a %d %b")
         except Exception:
             _settle_lbl = _fr.get("settle") or "—"
-        _fmap = {
+        _fc, _fhtml = {
             "pulling": ("#7FB3F5", "🔄 <b>Refreshing now</b> — a pull is running; the sheet "
                         "updates the moment its compute finishes."),
             "fresh":   ("#6FD79B", f"✅ <b>Up to date</b> — data through {_settle_lbl} settle, "
                         f"signals recomputed {_fresh_ago(_fr.get('age_h'))}."),
             "old":     ("#D9971C", f"⚠️ <b>Showing {_settle_lbl} data</b> — the last pull was "
                         f"{_fresh_ago(_fr.get('age_h'))}; pull on Home for the latest."),
-        }
-        if _fr.get("state") in _fmap:
-            _fc, _fhtml = _fmap[_fr["state"]]
-            st.markdown(f'<div style="border:1px solid {pal["border"]};border-left:3px solid '
-                        f'{_fc};background:{pal["surface"]};padding:.45rem .7rem;font-size:.8rem;'
-                        f'color:{pal["text_dim"]};margin-bottom:.6rem">{_fhtml}</div>',
-                        unsafe_allow_html=True)
+        }[_fr["state"]]
+        st.markdown(f'<div style="border:1px solid {pal["border"]};border-left:3px solid '
+                    f'{_fc};background:{pal["surface"]};padding:.45rem .7rem;font-size:.8rem;'
+                    f'color:{pal["text_dim"]};margin-bottom:.6rem">{_fhtml}</div>',
+                    unsafe_allow_html=True)
 
     if meta_items:                               # trust caveats first — a quiet sheet only means
         _cav = " · ".join(it["text"].replace("**", "") for it in meta_items)   # calm markets if the data is healthy
