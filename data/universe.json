@@ -711,16 +711,6 @@
       "price_field": ""
     },
     {
-      "ticker": "ALEA Comdty",
-      "name": "Aluminium (COMEX)",
-      "price": 2500.0,
-      "asset": "Metals",
-      "region": "",
-      "vol_source": "",
-      "vol_field": "",
-      "price_field": ""
-    },
-    {
       "ticker": "SCOA Comdty",
       "name": "Iron Ore (IODEX)",
       "price": 100.0,

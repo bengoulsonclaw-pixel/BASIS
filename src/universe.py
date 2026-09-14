@@ -118,7 +118,6 @@ _SEED_INSTRUMENTS = {
     "PLA Comdty":  ("Platinum",              980.0,  "Metals", ""),
     "PAA Comdty":  ("Palladium",            1000.0,  "Metals", ""),
     "HGA Comdty":  ("Copper (COMEX)",          4.4,  "Metals", ""),
-    "ALEA Comdty": ("Aluminium (COMEX)",    2500.0,  "Metals", ""),
     "SCOA Comdty": ("Iron Ore (IODEX)",         100.0,  "Metals", ""),
 
     # ── COMMODITIES · AGRICULTURE ──────────────────────────────────────────
