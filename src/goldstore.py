@@ -68,6 +68,7 @@ CLI:  python src/goldstore.py [--coverage] [--stale] [--horizons]
 """
 from __future__ import annotations
 
+import functools
 import json
 import sys
 from datetime import datetime, timedelta
@@ -146,13 +147,29 @@ def _empty() -> pd.DataFrame:
                          "is_synthetic": pd.Series(dtype="bool")})
 
 
-def _read_obs() -> pd.DataFrame:
-    if not OBS_FILE.exists():
-        return _empty()
+@functools.lru_cache(maxsize=4)
+def _read_obs_cached(_path: str, _mtime: float) -> pd.DataFrame:
     df = pd.read_parquet(OBS_FILE)
     df["reference_date"] = pd.to_datetime(df["reference_date"])
     df["published_at"] = pd.to_datetime(df["published_at"])
     return df
+
+
+def _read_obs() -> pd.DataFrame:
+    # observations.parquet (~2.4 MB) + two to_datetime passes were re-parsed on EVERY
+    # accessor call (~80x per Gold Engine open). Memoise on (OBS_FILE, mtime) so the read
+    # only repeats when the file changes on disk — put() rewrites it, which bumps the mtime
+    # and invalidates the entry. A .copy() is returned so a caller that mutates the frame in
+    # place cannot corrupt the shared point-in-time table; every current reader treats it
+    # read-only, but on a store whose whole job is data integrity the copy is cheap insurance
+    # and still far cheaper than the re-read+parse it replaces.
+    if not OBS_FILE.exists():
+        return _empty()
+    try:
+        mt = OBS_FILE.stat().st_mtime
+    except OSError:
+        mt = 0.0
+    return _read_obs_cached(str(OBS_FILE), mt).copy()
 
 
 def put(series_id: str, obs, *, source: str, is_synthetic: bool = False,

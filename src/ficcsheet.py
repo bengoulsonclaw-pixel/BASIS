@@ -19,6 +19,7 @@ never reach a client page ([[client-commentary-not-advice]]).
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import sys
 from pathlib import Path
@@ -309,8 +310,32 @@ def _level(ticker: str):
     return last, (None if len(s) < 2 else last - float(s.iloc[-2]))
 
 
-def gather(ticker: str) -> dict:
-    """Everything the books currently hold on one product. Reads caches only."""
+def _stores_sig() -> tuple:
+    """An mtime signature of every store gather() reads — the per-product signal parquets,
+    the deep price store and its front-price anchor, and the pull's meta. The morning pull
+    rewrites all of these together, so this changes the instant new data lands and is
+    otherwise stable all day, which is exactly the memo key gather() wants."""
+    paths = [SIG / f"{n}.parquet" for n in
+             ("volatility", "opportunities", "termstructure", "skew", "cot", "putcall",
+              "seas_spread_screen", "hotsheet_history", "volatility_history")]
+    paths.append(SIG / "meta.json")
+    try:
+        from src import deepstore
+        paths += [deepstore._path(n) for n in ("prices", "front2", "contract", "yields")]
+        paths.append(deepstore.STORE_DIR.parent / "snapshot" / "prices.parquet")
+    except Exception:
+        pass
+    sig = []
+    for p in paths:
+        try:
+            sig.append(p.stat().st_mtime)
+        except OSError:
+            sig.append(0.0)
+    return tuple(sig)
+
+
+@functools.lru_cache(maxsize=64)
+def _gather_cached(ticker: str, _sig: tuple) -> dict:
     if ticker not in u.INSTRUMENTS:
         raise ValueError(f"{ticker} is not in the universe")
     is_fi = bool(u.is_fixed_income(ticker))
@@ -350,6 +375,18 @@ def gather(ticker: str) -> dict:
         "price_png": _price_png(ticker, is_fi),
         "vol_png": _vol_png(ticker),
     }
+
+
+def gather(ticker: str) -> dict:
+    """Everything the books currently hold on one product. Reads caches only.
+
+    Memoised on (ticker, store mtimes): the tearsheet page re-runs on every widget
+    interaction and button press for the SAME product, and each run reads a dozen parquets
+    and rebuilds two matplotlib PNGs. Keyed on _stores_sig() so it rebuilds only when the
+    stores change on disk. The returned dict is treated strictly read-only by both callers
+    — app.py's tearsheet page reads fields only, build_pdf renders it once — so it is shared
+    rather than deep-copied (deep-copying the embedded PNG data-URIs would undo the win)."""
+    return _gather_cached(ticker, _stores_sig())
 
 
 def render_html(d: dict) -> str:

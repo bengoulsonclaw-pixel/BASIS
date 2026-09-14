@@ -52,6 +52,7 @@ CLI:  python src/cvmfunds.py [--force] [--months N] [--min-aum M]
 """
 from __future__ import annotations
 
+import functools
 import io
 import json
 import re
@@ -574,15 +575,11 @@ def refresh_nav(months: list[str], universe: set[str], force: bool = False) -> l
     return sorted(have)
 
 
-def load_nav(months: list[str] | None = None) -> pd.DataFrame:
-    """Every cached month, concatenated and de-duplicated on (fund, date).
-
-    The overlap matters: a resubmission can leave the same fund-day in two monthly
-    files with different numbers, and the LATER file is the corrected one.
-    """
-    files = sorted(STORE.glob("nav_*.parquet"))
-    if months is not None:
-        files = [f for f in files if f.stem.replace("nav_", "") in months]
+@functools.lru_cache(maxsize=2)
+def _load_nav_cached(file_sig: tuple) -> pd.DataFrame:
+    # file_sig is a tuple of (path, mtime) pairs; the mtimes force a re-read the moment a
+    # monthly file is rewritten (the live M / M-1 months are re-fetched on every build).
+    files = [p for p, _ in file_sig]
     if not files:
         return pd.DataFrame()
     frames = [pd.read_parquet(f) for f in files]
@@ -590,6 +587,34 @@ def load_nav(months: list[str] | None = None) -> pd.DataFrame:
     return (df.sort_values("date")
               .drop_duplicates(subset=["cnpj", "subclass", "date"], keep="last")
               .reset_index(drop=True))
+
+
+def load_nav(months: list[str] | None = None) -> pd.DataFrame:
+    """Every cached month, concatenated and de-duplicated on (fund, date).
+
+    The overlap matters: a resubmission can leave the same fund-day in two monthly
+    files with different numbers, and the LATER file is the corrected one.
+    """
+    # history() calls this with no months filter, so it reads ALL ~13 nav_*.parquet
+    # (~130 MB), concatenates, sorts and de-duplicates on EVERY page interaction just to
+    # slice out one fund. Memoise the heavy load on the files' (path, mtime) signature so
+    # repeated fund slices reuse the same in-memory frame. Returned WITHOUT a .copy(): both
+    # callers treat it strictly read-only — history() selects with a boolean mask (which
+    # yields a fresh frame) then sorts, and compute_metrics() copies on its first line
+    # (nav = nav.copy()) before touching it — so a ~130 MB copy on every slice would be pure
+    # waste, and the cost this replaces is a full disk re-read + concat + sort + dedupe
+    # (callers verified 2026-09).
+    files = sorted(STORE.glob("nav_*.parquet"))
+    if months is not None:
+        files = [f for f in files if f.stem.replace("nav_", "") in months]
+    sig = []
+    for f in files:
+        try:
+            mt = f.stat().st_mtime
+        except OSError:
+            mt = 0.0
+        sig.append((str(f), mt))
+    return _load_nav_cached(tuple(sig))
 
 
 # ── benchmark ───────────────────────────────────────────────────────────────────────

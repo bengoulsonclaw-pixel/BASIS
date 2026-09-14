@@ -47,6 +47,7 @@ No Streamlit here — tabt.py (and anything else) drives this module.
 """
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 
 import numpy as np
@@ -94,8 +95,9 @@ def _path(name: str) -> Path:
     return STORE_DIR / f"deep_{name}.parquet"
 
 
-def _read(name: str) -> pd.DataFrame:
-    p = _path(name)
+@functools.lru_cache(maxsize=16)
+def _read_cached(path: str, _mtime: float) -> pd.DataFrame:
+    p = Path(path)
     if not p.exists():
         return pd.DataFrame()
     df = pd.read_parquet(p)
@@ -103,6 +105,26 @@ def _read(name: str) -> pd.DataFrame:
         df = df.set_index("date")
     df.index = pd.to_datetime(df.index)
     return df.sort_index()
+
+
+def _read(name: str) -> pd.DataFrame:
+    # mtime-keyed memo of the panama-store parquets. get_raw/get_front2/get_yields/
+    # get_volume read one each, get_adjusted reads three (prices+front2+contract) and
+    # get_ta reads five — and a single render (e.g. a ficcsheet tearsheet, or overlay())
+    # calls several of those for the same product, re-reading the same multi-MB files every
+    # time. Re-read only when the file changes on disk (a write bumps the mtime; a missing
+    # file keys on 0.0 and re-checks once it appears). Returned WITHOUT a .copy(): every
+    # reader treats the frame strictly read-only — the get_* accessors build fresh frames
+    # via df[cols]/.dropna()/pd.DataFrame(out) before returning, _adjust() works on its own
+    # .copy(), update() reassigns rather than mutates, and the one external reader
+    # (rollboard._contracts) only reads columns — so sharing the single cached frame across
+    # a render is exactly the win this memo exists for (callers verified 2026-09).
+    p = _path(name)
+    try:
+        mt = p.stat().st_mtime
+    except OSError:
+        mt = 0.0
+    return _read_cached(str(p), mt)
 
 
 def _write(df: pd.DataFrame, name: str) -> None:

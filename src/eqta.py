@@ -12,6 +12,7 @@ the equity close/volume runs them over equities with no other change.
 """
 from __future__ import annotations
 
+import functools
 import json
 from pathlib import Path
 
@@ -138,9 +139,27 @@ def _name_map() -> dict:
     return {t: v["name"] for t, v in member_meta().items()}
 
 
+@functools.lru_cache(maxsize=2)
+def _load_signals_cached(_path: str, _mtime: float) -> pd.DataFrame:
+    return pd.read_parquet(SIGNALS_FILE)
+
+
 def load_signals():
     """(opportunities DataFrame, meta dict) from the cache — what the Equities TA page reads."""
-    df = pd.read_parquet(SIGNALS_FILE) if SIGNALS_FILE.exists() else pd.DataFrame()
+    # The opportunities parquet is re-read on every Streamlit rerun and by radar_items (its
+    # FICC twin in app.py is cached the same way). Memoise it on (SIGNALS_FILE, mtime) so the
+    # read repeats only when the daily run rewrites it. The frame is returned as a .copy()
+    # because its many callers (convreport.select in radar_items, plus several equities pages)
+    # may filter or annotate it, and it is small enough that the copy costs far less than the
+    # re-read. The tiny meta JSON is read fresh each call, so that dict is never shared.
+    if SIGNALS_FILE.exists():
+        try:
+            mt = SIGNALS_FILE.stat().st_mtime
+        except OSError:
+            mt = 0.0
+        df = _load_signals_cached(str(SIGNALS_FILE), mt).copy()
+    else:
+        df = pd.DataFrame()
     try:
         meta = json.loads(META_FILE.read_text(encoding="utf-8")) if META_FILE.exists() else {}
     except Exception:
