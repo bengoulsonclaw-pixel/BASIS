@@ -73,18 +73,6 @@ def _pctl_rank(s: pd.Series, window: int = PCTL_WINDOW) -> float:
     return float((tail <= last).mean() * 100.0)
 
 
-def _signal(metric: float, trigger: float) -> tuple[str, int]:
-    """(signal, direction) at an intensity trigger — matches specs.reflag_rows so the
-    table re-flags identically when the user moves the slider. The metric is SIGNED
-    squeeze intensity (+ upside lean / − downside lean); the sign already carries the
-    breakout-vs-coil distinction, which `_describe` spells out in words."""
-    if metric >= trigger:
-        return "Squeeze (coiled)", 1
-    if metric <= -trigger:
-        return "Squeeze (coiled)", -1
-    return "—", 0
-
-
 def _scan_one(px: pd.Series) -> dict | None:
     """Bollinger state for one product's close series, or None without enough history.
 

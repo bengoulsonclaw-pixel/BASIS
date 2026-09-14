@@ -280,20 +280,6 @@ def _persist_mc_after_pull() -> None:
     _mc_set_pref("run_after_pull", bool(st.session_state.get("home_run_mc_after_pull", False)))
 
 
-def _regen_mc_heatmap() -> bool:
-    """Rebuild the Morning Coffee heatmap (shown on Home) via the MC project's
-    --heatmap-only mode. Best-effort: a failure (e.g. Bloomberg down) leaves the
-    previous heatmap in place and never blocks the snapshot."""
-    try:
-        with st.spinner("Refreshing the Morning Coffee heatmap…"):
-            r = subprocess.run(
-                [morning_coffee_python(), str(MORNING_COFFEE_CLI), "--heatmap-only"],
-                cwd=str(MORNING_COFFEE_DIR), capture_output=True, text=True, timeout=300)
-        return r.returncode == 0
-    except Exception:
-        return False
-
-
 # The strategy book, grouped by theme for the sidebar nav. STRATEGY_ORDER (the flat
 # list the rest of the app loops over) is derived from it, so adding a strategy to a
 # group here adds it to the nav AND everywhere else at once.
@@ -1339,51 +1325,9 @@ def _filtered_off_notice() -> None:
                "just enabled to display.)")
 
 
-def _overnight_moves(snap) -> None:
-    """Overnight net change (previous settle -> snapshot pull), expressed in σ."""
-    st.subheader("Overnight moves")
-    if _all_filtered_off():
-        _filtered_off_notice()
-        return
-    _have_live = (SNAPSHOT_DIR / "live.parquet").exists()
-    if MODE == "snapshot" and not _have_live:
-        st.caption("No live overnight quote captured yet — click **Pull Bloomberg snapshot** "
-                   "(needs the Terminal). It records each contract's move from the previous "
-                   "trading day's settle to the moment the snapshot is pulled.")
-        return
-    _mv = _ficc_moves_frame()
-    if _mv.empty:
-        st.caption("No overnight quote available.")
-        return
-    _asof = (snap or {}).get("live_as_of") or (snap or {}).get("created", "")
-    st.caption("Move from the previous trading day's **settlement** to the snapshot pull"
-               + (f" · prices as of **{_to_et(_asof)}**" if _asof else "")
-               + ". Sorted by **σ (1m)** = the move in standard deviations of the contract's "
-                 "own ~1-month daily moves. STIRs excluded (price vol ≈ 0 → σ is noise).")
-    _rows = _mv.head(14).copy()
-    _rows["last_fmt"] = _rows["last"].map(lambda v: f"{v:g}")
-    brand.terminal_table(
-        _rows.to_dict("records"),
-        [{"key": "Market",   "label": "Market"},
-         {"key": "Sector",   "label": "Sector"},
-         {"key": "last_fmt", "label": "Last",  "align": "right"},
-         {"key": "pct",      "label": "Chg %", "color": True, "fmt": "{:+.2f}"},
-         {"key": "sigma",    "label": "σ 1M",  "color": True, "fmt": "{:+.1f}"},
-         {"key": "sigma",    "label": "Z-range", "zbar": True}])
-
-
-def _mc_heatmap_path() -> Path:
-    return MORNING_COFFEE_DIR / "_heat_combined_en.png"
-
-
 @st.cache_data(ttl=1800, show_spinner=False)
 def _load_weather():
     return worldclock.fetch_weather()
-
-
-@st.cache_data(ttl=21600, show_spinner=False)
-def _load_city_photos(key):
-    return worldclock.fetch_city_photos(key)
 
 
 def _world_clocks() -> None:
@@ -1549,32 +1493,6 @@ def _load_econ_today():
     return econ.fetch_today()
 
 
-def _econ_figures() -> None:
-    """Today's major (high-impact) economic releases — the figures the Bloomberg ECO
-    page tracks, from the free FairEconomy calendar (independent of Bloomberg)."""
-    st.divider()
-    st.subheader("Today's economic figures")
-    try:
-        rows = _load_econ_today()
-    except Exception:
-        rows = []
-    if not rows:
-        st.caption("No major (high-impact) releases scheduled today — or the calendar feed is "
-                   "unavailable (weekends/holidays are normally empty). Times are US-Eastern.")
-        return
-    df = pd.DataFrame(rows)[["time", "country", "title", "actual", "forecast", "previous"]].rename(
-        columns={"time": "Time (ET)", "country": "Ccy", "title": "Event",
-                 "actual": "Actual", "forecast": "Forecast", "previous": "Prior"})
-
-    def _bold_actual(col):
-        return ["font-weight:700" if str(v).strip() else "color:#888" for v in col]
-
-    brand.themed_dataframe(df, {}, colorers=[(["Actual"], _bold_actual)])
-    st.caption(f"**{len(df)}** major release(s) today, US-Eastern · high-impact only, from the "
-               "FairEconomy calendar (the figures the Bloomberg ECO page tracks). Actuals fill "
-               "in as they print; refreshes ~every 15 min.")
-
-
 def _home_heatmap() -> None:
     """On-screen FICC market heatmap — a native HTML treemap (tile area ∝ σ, green up / red down),
     grouped by sector, built live from the overnight-moves frame. Renders crisp via components.html
@@ -1606,63 +1524,6 @@ def _home_heatmap() -> None:
     height = int(min(700, max(320, 120 + 84 * len(sections))))
     components.html(heatmap_html.render_html(sections, height, sub_headers=False),
                     height=height + 6, scrolling=False)
-
-
-def _md_money(s: str) -> str:
-    """Escape '$' before handing prose to st.markdown. Streamlit renders $...$ as inline LaTeX,
-    so TWO dollar prices in one paragraph (e.g. '$87 ... $81') swallow the text between them and
-    render it as maths — while an odd one out ('$90') renders fine, which is what made this look
-    random. Escaping keeps every price literal."""
-    return str(s).replace("$", r"\$")
-
-
-def _mc_commentary(log: str) -> str:
-    """Pull the English Market Commentary prose out of the Morning Coffee run log —
-    main.py prints it between 'Formatting commentary with Claude...' and
-    'Translating to Portuguese...'."""
-    if not log:
-        return ""
-    m = re.search(r"Formatting commentary with Claude\.\.\.\s*(.*?)\s*\n\s*Translating to Portuguese",
-                  log, re.S)
-    return m.group(1).strip() if m else ""
-
-
-def _mc_sidecar():
-    """The Morning Coffee app sidecar (commentary + news headlines), if main.py
-    has written one. Preferred over scraping the run log."""
-    p = MORNING_COFFEE_DIR / "results" / "_latest_briefing.json"
-    try:
-        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
-    except Exception:
-        return None
-
-
-def _mc_native_heatmap(side) -> bool:
-    """Draw the app-native FICC treemap (same renderer as Home) for the Morning Coffee page,
-    built from the report's OWN overnight moves in the sidecar (`moves`) so it matches the run
-    that just happened — not the dashboard's separate snapshot. Returns False when the sidecar
-    carries no move data (older runs), so the caller can fall back to the report PNG."""
-    moves = [m for m in ((side or {}).get("moves") or []) if m.get("pct") is not None]
-    if not moves:
-        return False
-    from src import heatmap_html
-    import streamlit.components.v1 as components
-    sections = []                                   # one band per sector; tiles = products (1-level)
-    for sec in list(dict.fromkeys(m.get("sector", "") for m in moves)):
-        items = [(m.get("market", ""), float(m["pct"]),
-                  (float(m["sigma"]) if m.get("sigma") is not None else None))
-                 for m in moves if m.get("sector", "") == sec]
-        if items:
-            sections.append((sec, [(sec, items)]))
-    if not sections:
-        return False
-    height = int(min(700, max(320, 120 + 84 * len(sections))))
-    components.html(heatmap_html.render_html(sections, height, sub_headers=False),
-                    height=height + 6, scrolling=False)
-    st.caption("**Tile size = how many σ the contract moved overnight** (vs its own ~1-month daily "
-               "vol) — colour is direction (green up / red down). Grouped by sector; hover a tile "
-               "for the name, % and σ.")
-    return True
 
 
 def _filter_signals(df):
@@ -2060,33 +1921,6 @@ def _todays_releases(today=None) -> list:
     return _todays_releases_cached(today.isoformat())
 
 
-def render_report_banner() -> None:
-    """Heads-up strips at the top of Home: red on days a fundamental report releases, navy on
-    central-bank decision days (each gated by its own toggle in Alert Settings)."""
-    rels = [r for r in _todays_releases() if alerts.alert_enabled(r.get("key"), "banner")]
-    reports = [r for r in rels if not r.get("decision")]
-    decisions = [r for r in rels if r.get("decision")]
-    if reports:
-        items = " &nbsp;&middot;&nbsp; ".join(f"{r['icon']} <b>{r['name']}</b> {r['t']} ET"
-                                              for r in reports)
-        st.markdown(
-            "<div style='background:linear-gradient(90deg,#B71C1C,#E53935);color:#fff;padding:11px 16px;"
-            "border-radius:9px;margin:0 0 14px;font-size:15px;border:1px solid #7f0000;"
-            "box-shadow:0 2px 8px rgba(0,0,0,.28)'>&#128308; <b>REPORT DAY</b> &mdash; releasing today: "
-            + items + ". <span style='opacity:.9'>A full-screen alert pops at release time.</span></div>",
-            unsafe_allow_html=True)
-    if decisions:
-        items = " &nbsp;&middot;&nbsp; ".join(f"{r['icon']} <b>{r['name']}</b> {r['t']} ET"
-                                              for r in decisions)
-        st.markdown(
-            "<div style='background:linear-gradient(90deg,#0D2B5E,#1565C0);color:#fff;padding:11px 16px;"
-            "border-radius:9px;margin:0 0 14px;font-size:15px;border:1px solid #082044;"
-            "box-shadow:0 2px 8px rgba(0,0,0,.28)'>&#127963;&#65039; <b>DECISION DAY</b> &mdash; "
-            "announcing today: " + items
-            + ". <span style='opacity:.9'>A full-screen alert pops at decision time.</span></div>",
-            unsafe_allow_html=True)
-
-
 def render_report_popup() -> None:
     """Invisible JS component: fires a full-screen, click-to-dismiss overlay (+ OS notification) at
     each report's release time today, on top of any page (only for reports whose popup is switched
@@ -2121,78 +1955,6 @@ def _render_corr_break_banner() -> None:
     more = f" — and {len(ex) - 3} more" if len(ex) > 3 else ""
     st.warning("🔗 **Correlation breaks** — pairs at an extreme of their 1-year range: "
                + " · ".join(tops) + more + ". See the correlation maps below.")
-
-
-def _render_skew_backfill_banner() -> None:
-    """One-time green Home banner the morning the own-skew backfill drip completes
-    (Ben asked for an in-app notification, 2026-08-08). Dismiss persists to disk so
-    it never nags; fails silent — a data hiccup must not block the Home page."""
-    ack = SNAPSHOT_DIR.parent / "skew_backfill_ack.json"
-    if ack.exists():
-        return
-    try:
-        from src import owncurve
-        done, total = owncurve.skew_backfill_progress()
-        remaining = owncurve.skew_backfill_remaining()
-    except Exception:
-        return
-    if total == 0 or remaining > 0:
-        return
-    c1, c2 = st.columns([5.2, 0.8])
-    c1.success(f"🎉 **Own-skew backfill finished** — {done} of {total} wing-capable products "
-               "carry a full year of our settlement-built skew history"
-               + ("" if done == total else
-                  f"; the other {total - done} (quarterly expiries / sparse wings) reconstructed "
-                  "all their listed marks allow")
-               + ". The Skew page now runs on our wings (switched 14 Aug 2026, validation on the "
-               "page caption); stragglers keep accruing daily.")
-    if c2.button("Dismiss", key="skew_backfill_ack", use_container_width=True):
-        try:
-            ack.write_text('{"acknowledged": true}')
-        except Exception:
-            pass
-        st.rerun()
-
-
-def _render_cb_calendar_banner() -> None:
-    """Amber Home strip when a central-bank meeting calendar is running thin — same
-    9-month rule as the Data-health board's 'CB calendars' line. The STIR Paths
-    *_DECISIONS lists are hand-extended when the banks publish new years, so this is
-    the front-page nudge; Snooze parks it for 30 days and it re-arms until the lists
-    are actually extended (the snooze self-clears once they are). Fails silent — a
-    hiccup here must never block the Home page."""
-    ack_p = SNAPSHOT_DIR.parent / "cb_calendar_ack.json"
-    try:
-        cal = health.meeting_calendar_runway()
-        thin = cal[cal["months_left"] < health.CB_CAL_MIN_MONTHS]
-    except Exception:
-        return
-    if thin.empty:
-        try:
-            ack_p.unlink(missing_ok=True)              # extended → reset the snooze
-        except Exception:
-            pass
-        return
-    try:
-        snoozed = json.loads(ack_p.read_text(encoding="utf-8")).get("when")
-        if snoozed and (pd.Timestamp.now() - pd.Timestamp(snoozed)).days < 30:
-            return
-    except Exception:
-        pass
-    items = " · ".join(f"**{r.bank}** ends {r.last_meeting:%b %Y} (~{r.months_left:.0f}mo)"
-                       for r in thin.itertuples(index=False))
-    c1, c2 = st.columns([5.2, 0.8])
-    c1.warning("🗓️ **Central-bank meeting calendar running thin** — " + items
-               + ". The decision dates behind STIR Paths are a hand-kept list; ask for the "
-                 "newly published year to be appended (src/fedpath.py / src/stirpaths.py) "
-                 "or the path tools go blind past the last date.")
-    if c2.button("Snooze 30d", key="cb_cal_ack", use_container_width=True):
-        try:
-            ack_p.write_text(json.dumps({"when": pd.Timestamp.now().isoformat()}),
-                             encoding="utf-8")
-        except Exception:
-            pass
-        st.rerun()
 
 
 def render_weekly_review() -> None:
@@ -10441,25 +10203,6 @@ def render_stir_overview() -> None:
 def _stir_fed_bands():
     """Selectable Fed target bands (25bp wide) from 2.00–2.25 up to 5.50–5.75."""
     return [f"{lo/100:.2f} – {lo/100+0.25:.2f}" for lo in range(200, 551, 25)]
-
-
-def _stir_reseed(bank_key: str, views: dict, ver_bump: bool = True) -> None:
-    """Set the scenario probabilities and force the editor to re-read them."""
-    st.session_state[f"sp{bank_key}_views"] = views
-    if ver_bump:
-        st.session_state[f"sp{bank_key}_ver"] = st.session_state.get(f"sp{bank_key}_ver", 0) + 1
-
-
-def _stir_seed_from_market(per_bp: dict, hike_bp: float, cut_bp: float) -> dict:
-    """Implied per-meeting move → ONE signed 'your odds' number per meeting:
-    +% = chance of a hike, −% = chance of a cut (desk shorthand), snapped to 5%
-    steps. Beyond ±100% = more than one full step priced (−150 = 1.5 cuts);
-    capped at ±300."""
-    out = {}
-    for lab, bp in per_bp.items():
-        v = (bp / hike_bp if bp > 0 else bp / cut_bp) * 100.0
-        out[lab] = float(min(300.0, max(-300.0, round(v / 5) * 5.0)))
-    return out
 
 
 def _rate_card_html(*, bk: str, name: str, rate_big: str, rate_tip: str,

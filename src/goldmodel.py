@@ -288,10 +288,6 @@ def ridge(X: np.ndarray, y: np.ndarray, lam: float) -> np.ndarray:
     return np.linalg.solve(X.T @ X + lam * np.eye(X.shape[1]), X.T @ y)
 
 
-def _norm_cdf(x: float) -> float:
-    return 0.5 * (1.0 + erf(x / sqrt(2.0)))
-
-
 # ---------------------------------------------------------------------------
 # 1. the explanatory fit — sensitivities, scenarios, attribution
 # ---------------------------------------------------------------------------

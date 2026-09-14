@@ -42,13 +42,6 @@ SNAP_DIR = Path(__file__).parent.parent / "data" / "wasde_snapshots"            
 CONSENSUS_FILE = Path(__file__).parent.parent / "data" / "wasde_consensus.json"  # pre-report trade estimates
 
 
-def _num(v):
-    try:
-        return float(str(v).replace(",", ""))
-    except (TypeError, ValueError):
-        return None
-
-
 def _pct(a, b):
     return (a / b - 1.0) * 100.0 if (a and b) else None
 

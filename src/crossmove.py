@@ -90,12 +90,6 @@ LOOKBACKS = {"1 year": 1, "2 years": 2, "5 years": 5, "10 years": 10,
 UNIT_LABEL = {"pct": "%", "bp": "bp", "pt": "pts"}
 
 
-def _series(label: str) -> pd.Series:
-    sid, _unit, _step = INSTRUMENTS[label]
-    s = goldstore.get_series(sid)
-    return s[s.notna()]
-
-
 def changes(labels=None, horizon: int = 20, years: float | None = 5) -> pd.DataFrame:
     """Aligned h-day changes for the requested instruments, in their own units."""
     labels = list(labels or INSTRUMENTS)
