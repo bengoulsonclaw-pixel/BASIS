@@ -61,3 +61,17 @@ def test_guard_is_narrow_mock_or_missing_snapshot_not_flagged(tmp_path, monkeypa
     assert run_daily._snapshot_source() == "mock"       # != 'bloomberg' ⇒ guard condition False
     (tmp_path / "snapshot" / ".fetch_meta.json").unlink()
     assert run_daily._snapshot_source() == ""           # no snapshot ⇒ guard condition False
+
+
+def test_unreadable_stamp_fails_closed(tmp_path, monkeypatch):
+    """FAIL CLOSED (2026-09-14): a stamp file PRESENT but unreadable (corrupt / OneDrive-or-AV lock)
+    must NOT silently disable the guard. It resolves to 'bloomberg' so a mock rebuild is REFUSED
+    rather than allowed to clobber real signals on a file-read hiccup — the old code returned ''
+    here (fail OPEN), disabling the guard exactly when a real pull's stamp couldn't be read."""
+    snap, _ = _wire(tmp_path, monkeypatch, None, existing=True)   # SENTINEL signals, no valid stamp
+    (snap / ".fetch_meta.json").write_text("{ not valid json", encoding="utf-8")
+    assert run_daily._snapshot_source() == "bloomberg"           # unreadable ⇒ fail closed
+    monkeypatch.setattr(run_daily, "MODE", "mock")
+    monkeypatch.setattr(run_daily.universe, "reload", _boom)
+    out = run_daily.run()
+    assert list(out["strategy"]) == ["SENTINEL"]                  # guard fired; signals untouched

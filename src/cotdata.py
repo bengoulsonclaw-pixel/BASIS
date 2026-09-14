@@ -377,13 +377,38 @@ def compute(max_age_hours: float = 20.0, force: bool = False):
         empty = pd.DataFrame(columns=HISTORY_COLUMNS)
         return pd.DataFrame(columns=DETAIL_COLUMNS), empty
 
+    import os
     hist = pd.concat(frames, ignore_index=True)
+    # PARTIAL-FETCH GUARD (2026-09-14): a market whose fetch_cot persistently fails (rate-limit /
+    # changed contract code) is dropped by the loop's `except: continue`. A full-overwrite concat of
+    # only the survivors SILENTLY THINS the store — the weekly client COT PDF then drops those
+    # products (the emailer's only guard is all-empty). Instead, carry each missing market's
+    # last-known rows forward from the existing store so nothing vanishes, and warn loudly.
+    got = set(hist["ticker"].unique()) if "ticker" in hist.columns else set()
+    missing = [t for t in COT_MAP if t not in got]
+    if missing and COT_HISTORY_FILE.exists():
+        try:
+            prev = pd.read_parquet(COT_HISTORY_FILE)
+            carry = prev[prev["ticker"].isin(missing)]
+            if not carry.empty:
+                hist = pd.concat([hist, carry[HISTORY_COLUMNS]], ignore_index=True)
+                print(f"  (COT: {len(missing)} market(s) did not fetch — carried last-known data "
+                      f"forward, store NOT thinned: {', '.join(sorted(missing))})")
+        except Exception as _e:
+            print(f"  (COT: {len(missing)} market(s) missing and carry-forward failed: {_e})")
     detail = _cross_section(hist)
-    try:
-        hist.to_parquet(COT_HISTORY_FILE, index=False)
-        detail.to_parquet(COT_DETAIL_FILE, index=False)
-    except Exception:
-        pass
+    # ATOMIC, NON-SWALLOWING WRITE (2026-09-14): the old code swallowed write failures and returned
+    # the in-memory frames anyway — but the scheduled emailer gates freshness on the returned
+    # `detail` while its PDF subprocess reads COT_DETAIL_FILE from DISK, so a swallowed half-write
+    # shipped a PDF titled this week yet showing last week's positioning, then advanced the sent-
+    # marker so the correct report never re-sent. Write both to temp, then rename; let a failure
+    # RAISE so the caller's failalert / compute step-failure fires instead of a silent divergence.
+    _hist_tmp = COT_HISTORY_FILE.parent / (COT_HISTORY_FILE.name + ".tmp")
+    _det_tmp = COT_DETAIL_FILE.parent / (COT_DETAIL_FILE.name + ".tmp")
+    hist.to_parquet(_hist_tmp, index=False)
+    detail.to_parquet(_det_tmp, index=False)
+    os.replace(_hist_tmp, COT_HISTORY_FILE)
+    os.replace(_det_tmp, COT_DETAIL_FILE)
     return detail, hist
 
 

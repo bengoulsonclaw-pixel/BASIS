@@ -76,15 +76,24 @@ def _gold_leg_stamp(leg: str) -> None:
 def _snapshot_source() -> str:
     """How the on-disk snapshot was FETCHED — 'bloomberg' (real), 'mock' (synthetic), or '' (no
     snapshot yet). The source is a property of the FETCH, recorded by snapshot.py in
-    .fetch_meta.json (manifest.json is the fallback), NOT of whatever env the compute later runs in."""
+    .fetch_meta.json (manifest.json is the fallback), NOT of whatever env the compute later runs in.
+    FAIL CLOSED (2026-09-14): if a stamp file is PRESENT but unreadable (corrupt, or an OneDrive/AV
+    lock — the repo lives under OneDrive\\Desktop), return 'bloomberg' so the mock-overwrite guard
+    below REFUSES rather than fails open. Only a genuinely ABSENT snapshot (no stamp files at all)
+    returns '' — the old code returned '' on an unreadable file too, silently disabling the guard
+    exactly when a real pull's source stamp happened to be unreadable."""
+    present_but_unreadable = False
     for name in (".fetch_meta.json", "manifest.json"):
+        p = SNAPSHOT_DIR / name
+        if not p.exists():
+            continue
         try:
-            src = json.loads((SNAPSHOT_DIR / name).read_text(encoding="utf-8")).get("source", "")
+            src = json.loads(p.read_text(encoding="utf-8")).get("source", "")
             if src:
                 return str(src)
         except Exception:
-            continue
-    return ""
+            present_but_unreadable = True      # corrupt/locked — can't rule out a real bloomberg pull
+    return "bloomberg" if present_but_unreadable else ""
 
 
 def run() -> pd.DataFrame:

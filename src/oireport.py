@@ -166,7 +166,12 @@ def product_commentary(g: pd.DataFrame) -> str:
     dec = _strike_decimals(g["strike"])
     tot = float(g["total"].sum())
     tot_c, tot_p = float(g["call_oi"].sum()), float(g["put_oi"].sum())
-    pc = (tot_p / tot_c) if tot_c else float("nan")
+    # MIN-LEG FLOOR (2026-09-14): guard the 17,385-class blow-up — a near-all-puts FI chain with a
+    # tiny call total would print an absurd "P/C 8692 - put-skewed" into the client OI commentary.
+    # Require BOTH legs to clear a floor (mirrors putcall.MIN_LEG_OI = 100) before the ratio counts;
+    # otherwise pc stays NaN -> renders "-" / "broadly balanced".
+    _MIN_LEG_OI = 100
+    pc = (tot_p / tot_c) if (tot_c >= _MIN_LEG_OI and tot_p >= _MIN_LEG_OI) else float("nan")
     by_exp = g.groupby(["expiry", "expiry_label"])["total"].sum().sort_values(ascending=False)
     top_exp = str(by_exp.index[0][1]) if len(by_exp) else "—"
     top_share = (by_exp.iloc[0] / tot * 100) if (tot and len(by_exp)) else float("nan")

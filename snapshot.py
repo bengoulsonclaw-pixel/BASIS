@@ -41,7 +41,26 @@ FRAMES = (["prices", "yields", "volume", "implied_vol", "skew_put", "skew_call",
 
 def _save(df: pd.DataFrame, name: str) -> int:
     SNAP.mkdir(parents=True, exist_ok=True)
-    df.rename_axis("date").reset_index().to_parquet(SNAP / f"{name}.parquet", index=False)
+    path = SNAP / f"{name}.parquet"
+    # KEEP-OLD-ON-EMPTY (2026-09-14): a single field-group can wedge mid-fetch (an xbbg drop) and
+    # come back empty while prices + the rest succeed. Writing it would silently blank e.g.
+    # implied_vol/skew/putcall/yields — the Vol/Skew/Term/Put-Call client reports then quietly drop
+    # every market, and health.partial_pull_frames won't catch it (the file is freshly written, not
+    # lagging). `prices` is guarded coarsely below (empty prices = dead Terminal = bail the pull);
+    # this generalises the protection per-leg: never overwrite an existing NON-empty store with an
+    # empty frame — keep yesterday's and let the fetch-phase failure surface instead.
+    if df is None or bool(getattr(df, "empty", True)):
+        if path.exists():
+            try:
+                prev = pd.read_parquet(path)
+                if not prev.empty:
+                    print(f"  ({name}: fetch returned no rows — KEPT the existing {len(prev)}-row store)")
+                    return int(prev.shape[0])
+            except Exception:
+                pass
+        if df is None:
+            return 0                    # nothing to write and no usable prior — skip cleanly
+    df.rename_axis("date").reset_index().to_parquet(path, index=False)
     return int(df.shape[0])
 
 
@@ -549,6 +568,19 @@ def _compute_phase(include_equities: bool = False) -> dict:
 
     Individual step failures are collected in _STEP_FAILURES rather than swallowed, so the
     caller can exit non-zero and the pull driver can report a partial compute."""
+    # GUARD (2026-09-14) — refuse a MOCK-mode compute over a real bloomberg snapshot BEFORE any
+    # store is rebuilt. datafeed.MODE defaults to 'mock' when DATAFEED_MODE is unset, so a manual
+    # env-less `python snapshot.py --compute` would rebuild the COT signals, own-curve book, signal
+    # cache AND the append-only ledger ("never rebaseline") from synthetic data. run_daily.run()'s
+    # own guard catches the FINAL opportunities write, but these stores rebuild BEFORE it runs.
+    # Fail closed (an unreadable source stamp resolves to 'bloomberg'). run_pull.py forces
+    # DATAFEED_MODE=snapshot, so only a hand run trips this.
+    import run_daily
+    if MODE == "mock" and run_daily._snapshot_source() == "bloomberg":
+        raise RuntimeError(
+            "snapshot compute REFUSED: DATAFEED_MODE is 'mock' (unset?) but a real bloomberg "
+            "snapshot is on disk — rebuilding the signal/COT/own-curve/ledger stores from mock "
+            "data would clobber the live caches. Re-run with DATAFEED_MODE=snapshot.")
     _STEP_FAILURES.clear()
     # COT signals off the freshly-extended price store
     try:
