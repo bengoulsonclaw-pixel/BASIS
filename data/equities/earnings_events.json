@@ -1,5 +1,5 @@
 {
- "asof": "2026-09-11T10:29:30",
+ "asof": "2026-09-14T09:52:05",
  "events": [
   {
    "date": "2025-03-19",
@@ -2504,8 +2504,8 @@
    "color": "#1565C0",
    "auto": false,
    "bbg": "ZENA US Equity",
-   "sub": "Zenatech Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Zenatech Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 159mm"
+   "sub": "Zenatech \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Zenatech \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 159mm"
   },
   {
    "date": "2026-09-02",
@@ -3558,8 +3558,8 @@
    "color": "#C62828",
    "auto": false,
    "bbg": "NRIX US Equity",
-   "sub": "Nurix Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Nurix Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+   "sub": "Nurix Therapeutics \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Nurix Therapeutics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
   },
   {
    "date": "2026-10-08",
@@ -5448,8 +5448,8 @@
    "color": "#37474F",
    "auto": false,
    "bbg": "PH US Equity",
-   "sub": "Parker-Hannifin Corp \u00b7 S&P 500 \u00b7 US",
-   "tip": "Parker-Hannifin Corp \u2014 Industrials \u00b7 S&P 500 \u00b7 US \u00b7 125bn"
+   "sub": "Parker-Hannifin \u00b7 S&P 500 \u00b7 US",
+   "tip": "Parker-Hannifin \u2014 Industrials \u00b7 S&P 500 \u00b7 US \u00b7 125bn"
   },
   {
    "date": "2026-11-05",
@@ -5514,7 +5514,7 @@
   {
    "date": "2026-11-05",
    "icon": "",
-   "label": "\u22ef 308 more",
+   "label": "\u22ef 307 more",
    "color": "#616161",
    "auto": false,
    "tip": "Eog Resources, Warner Bros. Discovery Series A, Transdigm Group, Targa Resources, Engie, Deutsche Post Ag, National Grid Plc, Moderna, Rheinmetall Ag, Rockwell Automation Inc, Vistra, Consolidated Edison, Microchip Technology Inc, Kenvue, Legrand, Mettler Toledo, Tapestry, Nrg Energy Inc, Ralph Lauren Class A, Dupont De Nemours, Zimmer Biomet Holdings, Viatris, News Class B, Alliant Energy Corp, News Class A, Solventum, Jfrog, Cytokinetics, Wynn Resorts, Insulet, Protagonist Therapeutics, 10X Genomics Class A, Victory Capital Holdings Class A, D Wave Quantum, Lantheus Holdings, Stepstone Group Class A, Trade Desk Inc Class A, Clear Secure Class A, Casella Waste Systems Class A, Radnet\u2026"
@@ -6057,7 +6057,7 @@
    "label": "\u22ef 77 more",
    "color": "#616161",
    "auto": false,
-   "tip": "National Energy Services Reunited, Perpetua Resources, Alumis, Infleqtion Inc, Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics Inc, Zura Bio Ltd Class A\u2026"
+   "tip": "National Energy Services Reunited, Perpetua Resources, Alumis, Infleqtion Inc, Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc, Monopar Therapeutics, Contango Silver And Gold Inc, Sagimet Biosciences Series A, Swarmer Inc, Eikon Therapeutics, Zura Bio Ltd Class A\u2026"
   },
   {
    "date": "2026-11-13",
