@@ -559,6 +559,31 @@ def _vol_sd_label(vol, sd, dec) -> str:
     return f"{float(vol):.1f}"
 
 
+@st.cache_data(show_spinner=False)
+def _read_parquet_cached(path_str: str, mtime: float) -> pd.DataFrame:
+    """A raw parquet read, memoised on the file's mtime. A new pull rewrites the store
+    (bumping mtime) and invalidates this; ordinary threshold/widget reruns reuse the parse.
+    KEY is (path, mtime): distinct stores never collide, and st.cache_data hands back a fresh
+    copy on every call, so callers may freely .dropna()/.copy()/_filter_signals the result.
+    All selection, threshold and Home-sector-filter logic stays OUTSIDE this cache — it reads
+    live widget state, so only the expensive read is memoised, never the filtered view."""
+    return pd.read_parquet(path_str)
+
+
+def _read_parquet_mtime(path) -> pd.DataFrame:
+    """Wrapper for _read_parquet_cached: resolve the store's current mtime (0.0 if missing)
+    and hand the read to the cache. Returns an empty frame for a missing file so it is safe
+    even under the exists()-guarded call sites (a torn TOCTOU can't raise here)."""
+    p = Path(path)
+    if not p.exists():
+        return pd.DataFrame()
+    try:
+        mt = os.path.getmtime(p)
+    except OSError:
+        mt = 0.0
+    return _read_parquet_cached(str(p), mt)
+
+
 def _vol_charts(threshold):
     """On-page implied-vs-realized charts (scatter + ranked z-bars), read straight from the
     cached volatility cross-section so they show on the page WITHOUT generating the PDF."""
@@ -567,7 +592,7 @@ def _vol_charts(threshold):
     if not VOL_DETAIL_FILE.exists():
         st.info("No volatility cross-section yet — compute signals first (sidebar → **Re-run signals**).")
         return
-    d = _filter_signals(pd.read_parquet(VOL_DETAIL_FILE).dropna(subset=["iv", "rv", "z"]).copy())
+    d = _filter_signals(_read_parquet_mtime(VOL_DETAIL_FILE).dropna(subset=["iv", "rv", "z"]).copy())
     if d.empty:
         st.caption("No markets match the current Home-page sector filter.")
         return
@@ -674,7 +699,7 @@ def _vol_charts(threshold):
     # ---- Short-term rates: own section, rate-vol convention (1σ moves in bp) ----
     stir_path = VOL_DETAIL_FILE.parent / "stirvol.parquet"
     if stir_path.exists():
-        sd = _filter_signals(pd.read_parquet(stir_path))
+        sd = _filter_signals(_read_parquet_mtime(stir_path))
         if not sd.empty:
             st.markdown("#### Short-term rates — rate vol")
             sd = sd.copy()
@@ -768,7 +793,7 @@ def _vol_charts(threshold):
 
     hist_path = VOL_DETAIL_FILE.parent / "volatility_history.parquet"
     if hist_path.exists():
-        h = pd.read_parquet(hist_path)
+        h = _read_parquet_mtime(hist_path)
         have = [m for m in fl["market"].tolist()
                 if fl.loc[fl["market"] == m, "ticker"].iloc[0] in set(h.get("ticker", []))]
         if have:
@@ -806,7 +831,7 @@ def _skew_charts(threshold):
     if not SKEW_DETAIL_FILE.exists():
         st.info("No skew cross-section yet — compute signals first (sidebar → **Re-run signals**).")
         return
-    d = _filter_signals(pd.read_parquet(SKEW_DETAIL_FILE).dropna(subset=["z"]).copy())
+    d = _filter_signals(_read_parquet_mtime(SKEW_DETAIL_FILE).dropna(subset=["z"]).copy())
     if d.empty:
         st.caption("No markets match the current Home-page sector filter.")
         return
@@ -1053,7 +1078,7 @@ def _term_charts(threshold):
     if not TERM_DETAIL_FILE.exists():
         st.info("No term-structure cross-section yet — compute signals first (sidebar → **Re-run signals**).")
         return
-    d = _filter_signals(pd.read_parquet(TERM_DETAIL_FILE).dropna(subset=["iv_1m", "iv_3m", "z"]).copy())
+    d = _filter_signals(_read_parquet_mtime(TERM_DETAIL_FILE).dropna(subset=["iv_1m", "iv_3m", "z"]).copy())
     if d.empty:
         st.caption("No markets match the current Home-page sector filter.")
         return
@@ -10006,6 +10031,28 @@ def _stir_window_table(prods: list, bank_keys: list, asof, n_q: int) -> None:
                "falls inside the contract's reference window — i.e. it moves that contract's settlement.")
 
 
+def _strip_store_mtime() -> float:
+    """mtime of the morning STIR strip store (0.0 if absent) — the cache key that lets
+    _stir_bank_fits refresh when a new pull rewrites the strip, and reuse it otherwise."""
+    try:
+        p = stirpaths.STRIP_STORE
+        return os.path.getmtime(p) if p.exists() else 0.0
+    except OSError:
+        return 0.0
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _stir_bank_fits(asof, strip_mtime: float) -> dict:
+    """Every bank's default meeting-path fit, built once and shared. default_bank_fit runs
+    ~2 smoothing path-solves per bank, and both the STIR overview's bank cards and the Macro
+    Radar's priced-banner recomputed the whole set on every rerun. Keyed on `asof` (day roll)
+    + the strip-store mtime (a new morning pull rewrites it → refresh); ttl 30-min backstop.
+    Returns {bank_key: BankImplied | None} — a plain dataclass of dates/Contracts/ndarrays,
+    verified cleanly picklable. default_bank_fit is a pure read+solve (no writes), so this is
+    safe to memoise."""
+    return {bk: stirpaths.default_bank_fit(bk, asof) for bk in stirpaths.BANKS}
+
+
 def render_stir_overview() -> None:
     """The module's home: the state of global rate expectations — bank cards,
     what repriced, the cross-bank divergence chart (absorbed from the old
@@ -10013,7 +10060,7 @@ def render_stir_overview() -> None:
     import altair as alt
     st.subheader("🗓️  STIR Paths — the state of rate expectations")
     asof = datetime.now(ZoneInfo("America/New_York")).date()
-    fits = {bk: stirpaths.default_bank_fit(bk, asof) for bk in stirpaths.BANKS}
+    fits = _stir_bank_fits(asof, _strip_store_mtime())
     src, src_asof = stirpaths.strip_source(
         stirpaths.strip(stirpaths.PRODUCTS["SFRA Comdty"], asof, 8))
     st.caption("Each bank's strip inverted into the meeting-step path it prices — prices from the "
@@ -10263,7 +10310,7 @@ def _radar_priced_banner(bank: str, asof: date) -> None:
         ip = None
         if bank in stirpaths.BANKS:
             try:
-                ip = stirpaths.default_bank_fit(bank, asof)
+                ip = _stir_bank_fits(asof, _strip_store_mtime()).get(bank)
             except Exception:
                 ip = None
             if ip is not None and not len(ip.meetings):
@@ -14133,6 +14180,36 @@ def _cm_load_prefs() -> dict:
         return {}
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def _rollboard_board_cached(today_iso: str, mt_prices: float, mt_front2: float,
+                            mt_contract: float) -> pd.DataFrame:
+    """rollboard.board() memoised. board() reads the deep contract/price stores and then does
+    real per-product work — front/second spreads, 2-yr normalised z, seasonality and an
+    observed next-roll scan per ticker — all of which re-ran on every horizon-slider nudge.
+    Keyed on the three deep-store parquet mtimes (a morning pull rewrites them → refresh) plus
+    today's date, since board's business-days-to-roll is measured from today and must move at
+    the day roll (the mtimes alone wouldn't). ttl 30-min backstop. board() is a pure
+    read+compute returning a DataFrame — no side effects — so it is cleanly cacheable."""
+    from src import rollboard
+    return rollboard.board()
+
+
+def _rollboard_board() -> pd.DataFrame:
+    """Wrapper: gather the deep-store mtimes (0.0 for any missing file) plus today's date and
+    hand the build to the cache."""
+    _ps = ROOT / "data" / "price_store"
+
+    def _mt(name: str) -> float:
+        p = _ps / name
+        try:
+            return os.path.getmtime(p) if p.exists() else 0.0
+        except OSError:
+            return 0.0
+    return _rollboard_board_cached(
+        date.today().isoformat(),
+        _mt("deep_prices.parquet"), _mt("deep_front2.parquet"), _mt("deep_contract.parquet"))
+
+
 def render_roll_board() -> None:
     """When each front contract rolls, and what the roll costs.
 
@@ -14150,7 +14227,7 @@ def render_roll_board() -> None:
 
     with st.spinner("Reading the roll history…"):
         try:
-            df = rollboard.board()
+            df = _rollboard_board()
         except Exception as e:
             st.error(f"Could not build the roll board: {e}")
             return
@@ -17839,8 +17916,8 @@ if active == "COT Reports":
                    "— works with the Bloomberg Terminal closed. Commodities show **Managed Money**; "
                    "financials show **Leveraged Funds**.")
 
-    _raw_hist = pd.read_parquet(COT_HISTORY_FILE) if COT_HISTORY_FILE.exists() else pd.DataFrame()
-    _raw_detail = pd.read_parquet(COT_DETAIL_FILE) if COT_DETAIL_FILE.exists() else pd.DataFrame()
+    _raw_hist = _read_parquet_mtime(COT_HISTORY_FILE) if COT_HISTORY_FILE.exists() else pd.DataFrame()
+    _raw_detail = _read_parquet_mtime(COT_DETAIL_FILE) if COT_DETAIL_FILE.exists() else pd.DataFrame()
     hist = _filter_signals(_raw_hist)
     detail = _filter_signals(_raw_detail)
     if _raw_detail.empty or _raw_hist.empty:
@@ -18134,8 +18211,8 @@ if active == "COT Reports":
 if active == "Put/Call Ratios":
     import altair as alt
 
-    detail = _filter_signals(pd.read_parquet(PC_DETAIL_FILE) if PC_DETAIL_FILE.exists() else pd.DataFrame())
-    hist = _filter_signals(pd.read_parquet(PC_HISTORY_FILE) if PC_HISTORY_FILE.exists() else pd.DataFrame())
+    detail = _filter_signals(_read_parquet_mtime(PC_DETAIL_FILE) if PC_DETAIL_FILE.exists() else pd.DataFrame())
+    hist = _filter_signals(_read_parquet_mtime(PC_HISTORY_FILE) if PC_HISTORY_FILE.exists() else pd.DataFrame())
     if detail.empty:
         st.info("No put/call data cached yet — click **🔁 Re-run signals** on the 🏠 Home page.")
         st.stop()
