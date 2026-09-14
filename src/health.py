@@ -626,6 +626,54 @@ RADAR_COMPUTE_LAG_H = 30.0   # a day+ behind: checks() nags at 2h, the sheet onl
 RADAR_HEAT = 20.0            # health lines render as a flat caveat strip, not ranked stories
 
 
+def _pull_active() -> bool:
+    """True while a pull is genuinely mid-run (fetch -> compute -> backup). The compute that
+    clears a 'the fetch is newer than the compute' lag is imminent then, so that lag is
+    expected pull churn, NOT a stalled compute — callers suppress the lag warning while this
+    holds. Freshness comes from the status FILE's mtime (a tz-safe epoch), so a KILLED pull
+    (a stale 'running' stamp left on disk) ages out and the real lag surfaces again. Best-
+    effort -> False on any problem (i.e. show the warning)."""
+    try:
+        import time as _time
+        p = SNAP / ".pull_driver_status.json"
+        s = json.loads(p.read_text(encoding="utf-8"))
+        if s.get("outcome") not in ("running", "retrying"):
+            return False
+        if s.get("phase") not in ("preflight", "fetch", "retrying", "compute", "backup"):
+            return False
+        age_min = (_time.time() - p.stat().st_mtime) / 60.0
+        return 0 <= age_min < 35.0            # a live pull writes phase updates well inside this
+    except Exception:
+        return False
+
+
+def hotsheet_freshness() -> dict:
+    """One-line freshness verdict for the Hot Sheet header, so a QUIET sheet reads as
+    'healthy + current' rather than 'maybe stale'. States:
+      'pulling' — a pull is mid-run; the sheet refreshes when its compute lands
+      'lagging' — the compute trails the fetch (the radar lag caveat carries the detail)
+      'old'     — no fresh pull; the snapshot is older than SNAPSHOT_OLD_H
+      'fresh'   — signals recomputed from a current snapshot
+    Returns the compute age (hours) and the settle label for display. Best-effort -> 'unknown'."""
+    try:
+        man = load_manifest()
+        frames = snapshot_frames()
+        age_h = _age_h(parse_stamp(man.get("created")))
+        settle = str(man.get("as_of") or man.get("data_date") or "").strip()
+        lag = compute_lag_h(frames)
+        if _pull_active():
+            state = "pulling"
+        elif np.isfinite(lag) and lag > PARTIAL_PULL_SLACK_H:
+            state = "lagging"
+        elif np.isfinite(age_h) and age_h > SNAPSHOT_OLD_H:
+            state = "old"
+        else:
+            state = "fresh"
+        return {"state": state, "age_h": age_h, "settle": settle, "lag": float(lag)}
+    except Exception:
+        return {"state": "unknown"}
+
+
 def radar_items() -> list:
     """Hot Sheet provider — the health board's trust-affecting exceptions (max 3):
     missing core snapshot frames, a compute phase far behind the fetch, and stale
@@ -653,7 +701,7 @@ def radar_items() -> list:
             value=float(len(missing)), **common))
 
     lag = compute_lag_h(frames)
-    if np.isfinite(lag) and lag > RADAR_COMPUTE_LAG_H:
+    if np.isfinite(lag) and lag > RADAR_COMPUTE_LAG_H and not _pull_active():
         items.append(hotsheet.item(
             key="compute:lag", heat=RADAR_HEAT, metric=f"{lag:.0f}h behind",
             text=(f"The morning compute is **{lag:.0f} hours behind** the fetched data — "

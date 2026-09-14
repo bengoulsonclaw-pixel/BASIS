@@ -5577,6 +5577,21 @@ def _hs_footer(report: dict) -> None:
         brand.themed_dataframe(pd.DataFrame(rows), {})
 
 
+def _fresh_ago(age_h) -> str:
+    """Relative 'X ago' for the Hot Sheet freshness strip. NaN/negative -> 'recently'."""
+    try:
+        h = float(age_h)
+    except (TypeError, ValueError):
+        return "recently"
+    if h != h or h < 0:                          # NaN or clock skew
+        return "recently"
+    if h < 1.5:
+        return f"{h * 60:.0f} min ago"
+    if h < 36:
+        return f"{h:.0f}h ago"
+    return f"{h / 24:.0f} days ago"
+
+
 def render_hotsheet(book: str = "ficc") -> None:
     """One Hot Sheet per desk (Ben, 2026-08-19): the FICC page shows the FICC book,
     the Equities side carries its own page — no cross-book toggle. Meta caveats
@@ -5597,6 +5612,31 @@ def render_hotsheet(book: str = "ficc") -> None:
     pal = brand.palette()
     meta_items = [it for it in items if it["book"] == "meta"] if book == "ficc" else []
     items = [it for it in items if it["book"] == book]
+
+    # Freshness strip — a plain "you're current" (or "refreshing" / "older data") signal so a
+    # QUIET sheet reads as healthy rather than maybe-stale (Ben, 2026-09-14). FICC only: its
+    # compute drives the signals; the equities sheet has its own pull cadence.
+    if book == "ficc":
+        _fr = health.hotsheet_freshness()
+        try:
+            _settle_lbl = pd.Timestamp(_fr.get("settle")).strftime("%a %d %b")
+        except Exception:
+            _settle_lbl = _fr.get("settle") or "—"
+        _fmap = {
+            "pulling": ("#7FB3F5", "🔄 <b>Refreshing now</b> — a pull is running; the sheet "
+                        "updates the moment its compute finishes."),
+            "fresh":   ("#6FD79B", f"✅ <b>Up to date</b> — data through {_settle_lbl} settle, "
+                        f"signals recomputed {_fresh_ago(_fr.get('age_h'))}."),
+            "old":     ("#D9971C", f"⚠️ <b>Showing {_settle_lbl} data</b> — the last pull was "
+                        f"{_fresh_ago(_fr.get('age_h'))}; pull on Home for the latest."),
+        }
+        if _fr.get("state") in _fmap:
+            _fc, _fhtml = _fmap[_fr["state"]]
+            st.markdown(f'<div style="border:1px solid {pal["border"]};border-left:3px solid '
+                        f'{_fc};background:{pal["surface"]};padding:.45rem .7rem;font-size:.8rem;'
+                        f'color:{pal["text_dim"]};margin-bottom:.6rem">{_fhtml}</div>',
+                        unsafe_allow_html=True)
+
     if meta_items:                               # trust caveats first — a quiet sheet only means
         _cav = " · ".join(it["text"].replace("**", "") for it in meta_items)   # calm markets if the data is healthy
         st.markdown(f'<div style="border:1px solid {pal["border"]};border-left:3px solid #D9971C;'
