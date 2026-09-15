@@ -132,12 +132,36 @@ def test_clean_month_anchor_reads_no_meeting_month(fake_store):
     assert sp.clean_month_anchor("FED", ASOF) is None
 
 
+def _fed_world_prices(codes: list[str]) -> dict[str, float]:
+    """Exact prices for a planted Fed world (eff 3.6325, +7.5bp on 17 Sep,
+    +8bp more on 29 Oct, +6 on 10 Dec) — self-consistent to machine precision.
+    The old hand-typed fixture hid a ~7bp FFV6-vs-FFX6 standoff on the post-
+    October level; the robust refit now correctly refuses to arbitrate the
+    only two witnesses disagreeing, so incoherent fixtures no longer pin."""
+    steps = [(date(2026, 9, 17), 3.7075), (date(2026, 10, 29), 3.7875),
+             (date(2026, 12, 10), 3.8475)]
+
+    def world(d: date) -> float:
+        r = 3.6325
+        for b, v in steps:
+            if d >= b:
+                r = v
+        return r
+
+    out = {}
+    for p in (sp.PRODUCTS["FFA Comdty"], sp.PRODUCTS["SFRA Comdty"]):
+        for c in sp.strip(p, ASOF, 13 if not p.quarterly else 12):
+            if c.code in codes:
+                out[c.code] = round(price(c, world, compound=False), 6)
+    assert set(out) == set(codes)
+    return out
+
+
 def test_bank_fit_pins_monthly_isolated_meetings(fake_store):
     # With FF monthlies through Dec, Sep/Oct/Dec FOMCs are each isolated by
     # their own month -> pinned; far meetings (quarterly-covered only) are not.
-    fake_store({"FFQ6": 96.3675, "FFU6": 96.33, "FFV6": 96.28, "FFX6": 96.235,
-                "FFZ6": 96.165, "SFRU6": 96.215, "SFRZ6": 96.065,
-                "SFRH7": 95.98, "SFRM7": 95.945})
+    fake_store(_fed_world_prices(["FFQ6", "FFU6", "FFV6", "FFX6", "FFZ6",
+                                  "SFRU6", "SFRZ6", "SFRH7", "SFRM7"]))
     bf = sp.bank_fit("FED", ASOF)
     assert bf is not None
     by_date = dict(zip((m.isoformat() for m in bf.implied.meetings), bf.pinned))
@@ -207,3 +231,56 @@ def test_clean_month_anchor_rejects_future_clean_months(fake_store):
     # ...but the CURRENT month anchors when it is genuinely meeting-free
     fake_store({"FFQ6": 96.3675})
     assert sp.clean_month_anchor("FED", date(2026, 8, 14)) is not None
+
+
+def test_dissenting_contract_rejected_not_accommodated():
+    """The 15 Sep 2026 Euribor sawtooth, distilled: mark ONE contract (the
+    front €STR quarterly) 11bp off an otherwise exactly-consistent world.
+    Least squares ACCOMMODATES a dissenter — it bends the path (Oct +66 /
+    Dec −15 / Feb +51 printed as market pricing) while the dissenter's own
+    residual stays small, so plain residual-based downweighting misses it.
+    The leverage-adjusted Tukey refit must instead REJECT the mark: path
+    recovered near the planted one, the 11bp left sitting on the culprit."""
+    bank = sp.BANKS["ECB"]
+    tky = sp.PRODUCTS["TKYA Comdty"]
+    er = sp.PRODUCTS["ERA Comdty"]
+    # the REAL fit complex: both families — rejection needs a consensus to
+    # outvote the dissenter (TKY alone was too thin to overrule it)
+    cand = ([(er, c) for c in sp.strip(er, ASOF, 6)]
+            + [(tky, c) for c in sp.strip(tky, ASOF, 6)]
+            + [(tky, c) for c in sp.serial_strip(tky, ASOF)])
+    cand = [(p, c) for p, c in cand
+            if sp.fut_last_trade(p, c) >= ASOF
+            and (min(ASOF, c.end) - c.start).days
+            / max(1, (c.end - c.start).days) <= 0.95]
+    contracts = [c for _, c in cand]
+    spreads = [p.spread_bp for p, _ in cand]
+    ups = [m for m in bank.meetings if m >= ASOF]
+    steps = {sp.bank_effective_date(bank, ups[1]): 0.50,
+             sp.bank_effective_date(bank, ups[3]): 0.25}
+
+    def world(d: date) -> float:
+        return 2.19 + sum(v for b, v in steps.items() if d >= b)
+
+    prices = [price(c, world, compound=False) - s / 100.0
+              for c, s in zip(contracts, spreads)]
+    planted = [50.0 if m == ups[1] else (25.0 if m == ups[3] else 0.0)
+               for m in ups]
+
+    def fit(px):
+        return sp.implied_path(bank, contracts, px, ASOF, 2.19,
+                               spreads_bp=spreads, solve_stub=True, lam=2e-2)
+
+    base = fit(prices)                 # ~2.3bp: the D2 ramp spreading a +50
+    assert max(abs(float(b) - w) for b, w      # step — the smoothing's known
+               in zip(base.per_meeting_bp, planted)) < 3.5   # cost, not noise
+    # poison the front forward quarterly 11bp cheap (= demands a bigger move)
+    culprit = next(i for i, c in enumerate(contracts)
+                   if c.start > ASOF and c.month in (3, 6, 9, 12))
+    poisoned = list(prices)
+    poisoned[culprit] -= 0.11
+    ip = fit(poisoned)
+    errs = [abs(float(b) - w) for b, w in zip(ip.per_meeting_bp, planted)]
+    assert max(errs) < 5.0, f"path bent toward the dissenter: {errs}"
+    assert abs(float(ip.residual_bp[culprit])) > 8.0, \
+        "the off mark was accommodated instead of rejected"
