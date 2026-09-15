@@ -10053,6 +10053,21 @@ def _stir_bank_fits(asof, strip_mtime: float) -> dict:
     return {bk: stirpaths.default_bank_fit(bk, asof) for bk in stirpaths.BANKS}
 
 
+def _stir_live_view(ip):
+    """A pending-trimmed view of a BankImplied: decided-but-not-yet-effective
+    moves (ECB Thursday decision → Wednesday effectiveness) fold into the
+    baseline — cards/charts show LIVE meetings and the current implied rate,
+    never a decided move as if it were still odds."""
+    n = int(getattr(ip, "n_pending", 0) or 0) if ip is not None else 0
+    if not n:
+        return ip
+    import dataclasses as _dc
+    return _dc.replace(ip, meetings=ip.meetings[n:], seg_rates=ip.seg_rates[n:],
+                       per_meeting_bp=ip.per_meeting_bp[n:],
+                       cum_bp=(ip.seg_rates[n + 1:] - ip.seg_rates[n]) * 100.0,
+                       n_pending=0)
+
+
 def render_stir_overview() -> None:
     """The module's home: the state of global rate expectations — bank cards,
     what repriced, the cross-bank divergence chart (absorbed from the old
@@ -10072,7 +10087,7 @@ def render_stir_overview() -> None:
     _dest = {"FED": "Fed Path", "ECB": "ECB Path", "BOE": "BoE Path", "BCB": "BCB Path"}
     cards = st.columns(len(stirpaths.BANKS))
     for col, (bk, bank) in zip(cards, stirpaths.BANKS.items()):
-        ip = fits[bk]
+        ip = _stir_live_view(fits[bk])
         with col:
             if ip is None or not len(ip.meetings):
                 # proper card treatment for the no-data state, with the fix-it
@@ -10142,10 +10157,11 @@ def render_stir_overview() -> None:
         if bk == "BCB":                     # Selic ~3x the G3 rates would
             continue                        # flatten the shared axis — BCB
                                             # lives on its own cockpit
-        ip = fits[bk]
+        ip = _stir_live_view(fits[bk])
         if ip is None or not len(ip.meetings):
             continue
-        seg_dates = [asof] + [fedpath.effective_date(m) for m in ip.meetings]
+        seg_dates = [asof] + [stirpaths.bank_effective_date(bank, m)
+                              for m in ip.meetings]
         lvl = ip.seg_rates - stirpaths.BANK_BASIS_SEED[bk] / 100.0
         cum = np.concatenate([[0.0], (lvl[1:] - lvl[0]) * 100.0])
         frames.append(pd.DataFrame({
@@ -10310,7 +10326,7 @@ def _radar_priced_banner(bank: str, asof: date) -> None:
         ip = None
         if bank in stirpaths.BANKS:
             try:
-                ip = _stir_bank_fits(asof, _strip_store_mtime()).get(bank)
+                ip = _stir_live_view(_stir_bank_fits(asof, _strip_store_mtime()).get(bank))
             except Exception:
                 ip = None
             if ip is not None and not len(ip.meetings):
@@ -10629,6 +10645,18 @@ def render_stir_bank(bank_key: str) -> None:
                     and abs(_anchor[0] - bank.default_rate) <= 0.40)
     if _anchor_used:
         r0 = _anchor[0] + basis_bp / 100.0
+    else:
+        # No clean-month read (ECB/BoE): the last o/n FIXING is the market's
+        # print of the PREVAILING rate — decisive between an ECB decision
+        # (Thursday) and its MRO effectiveness (the next Wednesday), when the policy
+        # input already shows the ANNOUNCED target but the fixing is still the
+        # old level; anchoring there lets the fit carry the decided move as a
+        # PENDING step instead of cramming it into the next meeting. Touch the
+        # policy input and your what-if always wins (mirrors bank_fit).
+        _fx0 = stirpaths.last_fixing(bank_key, asof)
+        if (not _policy_touched and _fx0 is not None
+                and abs(_fx0[1] - r0) <= 0.60 and stirpaths.store_codes()):
+            r0 = float(_fx0[1])
 
     sel = _stir_picker(bank_key, prods_all, label="Products in the tools")
     prods = [stirpaths.PRODUCTS[t] for t in sel] or [prods_all[0]]
@@ -10768,11 +10796,29 @@ def render_stir_bank(bank_key: str) -> None:
                                     stub_rate=stub)
     # the stub every scenario/landing price shares: solved > fixings/manual input
     stub = float(ip.stub) if ip.stub is not None else stub
+    # PENDING moves — decided but not yet effective (the ECB decides Thursday,
+    # effective the following Wednesday): fold them OUT of the meeting rows and
+    # into the current-implied baseline, exactly as WIRP's "Cur. Imp. O/N Rate"
+    # does. They re-enter every scenario world as locked certain steps below.
+    _n_pend = int(getattr(ip, "n_pending", 0) or 0)
+    _pend = [(m, float(b))
+             for m, b in list(zip(ip.meetings, ip.per_meeting_bp))[:_n_pend]]
+    base_on = float(ip.seg_rates[_n_pend]) if len(ip.seg_rates) > _n_pend else r0
+    pinned_live = list(getattr(bf, "pinned", []) or [True] * len(ip.meetings))[_n_pend:]
+    if _n_pend:
+        import dataclasses as _dc
+        ip = _dc.replace(
+            ip, meetings=ip.meetings[_n_pend:],
+            seg_rates=ip.seg_rates[_n_pend:],
+            per_meeting_bp=ip.per_meeting_bp[_n_pend:],
+            cum_bp=(ip.seg_rates[_n_pend + 1:] - ip.seg_rates[_n_pend]) * 100.0,
+            n_pending=0)
     # residuals by CODE: the fit universe is wider than the displayed contracts,
     # so positional zips against ip.* would misalign (or crash) — always map
     _resid_of = {c.code: float(r) for c, r in zip(ip.contracts, ip.residual_bp)}
     labels = [fedpath.meeting_label(m) for m in ip.meetings]
-    yrs = np.array([(fedpath.effective_date(m) - asof).days / 365.25 for m in ip.meetings])
+    yrs = np.array([(stirpaths.bank_effective_date(bank, m) - asof).days / 365.25
+                    for m in ip.meetings])
     cum_disp = np.array(ip.cum_bp) - haircut * yrs
     per_disp_arr = np.diff(np.concatenate([[0.0], cum_disp]))
     per_disp = dict(zip(labels, [float(v) for v in per_disp_arr]))
@@ -10826,7 +10872,15 @@ def render_stir_bank(bank_key: str) -> None:
                                    hike_bp, cut_bp)
              for m, lab in zip(ip.meetings, labels)]
     exp_moves = [v.expected_bp for v in views]
-    scen_fn = stirpaths.scenario_rate_fn(r0, views, asof=asof, stub_rate=stub)
+    # every scenario world carries the pending decided moves as CERTAIN locked
+    # steps (deterministic views add no distribution spread) — without them a
+    # your-call fair price would miss an already-announced hike entirely
+    _pend_views = [stirpaths.MeetingView(m, 1.0, 0.0, b, 0.0) if b >= 0
+                   else stirpaths.MeetingView(m, 0.0, 1.0, 0.0, -b)
+                   for m, b in _pend]
+    scn_views = _pend_views + views
+    scen_fn = stirpaths.scenario_rate_fn(r0, scn_views, asof=asof,
+                                         stub_rate=stub, bank=bank)
 
     def _fair(p, c):
         if p.rate_quoted:                           # DI: compounded scenario CDI, a rate
@@ -10923,7 +10977,8 @@ def render_stir_bank(bank_key: str) -> None:
             vs = [stirpaths.MeetingView(m_, max(float(b_), 0.0) / hike_bp,
                                         max(-float(b_), 0.0) / cut_bp, hike_bp, cut_bp)
                   for m_, b_ in zip(ip2.meetings, ip2.per_meeting_bp)]
-            fn_ = stirpaths.scenario_rate_fn(r0, vs, asof=asof, stub_rate=stub)
+            fn_ = stirpaths.scenario_rate_fn(r0, vs, asof=asof, stub_rate=stub,
+                                             bank=bank)
             if _rq:
                 fwd = [stirpaths.di_fair_rate(c_, fn_, asof) for c_ in contracts]
             else:
@@ -11040,10 +11095,116 @@ def render_stir_bank(bank_key: str) -> None:
                    if cur_def else
                    f"★ Set as default makes a scenario load automatically on open. {_tail}")
 
-    # ---- 2+3 · one table: the market's call, your call directly beneath ------
+    # ---- 2 · the WIRP view: header block + market table + combined chart -----
+    # Ben (15 Sep 2026): replicate Bloomberg's WIRP screen — the layout clients
+    # ask for — computed from OUR settles, with the your-call adjusted curve
+    # overlaid on the same chart. The editable system stays below as section 3.
+    _sp_gap()
+    _bank_c = _STIR_BANK_COLOR.get(bank_key, "#7FB3F5")
+    _arm = float(hike_bp)                           # assumed rate move, bp
+    _instr = {"FED": "SR3 + SR1 + FF futures", "ECB": "€STR + Euribor futures",
+              "BOE": "SONIA futures", "BCB": "DI1 futures"}.get(bank_key, "futures")
+    _w_store = stirpaths._load_strip_store()
+    _w_asof = _w_store.get("asof", asof.isoformat())
+    _fx_last = stirpaths.last_fixing(bank_key, asof)
+    _tgt = (f"{bank.default_rate - 0.125:.2f}–{bank.default_rate + 0.125:.2f}"
+            if bank_key == "FED" else f"{bank.default_rate:.2f}")
+    st.markdown(f"**2 · World interest rate probability — our settles, our fit** "
+                f"&nbsp;·&nbsp; <span class='sp-sub'>WIRP's screen, priced off the "
+                f"{'DI strip' if _rq else 'futures strip'} in our snapshot store</span>",
+                unsafe_allow_html=True)
+    _hd = st.columns([1.35, 0.85, 0.9, 1.0, 1.05, 1.35], gap="small")
+    for _c, (_lab, _val, _tip) in zip(_hd, [
+        ("Region", f"{bank.name}", bank.meeting_name),
+        ("Target rate", _tgt, bank.rate_name),
+        ("Effective rate", f"{_fx_last[1]:.4g}" if _fx_last else "—",
+         (f"Last o/n fixing {_fx_last[0]:%d %b %y}" if _fx_last
+          else "No fixing cached — run the morning pull")),
+        ("Pricing date", f"{_w_asof}", "The snapshot store's settlement date — "
+         "press ⚡ Live pull for intraday"),
+        ("Cur. imp. o/n rate", f"{base_on:.3f}",
+         "The fit's implied overnight rate NOW — decided-but-not-yet-effective "
+         "moves already included, exactly like WIRP"),
+        ("Instrument", _instr, "Every liquid instrument in the fit"),
+    ]):
+        _c.markdown(f"<div class='sp-sub'>{_lab}</div>"
+                    f"<div class='sp-lab' style='padding-top:0;color:#E8EAED' "
+                    f"title='{_tip}'>{_val}</div>", unsafe_allow_html=True)
+    for _pm, _pb in _pend:
+        _peff = stirpaths.bank_effective_date(bank, _pm)
+        st.caption(f"⏳ **Decided, not yet effective:** {bank.meeting_name} "
+                   f"{_pm:%d %b %y} went {_pb:+.1f}bp — effective {_peff:%a %d %b %y} "
+                   f"(first MRO settlement). It sits in the current implied rate "
+                   f"above, not in the meeting rows.")
+    # the table — WIRP's exact columns off the live meetings
+    _wg = [1.0, 0.75, 0.85, 0.8, 0.8, 0.55]
+    _wh = st.columns(_wg, gap="small", vertical_alignment="bottom")
+    for _c, (_t, _tp) in zip(_wh, [
+            ("Meeting", "Decision date"),
+            ("#Hikes/Cuts", f"Cumulative {int(_arm)}bp steps priced through this meeting"),
+            ("%Hike/Cut", "This meeting's move alone, as % of one step — "
+             "≈ marks meetings no contract isolates (interpolated)"),
+            ("Imp. rate Δ", "Cumulative bp from the current implied o/n rate, in %"),
+            ("Implied rate", "The overnight rate the market prices AFTER this meeting"),
+            ("A.R.M.", "Assumed rate move per step")]):
+        _c.markdown(f"<div class='sp-hdr' style='color:{_MTG_TXT}' title='{_tp}'>{_t}</div>",
+                    unsafe_allow_html=True)
+    _wcum = 0.0
+    _wrows = []
+    for _i, (_m, _lab) in enumerate(zip(ip.meetings, labels)):
+        _marg = float(per_disp[_lab])
+        _wcum += _marg
+        _pin = bool(pinned_live[_i]) if _i < len(pinned_live) else False
+        _wrows.append((_m, _marg, _wcum, _pin))
+        _r = st.columns(_wg, gap="small", vertical_alignment="center")
+        _sgn = "#81C784" if _marg > 2.0 else ("#EF9A9A" if _marg < -2.0 else "#E8EAED")
+        _pct = f"{'' if _pin else '≈ '}{_marg / _arm * 100.0:+.1f}%"
+        for _c, _h, _col in zip(_r, [
+                f"{_m:%d %b %Y}", f"{_wcum / _arm:+.3f}", _pct,
+                f"{_wcum / 100.0:+.3f}", f"{base_on + _wcum / 100.0:.3f}",
+                f"{_arm / 100.0:.3f}"],
+                [_MTG_TXT, "#E8EAED", _sgn, "#E8EAED", "#E8EAED", "#AEB7C2"]):
+            _dim = "opacity:0.75;" if (not _pin and _col == _sgn) else ""
+            _c.markdown(f"<div class='sp-cell' style='color:{_col};{_dim}'>{_h}</div>",
+                        unsafe_allow_html=True)
+    # combined chart, WIRP-style: bars = cumulative steps priced (right axis),
+    # line = implied o/n rate (left axis), your call dashed in gold on top
+    _ycum = np.cumsum(exp_moves) if len(exp_moves) else np.array([])
+    _wdf = pd.DataFrame(
+        [{"x": "Current", "o": 0, "rate": base_on, "steps": 0.0,
+          "you": base_on}]
+        + [{"x": f"{m:%d %b %y}", "o": i + 1, "rate": base_on + cum / 100.0,
+            "steps": cum / _arm, "you": base_on + float(_ycum[i]) / 100.0}
+           for i, (m, marg, cum, pin) in enumerate(_wrows)])
+    _bx = alt.X("x:N", sort=alt.SortField("o"), title=None,
+                axis=alt.Axis(labelAngle=-38, labelColor="#CDD3DB"))
+    _wbar = alt.Chart(_wdf).mark_bar(size=26, color="#FFB300", opacity=0.55).encode(
+        x=_bx, y=alt.Y("steps:Q", title=f"# of {int(_arm)}bp hikes/cuts priced",
+                       axis=alt.Axis(orient="right", titleColor="#FFB300")))
+    _wln = alt.Chart(_wdf).mark_line(color=_bank_c, point=alt.OverlayMarkDef(
+        color=_bank_c, size=45)).encode(
+        x=_bx, y=alt.Y("rate:Q", title="Implied o/n rate (%)",
+                       scale=alt.Scale(zero=False),
+                       axis=alt.Axis(titleColor=_bank_c)),
+        tooltip=[alt.Tooltip("x:N", title="Meeting"),
+                 alt.Tooltip("rate:Q", title="Market implied", format=".3f"),
+                 alt.Tooltip("you:Q", title="Your call", format=".3f"),
+                 alt.Tooltip("steps:Q", title="# steps", format="+.3f")])
+    _wyou = alt.Chart(_wdf).mark_line(color=_YOU_C, strokeDash=[6, 4],
+                                      point=alt.OverlayMarkDef(color=_YOU_C, size=30,
+                                                               filled=False)).encode(
+        x=_bx, y=alt.Y("you:Q", scale=alt.Scale(zero=False)))
+    st.altair_chart(alt.layer(_wbar, _wln + _wyou).resolve_scale(y="independent")
+                    .properties(height=290), use_container_width=True)
+    st.caption(f"<span style='color:{_bank_c}'>●</span> market implied o/n rate · "
+               f"<span style='color:#FFB300'>▮</span> cumulative steps priced · "
+               f"<span style='color:{_YOU_C}'>◌</span> your call (edit in section 3 "
+               f"— the dashed line moves with it)", unsafe_allow_html=True)
+
+    # ---- 3 · one table: the market's call, your call directly beneath --------
     _sp_gap()
     h1_, h2_, h3_ = st.columns([4.2, 0.9, 1.5])
-    h1_.markdown(f"**2 · The odds, decision by decision — two-way with the "
+    h1_.markdown(f"**3 · The odds, decision by decision — two-way with the "
                  f"<span style='color:{_YOU_C}'>YOUR CALL</span> prices in section 1** "
                  "(edit either; the other re-solves) &nbsp;·&nbsp; decimal odds: "
                  "−0.66 = 66% cut odds · +0.50 = 50% hike odds · beyond ±1 = more than one step"
@@ -11232,7 +11393,7 @@ def render_stir_bank(bank_key: str) -> None:
                             f"{cum_disp[i]:+.1f}</div>",
                             unsafe_allow_html=True)
             row[6].markdown(f"<div class='sp-cell' style='background:{_mkt_wash}'>"
-                            f"{r0 + cum_disp[i] / 100.0:.3f}</div>",
+                            f"{base_on + cum_disp[i] / 100.0:.3f}</div>",
                             unsafe_allow_html=True)
             with row[7]:
                 with st.container(key=f"sp{bank_key}_oc_{i}"):
@@ -11478,7 +11639,7 @@ def render_stir_bank(bank_key: str) -> None:
         px_now = dict(zip(codes, prices))
         lrows, lkeys = [], []
         for p in opt_prods:
-            for L in stirpaths.landings(p, bank, asof, views, r0, months,
+            for L in stirpaths.landings(p, bank, asof, scn_views, r0, months,
                                         spread_bp=er_spread if p.ticker == "ERA Comdty" else 0.0,
                                         stub_rate=stub, include_midcurves=True):
                 mkt = px_now.get(L.underlying.code)
@@ -11516,7 +11677,7 @@ def render_stir_bank(bank_key: str) -> None:
             key=f"sp{bank_key}_ho_pick")
         p_pick, L_pick = lkeys[pick]
         dist = stirpaths.landing_distribution(
-            p_pick, bank, L_pick.underlying, asof, views, r0, upto=L_pick.expiry,
+            p_pick, bank, L_pick.underlying, asof, scn_views, r0, upto=L_pick.expiry,
             spread_bp=er_spread if p_pick.ticker == "ERA Comdty" else 0.0, stub_rate=stub)
         if len(dist) > 1:
             ddf = pd.DataFrame({"px": [d[0] for d in dist], "p": [d[1] * 100.0 for d in dist]})

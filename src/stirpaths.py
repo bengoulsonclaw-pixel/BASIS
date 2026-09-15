@@ -111,11 +111,15 @@ BANKS: dict[str, Bank] = {
     # FED 3.625 = 3.50-3.75 target band, confirmed off WIRP 14 Aug 2026.
     "FED": Bank("FED", "Federal Reserve", "FOMC", "Target band midpoint",
                 fedpath.FOMC_DECISIONS, 3.625, 25.0, "$"),
-    # ECB 2.25 / BOE 3.75 derived 15 Aug 2026 from the realized front arrears
-    # contracts Ben supplied (TKYM6 97.81 -> ESTR ~2.17 = depo-8bp; SFIM6
-    # 96.2525 -> SONIA ~3.75) — pending Ben's on-screen confirmation.
+    # ECB 2.50: the 10 Sep 2026 GC hiked the depo 2.25→2.50 "with effect from
+    # 16 September 2026" (ECB press release, confirmed 15 Sep 2026 + WIRP EZ
+    # Target 2.50). Between decision and MRO effectiveness the PREVAILING o/n
+    # is still the old level — bank_fit anchors r0 on the live €STR fixing and
+    # the fit carries the decided move as a PENDING step, so this registry
+    # value being the ANNOUNCED target is correct at all times.
+    # BOE 3.75 = Bank Rate, matches WIRP GB Target 3.750 on 15 Sep 2026.
     "ECB": Bank("ECB", "European Central Bank", "Governing Council", "Deposit facility rate",
-                ECB_DECISIONS, 2.25, 25.0, "€"),
+                ECB_DECISIONS, 2.50, 25.0, "€"),
     "BOE": Bank("BOE", "Bank of England", "MPC", "Bank Rate",
                 BOE_DECISIONS, 3.75, 25.0, "£"),
     # Selic target 14.00 per SGS 432 (target in force; confirmed by the Macro
@@ -188,10 +192,11 @@ PRODUCTS: dict[str, Product] = {
                           has_options=False, rate_quoted=True, in_pull=True),
 }
 # Overnight proxy vs the policy rate, in bp (page-tunable; these seed the input):
-# SOFR ≈ target mid + 0 · €STR ≈ depo − 8 · SONIA ≈ Bank Rate + 0 (the −5 seed
-# left a −4.7bp phantom on the BoE front fit vs the realized SFIM6 window —
-# SONIA is fixing AT Bank Rate on the real 14-Aug-2026 data).
-BANK_BASIS_SEED = {"FED": 0.0, "ECB": -8.0, "BOE": 0.0,
+# SOFR ≈ target mid + 0 · €STR ≈ depo − 6 (fixing 2.19 vs depo 2.25 on 15 Sep
+# 2026, and WIRP's cur-implied 2.442 vs the announced 2.50 — the old −8 was a
+# 14-Aug derivation) · SONIA ≈ Bank Rate + 0 (the −5 seed left a −4.7bp phantom
+# on the BoE front fit vs the realized SFIM6 window — SONIA fixes AT Bank Rate).
+BANK_BASIS_SEED = {"FED": 0.0, "ECB": -6.0, "BOE": 0.0,
                    "BCB": -10.0}   # CDI fixes ~10bp under the Selic target
 
 
@@ -391,15 +396,25 @@ def meetings_between(bank: Bank, a: date, b: date) -> list[date]:
 
 def bank_effective_date(bank: Bank | str, m: date) -> date:
     """When a decision actually hits the overnight fixing — per-bank convention:
-    Fed and ECB next business day, BoE SAME day (announced noon, effective
-    immediately). A following-Wednesday MRO rule for the ECB was tried and
-    REJECTED by validation: hand-solving the €STR serial pair against the
-    14-Aug-2026 market reproduces WIRP's front odds exactly under next-bday
-    (91% vs 91.9), and degrades ~25pts under following-Wednesday — the market
-    prices €STR as moving the day after the decision."""
+    Fed next business day, BoE SAME day (announced noon, effective immediately),
+    ECB the FOLLOWING WEDNESDAY — "changes effective from the first main
+    refinancing operation following the Governing Council decision" (ECB key-
+    rates page), MROs settling Wednesdays, decision+6 for every Thursday GC
+    meeting 2024-2026 (verified against the ECB table: 6 Jun 24→12 Jun,
+    12 Sep 24→18 Sep, ... 11 Jun 26→17 Jun, 10 Sep 26→16 Sep). An earlier
+    next-bday rule was kept on a 14-Aug WIRP odds match, then bit on 15 Sep
+    2026: €STR kept fixing 2.19 for four days AFTER the Sep-10 hike (decided
+    2.25→2.50, effective Sep-16), and the fit crammed the decided-but-not-yet-
+    effective +25 into the October meeting. Futures settle on REALIZED €STR,
+    so the physical convention is the only defensible one."""
     key = bank if isinstance(bank, str) else bank.key
     if key == "BOE":
         return m
+    if key == "ECB":
+        d = m + timedelta(days=1)
+        while d.weekday() != 2:                     # first Wednesday strictly after
+            d += timedelta(days=1)
+        return d
     return effective_date(m)
 
 
@@ -427,6 +442,13 @@ class BankImplied:
                                 # Dec-31 (balance-sheet date); without this the
                                 # meeting-step model reads the turn as a phantom
                                 # Dec cut + Jan/Feb re-hike
+    n_pending: int = 0          # leading meetings[]/per_meeting_bp[] rows that are
+                                # DECIDED but not yet effective (ECB decides Thu,
+                                # effective the following Wed) — the fit still
+                                # solves their step (contracts price it), but they
+                                # are history, not odds: display them as part of
+                                # the current implied o/n baseline, never as an
+                                # editable/quotable meeting row
 
 
 def _turn_year(d: date) -> int | None:
@@ -443,7 +465,8 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
                  spreads_bp: list[float] | None = None,
                  stub_rate: float | None = None,
                  solve_stub: bool = False, lam: float = 5e-3,
-                 solve_turn: bool = True) -> BankImplied:
+                 solve_turn: bool = True,
+                 stub_fn=None) -> BankImplied:
     """fedpath.implied_path with the meeting calendar (and optional per-contract
     settlement-index spread, e.g. Euribor−€STR) parameterised. Linear (simple-avg)
     form, L[0] pinned to `asof_rate` — see fedpath for the derivation.
@@ -460,15 +483,34 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
     (an extra unsmoothed unknown, lightly ridged toward `asof_rate`): the front
     arrears quarterly + front monthlies carry ~half their weight on elapsed days,
     which identifies it well — the market tells us what already fixed, no
-    fixings feed needed. Ignored when `stub_rate` is given or nothing elapsed."""
+    fixings feed needed. Ignored when `stub_rate` is given or nothing elapsed.
+
+    `stub_fn` (day -> realized fixing %) prices each elapsed day at the ACTUAL
+    published fixing and beats both: solved stubs are extra unknowns a live
+    conflict can hide in (on 15 Sep 2026 they absorbed ~2.5bp of the ECB's
+    decided-but-pending hike, printing a fictitious 2.215 average against a
+    flat 2.19 tape), and a scalar is only exact while the tape was flat. The
+    caller guarantees coverage of every elapsed day."""
     spreads = spreads_bp or [0.0] * len(contracts)
-    # asof <= m: on DECISION DAY the meeting stays in the fit all day — the strip
-    # prices the move until the announcement, and dropping it at midnight shoved
-    # ~a full step of front-contract pricing into the wrong meeting's odds.
-    decisions = [m for m in bank.meetings if asof <= m < max(c.end for c in contracts)]
+    # A meeting stays in the fit until its move is EFFECTIVE, not merely decided:
+    # on decision day the strip prices the move until the announcement (dropping
+    # it at midnight shoved ~a full step into the wrong meeting's odds), and for
+    # the ECB the decided move keeps living in the contracts for another ~4 days
+    # until the following-Wednesday MRO settlement — dropping it there crammed
+    # the decided Sep-10-2026 +25 into the October meeting (+66bp phantom) and
+    # made the one fully-post-effective contract look like a rejectable outlier.
+    # ≥ on the effective date: on effectiveness MORNING the store still holds
+    # yesterday's settles and the o/n fixing tape (published T+1) still prints
+    # the old level — the move must stay pending until both have rolled, which
+    # is exactly the day after effectiveness for every bank convention.
+    max_end = max(c.end for c in contracts)
+    decisions = [m for m in bank.meetings
+                 if (m >= asof or bank_effective_date(bank, m) >= asof)
+                 and m < max_end]
+    n_pend = sum(1 for m in decisions if m < asof)
     bounds = [bank_effective_date(bank, m) for m in decisions]
     n_seg = len(bounds) + 1
-    solving = solve_stub and stub_rate is None
+    solving = solve_stub and stub_rate is None and stub_fn is None
 
     W = np.zeros((len(contracts), n_seg))
     const = np.zeros(len(contracts))               # realized-stub contribution (rate %·days)
@@ -486,10 +528,21 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
     # a turn (V/X/F serials, Z quarterlies) disagree with those that don't, and
     # without this column the fit reads the turn as a phantom Dec cut + Feb
     # re-hike (bit on 15 Sep 2026: ECB Dec −15/Feb +50 sawtooth).
+    def _turn_carriers(ty: int) -> int:
+        return sum(1 for c in contracts
+                   if any(_turn_year(d) == ty
+                          for d in _daterange(max(c.start, asof), c.end)))
+    # A turn unknown needs CONTRAST — at least two contracts carrying its days,
+    # so the solver reads it from their disagreement with turn-free neighbours.
+    # With a single carrier (the calendar-edge Z quarterly once the tail is
+    # trimmed) the column is a free parameter the solver trades against the
+    # last meetings' steps: the BoE time machine caught an 11.6bp front error
+    # from exactly that (asof Nov-2027).
     t_years = (sorted({ty for c in contracts
                        for d in _daterange(max(c.start, asof), c.end)
                        if (ty := _turn_year(d)) is not None
-                       and ty <= asof.year + 1}) if solve_turn else [])
+                       and ty <= asof.year + 1
+                       and _turn_carriers(ty) >= 2}) if solve_turn else [])
     t_of = {ty: ti for ti, ty in enumerate(t_years)}
     Wturn = np.zeros((len(contracts), max(1, len(t_years))))
     for ci, c in enumerate(contracts):
@@ -497,9 +550,12 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
         if not days:
             continue
         for d in days:
-            if d < asof and (solving or stub_rate is not None):
+            if d < asof and (solving or stub_rate is not None
+                             or stub_fn is not None):
                 if solving:
                     Wstub[ci, g_of[c.start]] += 1.0
+                elif stub_fn is not None:
+                    const[ci] += stub_fn(d)
                 else:
                     const[ci] += stub_rate
                 continue
@@ -527,6 +583,11 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
     y = np.array([100.0 - p - sp / 100.0 for p, sp in zip(prices, spreads)])
     rhs = y - const - W[:, 0] * asof_rate
     stub_out = stub_rate
+    if stub_fn is not None:                        # report the front window's
+        el_starts = [c.start for c in contracts if c.start < asof]
+        if el_starts:                              # realized average for display
+            el = [stub_fn(d) for d in _daterange(min(el_starts), asof)]
+            stub_out = float(np.mean(el)) if el else None
     stub_vec = None
     turn_vec = None
     if n_seg > 1 or solving or n_turn:
@@ -544,13 +605,19 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
         rows = [A_data]
         rhss = [rhs]
         if n_seg >= 3:
+            # Row i penalises (step at boundary i+2) − (step at boundary i+1).
+            # Rows i < n_pend touch a PENDING boundary — a decided policy move
+            # awaiting its effective date is not market curvature to smooth
+            # (smoothing shaved the decided Sep-10-2026 +25 down to +20 and
+            # pushed the shortfall into October), so smoothness starts at the
+            # first live meeting and the distance ramp counts from there.
             D2 = np.zeros((n_seg - 2, n_seg))
-            for i in range(n_seg - 2):
+            for i in range(n_pend, n_seg - 2):
                 # Ramp: base weight over the front (where dedicated monthlies
                 # genuinely pin meetings), rising with distance — far meetings
                 # sit past the liquid monthlies, and sub-bp noise in far marks
                 # otherwise prints as double-digit phantom odds out there.
-                w = 1.0 + max(0, i - 3) * 0.75
+                w = 1.0 + max(0, (i - n_pend) - 3) * 0.75
                 D2[i, i], D2[i, i + 1], D2[i, i + 2] = w, -2.0 * w, w
             D2u = lam * D2[:, 1:]
             if solving:
@@ -611,7 +678,16 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
             c_rej = 9.0
             wts = np.where(r_del < c_rej,
                            (1.0 - (r_del / c_rej) ** 2) ** 2, 0.0)
-            wts = np.maximum(wts, 0.05)
+            # Rejection means ZERO weight — a 0.05 floor on rejected rows let a
+            # hard-conflicting mark keep arbitrating ~6bp of the front split
+            # (sqrt(0.05) ≈ 22% amplitude against a 7-9bp conflict, measured
+            # 15 Sep 2026). The floor now applies only INSIDE the cutoff (so a
+            # marginal row can climb back), and rejection falls back to the
+            # floored form only if it would leave the fit degenerate.
+            wts_floor = np.maximum(wts, 0.05)
+            wts = np.where(r_del < c_rej, wts_floor, 0.0)
+            if (wts > 0).sum() < min(len(wts), 4):
+                wts = wts_floor
         if n_turn:
             turn_vec = sol[n_unk - n_turn:]
         seg_sol = sol[(n_stub if solving else 0):(n_unk - n_turn) or None]
@@ -632,7 +708,7 @@ def implied_path(bank: Bank, contracts: list[Contract], prices: list[float],
              if (n_turn and turn_vec is not None) else None)
     return BankImplied(contracts, decisions, seg, np.diff(seg) * 100.0,
                        (seg[1:] - seg[0]) * 100.0, fair, residual_bp, stub_out,
-                       turns)
+                       turns, n_pending=n_pend)
 
 
 def _bd(a: date, b: date) -> int:
@@ -731,13 +807,30 @@ class MeetingView:
 
 
 def scenario_rate_fn(asof_rate: float, views: list[MeetingView],
-                     asof: date | None = None, stub_rate: float | None = None):
+                     asof: date | None = None, stub_rate: float | None = None,
+                     bank: Bank | str | None = None):
     """Step path of the overnight proxy under the probability-weighted scenario.
     With `asof` + `stub_rate`, days before `asof` return the realized overnight
-    average instead of today's rate (same stub logic as implied_path)."""
-    base = overnight_rate_fn(asof_rate,
-                             [v.decision for v in views],
-                             [v.expected_bp for v in views])
+    average instead of today's rate (same stub logic as implied_path). Pass
+    `bank` so steps land on the bank's ACTUAL effective dates — the ECB moves
+    the following Wednesday, not the next business day; without it every ECB
+    scenario step lands ~4 days early (~1.3bp per 25bp on straddling windows)."""
+    if bank is None:
+        base = overnight_rate_fn(asof_rate,
+                                 [v.decision for v in views],
+                                 [v.expected_bp for v in views])
+    else:
+        steps = sorted((bank_effective_date(bank, v.decision),
+                        v.expected_bp / 100.0) for v in views)
+
+        def base(d: date, _s=steps) -> float:
+            r = asof_rate
+            for eff, delta in _s:
+                if d >= eff:
+                    r += delta
+                else:
+                    break
+            return r
     if asof is None or stub_rate is None:
         return base
 
@@ -809,7 +902,8 @@ def landings(prod: Product, bank: Bank, asof: date, views: list[MeetingView],
     1Y quarterly midcurves): the scenario landing price of its underlying, plus
     the decided-by-then / still-open meeting split (the 'how many meetings does
     this option capture' answer)."""
-    fn = scenario_rate_fn(asof_rate, views, asof=asof, stub_rate=stub_rate)
+    fn = scenario_rate_fn(asof_rate, views, asof=asof, stub_rate=stub_rate,
+                          bank=bank)
     rows = [(r, option_underlying(prod, r.year, r.mon), "Std")
             for r in expiry_rows(prod, asof, months_ahead) if r.kind == "Option"]
     if include_midcurves:
@@ -842,13 +936,16 @@ def _pmf_from_view(v: MeetingView) -> dict[float, float]:
     return out
 
 
-def window_weight(c: Contract, decision: date) -> float:
+def window_weight(c: Contract, decision: date,
+                  bank: Bank | str | None = None) -> float:
     """Fraction of the contract's settlement a move at `decision` touches: the
-    share of window days on/after the move's effective day."""
+    share of window days on/after the move's effective day (bank convention
+    when `bank` is given — the ECB's Wednesday, else generic next-bday)."""
     days = list(_daterange(c.start, c.end))
     if not days:
         return 0.0
-    eff = effective_date(decision)
+    eff = effective_date(decision) if bank is None \
+        else bank_effective_date(bank, decision)
     return sum(1 for d in days if d >= eff) / len(days)
 
 
@@ -863,13 +960,14 @@ def landing_distribution(prod: Product, bank: Bank, c: Contract, asof: date,
     value — the market at the option's expiry still prices them as expectations.
     Centred so the mean equals the expected-path fair price. Returns
     [(price, prob)] sorted by price; exact convolution, no Monte Carlo."""
-    fn = scenario_rate_fn(asof_rate, views, asof=asof, stub_rate=stub_rate)
+    fn = scenario_rate_fn(asof_rate, views, asof=asof, stub_rate=stub_rate,
+                          bank=bank)
     base = fair_price(prod, c, fn, spread_bp)
     dist = {0.0: 1.0}                              # shift vs expectation, in bp of rate
     for v in views:
         if upto is not None and v.decision > upto:
             continue
-        w = window_weight(c, v.decision)
+        w = window_weight(c, v.decision, bank=bank)
         if w <= 0:
             continue
         pmf = _pmf_from_view(v)
@@ -903,6 +1001,44 @@ def _load_fixings(bank_key: str) -> dict[str, float]:
         return json.loads(_FIX_STORE.read_text(encoding="utf-8")).get(bank_key, {})
     except Exception:
         return {}
+
+
+def fixings_day_fn(bank_key: str, start: date, asof: date):
+    """day -> published overnight fixing over [start, asof), carrying the prior
+    print across weekends/holidays (the index convention) — None when the cache
+    doesn't cover the span (same tolerances as realized_stub_avg). This is the
+    exact per-day realized tape for pricing elapsed window days."""
+    fx = _load_fixings(bank_key)
+    if not fx:
+        return None
+    dated = sorted((date.fromisoformat(k), v) for k, v in fx.items())
+    if (dated[0][0] > start + timedelta(days=4)
+            or dated[-1][0] < asof - timedelta(days=5)):
+        return None
+
+    def fn(d: date) -> float:
+        last = dated[0][1]
+        for dd, v in dated:
+            if dd <= d:
+                last = v
+            else:
+                break
+        return last
+    return fn
+
+
+def last_fixing(bank_key: str, asof: date,
+                max_age_days: int = 10) -> tuple[date, float] | None:
+    """Most recent overnight fixing on/before `asof` from the cache — the
+    market's own print of the PREVAILING rate. None when the cache is empty or
+    the freshest print is older than `max_age_days` (a stale cache must not
+    anchor a live fit)."""
+    fx = _load_fixings(bank_key)
+    dated = sorted((date.fromisoformat(k), v) for k, v in fx.items()
+                   if date.fromisoformat(k) <= asof)
+    if not dated or (asof - dated[-1][0]).days > max_age_days:
+        return None
+    return dated[-1]
 
 
 def realized_stub_avg(bank: Bank, start: date, asof: date,
@@ -1221,6 +1357,20 @@ def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
         total = max(1, (c.end - c.start).days)
         if (min(asof, c.end) - c.start).days / total > 0.95:
             continue
+        # ...and only contracts the MEETING CALENDAR covers. Windows past the
+        # last calendared decision sit on one flat terminal segment, which
+        # cannot represent the sloping 2028-29 tail — those contracts threw
+        # ±8-12bp structural residuals, the robust pass rejected them
+        # arbitrarily, and the distortion chained back into a phantom
+        # Mar/Apr-2027 seesaw (15 Sep 2026). The 45-day grace keeps exactly
+        # the FIRST quarterly starting at the calendar edge: it is the clean
+        # read of the post-final-meeting level (dropping it flipped the
+        # late-27 Fed cuts WIRP showed, -2.4bp, into +8.0bp of phantom hikes)
+        # while the next quarter out (~90 days) stays excluded. Everything
+        # stays in the DISPLAY strip either way.
+        if c.start >= (bank_effective_date(bank, bank.meetings[-1])
+                       + timedelta(days=45)):
+            continue
         px = ov.get(c.code)
         if px is None:
             px = strip_prices(p, bank, [c], asof, r0)[0]
@@ -1304,6 +1454,18 @@ def bank_fit(bank_key: str, asof: date, r0: float | None = None,
         r0 = bank.default_rate + BANK_BASIS_SEED[bank_key] / 100.0
         if anchor is not None and abs(anchor[0] - bank.default_rate) <= 0.40:
             r0 = anchor[0] + BANK_BASIS_SEED[bank_key] / 100.0
+        elif store_codes():
+            # No monthly clean-month read (ECB/BoE): the last o/n FIXING is the
+            # market's own print of the PREVAILING rate — decisive when a move
+            # is decided but not yet effective (15 Sep 2026: €STR still fixing
+            # 2.19 against a registry already at the announced 2.50-6bp = 2.44;
+            # anchoring at 2.44 would misprice every pre-Wednesday day). Live
+            # stores only — demo worlds are generated FROM the registry. The
+            # ±0.60 clamp guards a corrupt cache while allowing the legitimate
+            # full-step fixing-vs-registry gap a pending move creates.
+            fx = last_fixing(bank_key, asof)
+            if fx is not None and abs(fx[1] - r0) <= 0.60:
+                r0 = fx[1]
     owners, contracts, spreads, prices = fit_instruments(
         bank_key, asof, r0=r0, override_prices=override_prices)
     if not contracts:
@@ -1312,9 +1474,31 @@ def bank_fit(bank_key: str, asof: date, r0: float | None = None,
         spreads = [override_spreads.get(c.code, s) for c, s in zip(contracts, spreads)]
     # lam 4x the legacy default: with dedicated pinning instruments in the fit
     # the data overwhelms the smoothing wherever it's real (Fed odds move <0.1pt
-    # between 5e-3 and 2e-2), and the firmer floor stops serial-pair mark noise
-    # printing implausible mid-path sawtooth (ECB Mar-27 was -8.9% mid-hiking-cycle).
-    kw = dict(spreads_bp=spreads, stub_rate=stub_rate, solve_stub=stub_rate is None)
+    # between 5e-3 and 2e-2). VINTAGE LESSON (15 Sep 2026): tune this ONLY
+    # against SAME-VINTAGE WIRP — the belly "seesaw" that a heavier 8e-2 would
+    # have smoothed away (Mar/Apr-27 hump-dip) was sitting in Bloomberg's own
+    # 14-Sep close (EZ Apr +75.8% / Jun −65.2%) and had normalised by the
+    # 15-Sep live screens our settles predate. Against the matched 14-Sep
+    # vintage, 2e-2 reads the ECB front within ~3bp of WIRP.
+    # Elapsed days price off the PUBLISHED fixings whenever the cache covers
+    # them (live stores only): solved stubs are unknowns a live conflict can
+    # hide in — on 15 Sep 2026 they absorbed ~2.5bp of the ECB's decided-but-
+    # pending hike (fictitious 2.215 realized average against a flat 2.19
+    # tape) and shaved the pending step. Truth on disk beats an estimate.
+    stub_fn = None
+    if stub_rate is None:
+        el = [c.start for c in contracts if c.start < asof]
+        if el:
+            if store_codes():
+                stub_fn = fixings_day_fn(bank_key, min(el), asof)
+            else:
+                # Demo: the mock world plants moves only AFTER asof, so its
+                # realized tape is flat r0 by construction — pin it. A solved
+                # stub at a thin calendar edge (two contracts) drifted 7bp to
+                # absorb the front step (BoE time machine, asof Nov-2027).
+                stub_fn = lambda d, _r=r0: _r
+    kw = dict(spreads_bp=spreads, stub_rate=stub_rate, stub_fn=stub_fn,
+              solve_stub=stub_rate is None and stub_fn is None)
     ip = implied_path(bank, contracts, prices, asof, r0, **kw, lam=2e-2)
     # PINNED needs BOTH tests — the review measured each alone over-claiming:
     # (1) STRUCTURE: some fitted window contains the meeting alone, or two
@@ -1394,11 +1578,29 @@ def _bcb_fit(asof: date, r0: float | None = None,
     return BankFit(ip, pins, anchor, len(cs))
 
 
+def live_view(ip: BankImplied | None) -> BankImplied | None:
+    """A pending-trimmed view: decided-but-not-yet-effective moves (ECB decides
+    Thursday, effective the following Wednesday) fold into the baseline —
+    seg_rates[0] becomes the CURRENT implied o/n rate and the meeting arrays
+    hold live decisions only. Cards, ledgers and reports must never show a
+    decided move as if it were still odds."""
+    n = int(getattr(ip, "n_pending", 0) or 0) if ip is not None else 0
+    if not n:
+        return ip
+    from dataclasses import replace
+    return replace(ip, meetings=ip.meetings[n:], seg_rates=ip.seg_rates[n:],
+                   per_meeting_bp=ip.per_meeting_bp[n:],
+                   cum_bp=(ip.seg_rates[n + 1:] - ip.seg_rates[n]) * 100.0,
+                   n_pending=0)
+
+
 def default_bank_fit(bank_key: str, asof: date) -> BankImplied | None:
-    """The shared default fit (home page, ledger, weekly review): now the full
-    liquid-instrument fit with the market-solved stub — no longer quarterlies-only."""
+    """The shared default fit (home page, ledger, weekly review, Macro Radar):
+    the full liquid-instrument fit, PENDING-TRIMMED — every downstream consumer
+    sees live meetings and the current implied baseline. The cockpit uses
+    bank_fit directly and handles pending display itself."""
     bf = bank_fit(bank_key, asof)
-    return bf.implied if bf is not None else None
+    return live_view(bf.implied) if bf is not None else None
 
 
 def update_meeting_history(asof: date) -> None:
@@ -1415,8 +1617,10 @@ def update_meeting_history(asof: date) -> None:
     for bk in BANKS:
         ip = default_bank_fit(bk, asof)
         if ip is not None:
-            entry[bk] = {m.isoformat(): float(bp)
-                         for m, bp in zip(ip.meetings, ip.per_meeting_bp)}
+            entry[bk] = {m.isoformat(): float(bp)                # live meetings
+                         for m, bp in list(zip(ip.meetings, ip.per_meeting_bp))
+                         [getattr(ip, "n_pending", 0):]}   # a DECIDED move is
+                                                           # history, not odds
     if not entry:
         return
     hist[asof.isoformat()] = entry

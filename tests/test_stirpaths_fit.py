@@ -4,7 +4,7 @@ clean-month anchoring and the structural pinned/interpolated rule. Pure maths �
 no feed, no Streamlit (the store is monkeypatched where needed)."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 import pytest
@@ -40,11 +40,17 @@ def test_estr_serial_outlives_named_month():
 
 # ── effective-date conventions ───────────────────────────────────────────────
 def test_bank_effective_dates():
-    # BoE: same day. Fed/ECB: next business day (following-Wednesday for the
-    # ECB was tried and rejected — the market prices next-day, see the code note).
+    # BoE: same day. Fed: next business day. ECB: the FOLLOWING WEDNESDAY —
+    # "effective from the first main refinancing operation following the
+    # Governing Council decision" (MROs settle Wednesdays; verified against
+    # the ECB key-rates table 2024-2026, incl. the 10 Sep 2026 hike effective
+    # 16 Sep 2026 while €STR kept fixing at the old level through Sep-15 —
+    # the physical convention futures settle on, whatever WIRP's model does).
     assert sp.bank_effective_date("BOE", date(2026, 9, 17)) == date(2026, 9, 17)
     assert sp.bank_effective_date("FED", date(2026, 9, 16)) == date(2026, 9, 17)
-    assert sp.bank_effective_date("ECB", date(2026, 9, 10)) == date(2026, 9, 11)
+    assert sp.bank_effective_date("ECB", date(2026, 9, 10)) == date(2026, 9, 16)
+    assert sp.bank_effective_date("ECB", date(2026, 10, 29)) == date(2026, 11, 4)
+    assert sp.bank_effective_date("ECB", date(2026, 12, 17)) == date(2026, 12, 23)
     # Friday decision rolls over the weekend for next-bday banks
     assert sp.bank_effective_date("FED", date(2026, 10, 30)) == date(2026, 11, 2)
 
@@ -94,6 +100,9 @@ def fake_store(monkeypatch):
         monkeypatch.setattr(sp, "_load_strip_store",
                             lambda: {"asof": ASOF.isoformat(),
                                      "prices": prices, "settles": {}})
+        # hermetic worlds: the real on-disk fixings cache must not price the
+        # elapsed days of a planted fixture (bank_fit is fixings-first now)
+        monkeypatch.setattr(sp, "_load_fixings", lambda bk: {})
     return install
 
 
@@ -231,6 +240,80 @@ def test_clean_month_anchor_rejects_future_clean_months(fake_store):
     # ...but the CURRENT month anchors when it is genuinely meeting-free
     fake_store({"FFQ6": 96.3675})
     assert sp.clean_month_anchor("FED", date(2026, 8, 14)) is not None
+
+
+def test_pending_move_stays_out_of_the_next_meeting():
+    """The 15 Sep 2026 ECB class: a move DECIDED (Sep-10) but not yet
+    EFFECTIVE (Wed Sep-16) still lives in every contract. The fit must carry
+    it as a PENDING step — n_pending=1, ~the full move on the decided meeting
+    — and print ~zero on the live meetings, not cram the +25 into October."""
+    bank = sp.BANKS["ECB"]
+    tky = sp.PRODUCTS["TKYA Comdty"]
+    asof = date(2026, 9, 15)
+    eff = sp.bank_effective_date("ECB", date(2026, 9, 10))
+    assert eff == date(2026, 9, 16) and eff > asof
+
+    def world(d: date) -> float:                   # decided hike, nothing else
+        return 2.19 if d < eff else 2.44
+
+    cand = sp.strip(tky, asof, 6) + sp.serial_strip(tky, asof)
+    contracts = [c for c in cand
+                 if sp.fut_last_trade(tky, c) >= asof
+                 and (min(asof, c.end) - c.start).days
+                 / max(1, (c.end - c.start).days) <= 0.95]
+    prices = [price(c, world, compound=False) for c in contracts]
+    ip = sp.implied_path(bank, contracts, prices, asof, 2.19,
+                         solve_stub=False, stub_fn=lambda d: 2.19, lam=2e-2)
+    assert ip.n_pending == 1
+    assert ip.meetings[0] == date(2026, 9, 10)
+    assert float(ip.per_meeting_bp[0]) == pytest.approx(25.0, abs=1.5)
+    live = [float(b) for b in ip.per_meeting_bp[1:]]
+    assert max(abs(b) for b in live) < 2.5, live
+    # on effectiveness MORNING the settles and the T+1 fixing tape are still
+    # yesterday's — the move stays pending one more day (eff >= asof)
+    ip2 = sp.implied_path(bank, contracts, prices, eff, 2.19,
+                          solve_stub=False, stub_fn=lambda d: 2.19, lam=2e-2)
+    assert ip2.n_pending == 1
+    assert float(ip2.per_meeting_bp[0]) == pytest.approx(25.0, abs=1.5)
+
+
+# real 2026-09-15 PX_SETTLEs — the store vintage matching Bloomberg's
+# 14-Sep-2026 WIRP pricing-date screens (EZ-OIS: cur imp 2.441, Oct +17.2 /
+# Dec +22.0 / Feb +14.3 marginal bp). Locks the whole ECB convention stack:
+# following-Wednesday effectiveness, the pending step, fixings-anchored r0,
+# fixings-priced elapsed days and the calendar-covered fit universe.
+_SETTLES_20260915 = {
+    "ERZ6": 96.925, "ERH7": 96.595, "ERM7": 96.445, "ERU7": 96.405,
+    "ERZ7": 96.435, "ERH8": 96.485, "ERM8": 96.53, "ERU8": 96.555,
+    "ERZ8": 96.575, "ERH9": 96.585, "TKYU6": 97.4675, "TKYZ6": 97.1,
+    "TKYH7": 96.78, "TKYM7": 96.6325, "TKYU7": 96.5925, "TKYZ7": 96.62,
+    "TKYH8": 96.665, "TKYM8": 96.7075, "TKYU8": 96.73, "TKYZ8": 96.7425,
+    "TKYH9": 96.7475, "TKYN6": 97.7175, "TKYQ6": 97.605, "TKYV6": 97.32,
+    "TKYX6": 97.18, "TKYF7": 96.91, "TKYG7": 96.8075,
+}
+
+
+def test_ecb_matches_same_vintage_wirp(monkeypatch):
+    asof = date(2026, 9, 15)
+    monkeypatch.setattr(sp, "_load_strip_store",
+                        lambda: {"asof": asof.isoformat(), "prices": {},
+                                 "settles": dict(_SETTLES_20260915)})
+    fx = {d.isoformat(): 2.19
+          for d in (date(2026, 7, 1) + timedelta(days=i) for i in range(77))}
+    monkeypatch.setattr(sp, "_load_fixings",
+                        lambda bk: fx if bk == "ECB" else {})
+    bf = sp.bank_fit("ECB", asof)
+    ip = bf.implied
+    assert ip.n_pending == 1
+    assert float(ip.seg_rates[0]) == pytest.approx(2.19, abs=1e-9)   # fixing r0
+    assert float(ip.per_meeting_bp[0]) == pytest.approx(25.2, abs=1.5)
+    cur_implied = float(ip.seg_rates[1])
+    assert cur_implied == pytest.approx(2.441, abs=0.02)             # WIRP 2.441
+    marg = {m: float(b) for m, b in list(zip(ip.meetings, ip.per_meeting_bp))[1:]}
+    wirp = {date(2026, 10, 29): 17.2, date(2026, 12, 17): 22.0,
+            date(2027, 2, 4): 14.3}
+    for m, w in wirp.items():
+        assert marg[m] == pytest.approx(w, abs=5.0), (m, marg[m], w)
 
 
 def test_dissenting_contract_rejected_not_accommodated():
