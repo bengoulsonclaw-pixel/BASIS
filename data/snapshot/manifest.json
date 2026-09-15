@@ -11,7 +11,7 @@
   "live_n": 89,
   "equities": {
     "S&P 500": 504,
-    "Nasdaq 100": 102,
+    "Nasdaq 100": 101,
     "Dow Jones 30": 30,
     "Euro Stoxx 50": 50,
     "FTSE 100": 100,
@@ -19,5 +19,5 @@
     "CAC 40": 32,
     "Russell 2000": 1951
   },
-  "equities_pulled": "2026-09-14 10:20:18"
+  "equities_pulled": "2026-09-15 07:32:46"
 }
