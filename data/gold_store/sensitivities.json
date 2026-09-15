@@ -1,86 +1,86 @@
 {
-  "asof": "2026-09-14",
+  "asof": "2026-09-15",
   "horizon_days": 21,
-  "r2_macro": 0.28169636210997495,
-  "n": 6162,
-  "r2_with_flows": 0.45045219298474437,
-  "unexplained_sd_pct": 4.093417120922065,
+  "r2_macro": 0.2816141184374451,
+  "n": 6163,
+  "r2_with_flows": 0.4502574968505708,
+  "unexplained_sd_pct": 4.093737568282433,
   "sensitivities": [
     {
       "driver": "Dollar (DXY)",
       "move": "+1%",
       "feature": "dxy_chg_20d",
-      "gold_pct": -0.828349444,
-      "t_stat": -7.6238256011
+      "gold_pct": -0.8283041836,
+      "t_stat": -7.6231525727
     },
     {
       "driver": "10y real yield",
       "move": "+10bp",
       "feature": "real_yield_10y_chg_20d",
-      "gold_pct": -0.4925247721,
-      "t_stat": -4.536066206
+      "gold_pct": -0.4920574751,
+      "t_stat": -4.5321952869
     },
     {
       "driver": "10y breakeven",
       "move": "+10bp",
       "feature": "breakeven_10y_chg_20d",
-      "gold_pct": 0.4171919035,
-      "t_stat": 2.3991090631
+      "gold_pct": 0.4172286023,
+      "t_stat": 2.3993240618
     },
     {
       "driver": "VIX (vs 1y range)",
       "move": "+1 sd",
       "feature": "vix_z_1y",
-      "gold_pct": 0.409543436,
-      "t_stat": 2.2504866215
+      "gold_pct": 0.4098046202,
+      "t_stat": 2.2518486596
     },
     {
       "driver": "Cuts priced (2y less funds)",
       "move": "+10bp",
       "feature": "fed_cut_odds_chg_20d",
-      "gold_pct": -0.1276126077,
-      "t_stat": -1.6438545728
+      "gold_pct": -0.1281662215,
+      "t_stat": -1.6514529262
     },
     {
       "driver": "Baa credit spread",
       "move": "+10bp",
       "feature": "hy_spread_chg_20d",
-      "gold_pct": 0.0819872631,
-      "t_stat": 0.5211237954
+      "gold_pct": 0.082255618,
+      "t_stat": 0.5228477563
     }
   ],
   "attribution": {
     "window_days": 21,
-    "actual_pct": -0.10135058191176327,
-    "explained_pct": 0.4482488818005113,
-    "drift_pct": 0.8658405955804604,
-    "unexplained_pct": -1.4008582798304203,
+    "actual_pct": -3.1481229288664925,
+    "explained_pct": 0.13080152643849724,
+    "drift_pct": 0.8647252550006156,
+    "unexplained_pct": -4.103879150217131,
     "parts_pct": {
-      "10y real yield": 0.19815418779411398,
-      "10y breakeven": 0.40495829406775485,
-      "Cuts priced (2y less funds)": -0.2796470592857325,
-      "Dollar (DXY)": 0.4678917626148269,
-      "Baa credit spread": -0.09138829600766,
-      "VIX (vs 1y range)": -0.24987039939351063
+      "10y real yield": 0.2968157826242518,
+      "10y breakeven": 0.3631388921319206,
+      "Cuts priced (2y less funds)": -0.25523701233461943,
+      "Dollar (DXY)": 0.0687460661828413,
+      "Baa credit spread": -0.09167229141405871,
+      "VIX (vs 1y range)": -0.24927483969959358
     },
     "log_parts": {
-      "drivers": 0.0044724723862113805,
-      "drift": 0.008621136931343885,
-      "unexplained": -0.014107629080981968,
-      "actual": -0.0010140197634267022
+      "drivers": 0.001307160557650827,
+      "drift": 0.008610079206153323,
+      "unexplained": -0.04190465486694662,
+      "actual": -0.031987415103142465
     }
   },
-  "fair_value_gap_pct": 16.6,
-  "fair_value_gap_pctile": 87,
+  "fair_value_gap_pct": 15.8,
+  "fair_value_gap_pctile": 86,
   "fair_value": {
-    "gap_pct": 16.6,
-    "lo_pct": 8.8,
+    "gap_pct": 15.8,
+    "lo_pct": 6.5,
     "hi_pct": 22.2,
-    "spread_pct": 13.4,
+    "spread_pct": 15.6,
     "n_phases": 21,
-    "pctile": 87,
+    "pctile": 86,
     "asof": "2026-08-25",
     "since": "2006"
   },
-  "built": "2026-09-14T11:16:53"
+  "built": "2026-09-15T11:31:51"
 }
