@@ -1,43 +1,25 @@
 {
- "generated_at": "11 Sep 2026 · 06:05 ET",
- "synopsis": "The story this morning is energy giving back ground — and everything else breathing easier because of it. Brent dropped 3.1% to $104 and WTI slipped back below $100, retreating from multi-month highs after the IEA cut its demand estimate, warning of a \"lost period\" in global oil consumption as the Iran war drags on and the Strait of Hormuz stays shut through year-end.",
- "commentary": "The story this morning is energy giving back ground — and everything else breathing easier because of it. Brent dropped 3.1% to $104 and WTI slipped back below $100, retreating from multi-month highs after the IEA cut its demand estimate, warning of a \"lost period\" in global oil consumption as the Iran war drags on and the Strait of Hormuz stays shut through year-end. Reports that Gulf states are weighing a rare Hormuz meeting with Iran added a diplomatic glimmer. That took the heat off a market that had sold stocks and bonds for four straight sessions on the oil-driven yield surge: S&P and Nasdaq futures are up around half a percent, Treasuries found relief at the long end, and TTF gas eased 1.9%.\n\nBut don't confuse retreat with resolution — US retail diesel just topped $6 a gallon for the first time, a supply shock that feeds straight into inflation ahead of today's pivotal August CPI. That CPI print is the whole ballgame: traders want a clear signal on whether the Fed hikes next week, with the 10-year flirting with 5% and Treasury's $6bn operation failing to break the bond-market \"fever,\" according to reports. ECB policymakers are opening the door to more hikes on energy risk, the BoJ is expected to move this month with 10-year JGBs near 3% — a global rate reset that pressures Treasury demand from Japan's $1.1tn holdings.\n\nWatch the transmission: gold and silver eased as havens unwound; grains and soybean oil tracked energy lower, though record diesel is a direct cost shock for US agriculture; cocoa bucked the tape, up 3% on supply tightness. A hot CPI reprices SOFR strips and slams the long end — position accordingly.",
+ "generated_at": "15 Sep 2026 · 06:42 ET",
+ "synopsis": "The story this morning is oil feeding straight into the bond market. Crude extended its rally — Brent +1.5% above $107, WTI +2.1% near $103.50 — as attacks shut a major Saudi pipeline, Houthis struck Saudi sites and Iran-Gulf talks were postponed, with WTI's prompt spread the strongest since July and Brent backwardation widening, a clear signal of physical tightness.",
+ "commentary": "The story this morning is oil feeding straight into the bond market. Crude extended its rally — Brent +1.5% above $107, WTI +2.1% near $103.50 — as attacks shut a major Saudi pipeline, Houthis struck Saudi sites and Iran-Gulf talks were postponed, with WTI's prompt spread the strongest since July and Brent backwardation widening, a clear signal of physical tightness. That supply shock is turbocharging inflation fears just as the Fed meets this week: the 10-year Treasury yield punched through 5% to its highest since 2007, dragging the long bond down 0.6-0.8%, and two major Wall Street houses have switched to forecasting a hike, according to reports.\n\nCurve pressure is concentrated at the long end — twos barely moved — a bear-steepening that says this is about inflation and term premium, not growth. That mix is toxic for risk: S&P and Nasdaq futures are off ~0.3%, Europe softer with banks lagging, and the dollar is bid across the board — every major currency is lower, with the yen down 0.5% despite Japan reportedly mulling defense spending at 3.5% of GDP, and the won off 1.4%. Precious metals are giving ground to real yields and the dollar, gold -0.9%, while copper and iron ore sag after China's steel body urged mills to cut output into weak demand.\n\nIn ags, cocoa is unwinding hard (-3.4%) and OJ ripped +5.3% on supply concerns, per reports. Watch the Fed decision, Hormuz flows and whether 5% on the 10-year holds — that level now sets the tone for everything.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "*IEA CUTS OIL DEMAND ESTIMATE AS IRAN WAR DRAGS ON",
+   "title": "*TEN-YEAR TREASURY YIELD RISES TO HIGHEST SINCE 2007",
    "time": "",
-   "tag": "Energy"
-  },
-  {
-   "source": "Financial Times",
-   "title": "US diesel hits record $6 a gallon on Iran supply shock",
-   "time": "03:56 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "BBC News",
-   "title": "Oil, gas and borrowing costs surge as fears over Middle East escalate — The price of oil jumps to $105 a barrel amid signs the Iran war will not be resolved quickly.",
-   "time": "",
-   "tag": "Energy"
-  },
-  {
-   "source": "Financial Times",
-   "title": "ECB prepares for 'longer-lasting' inflation as it lifts interest rates to 2.5%",
-   "time": "12:59 ET",
    "tag": "Rates"
   },
   {
    "source": "Financial Times",
-   "title": "Global bond sell-off reignites as oil jumps to $109",
-   "time": "18:05 ET",
-   "tag": "Rates"
+   "title": "Oil hits $109 after Saudi Arabia closes vital export pipeline",
+   "time": "16:11 ET",
+   "tag": "Energy"
   },
   {
-   "source": "Bloomberg",
-   "title": "Gold Rises Ahead of US CPI Print That Could Shape Fed Rate Bets",
-   "time": "19:34 ET",
-   "tag": "Metals"
+   "source": "The Guardian",
+   "title": "Houthis seize strategic Red Sea islands as analysts warn of impending oil crunch",
+   "time": "00:22 ET",
+   "tag": "Geopolitics"
   },
   {
    "source": "Wall Street Journal",
@@ -47,9 +29,27 @@
   },
   {
    "source": "Wall Street Journal",
+   "title": "Comex Gold, Silver Settle Lower",
+   "time": "14:01 ET",
+   "tag": "Metals"
+  },
+  {
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "China Steel Body Calls on Mills to Rein In Output, Inventories",
+   "time": "06:25 ET",
+   "tag": "Metals"
+  },
+  {
+   "source": "Financial Times",
+   "title": "Monetary Policy Radar preview: Fed September meeting",
+   "time": "09:03 ET",
+   "tag": "Rates"
   }
  ]
 }
