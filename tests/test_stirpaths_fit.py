@@ -107,11 +107,50 @@ def fake_store(monkeypatch):
 
 
 def test_fit_instruments_store_filter_and_exclusions(fake_store):
+    # fit_instruments includes exactly the store-priced pull-universe codes and
+    # never silently mocks the rest. The 1M SONIA (SOO) is no longer HARD-excluded
+    # here — it is store-priced so it enters; bank_fit's consistency gate
+    # (test_consistency_gate_1m_sonia) is what admits or drops it.
     fake_store({"SFIU6": 96.155, "SFIZ6": 95.945, "SOOU6": 96.25})
     owners, contracts, spreads, prices = sp.fit_instruments("BOE", ASOF)
-    codes = [c.code for c in contracts]
-    assert set(codes) == {"SFIU6", "SFIZ6"}        # store-priced only...
-    assert "SOOU6" not in codes                    # ...and SOO always excluded
+    codes = set(c.code for c in contracts)
+    assert codes == {"SFIU6", "SFIZ6", "SOOU6"}    # store-priced only; SOO admitted
+
+
+def test_consistency_gate_1m_sonia(fake_store):
+    """The 1M SONIA (SOO) is admitted only where it AGREES with the liquid 3M
+    strip: fresh marks join the fit and split the two MPC meetings a single 3M
+    quarterly straddles; a whole-strip stale shift disagrees and is dropped, so
+    the fit falls back to the quarterly-only interpolated front (the historical
+    reason SOO was excluded — now handled without losing it on good days)."""
+    bank = sp.BANKS["BOE"]
+    er, soo = sp.PRODUCTS["SFIA Comdty"], sp.PRODUCTS["SOOA Comdty"]
+    ups = [m for m in bank.meetings if m > ASOF]
+    steps = {sp.bank_effective_date(bank, ups[0]): 0.10,      # small hike, 1st mtg
+             sp.bank_effective_date(bank, ups[1]): 0.40}      # big hike, 2nd mtg
+    r0 = bank.default_rate                                    # match the fit's r0 anchor
+    def world(d):
+        return r0 + sum(v for b, v in steps.items() if d >= b)
+    q = [c for c in sp.strip(er, ASOF, 6) if sp.fut_last_trade(er, c) >= ASOF]
+    m = [c for c in sp.strip(soo, ASOF, 6) if sp.fut_last_trade(soo, c) >= ASOF]
+
+    def prices(shift):
+        d = {c.code: sp.fair_price(er, c, world) for c in q}
+        d.update({c.code: sp.fair_price(soo, c, world) + shift for c in m})
+        return d
+
+    fake_store(prices(0.0))                          # fresh, consistent SOO
+    fresh = sp.bank_fit("BOE", ASOF)
+    st = {mm: float(fresh.implied.per_meeting_bp[i])
+          for i, mm in enumerate(fresh.implied.meetings)}
+    assert abs(st[ups[0]] - 10.0) < 7.0              # 1st-mtg step split out near planted
+
+    fake_store(prices(0.15))                          # whole SOO strip stale +15bp
+    stale = sp.bank_fit("BOE", ASOF)
+    st2 = {mm: float(stale.implied.per_meeting_bp[i])
+           for i, mm in enumerate(stale.implied.meetings)}
+    assert fresh.n_instruments > stale.n_instruments  # fresh admits SOO, stale drops it
+    assert st2[ups[0]] > st[ups[0]] + 4.0             # dropped -> interpolated front
 
 
 def test_fit_instruments_drops_only_wholly_dead_contracts(fake_store):

@@ -1315,10 +1315,25 @@ MEETING_HISTORY = Path(__file__).resolve().parents[1] / "data" / "stir_meeting_h
 _HISTORY_KEEP_DAYS = 40
 
 
-# Contracts whose settles are exchange MARKS with no open interest (dead 1M
-# SONIA): including them DRAGS the fit off the liquid market — SOO's Sep-26 mark
-# priced zero hike odds while the 3M strip and OIS both said ~+20%.
-FIT_EXCLUDE = {"SOOA Comdty"}
+# FIT_EXCLUDE is the HARD lever: drop a contract from every fit unconditionally
+# (kept for anything genuinely dead). The 1M SONIA (SOO) USED to live here — its
+# exchange marks carry no open interest and, when stale, drag the fit off the
+# liquid market (SOO's Sep-26 mark once priced zero hike odds while the 3M strip
+# and OIS both said ~+20%). But when fresh the 1M SONIA is the BoE's SR1/FF: the
+# ONLY instrument that can split the TWO MPC meetings a single 3M SONIA quarterly
+# straddles. Without it the front meeting is interpolated — 17 Sep-26 read +43%
+# vs WIRP +23%. So it is now CONSISTENCY-GATED (below), not hard-excluded.
+FIT_EXCLUDE: set[str] = set()
+
+# Supplementary front-pinning instruments (1M SONIA) admitted to the fit ONLY
+# where their price agrees with the LIQUID strip's own implied fair within this
+# tolerance (_consistency_filter). A stale/off strip disagrees with the liquid
+# SONIA quarterlies and is dropped wholesale (→ the quarterly-only interpolated
+# front, i.e. the old behaviour); fresh marks agree within a few bp and refine
+# the near meetings the quarterlies cannot split. Robust to a whole-strip stale
+# shift with no count/horizon fragility (measured: clean gaps ≤5bp, stale ≥17bp).
+CONSISTENCY_GATED = {"SOOA Comdty"}
+CONSISTENCY_TOL_BP = 10.0
 
 # EURIBOR-LED ECB with a €STR FRONT-LEVEL ANCHOR (16 Sep 2026). €STR futures
 # (TKYA) settle basis-free on the overnight, so the NEAR ones pin the current-
@@ -1441,7 +1456,8 @@ def clean_month_anchor(bank_key: str, asof: date,
     ov = override_prices or {}
     px_of = {**store.get("prices", {}), **store.get("settles", {}), **ov}  # settle-first
     for p in bank_products(bank_key):
-        if p.quarterly or p.ticker in FIT_EXCLUDE or p.rate_quoted:
+        if (p.quarterly or p.ticker in FIT_EXCLUDE
+                or p.ticker in CONSISTENCY_GATED or p.rate_quoted):
             continue                                # rate-quoted zeros: the front-DI
                                                     # anchor lives in _bcb_fit instead
         for c in strip(p, asof, 3):
@@ -1468,6 +1484,40 @@ class BankFit:
                                 # the smoothing chose it (indicative only)
     anchor: tuple[float, str] | None   # clean-month implied CURRENT policy rate
     n_instruments: int
+
+
+def _consistency_filter(bank: Bank, asof: date, r0: float,
+                        owners, contracts, spreads, prices):
+    """Admit CONSISTENCY_GATED instruments (1M SONIA) only where they AGREE with
+    the liquid strip. Fit the liquid (non-gated) contracts alone, price each
+    gated contract off that path, and keep it only when the market is within
+    CONSISTENCY_TOL_BP of the liquid-implied fair. A stale/off 1M SONIA strip —
+    the reason it was long hard-excluded — disagrees with the liquid quarterlies
+    and drops out (the fit falls back to the quarterly-only interpolated front);
+    fresh marks agree and split the meetings a single 3M quarterly straddles.
+    No-op for a bank with no gated instrument (Fed/ECB) or too thin a liquid
+    reference to judge against."""
+    gated = [i for i, o in enumerate(owners) if o.ticker in CONSISTENCY_GATED]
+    if not gated:
+        return owners, contracts, spreads, prices
+    gset = set(gated)
+    liq = [i for i in range(len(owners)) if i not in gset]
+    keep = list(liq)
+    if len(liq) >= 3:                       # need a real liquid strip to judge against
+        ref = implied_path(bank, [contracts[i] for i in liq], [prices[i] for i in liq],
+                           asof, r0, spreads_bp=[spreads[i] for i in liq],
+                           solve_stub=True, lam=2e-2)
+        bounds = [bank_effective_date(bank, m) for m in ref.meetings]
+        def rate_fn(d):
+            k = sum(1 for b in bounds if d >= b)
+            return float(ref.seg_rates[min(k, len(ref.seg_rates) - 1)])
+        for i in gated:
+            fair = fair_price(owners[i], contracts[i], rate_fn, spreads[i])
+            if abs(prices[i] - fair) * 100.0 <= CONSISTENCY_TOL_BP:
+                keep.append(i)
+        keep.sort()
+    return ([owners[i] for i in keep], [contracts[i] for i in keep],
+            [spreads[i] for i in keep], [prices[i] for i in keep])
 
 
 def bank_fit(bank_key: str, asof: date, r0: float | None = None,
@@ -1511,6 +1561,13 @@ def bank_fit(bank_key: str, asof: date, r0: float | None = None,
         return None
     if override_spreads:
         spreads = [override_spreads.get(c.code, s) for c, s in zip(contracts, spreads)]
+    # 1M SONIA (SOO) is admitted only where it agrees with the liquid strip —
+    # it splits the front MPC pair a 3M quarterly straddles when fresh, and
+    # drops out when stale (see CONSISTENCY_GATED). No-op for Fed/ECB.
+    owners, contracts, spreads, prices = _consistency_filter(
+        bank, asof, r0, owners, contracts, spreads, prices)
+    if not contracts:
+        return None
     # lam 4x the legacy default: with dedicated pinning instruments in the fit
     # the data overwhelms the smoothing wherever it's real (Fed odds move <0.1pt
     # between 5e-3 and 2e-2). VINTAGE LESSON (15 Sep 2026): tune this ONLY
