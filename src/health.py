@@ -44,7 +44,6 @@ _LONG_STORES = {"oi_chain", "own30_curve", "own30_history", "own_term_history",
                 "own_skew_history", "stir_curve_history"}
 
 SNAPSHOT_OLD_H = 24            # snapshot older than this -> warn (matches the page's old rule)
-OI_OLD_DAYS = 9                # the weekly Monday OI capture has been missed
 CACHE_LAG_DAYS = 5             # a daily-fed store this far behind the snapshot settle -> warn
 CB_CAL_MIN_MONTHS = 9          # STIR Paths meeting-calendar runway below this -> warn (the
                                # *_DECISIONS lists are hardcoded and need a yearly extension)
@@ -474,11 +473,6 @@ def checks(*, frames: pd.DataFrame | None = None, deep: dict | None = None,
             add("warn", "Snapshot", f"Fetched data is {clag:.0f}h newer than the manifest — "
                 "the fetch ran but the COMPUTE phase didn't (signals, own-curve fits and the "
                 "signal cache are stale). Run:  python snapshot.py --compute")
-        oi_age = _age_h(parse_stamp(man.get("oi_as_of")))
-        if np.isfinite(oi_age) and oi_age > OI_OLD_DAYS * 24:
-            add("warn", "Snapshot", f"Weekly OI capture is {oi_age / 24:.0f} days old — run "
-                "snapshot.py --oi on a Monday with the Terminal up.")
-
     dh = deep_health() if deep is None else deep
     n_uni = len(list(universe.INSTRUMENTS))
     if dh["coverage"].empty:

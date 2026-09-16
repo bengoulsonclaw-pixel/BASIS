@@ -9,7 +9,6 @@ closed. Run with DATAFEED_MODE=mock to snapshot synthetic data (an offline test
 of the whole pipeline).
 
     python snapshot.py --excel out.xlsx   # dump the current snapshot to one .xlsx
-    python snapshot.py --oi               # WEEKLY (Mon): capture ONLY the fixed-income OI chains
 """
 from __future__ import annotations
 
@@ -21,19 +20,15 @@ import pandas as pd
 
 from src.datafeed import (MODE, get_history, get_yield_history, get_volume_history,
                           get_implied_vol_history, get_live_quote, get_skew_components,
-                          get_term_structure, get_putcall, get_oi_chain, TENOR_LABELS,
-                          _PUTCALL_KEYS, _OI_COLS, OI_SNAPSHOT_TICKERS)
+                          get_term_structure, get_putcall, TENOR_LABELS, _PUTCALL_KEYS)
 from src.universe import INSTRUMENTS
 
 SNAP = Path(__file__).parent / "data" / "snapshot"
 
-# How many forward expiries of each option chain to cache (the report shows ≤10; this gives
-# headroom while bounding the file). All strikes are kept — the report windows them at read.
-OI_CHAIN_CAPTURE_EXPIRIES = 24
-
 # Snapshot frames, in workbook order (one parquet + one Excel sheet each). The option chain
-# (oi_chain) is the odd one out — a tidy LONG grid with a `ticker` column, not date-indexed —
-# so it's saved/read directly rather than through _save.
+# (oi_chain) is the odd one out — a tidy LONG grid with a `ticker` column, not date-indexed, and
+# it's read-only here: its weekly Bloomberg capture was retired 2026-09-16, so the parquet is now a
+# FROZEN fixture (bbgcodes' observed-expiry anchor + the expiry-rule test still read it directly).
 FRAMES = (["prices", "yields", "volume", "implied_vol", "skew_put", "skew_call", "skew_atm"]
           + [f"term_{lab.lower()}" for lab in TENOR_LABELS]
           + [f"putcall_{k}" for k in _PUTCALL_KEYS] + ["oi_chain", "live"])
@@ -64,66 +59,12 @@ def _save(df: pd.DataFrame, name: str) -> int:
     return int(df.shape[0])
 
 
-def _oi_chain_frame(tickers) -> pd.DataFrame:
-    """The 11 fixed-income products' listed-option chains (full strike grid, the strip of
-    expiries) as one tidy LONG frame with a `ticker` column — the shape _read_oi_snapshot
-    expects. Only OI_SNAPSHOT_TICKERS are captured (the Fixed Income book): this is a rates
-    tool and pulling more / more often would burn data limits — products outside the capture
-    show no chain (on-demand live pulls removed 2026-08-18). This seam lets the Open Interest
-    report show REAL numbers in snapshot mode."""
-    fi = [t for t in tickers if t in OI_SNAPSHOT_TICKERS]
-    frames = []
-    for t in fi:
-        try:
-            # live=True: the weekly capture is THE one sanctioned chain pull —
-            # every other get_oi_chain caller serves this job's cached output
-            c = get_oi_chain(t, n_expiries=OI_CHAIN_CAPTURE_EXPIRIES, n_strikes=None, live=True)
-        except Exception:
-            c = None
-        if c is not None and not c.empty:
-            frames.append(c.assign(ticker=t))
-    return (pd.concat(frames, ignore_index=True) if frames
-            else pd.DataFrame(columns=["ticker", *_OI_COLS]))
-
-
 def _existing_manifest() -> dict:
     p = SNAP / "manifest.json"
     try:
         return json.loads(p.read_text()) if p.exists() else {}
     except Exception:
         return {}
-
-
-def _oi_markets_cached() -> int:
-    """How many products the LAST weekly OI capture wrote (read from oi_chain.parquet)."""
-    p = SNAP / "oi_chain.parquet"
-    if not p.exists():
-        return 0
-    try:
-        d = pd.read_parquet(p)
-        return int(d["ticker"].nunique()) if ("ticker" in d.columns and len(d)) else 0
-    except Exception:
-        return 0
-
-
-def run_oi() -> int:
-    """WEEKLY (Monday) job — capture ONLY the 11 fixed-income option chains and write
-    oi_chain.parquet, leaving every other cached input untouched. Run with the Terminal up:
-        (PowerShell)  $env:DATAFEED_MODE="bloomberg"; python snapshot.py --oi
-    """
-    SNAP.mkdir(parents=True, exist_ok=True)
-    oi = _oi_chain_frame(list(INSTRUMENTS))
-    n = int(oi["ticker"].nunique()) if not oi.empty else 0
-    if n == 0:                                          # Bloomberg down / not connected — never WIPE
-        print("OI capture returned nothing (is the Terminal/API up?) — kept the existing oi_chain.parquet.")
-        return 0
-    oi.to_parquet(SNAP / "oi_chain.parquet", index=False)
-    m = _existing_manifest()
-    m["oi_markets"] = n
-    m["oi_as_of"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-    (SNAP / "manifest.json").write_text(json.dumps(m, indent=2))
-    print(f"OI chains captured (weekly): {n} fixed-income products -> {SNAP / 'oi_chain.parquet'}")
-    return n
 
 
 # ── Equities pull switches ──────────────────────────────────────────────────────────────────
@@ -322,7 +263,7 @@ def run_equities() -> dict:
 def run(include_equities: bool = False, fetch_only: bool = False,
         compute_only: bool = False) -> dict:
     """Pull the DAILY FICC inputs (LIVE if DATAFEED_MODE=bloomberg) and cache to data/snapshot/.
-    Option OI chains are NOT pulled here — they're a separate weekly job (run_oi / --oi).
+    Option OI chains are NOT pulled here — that weekly capture was retired (oi_chain.parquet is frozen).
     The Equities side has its OWN pull (run_equities / --equities); pass include_equities=True
     (CLI --with-equities) to chain both in one run.
 
@@ -387,7 +328,7 @@ def _fetch_phase() -> dict | None:
     # closed / logged out the pull returns an EMPTY price frame; because prices.parquet is
     # every report's offline fallback, saving that empties the whole book (exactly how the
     # Morning Coffee report ended up with 0/80 products). Keep what's on disk and bail —
-    # the same protection the weekly OI job (run_oi) already applies.
+    # (the same never-wipe-on-empty-pull protection applied throughout).
     if prices is None or getattr(prices, "empty", True) or len(prices) == 0:
         SNAP.mkdir(parents=True, exist_ok=True)
         prev = _existing_manifest()
@@ -422,8 +363,8 @@ def _fetch_phase() -> dict | None:
     for k in _PUTCALL_KEYS:
         _save(pc[k], f"putcall_{k}")
     SNAP.mkdir(parents=True, exist_ok=True)
-    # Option OI chains are a SEPARATE weekly job (run_oi / --oi); the daily snapshot leaves the
-    # last capture in place — the compute phase's manifest carries its count + date forward.
+    # Option OI chains are no longer captured (that weekly Bloomberg job was retired 2026-09-16);
+    # oi_chain.parquet stays in place as a frozen fixture — the daily snapshot never touches it.
     live.rename_axis("ticker").reset_index().to_parquet(SNAP / "live.parquet", index=False)  # ticker-indexed
 
     # Extend the deep '1'-generic price store (TA Backtester's ~10y roll-adjusted
@@ -740,8 +681,6 @@ def _compute_phase(include_equities: bool = False) -> dict:
         "n_tickers": len(list(INSTRUMENTS)),
         "price_rows": int(len(prices)),
         "iv_markets": int(iv.notna().any().sum()),
-        "oi_markets": _oi_markets_cached(),    # from the last weekly OI capture (run_oi / --oi)
-        "oi_as_of": prev.get("oi_as_of", ""),  # when that weekly OI capture last ran
         "live_as_of": pulled_at,              # when the prior-settle->now quote was pulled
         "live_n": int(live["pct"].notna().sum()) if "pct" in live.columns else 0,
         # futures-only pulls carry the LAST equities pull's record forward, not blank it
@@ -772,8 +711,6 @@ def export_excel(out_path: str) -> str:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--excel", default="", help="dump the cached snapshot to this .xlsx and exit")
-    ap.add_argument("--oi", action="store_true",
-                    help="WEEKLY job: capture ONLY the fixed-income option chains (run Mondays)")
     ap.add_argument("--equities", action="store_true",
                     help="run ONLY the Equities pull (membership + quotes + fundamentals)")
     ap.add_argument("--with-equities", action="store_true",
@@ -788,9 +725,6 @@ def main():
     if args.excel:
         export_excel(args.excel)
         print("Wrote", args.excel)
-        return
-    if args.oi:
-        run_oi()
         return
     if args.equities:
         eq = run_equities()

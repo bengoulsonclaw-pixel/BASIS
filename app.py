@@ -6934,11 +6934,10 @@ def render_data_health() -> None:
         m[1].metric("Settle date", str(snap.get("as_of", "?")))
         m[2].metric("Pulled", age_txt)
         m[3].metric("Tickers", str(snap.get("n_tickers", "—")))
-        m2 = st.columns(4)
+        m2 = st.columns(3)
         m2[0].metric("IV markets", str(snap.get("iv_markets", "—")))
-        m2[1].metric("OI chains", str(snap.get("oi_markets", "—")))
-        m2[2].metric("Price rows", str(snap.get("price_rows", "—")))
-        m2[3].metric("Live quotes", str(snap.get("live_n", "—")))
+        m2[1].metric("Price rows", str(snap.get("price_rows", "—")))
+        m2[2].metric("Live quotes", str(snap.get("live_n", "—")))
     if not frames.empty:
         with st.expander(f"Per-frame detail — {len(frames)} files in data/snapshot/"):
             show = frames.copy()
