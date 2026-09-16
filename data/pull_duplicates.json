@@ -1,12 +1,8 @@
 {
- "asof": "2026-09-15 11:25:18",
- "est_hits": 6241,
- "n_duplicate_pairs": 18,
+ "asof": "2026-09-16 10:43:27",
+ "est_hits": 6297,
+ "n_duplicate_pairs": 15,
  "duplicates": {
-  "SFRM6 Comdty | PX_SETTLE": [
-   "stircurve._bdh",
-   "stirpaths.refresh_strip_store"
-  ],
   "SFRU6 Comdty | PX_SETTLE": [
    "stircurve._bdh",
    "stirpaths.refresh_strip_store"
@@ -27,10 +23,6 @@
    "stircurve._bdh",
    "stirpaths.refresh_strip_store"
   ],
-  "SFIM6 Comdty | PX_SETTLE": [
-   "stircurve._bdh",
-   "stirpaths.refresh_strip_store"
-  ],
   "SFIU6 Comdty | PX_SETTLE": [
    "stircurve._bdh",
    "stirpaths.refresh_strip_store"
@@ -48,10 +40,6 @@
    "stirpaths.refresh_strip_store"
   ],
   "SFIU7 Comdty | PX_SETTLE": [
-   "stircurve._bdh",
-   "stirpaths.refresh_strip_store"
-  ],
-  "ERM6 Comdty | PX_SETTLE": [
    "stircurve._bdh",
    "stirpaths.refresh_strip_store"
   ],
