@@ -51,7 +51,9 @@
       <b>below 1</b> means more calls (call-heavy / bullish). Because the &ldquo;normal&rdquo; level differs
       by product (index options sit structurally put-heavy from hedging), each market's OI ratio is scored as
       a <b>0&ndash;100 percentile within its own trailing-year range</b> &mdash; flagged <b>&ge; {{ hi }}</b>
-      (put-heavy) or <b>&le; {{ lo }}</b> (call-heavy).
+      (put-heavy) or <b>&le; {{ lo }}</b> (call-heavy). For futures the ratio is measured on the
+      <b>front (1st-generic) contract</b> &mdash; a single expiry &mdash; so it can differ from a whole-book
+      figure that sums every listed expiry; index options carry the whole listed book.
     </p>
 
     {{ commentary | safe }}

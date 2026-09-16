@@ -59,7 +59,7 @@ HISTORY_FILE = DATA / "putcall_history.parquet"
 
 MONTH_WINDOW = 21        # ~1 month of sessions — the near-term average, alongside the 1y one
 DETAIL_COLUMNS = ["market", "ticker", "asset", "region", "pc_oi", "pc_vol",
-                  "oi_pctl", "oi_z", "vol_pctl", "tot_call", "tot_put", "avg_day",
+                  "oi_pctl", "oi_z", "put_oi", "call_oi", "vol_pctl", "tot_call", "tot_put", "avg_day",
                   "call_last", "put_last", "avg_call", "avg_put",
                   "avg_call_1m", "avg_put_1m", "vol_days",
                   "oi_chg_z", "divergence", "signal", "direction"]
@@ -196,6 +196,11 @@ def compute_table() -> pd.DataFrame:
         if n_sessions - 1 - oi.index.get_loc(oi_s.index[-1]) > MAX_STALE:
             continue
         pc_oi = float(oi_s.iloc[-1])
+        # Raw contract counts behind the headline ratio, taken on the SAME session as pc_oi so
+        # put_oi / call_oi == pc_oi by construction (the Open Interest board shows these).
+        _adate = oi_s.index[-1]
+        put_oi = float(comp["put_oi"][t].get(_adate, np.nan)) if t in comp["put_oi"].columns else float("nan")
+        call_oi = float(comp["call_oi"][t].get(_adate, np.nan)) if t in comp["call_oi"].columns else float("nan")
         pc_vol = float(vol_s.iloc[-1]) if not vol_s.empty else float("nan")
         oi_pctl, oi_z = _pctl_now(oi_s), _z_now(oi_s)
         vol_pctl = _pctl_now(vol_s) if not vol_s.empty else float("nan")
@@ -235,6 +240,8 @@ def compute_table() -> pd.DataFrame:
             "pc_vol": round(pc_vol, 2) if np.isfinite(pc_vol) else np.nan,
             "oi_pctl": round(oi_pctl) if np.isfinite(oi_pctl) else np.nan,
             "oi_z": round(oi_z, 2) if np.isfinite(oi_z) else np.nan,
+            "put_oi": round(put_oi) if np.isfinite(put_oi) else np.nan,
+            "call_oi": round(call_oi) if np.isfinite(call_oi) else np.nan,
             "vol_pctl": round(vol_pctl) if np.isfinite(vol_pctl) else np.nan,
             "tot_call": round(tot_call) if np.isfinite(tot_call) else np.nan,
             "tot_put": round(tot_put) if np.isfinite(tot_put) else np.nan,

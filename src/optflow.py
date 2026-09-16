@@ -266,9 +266,13 @@ def _ratio_items(hotsheet, ordinal) -> list:
     out = []
     for r in f.sort_values("_x", ascending=False).head(RATIO_MAX).itertuples(index=False):
         heavy = "put-heavy" if r.direction < 0 else "call-heavy"
+        # Futures carry their put/call on the FRONT (1st-generic / active) contract — a single
+        # expiry — so the ratio can sit well above a whole-book monitor (e.g. Bloomberg MOSA) that
+        # sums every listed expiry. Index options self-source the whole book, so no qualifier there.
+        basis = "" if str(r.ticker).endswith("Index") else "front-contract "
         out.append(hotsheet.item(
             tag="P/C", key=f"{r.ticker}:{heavy}", section="Positioning",
-            text=(f"**{r.market}** option open interest is unusually **{heavy}** — "
+            text=(f"**{r.market}** {basis}option open interest is unusually **{heavy}** — "
                   f"{r.pc_oi:.2f} puts per call, the {ordinal(int(round(r.oi_pctl)))} "
                   f"percentile of its own year."),
             # heat off the Z, not the percentile: heat_from_pctl saturates at 100 for BOTH

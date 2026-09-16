@@ -89,7 +89,6 @@ COT_HISTORY_FILE = ROOT / "data" / "signals" / "cot_history.parquet"
 PCREPORT_CLI = ROOT / "src" / "pcreport.py"
 PC_DETAIL_FILE = ROOT / "data" / "signals" / "putcall.parquet"
 PC_HISTORY_FILE = ROOT / "data" / "signals" / "putcall_history.parquet"
-OIREPORT_CLI = ROOT / "src" / "oireport.py"
 USDAREACTION_CLI = ROOT / "src" / "usdareaction.py"
 WASDEREPORT_CLI = ROOT / "src" / "wasdereport.py"
 FLAGREPORT_CLI = ROOT / "src" / "flagreport.py"
@@ -358,11 +357,11 @@ STRATEGY_BLURB = {
                        "product's OI P/C is normalised to a 0–100 percentile vs its own 1-year range; "
                        "≥80 = put-heavy (defensive), ≤20 = call-heavy (bullish), plus 1-day shifts and "
                        "flow-vs-OI divergence. Extremes often read contrarian.",
-    "Open Interest": "Fixed-income listed-option open interest as a strike × expiry-month heatmap: each cell is "
-                     "the total open interest (puts + calls) struck there, shaded by size. The biggest strikes "
-                     "show where positioning and dealer hedging concentrate — frequent pin / magnet levels into "
-                     "expiry. The focus is the 11-product rates book (the 🏛️ report); any other product can be "
-                     "explored ad-hoc (toggle below, pulls live).",
+    "Open Interest": "Front-month listed-option open interest across the whole book — puts open, calls open, "
+                     "total OI and the put/call ratio (with its 1-year percentile) per product, grouped by "
+                     "asset class. Futures show their front (1st-generic) contract; index options the whole "
+                     "listed book. Refreshed on the daily pull — no option-chain pull. For the normalised "
+                     "signal, shifts and traded-volume flow, see the Put/Call Ratios page.",
     "AG Fundamentals": "USDA fundamentals: report-calendar event risk (WASDE / Crop Production / "
                        "Grain Stocks / Plantings / Acreage / Cattle on Feed / Hogs & Pigs) plus NASS "
                        "stocks-tightness percentiles. Positioning lives on the COT Reports page.",
@@ -401,21 +400,6 @@ REPORTS = {
                  "confirmation where available).",
     },
 }
-
-# The curated Fixed Income open-interest book (the 🏛️ button on the Open Interest page):
-# ONE PRODUCT PER PAGE (full strike chain), walked in tenor order — STIRs first, then US vs
-# German at 2 / 5 / 10 / 30 years (the two of each tenor land on consecutive pages). Each
-# item = (ticker, mock strike step, mock OI half-width) in PRICE units — the per-tenor grid
-# that makes each rate heatmap realistic (step/width are mock hints, ignored once live
-# Bloomberg supplies the real chain).
-FI_OI_PAGES = [
-    {"tenor": "3-Month Rates",
-     "items": [("SFRA Comdty", 0.125, 0.6), ("SFIA Comdty", 0.125, 0.6), ("ERA Comdty", 0.125, 0.6)]},
-    {"tenor": "2-Year", "items": [("TUA Comdty", 0.25, 1.2), ("DUA Comdty", 0.25, 1.0)]},
-    {"tenor": "5-Year", "items": [("FVA Comdty", 0.5, 2.0), ("OEA Comdty", 0.5, 1.8)]},
-    {"tenor": "10-Year", "items": [("TYA Comdty", 0.5, 2.5), ("RXA Comdty", 0.5, 2.5)]},
-    {"tenor": "Long Bond", "items": [("USA Comdty", 1.0, 4.0), ("UBA Comdty", 1.0, 4.5)]},
-]
 
 st.set_page_config(
     page_title="BASIS — Strategy Monitor",
@@ -18397,7 +18381,10 @@ if active == "Put/Call Ratios":
             "volume basis = put volume ÷ call volume; above 1 = put-heavy, below 1 = call-heavy). Each "
             "product's OI ratio is scored 0–100 vs its own 1-year range, so high = unusually **put-heavy** "
             "(defensive / hedging demand) — often read contrarian-bullish; low = unusually **call-heavy** "
-            "(bullish) — contrarian-bearish. Volume P/C (today's flow) is shown alongside the headline.")
+            "(bullish) — contrarian-bearish. Volume P/C (today's flow) is shown alongside the headline. "
+            "**Basis:** for futures the ratio is measured on the **front (1st-generic) contract** — a single "
+            "expiry — so it can differ from a whole-book figure that sums every listed expiry (e.g. a "
+            "Bloomberg MOSA monitor); index options carry the whole listed book.")
     _pd1, _pd2 = st.columns([0.74, 0.26])
     if IS_ADMIN and _pd2.button("📌 Set default", key="pc_cutoff_def", use_container_width=True,
                    help="Save this cutoff as the default for the Put/Call page — it loads on every launch."):
@@ -18545,7 +18532,9 @@ if active == "Put/Call Ratios":
                        format_func=lambda t: labels.get(t, t), key="pc_sel")
     drow = detail[detail["ticker"] == sel].iloc[0]
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("OI P/C", f"{drow['pc_oi']:.2f}", help="Standing positioning: put open interest ÷ call open interest")
+    m1.metric("OI P/C", f"{drow['pc_oi']:.2f}", help="Standing positioning: put open interest ÷ call open "
+              "interest — measured on the front (1st-generic) contract for futures, the whole listed book for "
+              "indices; a front-contract ratio can differ from a whole-book monitor (e.g. Bloomberg MOSA)")
     m2.metric("OI P/C %ile", "—" if pd.isna(drow["oi_pctl"]) else f"{drow['oi_pctl']:.0f}",
               help="Today's OI ratio within its own 1-year range (0 = most call-heavy · 100 = most put-heavy)")
     m3.metric("Vol P/C", "—" if pd.isna(drow["pc_vol"]) else f"{drow['pc_vol']:.2f}",
@@ -18724,246 +18713,84 @@ if active == "Put/Call Ratios":
 # Self-contained → st.stop() so the generic opportunities table is skipped.
 if active == "Open Interest":
     import altair as alt
-    from src.datafeed import get_oi_chain, OI_SNAPSHOT_TICKERS
 
-    _OI_ASSET_ORDER = ["Indices", "STIRs", "Bonds", "FX", "Energy", "Metals", "Agriculture", "Softs"]
-    _oi_order = sorted(
-        universe.enabled_tickers(),
-        key=lambda t: (_OI_ASSET_ORDER.index(INSTRUMENTS[t][2]) if INSTRUMENTS[t][2] in _OI_ASSET_ORDER else 99,
-                       INSTRUMENTS[t][0]))
-    try:
-        _px = get_history(_oi_order)
-        _spot_map = {t: (float(_px[t].dropna().iloc[-1]) if (t in _px and _px[t].notna().any()) else float("nan"))
-                     for t in _oi_order}
-    except Exception:
-        _spot_map = {t: float("nan") for t in _oi_order}
-
-    # ---- PDF builders (shared by every report button on this page) ----
-    def _oi_input_frame(tickers, n_expiries, n_strikes):
-        frames = []
-        for t in tickers:
-            try:
-                c = get_oi_chain(t, n_expiries=n_expiries, n_strikes=n_strikes)
-            except Exception:
-                c = None
-            if c is None or c.empty:
-                continue
-            frames.append(c.assign(ticker=t, market=INSTRUMENTS[t][0], asset=INSTRUMENTS[t][2],
-                                   spot=_spot_map.get(t, float("nan"))))
-        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-    def _oi_fixed_income_frame():
-        """The curated fixed-income book — ONE PRODUCT PER PAGE (full strike chain), in tenor
-        order: STIRs, then US vs German at 2s/5s/10s/30s. Each product keeps its per-tenor
-        strike grid (step, half-width) so the rate heatmap is realistic."""
-        frames, missing, pg = [], [], 0
-        for grp in FI_OI_PAGES:
-            for tk, step, width in grp["items"]:
-                if tk not in INSTRUMENTS:
-                    missing.append(tk); continue
-                try:
-                    c = get_oi_chain(tk, n_expiries=24, n_strikes=None, step=step, width=width)
-                except Exception:
-                    c = None
-                if c is None or c.empty:
-                    missing.append(tk); continue
-                frames.append(c.assign(ticker=tk, market=INSTRUMENTS[tk][0], asset=INSTRUMENTS[tk][2],
-                                       spot=_spot_map.get(tk, float("nan")),
-                                       page=pg, page_title=f"{grp['tenor']} — {INSTRUMENTS[tk][0]}"))
-                pg += 1
-        return (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()), missing
-
-    def _oi_render_pdf(frame, scope, fname, spinner, slot="oi_pdf"):
-        if frame is None or frame.empty:
-            st.session_state.pop(slot, None)
-            st.error("No option open interest to render for this selection.")
-            return
-        # The OI chains come from the WEEKLY Monday capture, not the daily pull, so the PDF
-        # must be stamped with THAT capture's date. It was stamping the daily snapshot's
-        # as_of, which put today's date on a chain captured 22 June — 65 days stale — on a
-        # report that has an email-to-clients button (2026-08-26).
-        # read the manifest here rather than closing over `_snap` — one caller below runs
-        # BEFORE that variable is assigned, and _load_snap is a cheap cached read
-        _oi_stamp = str((_load_snap() or {}).get("oi_as_of") or "").strip()
-        _oi_age = float("nan")
-        try:
-            _oi_age = (datetime.now() - datetime.strptime(_oi_stamp[:19], "%Y-%m-%d %H:%M:%S")).days
-        except Exception:
-            pass
-        if not _oi_stamp:
-            st.error("No option-chain capture date on file — refusing to render a PDF that "
-                     "can't state when its open interest was captured. Run the weekly OI "
-                     "capture (`python snapshot.py --oi`) first.")
-            return
-        if np.isfinite(_oi_age) and _oi_age > health.OI_OLD_DAYS:
-            st.error(f"⚠️ The option chains on file were captured **{_oi_stamp[:10]}** "
-                     f"(**{_oi_age:.0f} days** ago) — the weekly Monday capture has been "
-                     f"missed. Refusing to build a client-facing PDF off a stale chain: "
-                     f"expired contracts sit in the strike grid and the 'busiest expiry' "
-                     f"reads off dead months. Run `python snapshot.py --oi` with the "
-                     f"Terminal open, then rebuild.")
-            return
-        with st.spinner(spinner):
-            with tempfile.TemporaryDirectory() as tmp:
-                _cpq = Path(tmp) / "oi_chain.parquet"
-                _out = Path(tmp) / "oi.pdf"
-                frame.to_parquet(_cpq, index=False)
-                _res = subprocess.run(
-                    [sys.executable, str(OIREPORT_CLI), str(_cpq), str(_out),
-                     "--asof", _oi_stamp, "--scope", scope],
-                    capture_output=True, text=True)
-                if _res.returncode == 0 and _out.exists():
-                    st.session_state[slot] = _out.read_bytes()
-                    st.session_state[f"{slot}_name"] = fname
-                    st.session_state[f"{slot}_mb"] = len(st.session_state[slot]) / 1024 / 1024
-                else:
-                    st.session_state.pop(slot, None)
-                    st.error("Open Interest report failed:\n\n" + (_res.stderr or _res.stdout or "no output"))
-        if st.session_state.get(slot):
-            st.success(f"Report ready — {st.session_state.get(f'{slot}_mb', 0):.1f} MB.")
-
-    # ---- Fixed Income book — the headline report. Shown at the top so it's always available,
-    #      independent of the single-product picker below (which st.stop()s on no-chain). ----
-    st.markdown("**Fixed Income open-interest book (PDF)** — one product per page: short rates "
-                "(SOFR · SONIA · Euribor), then **US vs German** at 2s / 5s / 10s / 30s.")
-    if st.button("🏛️ Generate Fixed Income OI Report", type="primary", key="oi_fi_btn"):
-        _fi_frame, _fi_missing = _oi_fixed_income_frame()
-        _oi_render_pdf(_fi_frame, "grouped", "Fixed_Income_Open_Interest.pdf",
-                       "Rendering the fixed-income open-interest book…", slot="oi_fi_pdf")
-        if _fi_missing:
-            st.caption("Skipped (no chain): " + ", ".join(dict.fromkeys(_fi_missing)) + ".")
-    if st.session_state.get("oi_fi_pdf"):
-        st.download_button(
-            f"⬇️ Download Fixed_Income_Open_Interest.pdf ({st.session_state.get('oi_fi_pdf_mb', 0):.1f} MB)",
-            data=st.session_state["oi_fi_pdf"], file_name="Fixed_Income_Open_Interest.pdf",
-            mime="application/pdf", key="oi_fi_dl")
-        email_report_ui("oi_fi_pdf", "oi_fi_pdf", st.session_state.get("oi_fi_pdf"),
-                        subject="Fixed-Income Open Interest", attachment_name="Fixed_Income_Open_Interest.pdf")
-
-    _snap = _load_snap()
-    _oi_asof = (_snap or {}).get("oi_as_of") or "never"
-    oc1, oc2 = st.columns([1, 2])
-    if IS_ADMIN and oc1.button("↻ Refresh OI data", key="oi_refresh",
-                  help="Pull the 11 fixed-income option chains live from Bloomberg (Terminal must be up). "
-                       "Meant to run weekly — Mondays. The report and heatmaps read this cached data."):
-        with st.spinner("Pulling the 11 fixed-income option chains from Bloomberg… (~1–2 min)"):
-            _r = subprocess.run([sys.executable, str(SNAPSHOT_CLI), "--oi"], cwd=str(ROOT),
-                                capture_output=True, text=True,
-                                env={**os.environ, "DATAFEED_MODE": "bloomberg", "PYTHONUTF8": "1"})
-        if _r.returncode == 0:
-            st.success("OI data refreshed."); st.rerun()
-        else:
-            st.error("OI refresh failed (is the Terminal logged in?):\n\n" + (_r.stderr or _r.stdout or "no output"))
-    oc2.caption(f"OI is captured **weekly** (run Mondays), separate from the daily snapshot, to keep the "
-                f"Bloomberg pull light. Last OI pull: **{_to_et(_oi_asof) if _oi_asof != 'never' else 'never'}**.")
-
-    st.divider()
-    st.markdown("##### Explore a single product")
-    _all_products = st.checkbox(
-        "Include all products (ad-hoc)", value=False, key="oi_all",
-        help="Off = the 11 fixed-income products this page focuses on. On = every product — but only "
-             "the weekly capture is served: products outside it show no chain. (On-demand live chain "
-             "pulls were removed 2026-08-18 — they were the app's one unbounded Bloomberg spend.)")
-    _fi_order = [tk for grp in FI_OI_PAGES for (tk, _s, _w) in grp["items"] if tk in INSTRUMENTS]
-    _pick = _oi_order if _all_products else _fi_order
-    if _pick and st.session_state.get("oi_sel") not in _pick:   # keep the selection valid as the list flips
-        st.session_state["oi_sel"] = _pick[0]
-    sc1, sc2, sc3 = st.columns([2, 1, 1])
-    sel = sc1.selectbox("Product", _pick,
-                        format_func=lambda t: f"{INSTRUMENTS[t][0]} · {INSTRUMENTS[t][2]}", key="oi_sel")
-    n_exp = int(sc2.slider("Expiry months", 4, 16, 8, key="oi_nexp"))
-    _strike_view = sc3.selectbox("Strikes", ["All", 41, 31, 21, 15, 11], index=0, key="oi_nk",
-                                 help="Strikes shown: All = the full chain; or a window of the N nearest spot.")
-    n_k = None if _strike_view == "All" else int(_strike_view)
-    spot = _spot_map.get(sel, float("nan"))
-
-    chain = get_oi_chain(sel, n_expiries=n_exp, n_strikes=n_k)
-    if chain is None or chain.empty:
-        if sel not in OI_SNAPSHOT_TICKERS:
-            st.info(f"**{INSTRUMENTS[sel][0]}** isn't in the weekly fixed-income OI capture (the 11 core "
-                    "rates products), and on-demand live chain pulls are disabled (Bloomberg budget, "
-                    "2026-08-18). Ask to add it to the weekly capture if it's needed regularly.")
-        elif _oi_asof == "never":
-            st.warning("The weekly OI capture hasn't run yet, so there's no chain data to show for ANY "
-                       "product — this is not a data problem with this product. Click **↻ Refresh OI "
-                       "data** above with the Terminal logged in (Mondays) to build it.")
-        else:
-            st.info("No listed-option open interest is available for this product (its options may be thin or "
-                    "trade OTC). Pick another product.")
+    # Repurposed 2026-09-16 (Ben): this page WAS a strike x expiry OI heatmap built on the
+    # per-option chain pull — the app's one unbounded Bloomberg spend, capped to 11 FI products
+    # captured weekly and stale since 22 Jun. It is now a whole-book FRONT-MONTH open-interest
+    # board off the daily put/call OI stores (putcall.parquet), so it needs NO option-chain pull.
+    detail = _filter_signals(_read_parquet_mtime(PC_DETAIL_FILE) if PC_DETAIL_FILE.exists() else pd.DataFrame())
+    if detail.empty or "put_oi" not in detail.columns:
+        st.info("No put/call open-interest data cached yet — click **🔁 Re-run signals** on the 🏠 Home page.")
         st.stop()
 
-    chain = chain.copy()
-    chain["total"] = chain["call_oi"].fillna(0) + chain["put_oi"].fillna(0)
-    _tot = float(chain["total"].sum())
-    _tc, _tp = float(chain["call_oi"].sum()), float(chain["put_oi"].sum())
-    _pc = (_tp / _tc) if _tc else float("nan")
-    _busiest = chain.groupby("expiry_label")["total"].sum().idxmax() if len(chain) else "—"
-    _peak = chain.groupby("strike")["total"].sum().idxmax() if len(chain) else float("nan")
+    st.caption(
+        "Front-month listed-option **open interest** — how many put and call contracts are standing on "
+        "each product, and which way the book leans. Whole book, refreshed on the daily pull (no "
+        "option-chain pull). **Futures** show their front (1st-generic) contract; **index** options carry "
+        "the whole listed book — so a ratio here can differ from a terminal's whole-book monitor (e.g. "
+        "Bloomberg MOSA), which sums every expiry. For the normalised signal, 1-day shifts and traded "
+        "volume, see the **Put/Call Ratios** page.")
 
-    om1, om2, om3, om4, om5 = st.columns(5)
-    om1.metric("Spot", "—" if not np.isfinite(spot) else f"{spot:g}", help="Last settlement of the underlying")
-    om2.metric("Total OI", f"{_tot:,.0f}", help="Put + call open interest summed across the shown strikes & expiries")
-    om3.metric("P/C (OI)", "—" if not np.isfinite(_pc) else f"{_pc:.2f}",
-               help="Total put OI ÷ total call OI on this grid (>1 = put-heavy)")
-    om4.metric("Busiest expiry", str(_busiest), help="Expiry month holding the most open interest")
-    om5.metric("Peak strike", "—" if not np.isfinite(_peak) else f"{_peak:g}",
-               help="Single strike holding the most open interest")
+    d = detail.copy()
+    for _c in ("put_oi", "call_oi", "pc_oi", "oi_pctl"):
+        d[_c] = pd.to_numeric(d.get(_c), errors="coerce")
+    d = d[d["put_oi"].notna() & d["call_oi"].notna() & d["pc_oi"].notna()].copy()
+    if d.empty:
+        st.info("The open-interest columns aren't in the cache yet — click **🔁 Re-run signals** on 🏠 Home.")
+        st.stop()
+    d["total_oi"] = d["put_oi"] + d["call_oi"]
 
-    _col_order = (chain[["expiry", "expiry_label"]].drop_duplicates()
-                  .sort_values("expiry")["expiry_label"].tolist())
-    _strike_order = sorted(chain["strike"].unique(), reverse=True)
-    _mx = float(chain["total"].max()) or 1.0
-    _hbase = alt.Chart(chain).encode(
-        x=alt.X("expiry_label:O", sort=_col_order, title="Expiry month",
-                axis=alt.Axis(labelAngle=0, labelFontSize=12, titleFontSize=13)),
-        y=alt.Y("strike:O", sort=_strike_order, title="Strike",
-                axis=alt.Axis(labelFontSize=11, titleFontSize=13)))
-    _rect = _hbase.mark_rect().encode(
-        color=alt.Color("total:Q", scale=alt.Scale(scheme="yelloworangered"),
-                        title="OI (puts+calls)", legend=alt.Legend(orient="top", titleFontSize=11)),
-        tooltip=[alt.Tooltip("expiry_label:N", title="Expiry"), alt.Tooltip("strike:Q", title="Strike"),
-                 alt.Tooltip("call_oi:Q", title="Call OI", format=",.0f"),
-                 alt.Tooltip("put_oi:Q", title="Put OI", format=",.0f"),
-                 alt.Tooltip("total:Q", title="Total OI", format=",.0f")])
-    _txt = _hbase.mark_text(fontSize=10, fontWeight="bold").encode(
-        text=alt.Text("total:Q", format=".2~s"),
-        color=alt.condition(f"datum.total > {0.58 * _mx}", alt.value("white"), alt.value("#222")))
-    brand.show_chart((_rect + _txt).properties(
-        height=max(300, 24 * len(_strike_order)),
-        title=f"{INSTRUMENTS[sel][0]} — open interest by strike & expiry"))
-    st.caption(f"Each cell is the **total open interest** (puts + calls) at that strike and expiry; deeper red = "
-               f"more open interest. Hover for the put/call split. Spot is **{spot:g}** — **Strikes = All** shows the "
-               "full chain; pick a number to zoom to the N nearest spot. Large concentrations often act as pin / "
-               "magnet levels into expiry. Reads the cached snapshot — no Bloomberg pull.")
-    st.divider()
+    _m = st.columns(4)
+    _m[0].metric("Products", f"{len(d)}")
+    _m[1].metric("Total OI (book)", f"{d['total_oi'].sum():,.0f}",
+                 help="Put + call open interest summed across every product's front contract")
+    _mp, _mcx = d.loc[d["pc_oi"].idxmax()], d.loc[d["pc_oi"].idxmin()]
+    _m[2].metric("Most put-heavy", _mp["market"], f"{_mp['pc_oi']:.2f} P/C", delta_color="off")
+    _m[3].metric("Most call-heavy", _mcx["market"], f"{_mcx['pc_oi']:.2f} P/C", delta_color="off")
 
-    st.markdown("**Per-product PDF** — the selected product's heatmap on the XP brand.")
-    if st.button("📈 This product's PDF", type="primary"):
-        _safe = INSTRUMENTS[sel][0].replace(" ", "_").replace("/", "-")
-        _oi_render_pdf(_oi_input_frame([sel], n_exp, n_k), "single",
-                       f"Open_Interest_{_safe}.pdf", f"Rendering open-interest heatmap… ({INSTRUMENTS[sel][0]})")
-    # Whole-book is an AD-HOC cross-asset export — only when "all products" is on. Since
-    # 2026-08-18 it renders ONLY products present in the weekly capture (live chain pulls
-    # removed); products outside it are listed as skipped rather than silently dropped.
-    if IS_ADMIN and _all_products and st.button("📚 Whole-book PDF (all captured products · ad-hoc)"):
-        _book_frame = _oi_input_frame(_oi_order, 6, 13)
-        _oi_render_pdf(_book_frame, "book",
-                       "Open_Interest_Whole_Book.pdf", "Rendering open-interest heatmaps… (whole book)")
-        _in_book = set(_book_frame["ticker"]) if not _book_frame.empty else set()
-        _book_missing = [INSTRUMENTS[t][0] for t in _oi_order if t not in _in_book]
-        if _book_missing:
-            st.caption(f"Skipped (not in the weekly OI capture): {len(_book_missing)} products — "
-                       + ", ".join(_book_missing[:12]) + (" …" if len(_book_missing) > 12 else "."))
+    cc = brand.chart_colors()
+    _topn = int(st.slider("Biggest books to chart", 8, min(40, len(d)), min(18, len(d)), key="oi_topn"))
+    _top = d.nlargest(_topn, "total_oi")
+    _long = pd.concat([
+        _top[["market", "call_oi"]].rename(columns={"call_oi": "oi"}).assign(side="Calls"),
+        _top[["market", "put_oi"]].rename(columns={"put_oi": "oi"}).assign(side="Puts")])
+    _mo = _top.sort_values("total_oi", ascending=False)["market"].tolist()
+    _bar = alt.Chart(_long).mark_bar().encode(
+        y=alt.Y("market:N", sort=_mo, title=None, axis=alt.Axis(labelFontSize=11, labelLimit=190)),
+        x=alt.X("oi:Q", title="Open interest (contracts)", stack="zero"),
+        color=alt.Color("side:N", scale=alt.Scale(domain=["Calls", "Puts"], range=[cc["long"], cc["short"]]),
+                        legend=alt.Legend(orient="top", title=None)),
+        order=alt.Order("side:N", sort="descending"),
+        tooltip=[alt.Tooltip("market:N", title="Product"), alt.Tooltip("side:N", title="Side"),
+                 alt.Tooltip("oi:Q", title="Open interest", format=",.0f")])
+    brand.show_chart(_bar.properties(height=max(260, 24 * len(_top)),
+                                     title="Biggest option books — calls vs puts (front contract)"))
 
-    if st.session_state.get("oi_pdf"):
-        st.download_button(
-            f"⬇️ Download {st.session_state.get('oi_pdf_name', 'Open_Interest.pdf')} "
-            f"({st.session_state.get('oi_pdf_mb', 0):.1f} MB)",
-            data=st.session_state["oi_pdf"], file_name=st.session_state.get("oi_pdf_name", "Open_Interest.pdf"),
-            mime="application/pdf")
-        email_report_ui("oi_pdf", "oi_pdf", st.session_state.get("oi_pdf"),
-                        subject="Open Interest Report",
-                        attachment_name=st.session_state.get("oi_pdf_name", "Open_Interest.pdf"))
+    _sort = st.radio("Order the table by", ["Total OI", "Most put-heavy", "Most call-heavy", "Asset class"],
+                     horizontal=True, key="oi_sort")
+    _AO = ["Indices", "STIRs", "Bonds", "FX", "Energy", "Metals", "Agriculture", "Softs"]
+    if _sort == "Total OI":
+        d = d.sort_values("total_oi", ascending=False)
+    elif _sort == "Most put-heavy":
+        d = d.sort_values("pc_oi", ascending=False)
+    elif _sort == "Most call-heavy":
+        d = d.sort_values("pc_oi", ascending=True)
+    else:
+        d = d.assign(_ao=d["asset"].map(lambda a: _AO.index(a) if a in _AO else 99)).sort_values(
+            ["_ao", "total_oi"], ascending=[True, False])
+
+    _disp = pd.DataFrame({
+        "Product": d["market"], "Asset": d["asset"],
+        "Puts open": d["put_oi"].map(lambda v: f"{v:,.0f}"),
+        "Calls open": d["call_oi"].map(lambda v: f"{v:,.0f}"),
+        "Total OI": d["total_oi"].map(lambda v: f"{v:,.0f}"),
+        "P/C": d["pc_oi"].map(lambda v: f"{v:.2f}"),
+        "1y %ile": d["oi_pctl"].map(lambda v: "—" if pd.isna(v) else f"{v:.0f}"),
+        "Lean": d["signal"]})
+    st.dataframe(_disp, use_container_width=True, hide_index=True, height=min(560, 44 + 35 * len(_disp)))
+    st.caption("**P/C** = puts open ÷ calls open (>1 = put-heavy / defensive · <1 = call-heavy / bullish). "
+               "**1y %ile** ranks today's ratio within its own trailing year (100 = most put-heavy in a "
+               "year · 0 = most call-heavy). Reads the daily snapshot — no Bloomberg pull.")
     st.stop()
 
 

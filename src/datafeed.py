@@ -1077,8 +1077,9 @@ OI_LIVE_MAX_CONTRACTS = 28     # walk the option chain across the nearest N DATE
 
 # The OI snapshot captures option chains for these 11 FIXED-INCOME products ONLY (the Fixed
 # Income book) — pulling more, or more often, would burn reference-data limits, and this is a
-# rates tool. MUST stay in sync with FI_OI_PAGES in app.py. Products outside this list serve
-# ONLY what the weekly capture holds — on-demand live chain pulls were removed 2026-08-18
+# rates tool. This is the definitive capture list (consumed by expiries / health / bbgcodes).
+# Products outside this list serve ONLY what the weekly capture holds — on-demand live chain
+# pulls were removed 2026-08-18
 # (they were the app's one unbounded Bloomberg spend); get_oi_chain(live=True) is the weekly
 # job's sanctioned pull.
 OI_SNAPSHOT_TICKERS = (
