@@ -1,55 +1,55 @@
 {
- "generated_at": "15 Sep 2026 · 06:42 ET",
- "synopsis": "The story this morning is oil feeding straight into the bond market. Crude extended its rally — Brent +1.5% above $107, WTI +2.1% near $103.50 — as attacks shut a major Saudi pipeline, Houthis struck Saudi sites and Iran-Gulf talks were postponed, with WTI's prompt spread the strongest since July and Brent backwardation widening, a clear signal of physical tightness.",
- "commentary": "The story this morning is oil feeding straight into the bond market. Crude extended its rally — Brent +1.5% above $107, WTI +2.1% near $103.50 — as attacks shut a major Saudi pipeline, Houthis struck Saudi sites and Iran-Gulf talks were postponed, with WTI's prompt spread the strongest since July and Brent backwardation widening, a clear signal of physical tightness. That supply shock is turbocharging inflation fears just as the Fed meets this week: the 10-year Treasury yield punched through 5% to its highest since 2007, dragging the long bond down 0.6-0.8%, and two major Wall Street houses have switched to forecasting a hike, according to reports.\n\nCurve pressure is concentrated at the long end — twos barely moved — a bear-steepening that says this is about inflation and term premium, not growth. That mix is toxic for risk: S&P and Nasdaq futures are off ~0.3%, Europe softer with banks lagging, and the dollar is bid across the board — every major currency is lower, with the yen down 0.5% despite Japan reportedly mulling defense spending at 3.5% of GDP, and the won off 1.4%. Precious metals are giving ground to real yields and the dollar, gold -0.9%, while copper and iron ore sag after China's steel body urged mills to cut output into weak demand.\n\nIn ags, cocoa is unwinding hard (-3.4%) and OJ ripped +5.3% on supply concerns, per reports. Watch the Fed decision, Hormuz flows and whether 5% on the 10-year holds — that level now sets the tone for everything.",
+ "generated_at": "16 Sep 2026 · 06:04 ET",
+ "synopsis": "Risk tone is cautiously constructive this morning: equity futures are edging higher (S&P +0.2%, Nasdaq +0.4%, Euro Stoxx +0.2%) and Treasuries have halted their slide as markets settle into a holding pattern ahead of today's Fed decision — traders are pricing a better-than-90% chance of the first hike since 2023, with rates markets already carrying an extreme short and all eyes on the dot plot for how far the Wars…",
+ "commentary": "Risk tone is cautiously constructive this morning: equity futures are edging higher (S&P +0.2%, Nasdaq +0.4%, Euro Stoxx +0.2%) and Treasuries have halted their slide as markets settle into a holding pattern ahead of today's Fed decision — traders are pricing a better-than-90% chance of the first hike since 2023, with rates markets already carrying an extreme short and all eyes on the dot plot for how far the Warsh Fed intends to go. UK CPI landed exactly in line at 3.1% headline and 2.6% core, giving gilts room to rally (Long Gilt +0.4%) even as debate builds over whether the BoE is entering its own hiking cycle.\n\nChina remains the growth soft spot: August retail sales missed and the investment slump deepened, keeping pressure on Beijing and the PBoC for stimulus. Energy is the complex to watch. Crude is retracing overnight — Brent -1.1% to ~107.50, WTI -1.7% — after a 7.1m-barrel API build and technically overbought conditions, but the distillate story is anything but calm: heating oil and gasoil settled at record highs with cracks near $90-115/bbl as Middle East and Russian supply disruptions intensify and Moscow weighs extending its diesel export ban through October.\n\nBackwardation is steepening across the crude curve, so treat this dip as positioning ahead of the Fed rather than a fundamental turn. Precious metals are catching a bid into the decision — gold +1% at 4,375, silver +1.8% — a hedge against a policy misstep with long-end yields already at cycle highs.",
  "headlines": [
   {
-   "source": "Bloomberg",
-   "title": "*TEN-YEAR TREASURY YIELD RISES TO HIGHEST SINCE 2007",
-   "time": "",
+   "source": "NPR",
+   "title": "The Fed is expected to raise interest rates for the first time in 3 years",
+   "time": "05:00 ET",
    "tag": "Rates"
   },
   {
-   "source": "Financial Times",
-   "title": "Oil hits $109 after Saudi Arabia closes vital export pipeline",
-   "time": "16:11 ET",
+   "source": "FT",
+   "title": "Ten-year Treasury yield hits highest level since 2007",
+   "time": "14:13 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "OIL BAROMETERS: Diesel Futures, Cracks Hit New Highs; WTI Calls",
+   "time": "",
    "tag": "Energy"
   },
   {
-   "source": "The Guardian",
-   "title": "Houthis seize strategic Red Sea islands as analysts warn of impending oil crunch",
-   "time": "00:22 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "Wall Street Journal",
+   "source": "WSJ",
    "title": "Natural Gas Falls on Shifting Weather Forecasts",
    "time": "09:05 ET",
    "tag": "Energy"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Comex Gold, Silver Settle Lower",
-   "time": "14:01 ET",
-   "tag": "Metals"
+   "source": "Al Jazeera",
+   "title": "US House votes to end Iran war, 7 Republicans join in favour",
+   "time": "01:36 ET",
+   "tag": "Geopolitics"
   },
   {
-   "source": "Wall Street Journal",
+   "source": "WSJ",
+   "title": "Shippers Wary of Red Sea Routes Despite Houthi Pledge to End Targeting",
+   "time": "01:05 ET",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "FT",
+   "title": "Bessent to meet He Lifeng in New York ahead of Trump-Xi summit",
+   "time": "18:32 ET",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "WSJ",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "China Steel Body Calls on Mills to Rein In Output, Inventories",
-   "time": "06:25 ET",
-   "tag": "Metals"
-  },
-  {
-   "source": "Financial Times",
-   "title": "Monetary Policy Radar preview: Fed September meeting",
-   "time": "09:03 ET",
-   "tag": "Rates"
   }
  ]
 }
