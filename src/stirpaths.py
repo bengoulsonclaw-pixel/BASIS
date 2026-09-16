@@ -1320,6 +1320,42 @@ _HISTORY_KEEP_DAYS = 40
 # priced zero hike odds while the 3M strip and OIS both said ~+20%.
 FIT_EXCLUDE = {"SOOA Comdty"}
 
+# EURIBOR-LED ECB with a €STR FRONT-LEVEL ANCHOR (16 Sep 2026). €STR futures
+# (TKYA) settle basis-free on the overnight, so the NEAR ones pin the current-
+# implied level Bloomberg WIRP shows. But the 3M €STR strip (12 contracts incl.
+# serials, on the thinner ICE €STR future) STRADDLING the closely-spaced 2027
+# meetings is under-determined, and least squares resolves that into a phantom
+# hike-then-cut Apr-2027 seesaw — the "dip" WIRP (OIS-based, datable per meeting)
+# never shows. So a €STR contract enters the fit only while its window stays in
+# the front, well-separated meetings — ending on/before the Nth upcoming
+# decision — and past that the 5 liquid Euribor quarterlies alone carry the
+# SHAPE. (Euribor's fixed +15bp basis runs a touch rich at the very front, which
+# is exactly why €STR is kept there.) €STR always stays on the DISPLAY strip and
+# the morning pull. Validated day-by-day vs BBG WIRP across 31 Aug–16 Sep 2026:
+# dip gone every day; on the 15 Sep vintage front pending 25.5 / cur-implied
+# 2.445 vs WIRP 25.2 / 2.441, and Apr +9.6 vs the joint fit's −14.7.
+# FRONT_ANCHOR_MEETINGS = 0 drops €STR entirely (pure Euribor); a large value
+# restores the joint Euribor+€STR fit.
+FRONT_ANCHOR_INSTRUMENTS = {"TKYA Comdty"}
+FRONT_ANCHOR_MEETINGS = 3
+
+
+def _front_anchor_cutoff(bank: "Bank", asof: date) -> date:
+    """Latest effective date a FRONT_ANCHOR (€STR) contract's window may reach
+    and still enter the SHAPE fit: the Nth upcoming decision. €STR contracts
+    ending after this straddle the closely-spaced far meetings and are dropped
+    from the fit (they stay on the display strip and the pull); Euribor leads
+    the shape from there out."""
+    # count meetings still being FIT (decision ahead) — a decided-but-pending
+    # move is not a market-uncertain meeting €STR needs to help identify, and
+    # counting it would pull the anchor in by one across the effectiveness roll.
+    ups = [m for m in bank.meetings if m >= asof]
+    if FRONT_ANCHOR_MEETINGS <= 0:
+        return date.min                    # drop all €STR: pure Euribor
+    if len(ups) < FRONT_ANCHOR_MEETINGS:
+        return date.max                    # near the calendar tail: keep them all
+    return bank_effective_date(bank, ups[FRONT_ANCHOR_MEETINGS - 1])
+
 
 def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
                     override_prices: dict | None = None):
@@ -1340,9 +1376,12 @@ def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
     # The candidate set IS the pull universe (quarterlies + monthlies capped
     # ~13mo where SER-vs-FF marks stay coherent + serials) — same function the
     # morning pull fetches, so the store can never starve the fit again.
+    anchor_cutoff = _front_anchor_cutoff(bank, asof)
     for p, c in pull_universe(asof):
         if p.bank != bank_key or p.ticker in FIT_EXCLUDE:
             continue
+        if p.ticker in FRONT_ANCHOR_INSTRUMENTS and c.end > anchor_cutoff:
+            continue                                 # €STR past the front: Euribor leads
         if fut_last_trade(p, c) < asof:
             continue
         if live and c.code not in have and c.code not in ov:
