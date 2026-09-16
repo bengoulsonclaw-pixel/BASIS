@@ -11194,12 +11194,16 @@ def render_stir_bank(bank_key: str) -> None:
                                       point=alt.OverlayMarkDef(color=_YOU_C, size=30,
                                                                filled=False)).encode(
         x=_bx, y=alt.Y("you:Q", scale=alt.Scale(zero=False)))
+    st.markdown("**Expected rate path — overnight rate (what the futures settle on)**")
     st.altair_chart(alt.layer(_wbar, _wln + _wyou).resolve_scale(y="independent")
                     .properties(height=290), use_container_width=True)
-    st.caption(f"<span style='color:{_bank_c}'>●</span> market implied o/n rate · "
+    st.caption(f"<span style='color:{_bank_c}'>●</span> market-implied <b>overnight rate</b> · "
                f"<span style='color:#FFB300'>▮</span> cumulative steps priced · "
-               f"<span style='color:{_YOU_C}'>◌</span> your call (edit in section 3 "
-               f"— the dashed line moves with it)", unsafe_allow_html=True)
+               f"<span style='color:{_YOU_C}'>◌</span> your call (edit in section 3 — the "
+               f"dashed line moves with it).<br><b>Same path</b> as the “{bank.rate_name}” "
+               f"chart lower down in the term-structure section — this one is just drawn in "
+               f"the overnight rate the futures settle on, that one in the policy rate the "
+               f"bank sets.", unsafe_allow_html=True)
 
     # ---- 3 · one table: the market's call, your call directly beneath --------
     _sp_gap()
@@ -11566,13 +11570,15 @@ def render_stir_bank(bank_key: str) -> None:
     pts = alt.Chart(lines_df).mark_point(filled=True, size=45).encode(
         x=x_enc, y=alt.Y("rate:Q", scale=alt.Scale(zero=False)),
         color=alt.Color("Path:N", scale=alt.Scale(domain=dom, range=rng), legend=None))
-    st.markdown(f"**Implied {bank.rate_name.lower()} & hikes/cuts priced — "
-                "market vs your view**")
+    st.markdown(f"**Expected rate path — {bank.rate_name} (the rate the bank actually sets)**")
     brand.show_chart(alt.layer(bars, lines + pts).resolve_scale(y="independent")
                      .properties(height=330))
-    st.caption("The WIRP read: bars = cumulative hikes/cuts the market prices through "
-               "each meeting (right axis) · solid line = the same thing as a rate level "
-               "(left axis) · dashed gold = where YOUR odds put the rate. This chart is "
+    st.caption("**Same path as the overnight-rate chart up in section 2** — shown here in "
+               f"the {bank.rate_name.lower()} the central bank actually sets, rather than the "
+               "overnight rate the futures settle on. The WIRP read: bars = cumulative "
+               "hikes/cuts the market prices through each meeting (right axis) · solid line = "
+               "the same thing as a rate level (left axis) · dashed gold = where YOUR odds "
+               "put the rate. This chart is "
                + ("the DI chart above in meeting steps — same direction, DIs are "
                 "quoted as rates." if _rq else
                 "the futures chart above turned upside-down — price = 100 − rate, "
