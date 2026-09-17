@@ -300,6 +300,18 @@ def main() -> int:
             return 1
         _compute_partial = _LAST_RC == 2
 
+        # Morning Coffee — driver-owned (2026-08-28) so it runs on EVERY completed pull
+        # (manual OR --auto), survives any app/session state, and its progress shows in the
+        # app's pull status bar. Reads snapshot + IMAP + web, so no Terminal is needed.
+        # Runs BEFORE the backup so its output rides the same push (below).
+        if _mc_after_pull_on():
+            _status(phase="coffee", mc="running")
+            _status(mc="sent" if _run_morning_coffee() else "failed")
+
+        # ONE data push, LAST — after compute AND Morning Coffee — so the fresh
+        # signals AND today's briefing (data/morning_coffee_home.json) reach the
+        # terminal in the SAME commit. This push used to run BEFORE Morning Coffee,
+        # so the VPS site showed yesterday's briefing until the 22:00 nightly backup.
         _status(phase="backup")
         _log("pushing the data backup…")
         try:
@@ -308,13 +320,6 @@ def main() -> int:
             gitbackup._push()
         except Exception as e:
             _log(f"backup push failed (non-fatal): {e!r}")
-
-        # Morning Coffee — driver-owned (2026-08-28) so it runs on EVERY completed pull
-        # (manual OR --auto), survives any app/session state, and its progress shows in the
-        # app's pull status bar. Reads snapshot + IMAP + web, so no Terminal is needed.
-        if _mc_after_pull_on():
-            _status(phase="coffee", mc="running")
-            _status(mc="sent" if _run_morning_coffee() else "failed")
 
         mins = (time.time() - t0) / 60
         if _compute_partial:

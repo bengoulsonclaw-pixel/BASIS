@@ -194,6 +194,16 @@ def run_morning_coffee(email: bool = False) -> bool:
         if saved.exists():
             st.session_state["mc_docx"] = saved.read_bytes()
             st.session_state["mc_docx_name"] = saved.name
+    if mc_ok:
+        # A standalone Morning Coffee run refreshes data/morning_coffee_home.json —
+        # push it so the terminal (basisterminal.com) shows today's briefing without
+        # waiting for the 22:00 nightly backup. Fire-and-forget; no-op if unchanged.
+        # (A pull that auto-runs MC pushes once itself in run_pull.py — no double push.)
+        try:
+            from src import gitbackup
+            gitbackup.push_data_async()
+        except Exception:
+            pass
     return mc_ok
 
 
@@ -235,6 +245,12 @@ def rebuild_morning_coffee() -> bool:
         mc_log, mc_ok = f"Rebuild failed: {e}", False
     st.session_state["mc_ok"] = mc_ok
     st.session_state["mc_log"] = mc_log
+    if mc_ok:                       # an edited-commentary rebuild changes the home cards
+        try:
+            from src import gitbackup
+            gitbackup.push_data_async()
+        except Exception:
+            pass
     return mc_ok
 
 
