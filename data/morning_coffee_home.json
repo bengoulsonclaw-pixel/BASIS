@@ -1,52 +1,52 @@
 {
- "generated_at": "16 Sep 2026 · 06:04 ET",
- "synopsis": "Risk tone is cautiously constructive this morning: equity futures are edging higher (S&P +0.2%, Nasdaq +0.4%, Euro Stoxx +0.2%) and Treasuries have halted their slide as markets settle into a holding pattern ahead of today's Fed decision — traders are pricing a better-than-90% chance of the first hike since 2023, with rates markets already carrying an extreme short and all eyes on the dot plot for how far the Wars…",
- "commentary": "Risk tone is cautiously constructive this morning: equity futures are edging higher (S&P +0.2%, Nasdaq +0.4%, Euro Stoxx +0.2%) and Treasuries have halted their slide as markets settle into a holding pattern ahead of today's Fed decision — traders are pricing a better-than-90% chance of the first hike since 2023, with rates markets already carrying an extreme short and all eyes on the dot plot for how far the Warsh Fed intends to go. UK CPI landed exactly in line at 3.1% headline and 2.6% core, giving gilts room to rally (Long Gilt +0.4%) even as debate builds over whether the BoE is entering its own hiking cycle.\n\nChina remains the growth soft spot: August retail sales missed and the investment slump deepened, keeping pressure on Beijing and the PBoC for stimulus. Energy is the complex to watch. Crude is retracing overnight — Brent -1.1% to ~107.50, WTI -1.7% — after a 7.1m-barrel API build and technically overbought conditions, but the distillate story is anything but calm: heating oil and gasoil settled at record highs with cracks near $90-115/bbl as Middle East and Russian supply disruptions intensify and Moscow weighs extending its diesel export ban through October.\n\nBackwardation is steepening across the crude curve, so treat this dip as positioning ahead of the Fed rather than a fundamental turn. Precious metals are catching a bid into the decision — gold +1% at 4,375, silver +1.8% — a hedge against a policy misstep with long-end yields already at cycle highs.",
+ "generated_at": "17 Sep 2026 · 07:52 ET",
+ "synopsis": "Risk appetite firmed overnight, and energy is the story: crude extended its retreat, with Brent down 2.4% to $103 and WTI back toward $100, distillates leading the slide (heating oil -3.2%, gasoil -2.7%) — striking given a Saudi pipeline outage and ongoing Strait of Hormuz disruption hitting a market already short of buffers.",
+ "commentary": "Risk appetite firmed overnight, and energy is the story: crude extended its retreat, with Brent down 2.4% to $103 and WTI back toward $100, distillates leading the slide (heating oil -3.2%, gasoil -2.7%) — striking given a Saudi pipeline outage and ongoing Strait of Hormuz disruption hitting a market already short of buffers. That pullback in the inflation input matters most a day after the Fed, under Chair Warsh, delivered its first hike since 2023 and signalled another to come: falling oil bolstered the view that inflation can be contained without an aggressive cycle, letting stocks and Treasuries rally together.\n\nNasdaq futures gained 1.1%, the long bond firmed 0.4%, and the dollar eased from its peak even as Trump blasted a \"hostile\" Fed board. The central-bank picture stays hawkish at the margin. Jobless claims at their lowest since mid-May keep the Fed's case intact, while the BoE held at 3.75% in a 6-3 vote, with Bailey warning policy may have to tighten if the Middle East conflict is prolonged, and unveiled a full APF unwind — £368bn of gilt stock gone by end-2034 — though gilts still caught the oil-led bid. The BoJ is next, expected to hike to a 31-year high, so watch yen and JGB-linked flows.\n\nChina trimming its Treasury holdings to a 2008 low is a longer-run caveat for the US long end. Elsewhere, copper's 1.4% pop against a softer gold tape fits the growth-not-fear read, ags and softs sold off broadly (OJ -4.5%, cocoa -1.8%), and upside energy risks — the Russian-oil tariff bill and tightening winter LNG — argue against chasing the crude break.",
  "headlines": [
   {
-   "source": "NPR",
-   "title": "The Fed is expected to raise interest rates for the first time in 3 years",
-   "time": "05:00 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "FT",
-   "title": "Ten-year Treasury yield hits highest level since 2007",
-   "time": "14:13 ET",
+   "source": "Financial Times",
+   "title": "Federal Reserve decision as it happened: US central bank raises interest rates for first time since 2023, Donald Trump calls for borrowing costs to be 1% or less",
+   "time": "18:49 ET",
    "tag": "Rates"
   },
   {
    "source": "Bloomberg",
-   "title": "OIL BAROMETERS: Diesel Futures, Cracks Hit New Highs; WTI Calls",
+   "title": "*BOE LEAVES KEY RATE AT 3.75%; EST. 3.750%",
    "time": "",
+   "tag": "Rates"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "Oil Extends Drop as Saudi Arabia Moves to Restore Vital Pipeline",
+   "time": "18:05 ET",
    "tag": "Energy"
   },
   {
-   "source": "WSJ",
+   "source": "Financial Times",
+   "title": "US passes bill targeting importers of Russian oil",
+   "time": "04:04 ET",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "Wall Street Journal",
    "title": "Natural Gas Falls on Shifting Weather Forecasts",
    "time": "09:05 ET",
    "tag": "Energy"
   },
   {
-   "source": "Al Jazeera",
-   "title": "US House votes to end Iran war, 7 Republicans join in favour",
-   "time": "01:36 ET",
-   "tag": "Geopolitics"
+   "source": "Wall Street Journal",
+   "title": "Comex Gold, Silver Settle Lower",
+   "time": "14:01 ET",
+   "tag": "Metals"
   },
   {
-   "source": "WSJ",
-   "title": "Shippers Wary of Red Sea Routes Despite Houthi Pledge to End Targeting",
-   "time": "01:05 ET",
-   "tag": "Geopolitics"
+   "source": "Bloomberg",
+   "title": "Copper Rallies as Signs of China Buying Lend Support After Hike",
+   "time": "22:36 ET",
+   "tag": "Metals"
   },
   {
-   "source": "FT",
-   "title": "Bessent to meet He Lifeng in New York ahead of Trump-Xi summit",
-   "time": "18:32 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "WSJ",
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
