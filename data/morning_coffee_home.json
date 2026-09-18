@@ -1,30 +1,36 @@
 {
- "generated_at": "17 Sep 2026 · 07:52 ET",
- "synopsis": "Risk appetite firmed overnight, and energy is the story: crude extended its retreat, with Brent down 2.4% to $103 and WTI back toward $100, distillates leading the slide (heating oil -3.2%, gasoil -2.7%) — striking given a Saudi pipeline outage and ongoing Strait of Hormuz disruption hitting a market already short of buffers.",
- "commentary": "Risk appetite firmed overnight, and energy is the story: crude extended its retreat, with Brent down 2.4% to $103 and WTI back toward $100, distillates leading the slide (heating oil -3.2%, gasoil -2.7%) — striking given a Saudi pipeline outage and ongoing Strait of Hormuz disruption hitting a market already short of buffers. That pullback in the inflation input matters most a day after the Fed, under Chair Warsh, delivered its first hike since 2023 and signalled another to come: falling oil bolstered the view that inflation can be contained without an aggressive cycle, letting stocks and Treasuries rally together.\n\nNasdaq futures gained 1.1%, the long bond firmed 0.4%, and the dollar eased from its peak even as Trump blasted a \"hostile\" Fed board. The central-bank picture stays hawkish at the margin. Jobless claims at their lowest since mid-May keep the Fed's case intact, while the BoE held at 3.75% in a 6-3 vote, with Bailey warning policy may have to tighten if the Middle East conflict is prolonged, and unveiled a full APF unwind — £368bn of gilt stock gone by end-2034 — though gilts still caught the oil-led bid. The BoJ is next, expected to hike to a 31-year high, so watch yen and JGB-linked flows.\n\nChina trimming its Treasury holdings to a 2008 low is a longer-run caveat for the US long end. Elsewhere, copper's 1.4% pop against a softer gold tape fits the growth-not-fear read, ags and softs sold off broadly (OJ -4.5%, cocoa -1.8%), and upside energy risks — the Russian-oil tariff bill and tightening winter LNG — argue against chasing the crude break.",
+ "generated_at": "18 Sep 2026 · 05:47 ET",
+ "synopsis": "Risk tone ends a turbulent week on the front foot in the US and Asia, and the reason is sitting in the energy complex: crude is retreating hard, with Brent off 2.4% to $102.3 and WTI back near $100, dragging heating oil, gasoil and RBOB down with it. The Iran risk premium is bleeding out — Brent put volumes hit a six-week high, implied vol eased and call skews are the least bullish in over a week — though reports…",
+ "commentary": "Risk tone ends a turbulent week on the front foot in the US and Asia, and the reason is sitting in the energy complex: crude is retreating hard, with Brent off 2.4% to $102.3 and WTI back near $100, dragging heating oil, gasoil and RBOB down with it. The Iran risk premium is bleeding out — Brent put volumes hit a six-week high, implied vol eased and call skews are the least bullish in over a week — though reports warn the \"Trump backs down\" playbook has been failing this month, so the tape stays headline-sensitive. Softer oil eases the inflation math just days after the Fed hiked, and that's why Nasdaq futures lead Wall Street gains (+0.5%) even as Europe trades heavy.\n\nThe other overnight story is the BoJ, which raised its call rate to 1.25% — the highest since 1995 — on a 7-2 vote, yet the yen fell over 1% to a two-week low as Ueda sent mixed signals on further hikes. That underwhelming hawkishness sits inside a broader global tightening regime: UBS flipped its BoE call to hikes reaching 4.25%, and European rate paper reflects it — Bunds, OATs and gilts all lower, front-end euro contracts soft — while the US long bond catches a modest bid despite fiscal-crisis warnings around Treasuries' historic drawdown.\n\nTransmission-wise, precious metals remain the standout hedge in this higher-rates, sticky-inflation world: silver +2.5%, palladium +2.8%, gold firm above $4,400. TTF bucked the energy selloff (+1.4%) with EU storage at 69% versus 80%-plus last year. The soy complex and cattle sold off broadly; cocoa dropped 3.5%. Watch Iran headlines, oil vol, and BoJ follow-through on the yen.",
  "headlines": [
   {
-   "source": "Financial Times",
-   "title": "Federal Reserve decision as it happened: US central bank raises interest rates for first time since 2023, Donald Trump calls for borrowing costs to be 1% or less",
-   "time": "18:49 ET",
-   "tag": "Rates"
-  },
-  {
    "source": "Bloomberg",
-   "title": "*BOE LEAVES KEY RATE AT 3.75%; EST. 3.750%",
+   "title": "*BOJ RAISES OVERNIGHT CALL RATE TO 1.25%",
    "time": "",
    "tag": "Rates"
   },
   {
-   "source": "Bloomberg",
-   "title": "Oil Extends Drop as Saudi Arabia Moves to Restore Vital Pipeline",
-   "time": "18:05 ET",
+   "source": "Washington Post",
+   "title": "Fed raises interest rates by quarter point to tackle inflation",
+   "time": "16:14 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Financial Times",
+   "title": "Yen sinks after BoJ raises rates to highest level since 1995",
+   "time": "04:32 ET",
+   "tag": "FX"
+  },
+  {
+   "source": "Al Jazeera",
+   "title": "Oman oil escape route: How ship-to-ship transfers work — despite big risks (Sohar port ship-to-ship oil transfers amid continued Hormuz blockade)",
+   "time": "",
    "tag": "Energy"
   },
   {
    "source": "Financial Times",
-   "title": "US passes bill targeting importers of Russian oil",
-   "time": "04:04 ET",
+   "title": "Iran activates land routes to bypass US blockade",
+   "time": "00:00 ET",
    "tag": "Geopolitics"
   },
   {
@@ -37,12 +43,6 @@
    "source": "Wall Street Journal",
    "title": "Comex Gold, Silver Settle Lower",
    "time": "14:01 ET",
-   "tag": "Metals"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Copper Rallies as Signs of China Buying Lend Support After Hike",
-   "time": "22:36 ET",
    "tag": "Metals"
   },
   {

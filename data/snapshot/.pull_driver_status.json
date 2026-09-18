@@ -2,8 +2,8 @@
  "date": "2026-09-18",
  "runs": 1,
  "outcome": "running",
- "phase": "compute",
- "mc": "",
+ "phase": "backup",
+ "mc": "sent",
  "started": "2026-09-18T10:21:17",
- "when": "2026-09-18T10:31:44"
+ "when": "2026-09-18T10:47:08"
 }
