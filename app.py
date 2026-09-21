@@ -15866,7 +15866,8 @@ def _radar_save_prefs(blob: dict) -> None:
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def _radar_rule_history(bank: str, use_core: bool = True) -> list:
+def _radar_rule_history(bank: str, use_core: bool = True, nairu: float | None = None,
+                        rstar: float | None = None) -> list:
     """Monthly rule prescriptions for the history chart, from the best source per bloc.
 
     US gets the point-in-time vintage store (what the rules SAID at the time) plus a live
@@ -15879,16 +15880,24 @@ def _radar_rule_history(bank: str, use_core: bool = True) -> list:
     is a couple of seconds, and this runs on every rerun of the page."""
     if bank == "FED":
         from src import macrobt
-        hist = macrobt.prescription_history()
+        # r* is a constant across the vintage history, so it shifts every line's LEVEL
+        # without touching its shape. Use the table's r* (today's HLW estimate, or the
+        # user's override) rather than the backtest's fixed 0.75, or the chart ends ~26bp
+        # below the table on every rule for no reason a reader could see.
+        _rs = 0.75 if rstar is None else float(rstar)
+        hist = macrobt.prescription_history(rstar=_rs)
         try:
-            live = macrobt.live_row()
+            live = macrobt.live_row(rstar=_rs)
         except Exception:
             live = None
         if hist and live is not None and live["when"] > hist[-1]["when"]:
             hist = hist + [live]
         return hist
     try:
-        return macrorules.history_on_current_data(bank, use_core=use_core)
+        # Same r* / NAIRU the table is using — otherwise overriding an assumption moves
+        # the table and leaves the chart on the default, and the two disagree again.
+        return macrorules.history_on_current_data(bank, use_core=use_core,
+                                                  nairu=nairu, rstar=rstar)
     except Exception:
         return []
 
@@ -16201,7 +16210,29 @@ def render_macro_radar() -> None:
         "**Prescriptions vs the actual funds rate — as they stood at the time**"
         if bank == "FED" else
         f"**Prescriptions vs the actual {_rate_name} — on today's data**")
-    hist = _radar_rule_history(bank, use_core=use_core)
+    hist = list(_radar_rule_history(bank, use_core=use_core, nairu=ov_nairu,
+                                    rstar=(round(x.rstar, 4) if bank == "FED"
+                                           else ov_rstar)))
+    # End the chart ON THE TABLE. The monthly history can only run to the last month
+    # every input covers, and unemployment lags inflation by two months — so on the BoE
+    # in Sep 2026 the chart stopped at June (headline 2.6%) while the table used August's
+    # 3.1%, and the two disagreed by exactly the 75bp that the newest prints added. That
+    # drops the very months the market is trading. The final point is therefore the
+    # table's prescriptions themselves, dated today, with lagging inputs carried forward
+    # exactly as the table carries them. Not for the Fed (its chart is the vintage store
+    # with its own live point and a fixed r*) nor for Brazil's expectations view (the
+    # history is on core, so a last point on expectations would be a measure change
+    # masquerading as a move).
+    _hist_live = False
+    if hist and bank != "FED" and not use_exp and res.summary is not None:
+        _now = {r.key: r.prescribed for r in res.summary.results
+                if r.ok and r.prescribed is not None}
+        _keys = [k for k in hist[-1] if k not in ("when", "policy", "label")]
+        if all(k in _now for k in _keys) and date.today() > hist[-1]["when"]:
+            hist.append({"when": date.today(), "policy": res.policy_now,
+                         "label": "Latest — as in the table",
+                         **{k: _now[k] for k in _keys}})
+            _hist_live = True
     # Two cases where the chart cannot follow the selector, said out loud rather than
     # silently drawing a different measure from the numbers above it: the Fed's history is
     # the ALFRED vintage store, which carries core PCE only; and no history of Focus
@@ -16238,11 +16269,11 @@ def render_macro_radar() -> None:
         try:
             import altair as alt
             chart_rows = [{"when": row["when"].isoformat(),
-                           "wlabel": row["when"].strftime("%b %Y"),
+                           "wlabel": row.get("label") or row["when"].strftime("%b %Y"),
                            "rate": row["policy"], "series": _rate_name} for row in hist]
             for k in sel_hist:
                 chart_rows += [{"when": row["when"].isoformat(),
-                                "wlabel": row["when"].strftime("%b %Y"),
+                                "wlabel": row.get("label") or row["when"].strftime("%b %Y"),
                                 "rate": row[k],
                                 "series": _hist_names[k]} for row in hist]
             cdf = pd.DataFrame(chart_rows)
@@ -16284,9 +16315,12 @@ def render_macro_radar() -> None:
                 "vintage of that month — the data as it stood on the day, revisions and "
                 "publication lags included; the last point runs today's data through the "
                 "same formula, so it updates with the releases like the headline numbers "
-                "above. r* is held "
-                "fixed at 0.75% throughout (matching the backtest): that biases the LEVEL "
-                "of every prescription, not the direction of its changes. First-difference "
+                "above. r* is held at the table's value "
+                f"({x.rstar:.2f}%) throughout — a constant, so it sets the LEVEL of every "
+                "line but not the direction of its changes (the backtest below uses a fixed "
+                "0.75%, which does not affect its correlations). The natural rate is the "
+                "CBO vintage of each month, so a NAIRU override moves the table but not "
+                "this chart. First-difference "
                 "is absent because the store carries no year-ago gap to evaluate it with. "
                 "Read the gaps as stance, not forecast — they sit 100bp+ from policy for "
                 "years at a stretch, which is exactly why the page trades the CHANGE in "
@@ -16303,9 +16337,16 @@ def render_macro_radar() -> None:
                 + (" r\\* and the natural rate are assumptions for this bloc, so the level "
                    "of every line moves with what you set under *Assumptions* above."
                    if prov.assumed else ""), icon="🕰️")
-            st.caption(f"{hist[0]['when']:%b %Y}–{hist[-1]['when']:%b %Y}, monthly. "
-                       "First-difference is absent: it needs a year-ago gap this history "
-                       "does not carry consistently.")
+            _last_m = hist[-2]["when"] if _hist_live else hist[-1]["when"]
+            st.caption(f"{hist[0]['when']:%b %Y}–{_last_m:%b %Y}, monthly"
+                       + (", then a final point for **today** that is exactly the table "
+                          f"above. The monthly history stops at {_last_m:%b %Y}, the last "
+                          "month every input covers (unemployment is published about two "
+                          "months behind inflation); today's point carries it forward, "
+                          "as the table does, so the newest inflation prints are not lost."
+                          if _hist_live else ".")
+                       + " First-difference is absent: it needs a year-ago gap this "
+                         "history does not carry consistently.")
 
     # ---- prescribed vs priced -----------------------------------------------------------
     st.markdown("#### Prescribed vs expected" if res.path_is_survey
