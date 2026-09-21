@@ -48,7 +48,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -1772,6 +1772,38 @@ def meeting_repricing(asof: date) -> dict[str, dict[str, tuple[float, float]]]:
         pv = prev.get(bk, {})
         out[bk] = {iso: (bp, bp - pv[iso]) for iso, bp in mp.items() if iso in pv}
     return out
+
+
+def settle_session() -> date | None:
+    """The trading session whose official settlements the fits run on.
+
+    Fits read PX_SETTLE first (see strip_prices: one simultaneous vintage beats a
+    PX_LAST mix of fresh and stale prints). A morning pull captures the PREVIOUS
+    session's settlements — on 21 Sep 2026 the 06:25 pull held Friday 18 Sep's — so
+    labelling the page with the pull date made a day-old curve read as today's. That
+    is what made the ECB look ~10bp hotter than Bloomberg WIRP, which prices live:
+    the euro curve had rallied since Friday's close. Only a pull finishing after 21:00
+    local, once every exchange has settled, holds the same day's settlements.
+    Weekends are skipped; exchange holidays are not modelled, so this can be a day
+    early around a holiday — close enough for a label, never used in a calculation.
+    """
+    store = _load_strip_store()
+    try:
+        d = date.fromisoformat(store.get("asof") or "")
+    except ValueError:
+        return None
+    try:
+        st = json.loads((STRIP_STORE.parent / ".pull_driver_status.json")
+                        .read_text(encoding="utf-8"))
+        when = datetime.fromisoformat(st.get("when", ""))
+        if when.date() == d and when.hour >= 21:
+            return d
+    except Exception:
+        pass
+    d -= timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d
 
 
 def strip_source(contracts: list[Contract]) -> tuple[str, str | None]:

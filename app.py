@@ -10077,8 +10077,8 @@ def render_stir_overview() -> None:
     fits = _stir_bank_fits(asof, _strip_store_mtime())
     src, src_asof = stirpaths.strip_source(
         stirpaths.strip(stirpaths.PRODUCTS["SFRA Comdty"], asof, 8))
-    st.caption("Each bank's strip inverted into the meeting-step path it prices — prices from the "
-               + (f"**morning snapshot · {src_asof}**" if src == "snapshot"
+    st.caption("Each bank's strip inverted into the meeting-step path it prices — prices are the "
+               + (f"{_strip_vintage_md()} (morning snapshot {src_asof})" if src == "snapshot"
                   else "**synthetic demo feed**")
                + ". Open a bank's cockpit to set your own odds against it.")
 
@@ -10304,6 +10304,19 @@ def _rate_card_html(*, bk: str, name: str, rate_big: str, rate_tip: str,
         f"<b>{yend:+.0f}bp</b> &nbsp;·&nbsp; Terminal: <b>{term:.2f}%</b></div>"
         f"{prov}"
         f"</div>")
+
+
+def _strip_vintage_md() -> str:
+    """How to describe the prices the STIR fits run on, honestly. The fits read the
+    previous session's official SETTLEMENTS (one simultaneous vintage), not today's
+    live market — labelling them with the morning pull's date made a day-old curve
+    read as today's, and made the ECB look ~10bp hotter than Bloomberg WIRP (which
+    prices live) after the euro curve rallied since Friday's close, 21 Sep 2026."""
+    d = stirpaths.settle_session()
+    when = f"{d:%a %d %b}" if d else "the previous session"
+    return (f"**official settlements of {when}** — not today's live market. Bloomberg "
+            "WIRP prices live, so after a move since that close the two differ; the "
+            "**⚡ Live pull** on the bank's cockpit reprices on today's market")
 
 
 def _radar_priced_banner(bank: str, asof: date) -> None:
@@ -16373,8 +16386,8 @@ def render_macro_radar() -> None:
              f"(survey of **{res.strip_asof}**). Positive spread = the rule wants a "
              f"**higher** policy rate than forecasters expect."
              if res.path_is_survey else
-             f"All five rule paths against the market path from the STIR Paths fit of the "
-             f"live strip (store as-of **{res.strip_asof}**). Positive spread = the rule "
+             f"All five rule paths against the market path from the STIR Paths fit of "
+             f"the {_strip_vintage_md()}. Positive spread = the rule "
              f"wants a **higher** policy rate than the curve has priced."))
         meeting_ds = [m.meeting for m in res.meetings]
         paths = {}
@@ -16479,8 +16492,8 @@ def render_macro_radar() -> None:
              f"Positive spread = the rules want a **higher** policy rate than "
              f"forecasters expect."
              if res.path_is_survey else
-             f"Market path from the STIR Paths fit of the live strip "
-             f"(store as-of **{res.strip_asof}**). Positive spread = the rules want a "
+             f"Market path from the STIR Paths fit of the {_strip_vintage_md()}. "
+             f"Positive spread = the rules want a "
              f"**higher** policy rate than the curve has priced."))
         rows = []
         for m in res.meetings:
