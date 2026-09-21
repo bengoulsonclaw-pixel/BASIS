@@ -225,6 +225,21 @@ ALL_RULES = [taylor93, balanced, shortfalls, inertial, first_difference]
 RULE_ORDER = ["taylor93", "balanced", "shortfalls", "inertial", "firstdiff"]
 
 
+# Each rule in symbols, term for term in the SAME order as its `formula` working string,
+# so a reader can line the two up: the symbol form says what each number in the working
+# is. Kept beside the rules themselves so a coefficient change cannot leave the page
+# describing a formula the engine no longer computes. Symbols as on the page's key:
+# r* neutral real rate · π inflation · π* target · u unemployment · u* natural rate ·
+# i₋₁ current policy setting · ₋₄q = four quarters ago.
+RULE_FORMULAS = {
+    "taylor93":   "r* + π + 0.5×(π − π*) + 1.0×(u* − u)",
+    "balanced":   "r* + π + 0.5×(π − π*) + 2.0×(u* − u)",
+    "shortfalls": "r* + π + 0.5×(π − π*) + 2.0×min(u* − u, 0)",
+    "inertial":   f"{INERTIA:.2f}×i₋₁ + {1 - INERTIA:.2f}×(balanced approach)",
+    "firstdiff":  "i₋₁ + 0.5×(π − π*) + ((u* − u) − (u* − u)₋₄q)",
+}
+
+
 def evaluate(x: RuleInputs, rules=None) -> list[RuleResult]:
     """Run every rule against one set of inputs."""
     return [r(x) for r in (rules or ALL_RULES)]

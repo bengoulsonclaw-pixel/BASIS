@@ -16194,10 +16194,24 @@ def render_macro_radar() -> None:
             "Prescribed": "—" if r.prescribed is None else f"{r.prescribed:.2f}%",
             "vs policy": ("—" if r.prescribed is None
                           else f"{r.vs_actual(res.policy_now):+.0f}bp"),
-            "Working": r.formula or r.reason,
+            # The rule in symbols, term for term in the same order as the working beside
+            # it — so each number in the working can be read off (Ben, 2026-09-21).
+            "Formula": macrorules.RULE_FORMULAS.get(r.key, ""),
+            "Working (today's numbers)": r.formula or r.reason,
             "Note": r.note,
         })
-    st.dataframe(pd.DataFrame(rule_rows), use_container_width=True, hide_index=True)
+    # Six columns since the Formula column landed: size them by content, or the two
+    # text-heavy ones (formula and working) and the note get clipped while the short
+    # numeric columns sit half empty. st.dataframe does not wrap, so width is everything.
+    st.dataframe(pd.DataFrame(rule_rows), use_container_width=True, hide_index=True,
+                 column_config={
+                     "Rule": st.column_config.TextColumn(width="medium"),
+                     "Prescribed": st.column_config.TextColumn(width="small"),
+                     "vs policy": st.column_config.TextColumn(width="small"),
+                     "Formula": st.column_config.TextColumn(width="large"),
+                     "Working (today's numbers)": st.column_config.TextColumn(width="large"),
+                     "Note": st.column_config.TextColumn(width="large"),
+                 })
     st.caption(res.summary.verdict)
 
     # ---- rule history chart -------------------------------------------------------------
