@@ -16191,6 +16191,122 @@ def render_macro_radar() -> None:
     st.dataframe(pd.DataFrame(rule_rows), use_container_width=True, hide_index=True)
     st.caption(res.summary.verdict)
 
+    # ---- rule history chart -------------------------------------------------------------
+    # Directly under the five-rules table (Ben, 2026-09-21): the table is today's
+    # prescriptions, the chart is the same rules through time, so they read as one
+    # section. Same controls for every bloc, different provenance.
+    _rate_name = {"FED": "Effective fed funds rate", "ECB": "ECB deposit facility rate",
+                  "BOE": "Bank Rate", "BCB": "Selic target"}.get(bank, "Policy rate")
+    st.markdown(
+        "**Prescriptions vs the actual funds rate — as they stood at the time**"
+        if bank == "FED" else
+        f"**Prescriptions vs the actual {_rate_name} — on today's data**")
+    hist = _radar_rule_history(bank, use_core=use_core)
+    # Two cases where the chart cannot follow the selector, said out loud rather than
+    # silently drawing a different measure from the numbers above it: the Fed's history is
+    # the ALFRED vintage store, which carries core PCE only; and no history of Focus
+    # expectations exists, so Brazil's expectations view charts on core.
+    if bank == "FED" and not use_core:
+        st.caption("⚠️ The Fed history stays on **core PCE** — the point-in-time vintage "
+                   "store carries core only. The rules above are on headline.")
+    elif use_exp:
+        st.caption("⚠️ This history is on **core IPCA** — there is no history of Focus "
+                   "expectations to chart. The rules above use the expectations.")
+    if hist:
+        _hist_rules = [(k, n) for k, n, _f in _RADAR_RULES if k != "firstdiff"]
+        _hist_names = dict(_hist_rules)
+        # Startup default: the saved rule set (page prefs file), else the classic
+        # Fed-MPR pairing. Filtered against the live rule list so a renamed rule
+        # in code can never wedge the multiselect.
+        _hist_saved = [k for k in (prefs.get("hist_rules") or [])
+                       if k in _hist_names] or ["taylor93", "balanced"]
+        _hc1, _hc2 = st.columns([3, 1], vertical_alignment="bottom")
+        sel_hist = _hc1.multiselect(
+            "Rules shown", [k for k, _n in _hist_rules],
+            default=_hist_saved,
+            format_func=lambda k: _hist_names.get(k, k), key="radar_bt_hist_rules")
+        if IS_ADMIN and _hc2.button(
+                "📌 Set as default", key="radar_hist_set_def",
+                use_container_width=True, disabled=not sel_hist,
+                help="Save the rules currently shown as this chart's startup "
+                     "selection — they load on every launch."):
+            blob = _radar_prefs()
+            blob["hist_rules"] = list(sel_hist)
+            _radar_save_prefs(blob)
+            st.toast("Saved as default: "
+                     + ", ".join(_hist_names[k] for k in sel_hist), icon="📌")
+        try:
+            import altair as alt
+            chart_rows = [{"when": row["when"].isoformat(),
+                           "wlabel": row["when"].strftime("%b %Y"),
+                           "rate": row["policy"], "series": _rate_name} for row in hist]
+            for k in sel_hist:
+                chart_rows += [{"when": row["when"].isoformat(),
+                                "wlabel": row["when"].strftime("%b %Y"),
+                                "rate": row[k],
+                                "series": _hist_names[k]} for row in hist]
+            cdf = pd.DataFrame(chart_rows)
+            dom = [_rate_name] + [_hist_names[k] for k in sel_hist]
+            rng = ["#F5C518"] + ["#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65"][:len(sel_hist)]
+            base = alt.Chart(cdf).encode(
+                # No forced tick format: Vega's adaptive time labels show years at the
+                # full view and switch to months as the pan/zoom closes in.
+                # UTC scale for the same reason as the meeting charts above: a bare
+                # "2012-01-01" is parsed as UTC midnight and labelled locally, which west
+                # of Greenwich reads as December 2011.
+                x=alt.X("when:T", title=None, scale=alt.Scale(type="utc"),
+                        axis=alt.Axis(grid=True,
+                                      gridOpacity=0.25, gridDash=[2, 3])),
+                y=alt.Y("rate:Q", title="Rate (%)", scale=alt.Scale(zero=False)),
+                color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
+                                legend=alt.Legend(title=None, orient="top",
+                                                  labelLimit=0)),
+                size=alt.condition(alt.datum.series == _rate_name,
+                                   alt.value(3.0), alt.value(1.6)),
+                tooltip=[alt.Tooltip("wlabel:N", title="Month"),
+                         alt.Tooltip("series:N", title=""),
+                         alt.Tooltip("rate:Q", title="Rate", format=".2f")])
+            # Scale-bound pan/zoom (drag to pan, wheel to zoom) — the Bloomberg-chart
+            # feel. Bound on the LINE LAYER, not the layered chart: the layers share
+            # scales, and the zero rule must ride along rather than carry its own zoom.
+            lines = base.mark_line().interactive()
+            zero_rule = alt.Chart(pd.DataFrame([{"y": 0.0}])).mark_rule(
+                strokeDash=[4, 3], color="#9AA4B0").encode(y="y:Q")
+            st.altair_chart((lines + zero_rule).properties(height=480),
+                            use_container_width=True)
+            st.caption("Drag to pan, scroll/pinch to zoom, double-click to reset the view.")
+        except Exception:
+            pass
+        if bank == "FED":
+            st.caption(
+                f"US only, {hist[0]['when'].year}–{hist[-1]['when'].year}, monthly, with "
+                "a live final point. Each historical point is computed from the ALFRED "
+                "vintage of that month — the data as it stood on the day, revisions and "
+                "publication lags included; the last point runs today's data through the "
+                "same formula, so it updates with the releases like the headline numbers "
+                "above. r* is held "
+                "fixed at 0.75% throughout (matching the backtest): that biases the LEVEL "
+                "of every prescription, not the direction of its changes. First-difference "
+                "is absent because the store carries no year-ago gap to evaluate it with. "
+                "Read the gaps as stance, not forecast — they sit 100bp+ from policy for "
+                "years at a stretch, which is exactly why the page trades the CHANGE in "
+                "prescription, never the level.")
+        else:
+            st.warning(
+                "**Computed on today's data, not on what was known at the time.** No free "
+                "vintage archive exists outside the US (ALFRED is a FRED service), so every "
+                "point here runs the CURRENT, revised series back through the rule: it is "
+                f"what the rules would say now about {hist[0]['when'].year}, not what they "
+                "said then. Hindsight is in it, so it cannot be used to judge whether the "
+                "gap predicted anything — that test is US-only and lives on the Fed tab. "
+                "Read it for the SHAPE of the prescription against policy through a cycle."
+                + (" r\\* and the natural rate are assumptions for this bloc, so the level "
+                   "of every line moves with what you set under *Assumptions* above."
+                   if prov.assumed else ""), icon="🕰️")
+            st.caption(f"{hist[0]['when']:%b %Y}–{hist[-1]['when']:%b %Y}, monthly. "
+                       "First-difference is absent: it needs a year-ago gap this history "
+                       "does not carry consistently.")
+
     # ---- prescribed vs priced -----------------------------------------------------------
     st.markdown("#### Prescribed vs expected" if res.path_is_survey
                 else "#### Prescribed vs priced")
@@ -16454,8 +16570,9 @@ def render_macro_radar() -> None:
         st.caption(f"⚠️ Recording gap: {g['from']} → {g['to']} ({g['days']} days) — the "
                    f"index understates that stretch.")
 
-    # ---- rule history, and (US only) the vintage backtest ------------------------------
-    # Two DIFFERENT objects, and the page must never blur them:
+    # ---- (US only) the vintage backtest ------------------------------------------------
+    # The history chart now sits under the five-rules table; the provenance note below
+    # still applies to it. Two DIFFERENT objects, and the page must never blur them:
     #   FED  every point rebuilt from the ALFRED vintage of its month — what the rule
     #        SAID AT THE TIME. Only the US has a free vintage archive, which is also why
     #        the predictive backtest below runs for the US alone.
@@ -16511,119 +16628,6 @@ def render_macro_radar() -> None:
                     "hour cold; minutes thereafter). It measures, on point-in-time ALFRED "
                     "vintages, whether the rule gap predicted subsequent policy moves — the "
                     "check that decides how much weight this page deserves.", icon="🧪")
-
-    # The history chart — same controls for every bloc, different provenance.
-    _rate_name = {"FED": "Effective fed funds rate", "ECB": "ECB deposit facility rate",
-                  "BOE": "Bank Rate", "BCB": "Selic target"}.get(bank, "Policy rate")
-    st.markdown(
-        "**Prescriptions vs the actual funds rate — as they stood at the time**"
-        if bank == "FED" else
-        f"**Prescriptions vs the actual {_rate_name} — on today's data**")
-    hist = _radar_rule_history(bank, use_core=use_core)
-    # Two cases where the chart cannot follow the selector, said out loud rather than
-    # silently drawing a different measure from the numbers above it: the Fed's history is
-    # the ALFRED vintage store, which carries core PCE only; and no history of Focus
-    # expectations exists, so Brazil's expectations view charts on core.
-    if bank == "FED" and not use_core:
-        st.caption("⚠️ The Fed history stays on **core PCE** — the point-in-time vintage "
-                   "store carries core only. The rules above are on headline.")
-    elif use_exp:
-        st.caption("⚠️ This history is on **core IPCA** — there is no history of Focus "
-                   "expectations to chart. The rules above use the expectations.")
-    if hist:
-        _hist_rules = [(k, n) for k, n, _f in _RADAR_RULES if k != "firstdiff"]
-        _hist_names = dict(_hist_rules)
-        # Startup default: the saved rule set (page prefs file), else the classic
-        # Fed-MPR pairing. Filtered against the live rule list so a renamed rule
-        # in code can never wedge the multiselect.
-        _hist_saved = [k for k in (prefs.get("hist_rules") or [])
-                       if k in _hist_names] or ["taylor93", "balanced"]
-        _hc1, _hc2 = st.columns([3, 1], vertical_alignment="bottom")
-        sel_hist = _hc1.multiselect(
-            "Rules shown", [k for k, _n in _hist_rules],
-            default=_hist_saved,
-            format_func=lambda k: _hist_names.get(k, k), key="radar_bt_hist_rules")
-        if IS_ADMIN and _hc2.button(
-                "📌 Set as default", key="radar_hist_set_def",
-                use_container_width=True, disabled=not sel_hist,
-                help="Save the rules currently shown as this chart's startup "
-                     "selection — they load on every launch."):
-            blob = _radar_prefs()
-            blob["hist_rules"] = list(sel_hist)
-            _radar_save_prefs(blob)
-            st.toast("Saved as default: "
-                     + ", ".join(_hist_names[k] for k in sel_hist), icon="📌")
-        try:
-            import altair as alt
-            chart_rows = [{"when": row["when"].isoformat(),
-                           "wlabel": row["when"].strftime("%b %Y"),
-                           "rate": row["policy"], "series": _rate_name} for row in hist]
-            for k in sel_hist:
-                chart_rows += [{"when": row["when"].isoformat(),
-                                "wlabel": row["when"].strftime("%b %Y"),
-                                "rate": row[k],
-                                "series": _hist_names[k]} for row in hist]
-            cdf = pd.DataFrame(chart_rows)
-            dom = [_rate_name] + [_hist_names[k] for k in sel_hist]
-            rng = ["#F5C518"] + ["#64B5F6", "#BA68C8", "#4DB6AC", "#FF8A65"][:len(sel_hist)]
-            base = alt.Chart(cdf).encode(
-                # No forced tick format: Vega's adaptive time labels show years at the
-                # full view and switch to months as the pan/zoom closes in.
-                # UTC scale for the same reason as the meeting charts above: a bare
-                # "2012-01-01" is parsed as UTC midnight and labelled locally, which west
-                # of Greenwich reads as December 2011.
-                x=alt.X("when:T", title=None, scale=alt.Scale(type="utc"),
-                        axis=alt.Axis(grid=True,
-                                      gridOpacity=0.25, gridDash=[2, 3])),
-                y=alt.Y("rate:Q", title="Rate (%)", scale=alt.Scale(zero=False)),
-                color=alt.Color("series:N", scale=alt.Scale(domain=dom, range=rng),
-                                legend=alt.Legend(title=None, orient="top",
-                                                  labelLimit=0)),
-                size=alt.condition(alt.datum.series == _rate_name,
-                                   alt.value(3.0), alt.value(1.6)),
-                tooltip=[alt.Tooltip("wlabel:N", title="Month"),
-                         alt.Tooltip("series:N", title=""),
-                         alt.Tooltip("rate:Q", title="Rate", format=".2f")])
-            # Scale-bound pan/zoom (drag to pan, wheel to zoom) — the Bloomberg-chart
-            # feel. Bound on the LINE LAYER, not the layered chart: the layers share
-            # scales, and the zero rule must ride along rather than carry its own zoom.
-            lines = base.mark_line().interactive()
-            zero_rule = alt.Chart(pd.DataFrame([{"y": 0.0}])).mark_rule(
-                strokeDash=[4, 3], color="#9AA4B0").encode(y="y:Q")
-            st.altair_chart((lines + zero_rule).properties(height=480),
-                            use_container_width=True)
-            st.caption("Drag to pan, scroll/pinch to zoom, double-click to reset the view.")
-        except Exception:
-            pass
-        if bank == "FED":
-            st.caption(
-                f"US only, {hist[0]['when'].year}–{hist[-1]['when'].year}, monthly, with "
-                "a live final point. Each historical point is computed from the ALFRED "
-                "vintage of that month — the data as it stood on the day, revisions and "
-                "publication lags included; the last point runs today's data through the "
-                "same formula, so it updates with the releases like the headline numbers "
-                "above. r* is held "
-                "fixed at 0.75% throughout (matching the backtest): that biases the LEVEL "
-                "of every prescription, not the direction of its changes. First-difference "
-                "is absent because the store carries no year-ago gap to evaluate it with. "
-                "Read the gaps as stance, not forecast — they sit 100bp+ from policy for "
-                "years at a stretch, which is exactly why the page trades the CHANGE in "
-                "prescription, never the level.")
-        else:
-            st.warning(
-                "**Computed on today's data, not on what was known at the time.** No free "
-                "vintage archive exists outside the US (ALFRED is a FRED service), so every "
-                "point here runs the CURRENT, revised series back through the rule: it is "
-                f"what the rules would say now about {hist[0]['when'].year}, not what they "
-                "said then. Hindsight is in it, so it cannot be used to judge whether the "
-                "gap predicted anything — that test is US-only and lives on the Fed tab. "
-                "Read it for the SHAPE of the prescription against policy through a cycle."
-                + (" r\\* and the natural rate are assumptions for this bloc, so the level "
-                   "of every line moves with what you set under *Assumptions* above."
-                   if prov.assumed else ""), icon="🕰️")
-            st.caption(f"{hist[0]['when']:%b %Y}–{hist[-1]['when']:%b %Y}, monthly. "
-                       "First-difference is absent: it needs a year-ago gap this history "
-                       "does not carry consistently.")
 
     # ---- provenance + validation ------------------------------------------------------
     with st.expander("🔍  Where every number came from, and the correctness check"):
