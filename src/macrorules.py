@@ -355,7 +355,15 @@ def prescribed_path(x: RuleInputs, meeting_dates: list, rule=balanced,
 # must present them as editable inputs, never as data.
 DEFAULT_NAIRU = {"FED": None,      # CBO publishes it (NROU) — never guess for the US
                  "ECB": 6.8,       # euro-area structural unemployment, broad consensus
-                 "BOE": 4.25,      # BoE's own medium-term equilibrium U assumption
+                 # The Bank's OWN central estimate, not a house guess: the February 2026
+                 # Monetary Policy Report (s3.2) puts the medium-term equilibrium rate
+                 # "around 4 3/4% in three years" in its central projection, and the April
+                 # 2026 report adds that employer NICs and the National Living Wage "could
+                 # have caused the NAIRU to rise". The July 2026 report gives no newer
+                 # figure. Was 4.25 until 2026-09-21 — half a point below the Bank's own
+                 # number, which alone put the balanced rule ~100bp too dovish. Re-read the
+                 # latest MPR when it lands; the Bank revises this.
+                 "BOE": 4.75,
                  # Brazil publishes no NAIRU and the estimates that exist disagree
                  # violently — older work put it near 9-10%, more recent work well
                  # below that after years of sub-6% unemployment without a wage

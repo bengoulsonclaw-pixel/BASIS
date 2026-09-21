@@ -173,13 +173,14 @@ def _survey_fit(bank: str, policy_now: float, asof: date) -> "_SurveyFit | None"
 def compare(bank: str, *, rule=macrorules.balanced, asof: date | None = None,
             nairu: float | None = None, rstar: float | None = None,
             assume: "macrorules.PathAssumption | None" = None,
-            use_expectations: bool = False,
+            use_expectations: bool = False, use_core: bool = True,
             max_meetings: int = 8) -> RadarResult:
     """Prescribed path vs priced path for one bank."""
     bank = bank.upper()
     asof = asof or date.today()
 
     x, prov = macrorules.inputs_from_data(bank, nairu=nairu, rstar=rstar,
+                                          use_core=use_core,
                                           use_expectations=use_expectations)
     res = macrorules.evaluate(x)
     summary = macrorules.summarise(res, x.policy_rate)

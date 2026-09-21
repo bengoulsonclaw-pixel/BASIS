@@ -15866,7 +15866,7 @@ def _radar_save_prefs(blob: dict) -> None:
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def _radar_rule_history(bank: str) -> list:
+def _radar_rule_history(bank: str, use_core: bool = True) -> list:
     """Monthly rule prescriptions for the history chart, from the best source per bloc.
 
     US gets the point-in-time vintage store (what the rules SAID at the time) plus a live
@@ -15888,7 +15888,7 @@ def _radar_rule_history(bank: str) -> list:
             hist = hist + [live]
         return hist
     try:
-        return macrorules.history_on_current_data(bank)
+        return macrorules.history_on_current_data(bank, use_core=use_core)
     except Exception:
         return []
 
@@ -15976,6 +15976,38 @@ def render_macro_radar() -> None:
     rule_key = "all" if all_mode else [k for k, n, _f in _RADAR_RULES if n == pick][0]
     rule_fn = _RADAR_RULE_FN["balanced" if all_mode else rule_key]
 
+    # ---- inflation measure ---------------------------------------------------------------
+    # Visible, not buried in an expander: on the BoE in Sep 2026 this one choice moved every
+    # rule by ~75bp (core 2.6% vs headline 3.1%) — enough on its own to turn "cut" into
+    # "hold". Core is the convention (it looks through energy and food swings the bank
+    # cannot influence); headline is what households and wage-setters actually feel, and
+    # what the market trades off when it re-accelerates. Brazil adds a third option, the
+    # BCB's Focus survey of 12-month-ahead expectations, which no other bloc publishes free.
+    _INFL_NAMES = {"FED": ("core PCE", "headline PCE"),
+                   "ECB": ("core HICP", "headline HICP"),
+                   "BOE": ("core CPI", "headline CPI"),
+                   "BCB": ("trimmed-mean core IPCA", "headline IPCA")}
+    _cn, _hn = _INFL_NAMES.get(bank, ("core", "headline"))
+    _infl_opts = {"core": f"Core ({_cn})", "headline": f"Headline ({_hn})"}
+    if bank == "BCB":
+        _infl_opts["expectations"] = "Focus 12m-ahead expectations"
+    _saved_infl = (prefs.get("infl_measure") or {}).get(bank)
+    if _saved_infl is None and bank == "BCB" and prefs.get("bcb_expectations"):
+        _saved_infl = "expectations"          # the pre-2026-09-21 Brazil-only checkbox
+    if _saved_infl not in _infl_opts:
+        _saved_infl = "core"
+    _infl_choice = st.radio(
+        "Inflation measure", list(_infl_opts), horizontal=True,
+        index=list(_infl_opts).index(_saved_infl),
+        format_func=lambda k: _infl_opts[k], key=f"radar_infl_{bank}",
+        help="Core strips out energy and food, the prices a central bank cannot steer, to "
+             "show the underlying trend — the rules' convention. Headline is the whole "
+             "basket people actually pay; when it runs away from core it can feed wage "
+             "and price-setting, which is the risk markets price. Save it per bank under "
+             "Assumptions.")
+    use_core = _infl_choice == "core"
+    use_exp = _infl_choice == "expectations"
+
     # ---- assumption inputs (r* / NAIRU) — editable because for some blocs nobody publishes them
     saved = prefs.get("overrides", {}).get(bank, {})
     # Seed the boxes from the engine's own per-bank fallback rather than the BoE's, so
@@ -16013,24 +16045,12 @@ def render_macro_radar() -> None:
             blob.setdefault("overrides", {})[bank] = (
                 {"rstar": rstar_in, "nairu": nairu_in} if use_override else {})
             blob["bank"], blob["rule"] = bank, rule_key
+            blob.setdefault("infl_measure", {})[bank] = _infl_choice
             _radar_save_prefs(blob)
             st.success("Saved.")
 
     ov_rstar = rstar_in if use_override else None
     ov_nairu = nairu_in if use_override else None
-
-    # ---- forward-looking inflation (Brazil only, for now) ------------------------------
-    # An inflation targeter reacts to EXPECTED inflation, and the BCB is the only bank
-    # here whose expectations are published as free data (the weekly Focus survey). Off
-    # by default so every bloc is computed the same way unless asked otherwise.
-    use_exp = False
-    if bank == "BCB":
-        use_exp = st.checkbox(
-            "Use the Focus survey's 12-month-ahead IPCA expectation instead of realised core",
-            value=bool(prefs.get("bcb_expectations", False)), key="radar_use_exp",
-            help="The Copom sets policy against expected inflation on a forward horizon, "
-                 "so this is arguably the more faithful reading of its reaction function. "
-                 "No free equivalent exists for the Fed, ECB or BoE.")
 
     # ---- scenario sliders --------------------------------------------------------------
     with st.expander("🎛️  Scenario — shift the macro and watch the prescribed path move",
@@ -16056,7 +16076,8 @@ def render_macro_radar() -> None:
     with st.spinner("Pulling free macro data…"):
         try:
             res = macroradar.compare(bank, rule=rule_fn, nairu=ov_nairu, rstar=ov_rstar,
-                                     assume=assume, use_expectations=use_exp)
+                                     assume=assume, use_expectations=use_exp,
+                                     use_core=use_core)
         except Exception as e:
             st.error(f"Could not build the Radar for {bank}: {e}")
             return
@@ -16067,6 +16088,7 @@ def render_macro_radar() -> None:
         return
 
     x, prov = macrorules.inputs_from_data(bank, nairu=ov_nairu, rstar=ov_rstar,
+                                          use_core=use_core,
                                           use_expectations=use_exp)
 
     # The whole page compares a prescription against a second path. For most banks that
@@ -16497,7 +16519,17 @@ def render_macro_radar() -> None:
         "**Prescriptions vs the actual funds rate — as they stood at the time**"
         if bank == "FED" else
         f"**Prescriptions vs the actual {_rate_name} — on today's data**")
-    hist = _radar_rule_history(bank)
+    hist = _radar_rule_history(bank, use_core=use_core)
+    # Two cases where the chart cannot follow the selector, said out loud rather than
+    # silently drawing a different measure from the numbers above it: the Fed's history is
+    # the ALFRED vintage store, which carries core PCE only; and no history of Focus
+    # expectations exists, so Brazil's expectations view charts on core.
+    if bank == "FED" and not use_core:
+        st.caption("⚠️ The Fed history stays on **core PCE** — the point-in-time vintage "
+                   "store carries core only. The rules above are on headline.")
+    elif use_exp:
+        st.caption("⚠️ This history is on **core IPCA** — there is no history of Focus "
+                   "expectations to chart. The rules above use the expectations.")
     if hist:
         _hist_rules = [(k, n) for k, n, _f in _RADAR_RULES if k != "firstdiff"]
         _hist_names = dict(_hist_rules)
@@ -16638,7 +16670,9 @@ def render_macro_radar() -> None:
                 # deliberately doesn't carry — only the report path pays for it.
                 from src import macroradarreport
                 out = macroradarreport.build(bank=bank, rule_key=rule_key,
-                                             nairu=ov_nairu, rstar=ov_rstar)
+                                             nairu=ov_nairu, rstar=ov_rstar,
+                                             use_core=use_core,
+                                             use_expectations=use_exp)
                 st.session_state["radar_pdf_path"] = str(out)
             except Exception as e:
                 st.error(f"Report failed: {e}")

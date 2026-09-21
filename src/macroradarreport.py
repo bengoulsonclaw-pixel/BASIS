@@ -128,11 +128,17 @@ def _summary_prose(bank: str, res: "macroradar.RadarResult",
 
 def build(bank: str = "FED", rule_key: str = "balanced", *,
           nairu: float | None = None, rstar: float | None = None,
+          use_core: bool = True, use_expectations: bool = False,
           out: Path | None = None) -> Path:
     bank = bank.upper()
     rule = RULE_FN.get(rule_key, macrorules.balanced)
-    res = macroradar.compare(bank, rule=rule, nairu=nairu, rstar=rstar)
-    x, prov = macrorules.inputs_from_data(bank, nairu=nairu, rstar=rstar)
+    # Same inflation measure as the page that built it — a PDF that silently reverts to
+    # core while the screen shows headline would disagree with itself by ~75bp on the BoE.
+    res = macroradar.compare(bank, rule=rule, nairu=nairu, rstar=rstar,
+                             use_core=use_core, use_expectations=use_expectations)
+    x, prov = macrorules.inputs_from_data(bank, nairu=nairu, rstar=rstar,
+                                          use_core=use_core,
+                                          use_expectations=use_expectations)
 
     rule_rows = []
     for r in (res.summary.results if res.summary else []):
