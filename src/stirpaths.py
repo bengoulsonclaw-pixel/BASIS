@@ -108,9 +108,12 @@ BANKS: dict[str, Bank] = {
     # default_rate = the CURRENT policy setting and must track reality by hand:
     # it anchors the live fit (r0) AND generates the synthetic demo strip. The
     # Home cards and the Fed page's band picker derive from it — update HERE.
-    # FED 3.625 = 3.50-3.75 target band, confirmed off WIRP 14 Aug 2026.
+    # FED 3.875 = 3.75-4.00 target band after the 16 Sep 2026 FOMC hike: EFFR
+    # printed 3.88 from 17 Sep (was 3.63) and WIRP US shows Target 4.00 / Effective
+    # 3.88 on 21 Sep 2026. Was 3.625 (the 3.50-3.75 band, 14 Aug) — left stale for
+    # five days after the hike; health.policy_anchor_drift() now flags that.
     "FED": Bank("FED", "Federal Reserve", "FOMC", "Target band midpoint",
-                fedpath.FOMC_DECISIONS, 3.625, 25.0, "$"),
+                fedpath.FOMC_DECISIONS, 3.875, 25.0, "$"),
     # ECB 2.50: the 10 Sep 2026 GC hiked the depo 2.25→2.50 "with effect from
     # 16 September 2026" (ECB press release, confirmed 15 Sep 2026 + WIRP EZ
     # Target 2.50). Between decision and MRO effectiveness the PREVAILING o/n
@@ -122,10 +125,12 @@ BANKS: dict[str, Bank] = {
                 ECB_DECISIONS, 2.50, 25.0, "€"),
     "BOE": Bank("BOE", "Bank of England", "MPC", "Bank Rate",
                 BOE_DECISIONS, 3.75, 25.0, "£"),
-    # Selic target 14.00 per SGS 432 (target in force; confirmed by the Macro
-    # Radar session 2026-08-19 — SGS 1178 effective 13.90 = CDI −10bp ✓).
+    # Selic target 13.75: the Copom cut 25bp on 16 Sep 2026 (SGS 432 14.00 -> 13.75
+    # from 17 Sep; SGS 1178 effective 13.90 -> 13.65, still CDI -10bp). Was 14.00 per
+    # the Macro Radar session 2026-08-19 — caught stale by health.policy_anchor_drift()
+    # on 21 Sep 2026, the same day as the Fed's.
     "BCB": Bank("BCB", "Banco Central do Brasil", "Copom", "Selic target",
-                BCB_DECISIONS, 14.00, 25.0, "R$"),
+                BCB_DECISIONS, 13.75, 25.0, "R$"),
 }
 
 
@@ -1466,14 +1471,39 @@ def clean_month_anchor(bank_key: str, asof: date,
             # sits AFTER earlier meetings and reads the post-move rate: on
             # 8 Sep 2026 it anchored r0 at 3.87 and printed a phantom -30%
             # September cut into an actually-hiking market.
-            if any(asof <= bank_effective_date(bank, m) < c.end
-                   for m in bank.meetings):
-                continue
+            # ...and CLEAN also means no decision EARLIER in the same month. A monthly
+            # contract averages its whole window, so a month that already contains a
+            # move blends the old and new rates: on 21 Sep 2026 SERU6 read 3.75 — half
+            # 3.63 before the 16 Sep FOMC hike, half 3.88 after — and anchored the Fed
+            # fit at a rate that no longer existed, booking half an already-delivered
+            # hike as priced into October (+28.6bp vs WIRP's +13.8bp). The window
+            # checked is therefore [min(month start, today), month end).
+            effs = [bank_effective_date(bank, m) for m in bank.meetings]
+            if any(asof <= e < c.end for e in effs):
+                continue                            # a decision still to come
+            past_in_month = any(min(c.start, asof) <= e < asof for e in effs)
             px = px_of.get(c.code)
             if px is None:
                 continue
             proxy = 100.0 - float(px) - p.spread_bp / 100.0
-            return proxy - BANK_BASIS_SEED[bank_key] / 100.0, c.code
+            if not past_in_month:
+                return proxy - BANK_BASIS_SEED[bank_key] / 100.0, c.code
+            # The CURRENT month, with its decision already behind us. Its average
+            # blends the old and new rates (on 21 Sep 2026 SERU6 read 3.75: half
+            # 3.63 before the 16 Sep hike, half 3.88 after), so it cannot be read
+            # directly — doing so anchored the Fed fit at a rate that no longer
+            # existed and booked half an already-delivered hike into October. But
+            # the days already elapsed are KNOWN fixings, so strip them out and solve
+            # for the rate over the days that remain: that is the market's own read
+            # of the post-decision level, and how WIRP gets its current implied o/n.
+            if not (c.start <= asof < c.end):
+                continue                            # a future month: not usable
+            realized = realized_stub_avg(bank, c.start, asof)
+            n, d = (c.end - c.start).days, (asof - c.start).days
+            if realized is None or n - d < 3:
+                continue                            # too few days left to solve cleanly
+            r_now = (proxy * n - realized * d) / (n - d)
+            return r_now - BANK_BASIS_SEED[bank_key] / 100.0, f"{c.code} ex-realized"
     return None
 
 

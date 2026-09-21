@@ -421,6 +421,48 @@ def copom_calendar_drift(ttl: int = 24 * 3600) -> dict:
     }
 
 
+def policy_anchor_drift() -> list[dict]:
+    """Each STIR bank's hand-maintained `default_rate` vs the policy rate its own central
+    bank is publishing today.
+
+    `stirpaths.BANKS[...].default_rate` must be edited by hand after every decision, and
+    nothing noticed when it was not: the Fed hiked 25bp on 16 Sep 2026 and the registry
+    still said 3.625 on the 21st. It seeds the fit's starting rate, the band shown on the
+    cards and the demo strip, so a stale value misprices every meeting's odds. The live
+    series come from the Macro Radar's free data layer — Fed EFFR, ECB deposit rate, Bank
+    Rate, Selic target — read as of today.
+
+    A gap of 12.5bp or more is a missed 25bp move, not noise: EFFR sits within a few bp of
+    the band midpoint. It can also be a decision announced but not yet EFFECTIVE (the ECB's
+    lands the following week), in which case the registry is right and the feed catches up
+    within days — the message says both. Read-only by design; it never edits the registry.
+    Returns [] when the feeds are unreachable, so a dead source does not raise an alarm.
+    """
+    try:
+        from . import macrodata, stirpaths
+    except Exception:
+        return []
+    feeds = {"FED": ("us_inputs", "EFFR"), "ECB": ("ea_inputs", "deposit facility rate"),
+             "BOE": ("uk_inputs", "Bank Rate"), "BCB": ("br_inputs", "Selic target")}
+    out = []
+    today = date.today()
+    for bk, (fn, label) in feeds.items():
+        bank = stirpaths.BANKS.get(bk)
+        if bank is None:
+            continue
+        try:
+            s = getattr(macrodata, fn)().get("policy")
+            hit = s.asof(today) if s is not None and s.ok else None
+        except Exception:
+            hit = None
+        if hit is None:
+            continue
+        out.append({"bank": bk, "name": bank.name, "registry": float(bank.default_rate),
+                    "live": float(hit[1]), "live_date": hit[0], "live_label": label,
+                    "gap_bp": (float(hit[1]) - float(bank.default_rate)) * 100.0})
+    return out
+
+
 def last_test_run() -> dict:
     """logs/last_test_run.json as written by run_tests.py (also invoked by the
     pre-push hook). {} when the suite has never run on this box."""
@@ -561,6 +603,27 @@ def checks(*, frames: pd.DataFrame | None = None, deep: dict | None = None,
                     f"published calendar through {drift['hard_last']:%b %Y}.")
     except Exception:
         pass                      # the BCB feed being down is not a data-health failure
+
+    # The hand-set policy rate every STIR fit starts from, against what each central bank
+    # is publishing. This is the check that would have caught the Fed hike of 16 Sep 2026
+    # sitting unrecorded for five days while the Fed page mispriced October's odds.
+    try:
+        rows = policy_anchor_drift()
+        stale = [r for r in rows if abs(r["gap_bp"]) >= 12.5]
+        for r in stale:
+            add("bad", "Policy anchor",
+                f"{r['name']}: stirpaths.BANKS default_rate is {r['registry']:.3f}% but "
+                f"the live {r['live_label']} reads {r['live']:.2f}% ({r['live_date']:%d %b}) "
+                f"— {r['gap_bp']:+.0f}bp. Most likely a decision not yet entered: update "
+                "default_rate or every meeting's odds on STIR Paths and the Radar banner are "
+                "measured from the wrong start. (If the move is announced but not yet "
+                "effective, the feed will catch up within days.)")
+        if rows and not stale:
+            add("ok", "Policy anchor", "Every STIR bank's default_rate matches its central "
+                "bank's published rate (" + ", ".join(
+                    f"{r['bank']} {r['registry']:.2f}" for r in rows) + ").")
+    except Exception:
+        pass
 
     try:
         from src import stirpaths as _sp
