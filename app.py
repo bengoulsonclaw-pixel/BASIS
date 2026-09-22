@@ -827,11 +827,11 @@ def _vol_iv_rv_history(d):
     if h is None or h.empty or "iv" not in h.columns:
         return
     have = set(h["ticker"])
-    opts = [r.market for r in d.itertuples(index=False) if r.ticker in have]
+    opts = sorted(r.market for r in d.itertuples(index=False) if r.ticker in have)
     if not opts:
         return
     st.markdown("#### Implied vs realized — history")
-    pick = st.selectbox("Product (most stretched first)", opts, key="vol_ivrv_pick")
+    pick = st.selectbox("Product", opts, key="vol_ivrv_pick")
     row = d[d["market"] == pick].iloc[0]
     g = h[h["ticker"] == row["ticker"]].sort_values("date").copy()
     g["date"] = pd.to_datetime(g["date"])
