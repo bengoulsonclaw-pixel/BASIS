@@ -348,3 +348,57 @@ def test_implied_odds():
     assert d == "cut" and p == pytest.approx(0.72)
     d, p = sp.implied_odds(30.0)
     assert d == "hike" and p == 1.0                                 # capped at one full step
+
+
+# ── Euribor-€STR basis measured per quarter (2026-09-22) ─────────────────────────────
+# The ECB fit converts Euribor to €STR at the spread the market charges for each
+# quarter, measured off matched Euribor/€STR futures — replacing a flat 15bp seed that
+# pushed the ECB path 3-7bp above Bloomberg WIRP beyond Christmas. Prices are injected
+# via override_prices AND the store is emptied, so a contract the test did not price
+# cannot fall through to the real morning store (it did, on the first run).
+@pytest.fixture
+def _no_store(monkeypatch):
+    monkeypatch.setattr(sp, "_load_strip_store", lambda: {})
+
+
+def _basis_prices(asof, spreads_bp, estr_level=97.5):
+    er, tk = sp.PRODUCTS["ERA Comdty"], sp.PRODUCTS["TKYA Comdty"]
+    tk_by = {(c.start, c.end): c for c in sp.strip(tk, asof, 12)}
+    px = {}
+    for c, s in zip([c for c in sp.strip(er, asof, 12) if (c.start, c.end) in tk_by],
+                    spreads_bp):
+        t = tk_by[(c.start, c.end)]
+        px[t.code] = estr_level
+        px[c.code] = estr_level - s / 100.0          # Euribor rate = €STR + spread
+    return px
+
+
+def test_basis_measures_each_quarter(_no_store):
+    asof = date(2026, 9, 22)
+    want = [14.0, 16.0, 17.5, 18.0, 18.5, 18.5]
+    got = [v for _d, v in sp.euribor_estr_basis(asof, _basis_prices(asof, want))]
+    assert len(got) == len(want)
+    # median-of-3 smoothing leaves a monotone series essentially intact
+    assert got[1:-1] == pytest.approx(want[1:-1], abs=0.51)
+
+
+def test_basis_smooths_away_one_stale_mark(_no_store):
+    asof = date(2026, 9, 22)
+    got = [v for _d, v in sp.euribor_estr_basis(
+        asof, _basis_prices(asof, [16.0, 16.5, 31.0, 17.5, 18.0]))]
+    assert max(got) < 20.0                           # the 31bp print does not survive
+
+
+def test_basis_rejects_implausible_and_falls_back(_no_store):
+    asof = date(2026, 9, 22)
+    # every quarter implausible -> nothing measured -> callers use the product seed
+    assert sp.euribor_estr_basis(asof, _basis_prices(asof, [-3.0, 55.0, 60.0])) == []
+    assert sp.er_spread_at(asof, [], 15.0) == 15.0
+
+
+def test_er_spread_interpolates_between_quarters():
+    b = [(date(2026, 12, 16), 16.0), (date(2027, 3, 17), 18.0)]
+    assert sp.er_spread_at(date(2026, 12, 1), b, 15.0) == 16.0        # flat before
+    assert sp.er_spread_at(date(2027, 6, 1), b, 15.0) == 18.0         # flat after
+    mid = sp.er_spread_at(date(2027, 1, 31), b, 15.0)
+    assert 16.0 < mid < 18.0                                          # serial in between

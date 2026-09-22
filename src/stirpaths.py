@@ -170,6 +170,9 @@ PRODUCTS: dict[str, Product] = {
     # the joint ECB fit dump phantom moves into late meetings. Page-tunable.
     "ERA Comdty":  Product("ERA Comdty", "3M Euribor", "ER", "ECB", "ER",
                            "euribor", True, True, 25.0, "#BA68C8", spread_bp=15.0),
+    # ^ spread_bp=15 is now only the FALLBACK: the ECB fit measures the Euribor-€STR
+    #   spread per quarter from matched ER/TKY futures (euribor_estr_basis), because
+    #   the basis is term-structured (13.9bp front -> 18.3bp late-27 on 21 Sep 2026).
     "TKYA Comdty": Product("TKYA Comdty", "3M €STR", "€STR", "ECB", "TKY",
                            "estr", True, True, 25.0, "#4DD0E1", has_options=False),
     "SFIA Comdty": Product("SFIA Comdty", "3M SONIA", "SONIA", "BOE", "SFI",
@@ -1377,6 +1380,80 @@ def _front_anchor_cutoff(bank: "Bank", asof: date) -> date:
     return bank_effective_date(bank, ups[FRONT_ANCHOR_MEETINGS - 1])
 
 
+def _fit_price(code: str, override_prices: dict | None = None) -> float | None:
+    """A contract's price in the SAME vintage the fits use: page override, else the
+    official settle, else PX_LAST (see strip_prices for why settles come first)."""
+    ov = override_prices or {}
+    if code in ov:
+        return float(ov[code])
+    store = _load_strip_store()
+    v = store.get("settles", {}).get(code, store.get("prices", {}).get(code))
+    return None if v is None else float(v)
+
+
+def euribor_estr_basis(asof: date, override_prices: dict | None = None,
+                       n: int = 12) -> list[tuple[date, float]]:
+    """The market's own Euribor-€STR spread, per quarter: [(window start, bp)].
+
+    A 3M Euribor future and a 3M €STR future for the same IMM quarter cover the
+    same three months, so the gap between their prices IS the spread the market
+    charges for Euribor's term/credit premium — no curve fit involved. This
+    replaces the flat 15bp seed in the ECB fit. The seed was measured once (14 Aug
+    2026) and the basis is term-structured and drifts: on 21 Sep 2026 it ran 13.9bp
+    at the front to 18.3bp late 2027, so a flat 15 under-converted every Euribor
+    contract beyond Christmas and pushed the ECB path 3-7bp above Bloomberg WIRP
+    from February onwards while the front two meetings matched.
+
+    Euribor still sets the LEVEL beyond the front (the liquid contract); €STR only
+    supplies the conversion, so this does not double-count it — past the front the
+    €STR contracts are not in the fit at all (FRONT_ANCHOR_INSTRUMENTS).
+
+    Guards, because the back €STR quarters are thin: a spread outside 0-40bp is
+    discarded as a bad mark, and the series is median-of-3 smoothed so a single
+    stale print cannot kink the curve. Returns [] when fewer than two quarters
+    match; callers then fall back to the product seed.
+    """
+    er, tk = PRODUCTS.get("ERA Comdty"), PRODUCTS.get("TKYA Comdty")
+    if er is None or tk is None:
+        return []
+    tk_by_window = {(c.start, c.end): c for c in strip(tk, asof, n)}
+    raw = []
+    for c in strip(er, asof, n):
+        t = tk_by_window.get((c.start, c.end))
+        if t is None:
+            continue
+        pe, pt = _fit_price(c.code, override_prices), _fit_price(t.code, override_prices)
+        if pe is None or pt is None:
+            continue
+        bp = (pt - pe) * 100.0                      # Euribor rate − €STR rate
+        if 0.0 < bp < 40.0:
+            raw.append((c.start, bp))
+    raw.sort()
+    if len(raw) < 2:
+        return []
+    vals = [v for _d, v in raw]
+    smooth = [float(np.median(vals[max(0, i - 1):i + 2])) for i in range(len(vals))]
+    return [(d, s) for (d, _v), s in zip(raw, smooth)]
+
+
+def er_spread_at(start: date, basis: list[tuple[date, float]],
+                 fallback: float) -> float:
+    """Spread for a Euribor contract whose window starts on `start`: linear between
+    measured quarters (serial contracts fall between them), flat beyond the ends,
+    `fallback` when nothing was measured."""
+    if not basis:
+        return fallback
+    if start <= basis[0][0]:
+        return basis[0][1]
+    if start >= basis[-1][0]:
+        return basis[-1][1]
+    for (d0, v0), (d1, v1) in zip(basis, basis[1:]):
+        if d0 <= start <= d1:
+            w = (start - d0).days / max(1, (d1 - d0).days)
+            return v0 + w * (v1 - v0)
+    return fallback
+
+
 def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
                     override_prices: dict | None = None):
     """(owners, contracts, spreads_bp, prices): EVERY liquid instrument the
@@ -1393,6 +1470,10 @@ def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
     live = bool(have)
     ov = override_prices or {}
     owners, contracts, spreads, prices = [], [], [], []
+    # Euribor contracts convert to €STR at the spread the market is charging for
+    # THAT quarter, measured off matched €STR futures in the same price vintage —
+    # not one flat seed (see euribor_estr_basis). Other products keep their field.
+    basis = euribor_estr_basis(asof, override_prices) if bank_key == "ECB" else []
     # The candidate set IS the pull universe (quarterlies + monthlies capped
     # ~13mo where SER-vs-FF marks stay coherent + serials) — same function the
     # morning pull fetches, so the store can never starve the fit again.
@@ -1437,7 +1518,8 @@ def fit_instruments(bank_key: str, asof: date, r0: float | None = None,
             continue                                # store or a fat-fingered edit
         owners.append(p)
         contracts.append(c)
-        spreads.append(p.spread_bp)
+        spreads.append(er_spread_at(c.start, basis, p.spread_bp)
+                       if p.ticker == "ERA Comdty" else p.spread_bp)
         prices.append(float(px))
     return owners, contracts, spreads, prices
 

@@ -10607,12 +10607,23 @@ def render_stir_bank(bank_key: str) -> None:
                                        "(prices and fair values stay untouched). 0 = off.")
         er_spread = 0.0
         if bank_key == "ECB":
+            # Default to what the market is charging today, measured per quarter off
+            # matched Euribor/€STR futures (the ECB FIT uses that whole curve); this
+            # single number only seeds the option-landing fair values below.
+            _basis = stirpaths.euribor_estr_basis(asof)
+            _er_default = (round(float(np.median([v for _d, v in _basis])), 1) if _basis
+                           else stirpaths.PRODUCTS["ERA Comdty"].spread_bp)
             er_spread = a3.number_input("Euribor − €STR spread (bp)",
-                                        value=stirpaths.PRODUCTS["ERA Comdty"].spread_bp,
+                                        value=_er_default,
                                         step=1.0, format="%.1f", key="spECB_ersp",
-                                        help="Seeds the per-contract Spread column in the market-"
-                                             "prices grid (Euribor is a forward-looking term fix). "
-                                             "Default measured off the real strips vs €STR-fair.")
+                                        help="Seeds the option-landing fair values below "
+                                             "(Euribor is a forward-looking term fix). The ECB "
+                                             "path itself uses the spread measured PER QUARTER "
+                                             "from matched Euribor/€STR futures"
+                                             + (f" — today {_basis[0][1]:.1f}bp at the front to "
+                                                f"{max(v for _d, v in _basis):.1f}bp at the peak"
+                                                if _basis else "")
+                                             + "; this default is its median.")
         if _rq:
             stub = policy + basis_bp / 100.0        # unused: DI zeros have no stub
             a3.caption("No front-stub input for DI — every contract accrues from "
