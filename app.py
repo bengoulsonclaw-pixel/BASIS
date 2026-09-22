@@ -1095,7 +1095,7 @@ def _skewreal_section():
                "lean on the betas). ✓ = levels fit and changes beta agree (sign, within 2×); "
                "≈ = one trending regime dominated the window — read the gap with care.")
 
-    pick = st.selectbox("Chart a market (largest wing gap first)", df["market"].tolist(), key="skr_pick")
+    pick = st.selectbox("Chart a market", sorted(df["market"].tolist()), key="skr_pick")
     tk = df.set_index("market").loc[pick, "ticker"]
     j, fit = skewreal.scatter_frame(tk, win)
     if j is None:
@@ -6933,8 +6933,8 @@ def render_eq_strategy(strat: str) -> None:
         st.info("Nothing flagged at the current trigger — lower it to chart the near-misses.")
     else:
         _order = _flagged.reindex(_flagged["metric"].abs().sort_values(ascending=False).index)
-        _mkts = _order["market"].tolist()
-        sel = st.selectbox(f"Chart a market — {len(_mkts)} flagged at the current trigger (strongest first)",
+        _mkts = sorted(_order["market"].tolist())
+        sel = st.selectbox(f"Chart a market — {len(_mkts)} flagged at the current trigger",
                            _mkts, key=f"eqstrat_sel_{strat}")
         _row = _order[_order["market"] == sel].iloc[0]
         _d = int(_row["direction"])
@@ -7549,7 +7549,7 @@ def render_bbg_codes() -> None:
                 "Pick the product and the date the client wants cover to, and this returns the "
                 "Bloomberg code. A calendar date rarely **is** an expiry, so you also get the "
                 "contract still trading on that date — usually the one you actually want.")
-            prods = bbgcodes.products()
+            prods = sorted(bbgcodes.products(), key=lambda p: str(p["name"]))
             c1, c2, c3 = st.columns([0.45, 0.3, 0.25])
             labels = [f"{p['name']}  ·  {p['asset']}" for p in prods]
             idx = c1.selectbox("Product", range(len(prods)), format_func=lambda i: labels[i],
@@ -12934,7 +12934,8 @@ def render_ta_backtester(scope: str = "ficc") -> None:
 
     _dflt = tabt_defaults(scope)                  # saved settings — seeds every control below
 
-    ticker = st.selectbox("Product", tickers, format_func=_lab, key=f"tabt_tk{k}")
+    ticker = st.selectbox("Product", sorted(tickers, key=_lab), format_func=_lab,
+                          key=f"tabt_tk{k}")
 
     # --- strategy picker, by axis — the SAME structure as the TA hub's confluence set, and the
     # same scoring rules: several methods ticked within one axis are de-duplicated (strongest
@@ -14002,7 +14003,7 @@ def render_strategy_builder() -> None:
         return min(_MONTHS, key=lambda L: abs(_MDAYS[L] - days))
 
     _NONE = "— manual —"
-    _opts = [_NONE] + list(INSTRUMENTS)
+    _opts = [_NONE] + sorted(INSTRUMENTS, key=lambda t: str(INSTRUMENTS[t][0]))
     c1, c2, c3, c4 = st.columns([1.9, 1, 1, 1])
     prod = c1.selectbox("Product", _opts,
                         format_func=lambda t: t if t == _NONE else f"{INSTRUMENTS[t][0]}  ·  {t}",
@@ -15131,7 +15132,8 @@ def render_seasonality() -> None:
 
     # ---- product detail -----------------------------------------------------
     st.divider()
-    tickers = list(scr["ticker"]) if not scr.empty else []
+    tickers = (sorted(scr["ticker"], key=lambda t: str(universe.yield_name(t)))
+               if not scr.empty else [])
     if not tickers:
         return
     default_t = "NGA Comdty" if "NGA Comdty" in tickers else tickers[0]
@@ -17527,7 +17529,7 @@ if active in ("MA Crossover", "MA Swing"):
     if _v.empty:
         st.info(f"No {active} rows yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (confirmed signals first)", _v["market"].tolist(),
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()),
                            key=f"mac_market_{active}")
         try:
             cdata, info = _mac.crossover_chart_data(_tick[sel])
@@ -17695,7 +17697,7 @@ if active == "Flag Breakout":
         # ---- Inspector: drill into ANY market (incl. the sub-trigger watchlist) + volume ----
         st.divider()
         st.markdown("##### Inspect any market")
-        sel = st.selectbox("Market (closest to breakout first)", _v["market"].tolist(),
+        sel = st.selectbox("Market", sorted(_v["market"].tolist()),
                            key="fb_market", label_visibility="collapsed")
         try:
             cdata, info = _fb.flag_chart_data(_tick[sel])
@@ -17768,7 +17770,7 @@ if active == "Support & Resistance":
     if _v.empty:
         st.info("No support/resistance reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (closest to a level first)", _v["market"].tolist(), key="sr_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="sr_market")
         try:
             cdata, info = _sr.sr_chart_data(_tick[sel])
         except Exception as e:
@@ -17821,7 +17823,7 @@ if active == "Fibonacci Retracement":
     if _v.empty:
         st.info("No Fibonacci reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (closest to a key level first)", _v["market"].tolist(), key="fib_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="fib_market")
         try:
             cdata, info = _fbn.fib_chart_data(_tick[sel])
         except Exception as e:
@@ -17923,7 +17925,7 @@ if active == "Momentum (RSI/MACD)":
     if _v.empty:
         st.info("No momentum reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (strongest setup first)", _v["market"].tolist(), key="mom_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="mom_market")
         try:
             cdata, info = _mom.momentum_chart_data(_tick[sel])
         except Exception as e:
@@ -17974,7 +17976,7 @@ if active == "Bollinger Squeeze":
     if _v.empty:
         st.info("No Bollinger reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (tightest squeeze first)", _v["market"].tolist(), key="bb_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="bb_market")
         try:
             cdata, info = _bb.bollinger_chart_data(_tick[sel])
         except Exception as e:
@@ -18018,7 +18020,7 @@ if active == "Elliott Wave":
     if _v.empty:
         st.info("No Elliott reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (best wave fit first)", _v["market"].tolist(), key="ew_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="ew_market")
         try:
             cdata, info = _ew.elliott_chart_data(_tick[sel])
         except Exception as e:
@@ -18080,7 +18082,7 @@ if active == "Ichimoku Cloud":
     if _v.empty:
         st.info("No Ichimoku events right now — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (strongest read first)", _v["market"].tolist(), key="ichi_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="ichi_market")
         try:
             cdata, info = _ic.ichimoku_chart_data(_tick[sel])
         except Exception as e:
@@ -18135,7 +18137,7 @@ if active == "On-Balance Volume":
     if _v.empty:
         st.info("No OBV reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (strongest read first)", _v["market"].tolist(), key="obv_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="obv_market")
         try:
             cdata, info = _obv.obv_chart_data(_tick[sel])
         except Exception as e:
@@ -18177,7 +18179,7 @@ if active == "Money Flow Index":
     if _v.empty:
         st.info("No MFI reads yet — click **🔁 Re-run signals** on the 🏠 Home page.")
     else:
-        sel = st.selectbox("Chart a market (strongest read first)", _v["market"].tolist(), key="mfi_market")
+        sel = st.selectbox("Chart a market", sorted(_v["market"].tolist()), key="mfi_market")
         try:
             cdata, info = _mfi.mfi_chart_data(_tick[sel])
         except Exception as e:
@@ -18342,8 +18344,8 @@ if active == "COT Reports":
 
     # --- per-market interactive chart ---
     labels = {r.ticker: f"{r.market} · {r.asset}" for r in detail.itertuples(index=False)}
-    order = detail["ticker"].tolist()                       # most-crowded first
-    sel = st.selectbox("Chart a market (most crowded first)", order,
+    order = sorted(detail["ticker"].tolist(), key=lambda t: labels.get(t, t))
+    sel = st.selectbox("Chart a market", order,
                        format_func=lambda t: labels.get(t, t), key="cot_sel")
     win = st.radio("Window", ["1Y", "3Y", "Max"], index=1, horizontal=True, key="cot_win")
     weeks = {"1Y": 52, "3Y": 156, "Max": 100000}[win]
@@ -18749,7 +18751,8 @@ if active == "Put/Call Ratios":
 
     # --- per-product interactive chart ---
     labels = {r.ticker: f"{r.market} · {r.asset}" for r in detail.itertuples(index=False)}
-    sel = st.selectbox("Chart a market (most extreme first)", detail["ticker"].tolist(),
+    sel = st.selectbox("Chart a market",
+                       sorted(detail["ticker"].tolist(), key=lambda t: labels.get(t, t)),
                        format_func=lambda t: labels.get(t, t), key="pc_sel")
     drow = detail[detail["ticker"] == sel].iloc[0]
     m1, m2, m3, m4 = st.columns(4)
