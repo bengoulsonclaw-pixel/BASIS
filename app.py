@@ -839,7 +839,17 @@ def _vol_iv_rv_history(d):
 
     long = g.melt(id_vars=["date"], value_vars=["iv", "rv"], var_name="leg", value_name="vol")
     long["leg"] = long["leg"].map({"iv": "Implied (1M, our curve)", "rv": "Realized (1M)"})
-    top = alt.Chart(long.dropna(subset=["vol"])).mark_line(strokeWidth=2.0).encode(
+    # x-ONLY scale-bound pan/zoom. Bound to x alone so the top panel's dual y-axes
+    # (vol left, underlying right) stay put while time zooms; the vconcat below
+    # shares the x SCALE across both panels, so one gesture moves them together.
+    zoomx = alt.selection_interval(bind="scales", encodings=["x"])
+    px_bg = alt.Chart(g.dropna(subset=["price"])).mark_line(
+        color=cc["muted"], strokeWidth=1.4, opacity=0.55).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("price:Q", title="underlying", scale=alt.Scale(zero=False),
+                axis=alt.Axis(orient="right")),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("price:Q", title="underlying", format=".2f")])
+    vol_lines = alt.Chart(long.dropna(subset=["vol"])).mark_line(strokeWidth=2.0).encode(
         x=alt.X("date:T", title=None),
         y=alt.Y("vol:Q", title="annualised vol (%)", scale=alt.Scale(zero=False)),
         color=alt.Color("leg:N",
@@ -847,12 +857,8 @@ def _vol_iv_rv_history(d):
                                         range=[cc["series"], cc["accent"]]),
                         legend=alt.Legend(title=None, orient="top")),
         tooltip=[alt.Tooltip("date:T"), alt.Tooltip("leg:N", title="leg"),
-                 alt.Tooltip("vol:Q", format=".1f")])
-    st.markdown(f"**{pick}** — implied {row['iv']:.1f} / realized {row['rv']:.1f} · "
-                f"spread {row['spread']:+.1f}"
-                + (f" · z {row['z']:+.2f} ({int(row['pctl'])}th %ile)" if pd.notna(row["z"]) else ""))
-    # Scale-bound pan/zoom, same idiom as the Macro Rate Radar charts.
-    brand.show_chart(top.interactive().properties(height=270))
+                 alt.Tooltip("vol:Q", format=".1f")]).add_params(zoomx)
+    top = alt.layer(px_bg, vol_lines).resolve_scale(y="independent")
 
     gg = g.dropna(subset=["spread"]).assign(pos=g["spread"].clip(lower=0),
                                             neg=g["spread"].clip(upper=0))
@@ -865,15 +871,22 @@ def _vol_iv_rv_history(d):
     s_line = alt.Chart(gg).mark_line(color=cc["ink"], strokeWidth=1.6).encode(
         x="date:T", y=alt.Y("spread:Q"),
         tooltip=[alt.Tooltip("date:T"), alt.Tooltip("spread:Q", format="+.1f")])
-    # Pan/zoom bound on the LINE layer (Macro Rate Radar idiom): the layers share
-    # scales, so the shading and zero rule ride the zoom rather than carry their own.
-    brand.show_chart((zero + a_pos + a_neg + s_line.interactive()).properties(height=160))
+    bottom = zero + a_pos + a_neg + s_line
+
+    st.markdown(f"**{pick}** — implied {row['iv']:.1f} / realized {row['rv']:.1f} · "
+                f"spread {row['spread']:+.1f}"
+                + (f" · z {row['z']:+.2f} ({int(row['pctl'])}th %ile)" if pd.notna(row["z"]) else ""))
+    combo = alt.vconcat(top.properties(height=270, width="container"),
+                        bottom.properties(height=160, width="container"),
+                        spacing=6).resolve_scale(x="shared")
+    brand.show_chart(combo)
     st.caption("Top: our settlement-built constant-30-day implied (vendor backstop only where our "
-               "build has no marks) against the matched 21-session close-to-close realized. Bottom: "
-               "the spread, one minus the other — red shading = implied above realized (premium), "
-               "green = below (discount). This is the exact series each market's z-score and "
-               "percentile are judged from. Drag to pan, scroll/pinch to zoom, double-click to "
-               "reset the view.")
+               "build has no marks) against the matched 21-session close-to-close realized, with "
+               "the underlying future in grey behind (right axis). Bottom: the spread, one minus "
+               "the other — red shading = implied above realized (premium), green = below "
+               "(discount); the exact series each market's z-score and percentile are judged from. "
+               "The panels share their time axis — drag to pan, scroll/pinch to zoom (both move "
+               "together), double-click to reset.")
 
 
 def _diverging_bars(allp, color, thr, x_title, rule_lines=True):
