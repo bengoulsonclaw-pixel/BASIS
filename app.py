@@ -696,8 +696,9 @@ def _vol_charts(threshold):
                "two straight sessions (an event fading out of the window — treat cheap readings with "
                "care), ▴ = more than double it (realizing accelerating past the 1-month).")
 
+    _vol_product_focus(d, cm, corr_thr, _corrname, _moves, _uni)
+
     # ---- Short-term rates: own section, rate-vol convention (1σ moves in bp) ----
-    _vol_iv_rv_history(d)
 
     stir_path = VOL_DETAIL_FILE.parent / "stirvol.parquet"
     if stir_path.exists():
@@ -732,34 +733,11 @@ def _vol_charts(threshold):
 
     _volresponse_section()
 
-    # ---- Relative-value: pick a product, see its vol-correlated peers + their signal ----
-    if cm is not None:
-        st.markdown("#### Relative-value — what to trade against it")
-        pick = st.selectbox("Focus product — show its vol-correlated peers",
-                            d.sort_values("market")["market"].tolist(), key="vol_rv_pick")
-        prow = d[d["market"] == pick].iloc[0]
-        st.markdown(f"**{pick}** — {prow['flag']} &nbsp;·&nbsp; implied {prow['iv']:.1f} / realized "
-                    f"{prow['rv']:.1f} &nbsp;·&nbsp; z {prow['z']:+.2f}")
-        _ps = volcorr.peers(prow["ticker"], cm, corr_thr, universe=_uni)
-        if _ps:
-            _cmap = dict(_ps)
-            pk = d[d["ticker"].isin(_cmap)].copy()
-            pk["_c"] = pk["ticker"].map(_cmap)
-            pk = pk.sort_values("_c", ascending=False)
-            ptbl = pk.assign(Corr=(pk["_c"] * 100).map("{:.0f}%".format),
-                             Spread=pk["spread"].map("{:+.1f}".format),
-                             Z=pk["z"].map("{:+.2f}".format))[
-                ["market", "Corr", "iv_lbl", "rv_lbl", "Spread", "Z", "flag"]].rename(columns={
-                "market": "Peer", "iv_lbl": "Implied (±1σ)", "rv_lbl": "Realized (±1σ)",
-                "Z": "z (1y)", "flag": "Signal"})
-            st.dataframe(ptbl, use_container_width=True, hide_index=True)
-            st.caption(f"Peers whose {_moves} moves with **{pick}** ≥ {int(corr_thr*100)}% (1-yr {_corrname} "
-                       "correlation, matching the Product Correlations page). If it screens cheap, sell vol on a "
-                       "**rich** peer against it — and vice-versa.")
-        else:
-            st.caption(f"Nothing correlates ≥ {int(corr_thr*100)}% with {pick} — lower the threshold above to surface more.")
+    # (The per-product peers table and history charts live in the Product Focus block
+    #  above — one picker drives everything for one market, peers last, per Ben's
+    #  2026-09-24 page restructure.)
 
-    # ---- Flagged opportunities: dumbbell + table + per-market 1-year history ----
+    # ---- Flagged opportunities: dumbbell + table ----
     fl = d[d["flag"] != "Neutral"].reindex(d.loc[d["flag"] != "Neutral", "z"].abs()
                                            .sort_values(ascending=False).index)
     st.markdown(f"#### Flagged — {len(fl)} opportunit{'y' if len(fl) == 1 else 'ies'} at |z| ≥ {thr:g}")
@@ -793,33 +771,18 @@ def _vol_charts(threshold):
     st.caption("Bracketed figure = the corresponding 1-day 1σ move in the contract's own price "
                "units (vol ÷ √252 × price), to the decimals it trades in.")
 
-    hist_path = VOL_DETAIL_FILE.parent / "volatility_history.parquet"
-    if hist_path.exists():
-        h = _read_parquet_mtime(hist_path)
-        have = [m for m in fl["market"].tolist()
-                if fl.loc[fl["market"] == m, "ticker"].iloc[0] in set(h.get("ticker", []))]
-        if have:
-            st.markdown("**1-year history — implied − realized spread vs the underlying**")
-            pick = st.selectbox("Flagged market", have, key="vol_hist_pick")
-            tk = fl.loc[fl["market"] == pick, "ticker"].iloc[0]
-            g = h[h["ticker"] == tk].sort_values("date").copy()
-            g["date"] = pd.to_datetime(g["date"])
-            scol = cc["short"] if fl.loc[fl["market"] == pick, "flag"].iloc[0].startswith("Rich") else cc["long"]
-            sp_area = alt.Chart(g).mark_area(opacity=0.22, color=scol).encode(
-                x=alt.X("date:T", title=None), y=alt.Y("spread:Q", title="implied − realized (vol pts)"))
-            sp_line = alt.Chart(g).mark_line(color=scol, strokeWidth=2.1).encode(x="date:T", y="spread:Q")
-            px_line = alt.Chart(g).mark_line(color=cc["ink"], strokeWidth=1.9).encode(
-                x="date:T", y=alt.Y("price:Q", title="underlying price", scale=alt.Scale(zero=False)))
-            brand.show_chart(alt.layer(sp_area + sp_line, px_line).resolve_scale(y="independent").properties(height=320))
+    st.caption("Deep-dive any of these in the **Product focus** block above — history, vol "
+               "response and the peers to trade against, all for one pick.")
 
 
-def _vol_iv_rv_history(d):
-    """Implied vs realized THROUGH TIME for any product (Ben, 2026-09-22): a picker,
-    the two vol legs as lines on one time axis, and beneath it the spread
-    (implied − realized) — the series every z-score on this page is judged from.
-    Reads the vol book's persisted year (volatility_history.parquet: our own
-    implied post-overlay, matched 21-session realized)."""
+def _vol_product_focus(d, cm, corr_thr, corrname, moves, uni):
+    """ONE product, everything about it (Ben's page restructure, 2026-09-24: the page
+    had four separate product pickers showing four different markets at once — now a
+    single picker drives the lot). Top to bottom: today's numbers, the implied/
+    realized/underlying history with the spread panel, how its vol responds to moves,
+    and — last, per Ben's spec — the correlated peers to trade it against."""
     import altair as alt
+    from src import volcorr, volmove
     hist_path = VOL_DETAIL_FILE.parent / "volatility_history.parquet"
     if not hist_path.exists():
         return
@@ -830,8 +793,9 @@ def _vol_iv_rv_history(d):
     opts = sorted(r.market for r in d.itertuples(index=False) if r.ticker in have)
     if not opts:
         return
-    st.markdown("#### Implied vs realized — history")
-    pick = st.selectbox("Product", opts, key="vol_ivrv_pick")
+    st.markdown("#### Product focus")
+    pick = st.selectbox("Product — everything below is about this market", opts,
+                        key="vol_focus_pick")
     row = d[d["market"] == pick].iloc[0]
     g = h[h["ticker"] == row["ticker"]].sort_values("date").copy()
     g["date"] = pd.to_datetime(g["date"])
@@ -880,9 +844,12 @@ def _vol_iv_rv_history(d):
         tooltip=[alt.Tooltip("date:T"), alt.Tooltip("spread:Q", format="+.1f")])
     bottom = zero + a_pos + a_neg + s_line
 
-    st.markdown(f"**{pick}** — implied {row['iv']:.1f} / realized {row['rv']:.1f} · "
-                f"spread {row['spread']:+.1f}"
-                + (f" · z {row['z']:+.2f} ({int(row['pctl'])}th %ile)" if pd.notna(row["z"]) else ""))
+    _flag = row.get("flag", "—")
+    st.markdown(f"**{pick}** — {_flag} &nbsp;·&nbsp; implied {row['iv_lbl']} / realized "
+                f"{row['rv_lbl']} &nbsp;·&nbsp; spread {row['spread']:+.1f}"
+                + (f" &nbsp;·&nbsp; z {row['z']:+.2f} ({int(row['pctl'])}th %ile)"
+                   if pd.notna(row["z"]) else "")
+                + f" &nbsp;·&nbsp; source: {row.get('src_lbl', 'vendor surface')}")
     combo = alt.vconcat(top.properties(height=270, width="container"),
                         bottom.properties(height=160, width="container"),
                         spacing=6).resolve_scale(x="shared")
@@ -894,6 +861,69 @@ def _vol_iv_rv_history(d):
                "(discount); the exact series each market's z-score and percentile are judged from. "
                "The panels share their time axis — drag to pan, scroll/pinch to zoom (both move "
                "together), double-click to reset.")
+
+    # ---- how THIS product's vol responds to moves (per-product view of the book table) ----
+    tk = row["ticker"]
+    try:
+        vr = _volresponse_table()
+        vrow = vr[vr["ticker"] == tk].iloc[0] if len(vr[vr["ticker"] == tk]) else None
+    except Exception:
+        vrow = None
+    j = volmove.move_frame(tk, 260)
+    dd = j.dropna(subset=["ret", "div"]).copy() if not j.empty else j
+    if vrow is not None and len(dd) >= 50:
+        st.markdown("**How its vol responds to a move** — "
+                    f"down-beta {vrow['down_beta']:+.2f} / up-beta {vrow['up_beta']:+.2f} "
+                    f"vol-pts per 1% · median pop on its 2σ+ days {vrow['big_pop']:+.1f} "
+                    f"({vrow['big_n']} days) · next-5d drift {vrow['keep5']:+.1f}"
+                    if pd.notna(vrow["big_pop"]) else
+                    "**How its vol responds to a move**")
+        dd["side"] = np.where(dd["ret"] < 0, "down day", "up day")
+        vpts = alt.Chart(dd.reset_index()).mark_circle(size=30, opacity=0.5, stroke="white",
+                                                       strokeWidth=0.3).encode(
+            x=alt.X("ret:Q", title="daily move (%)"),
+            y=alt.Y("div:Q", title="implied vol change (pts)"),
+            color=alt.Color("side:N", scale=alt.Scale(domain=["down day", "up day"],
+                                                      range=[cc["short"], cc["long"]]),
+                            legend=alt.Legend(title=None, orient="top")),
+            tooltip=[alt.Tooltip("date:T"), alt.Tooltip("ret:Q", format="+.2f"),
+                     alt.Tooltip("div:Q", format="+.2f")])
+        vch = vpts
+        for sub, lo2, hi2 in ((dd[dd["ret"] < 0], float(dd["ret"].min()), 0.0),
+                              (dd[dd["ret"] > 0], 0.0, float(dd["ret"].max()))):
+            if len(sub) >= 25:
+                gfit, bfit = np.polyfit(sub["ret"], sub["div"], 1)
+                vch = vch + alt.Chart(pd.DataFrame(
+                    {"ret": [lo2, hi2], "div": [gfit * lo2 + bfit, gfit * hi2 + bfit]})).mark_line(
+                    color=cc["ink"], strokeDash=[5, 3], strokeWidth=1.5).encode(x="ret:Q", y="div:Q")
+        brand.show_chart(vch.properties(height=300))
+        st.caption("Each dot is a day (move vs implied change); dashed = the two half-fits. "
+                   "Positive beta = implied rises on that side. The book-wide ranking lives in "
+                   "the Vol response table further down the page.")
+
+    # ---- and, last: what to trade it against (Ben's spec — peers at the bottom) ----
+    if cm is not None:
+        st.markdown("**What to trade against it** — correlated peers")
+        _ps = volcorr.peers(tk, cm, corr_thr, universe=uni)
+        if _ps:
+            _cmap = dict(_ps)
+            pk = d[d["ticker"].isin(_cmap)].copy()
+            pk["_c"] = pk["ticker"].map(_cmap)
+            pk = pk.sort_values("_c", ascending=False)
+            ptbl = pk.assign(Corr=(pk["_c"] * 100).map("{:.0f}%".format),
+                             Spread=pk["spread"].map("{:+.1f}".format),
+                             Z=pk["z"].map("{:+.2f}".format))[
+                ["market", "Corr", "iv_lbl", "rv_lbl", "Spread", "Z", "flag"]].rename(columns={
+                "market": "Peer", "iv_lbl": "Implied (±1σ)", "rv_lbl": "Realized (±1σ)",
+                "Z": "z (1y)", "flag": "Signal"})
+            st.dataframe(ptbl, use_container_width=True, hide_index=True)
+            st.caption(f"Peers whose {moves} moves with **{pick}** ≥ {int(corr_thr*100)}% (1-yr "
+                       f"{corrname} correlation, matching the Product Correlations page). If it "
+                       "screens cheap, sell vol on a **rich** peer against it — and vice-versa. "
+                       "Metric and threshold are the controls at the top of the page.")
+        else:
+            st.caption(f"Nothing correlates ≥ {int(corr_thr*100)}% with {pick} — lower the "
+                       "threshold at the top of the page to surface more.")
 
 
 def _diverging_bars(allp, color, thr, x_title, rule_lines=True):
@@ -1018,41 +1048,10 @@ def _volresponse_section():
                "over the following week: positive kept building, negative bled back (gamma paid, "
                "vega didn't). Everything is computed from our own implied history against settlement "
                "prices. A cheap-vol flag on a market that responds hard here is a different "
-               "conversation from cheap vol that never wakes up.")
-
-    pick = st.selectbox("Chart a market (biggest big-day pop first)", df["market"].tolist(),
-                        key="vr_pick")
-    tk = df.set_index("market").loc[pick, "ticker"]
-    j = volmove.move_frame(tk, 260)
-    d = j.dropna(subset=["ret", "div"]).copy()
-    d["side"] = np.where(d["ret"] < 0, "down day", "up day")
-    cc = brand.chart_colors()
-    pts = alt.Chart(d.reset_index()).mark_circle(size=30, opacity=0.5, stroke="white",
-                                                 strokeWidth=0.3).encode(
-        x=alt.X("ret:Q", title="daily move (%)"),
-        y=alt.Y("div:Q", title="implied vol change (pts)"),
-        color=alt.Color("side:N", scale=alt.Scale(domain=["down day", "up day"],
-                                                  range=[cc["short"], cc["long"]]),
-                        legend=alt.Legend(title=None, orient="top")),
-        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("ret:Q", format="+.2f"),
-                 alt.Tooltip("div:Q", format="+.2f")])
-    fits = []
-    for sub, lo, hi in ((d[d["ret"] < 0], float(d["ret"].min()), 0.0),
-                        (d[d["ret"] > 0], 0.0, float(d["ret"].max()))):
-        if len(sub) >= 25:
-            g, b = np.polyfit(sub["ret"], sub["div"], 1)
-            fits.append(pd.DataFrame({"ret": [lo, hi], "div": [g * lo + b, g * hi + b]}))
-    fitlayer = [alt.Chart(f).mark_line(color=cc["ink"], strokeDash=[5, 3],
-                                       strokeWidth=1.5).encode(x="ret:Q", y="div:Q")
-                for f in fits]
-    r = df[df["ticker"] == tk].iloc[0]
-    st.markdown(f"**{pick}** — each dot is a day (move vs implied change); dashed = the two "
-                f"half-fits. Down-beta {r['down_beta']:+.2f}, up-beta {r['up_beta']:+.2f} "
-                f"vol-pts per 1%.")
-    ch = pts
-    for f in fitlayer:
-        ch = ch + f
-    brand.show_chart(ch.properties(height=360))
+               "conversation from cheap vol that never wakes up. Chart any single market's "
+               "response in the **Product focus** block above.")
+    # (The per-product response scatter moved into the Product Focus block — one
+    #  picker drives everything for one market; this section stays book-level.)
 
 
 def _skewreal_section():
