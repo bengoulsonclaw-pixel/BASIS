@@ -851,7 +851,8 @@ def _vol_iv_rv_history(d):
     st.markdown(f"**{pick}** — implied {row['iv']:.1f} / realized {row['rv']:.1f} · "
                 f"spread {row['spread']:+.1f}"
                 + (f" · z {row['z']:+.2f} ({int(row['pctl'])}th %ile)" if pd.notna(row["z"]) else ""))
-    brand.show_chart(top.properties(height=270))
+    # Scale-bound pan/zoom, same idiom as the Macro Rate Radar charts.
+    brand.show_chart(top.interactive().properties(height=270))
 
     gg = g.dropna(subset=["spread"]).assign(pos=g["spread"].clip(lower=0),
                                             neg=g["spread"].clip(upper=0))
@@ -864,12 +865,15 @@ def _vol_iv_rv_history(d):
     s_line = alt.Chart(gg).mark_line(color=cc["ink"], strokeWidth=1.6).encode(
         x="date:T", y=alt.Y("spread:Q"),
         tooltip=[alt.Tooltip("date:T"), alt.Tooltip("spread:Q", format="+.1f")])
-    brand.show_chart((zero + a_pos + a_neg + s_line).properties(height=160))
+    # Pan/zoom bound on the LINE layer (Macro Rate Radar idiom): the layers share
+    # scales, so the shading and zero rule ride the zoom rather than carry their own.
+    brand.show_chart((zero + a_pos + a_neg + s_line.interactive()).properties(height=160))
     st.caption("Top: our settlement-built constant-30-day implied (vendor backstop only where our "
                "build has no marks) against the matched 21-session close-to-close realized. Bottom: "
                "the spread, one minus the other — red shading = implied above realized (premium), "
                "green = below (discount). This is the exact series each market's z-score and "
-               "percentile are judged from.")
+               "percentile are judged from. Drag to pan, scroll/pinch to zoom, double-click to "
+               "reset the view.")
 
 
 def _diverging_bars(allp, color, thr, x_title, rule_lines=True):
