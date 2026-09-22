@@ -378,15 +378,74 @@ _FUND_PAGE = 60           # funds listed inside one manager — Itaú alone runs
 # some trouble to tidy, and "BB Top Fixed Income Short Term Automático II" shouted back as
 # "BB TOP FIXED INCOME SHORT TERM AUTOMÁTICO II" undoes that. Scoped to these two keys via
 # Streamlit's st-key-<key> container class so no other button is touched.
-_ROW_CSS = """<style>
-.bf-cell{text-align:right;padding-top:.6rem;font-variant-numeric:tabular-nums;
-         font-size:.86rem;line-height:1.2}
+# One grid for both row types. They used to differ — managers [6, 2, 1.6], funds
+# [0.35, 5.65, 2, 1.6] — which put a fund's 12-month return underneath the manager's
+# FUND COUNT: two unrelated quantities sharing a column, with no header to tell them
+# apart. Fund rows now indent into the same four columns and leave the count blank,
+# because a count is a thing a manager has and a fund does not.
+_COLS = [5.2, 1.6, 1.0, 1.1]
+_INDENT = 0.35
+
+# Header label -> (column it sorts, the direction a FIRST click gives it). A name reads
+# naturally A-Z; a number is interesting largest-first.
+_SORTS = {"Manager": ("label", True), "Assets": ("aum", False),
+          "Funds": ("funds", False), "12m": ("ret_12m", False)}
+# The same sort applied to the funds inside an open manager. A fund has no fund count,
+# so that one falls back to size.
+_FUND_SORT = {"label": "name_en", "aum": "aum", "funds": "aum", "ret_12m": "ret_12m"}
+
+
+def _row_css(pal: dict) -> str:
+    """The app styles every button as chrome — uppercase, letter-spaced, centred — which
+    is right for a nav tab and wrong for a row of data. These rows carry names the page
+    went to some trouble to tidy, and "BB Top Fixed Income Short Term Automático II"
+    shouted back in caps undoes that. The header buttons go the other way: they must read
+    as column headings, not as things to press, so they lose their box entirely.
+
+    All of it is scoped by Streamlit's st-key-<key> container class, so no other button
+    on the page is touched.
+    """
+    return f"""<style>
+.bf-cell{{text-align:right;padding-top:.55rem;font-variant-numeric:tabular-nums;
+         font-size:.86rem;line-height:1.2}}
 [class*="st-key-bfm_"] button, [class*="st-key-bff_"] button,
-[class*="st-key-bfm_"] button *, [class*="st-key-bff_"] button *{
+[class*="st-key-bfm_"] button *, [class*="st-key-bff_"] button *{{
   text-transform:none!important; letter-spacing:0!important;
-  justify-content:flex-start!important; text-align:left!important}
-[class*="st-key-bff_"] button{font-weight:400!important}
-[class*="st-key-bfm_"] button{font-weight:600!important}
+  justify-content:flex-start!important; text-align:left!important}}
+[class*="st-key-bff_"] button{{font-weight:400!important}}
+[class*="st-key-bfm_"] button{{font-weight:600!important}}
+[class*="st-key-bfh"] button{{
+  background:transparent!important; border:none!important; box-shadow:none!important;
+  min-height:0!important; height:auto!important; padding:.1rem .1rem .35rem!important;
+  color:{pal['text_dim']}!important; font-size:.72rem!important; font-weight:600!important;
+  letter-spacing:.09em!important; text-transform:uppercase!important}}
+[class*="st-key-bfh"] button:hover{{color:{pal['gold']}!important}}
+[class*="st-key-bfh_"] button, [class*="st-key-bfh_"] button *{{
+  justify-content:flex-start!important; text-align:left!important}}
+[class*="st-key-bfhr_"] button, [class*="st-key-bfhr_"] button *{{
+  justify-content:flex-end!important; text-align:right!important}}
+/* the header row lives OUTSIDE the bordered scroll box so it stays put while the list
+   moves under it, which also means it does not inherit the box's padding — these put
+   the labels back over their own columns */
+[class*="st-key-bfh_"] button{{padding-left:1.7rem!important}}
+[class*="st-key-bfhr_"] button{{padding-right:1rem!important}}
+/* Streamlit stacks st.columns on a narrow screen, which turns this table into a column
+   of loose values and the header into four orphaned words. These rows are a table at
+   every width — held side by side, just smaller. :has() scopes it to the picker's own
+   rows, and min-width:0 is what lets a column shrink instead of forcing a scrollbar. */
+@media (max-width:760px){{
+  [data-testid="stHorizontalBlock"]:has([class*="st-key-bf"]){{flex-wrap:nowrap!important}}
+  [data-testid="stHorizontalBlock"]:has([class*="st-key-bf"]) > div{{min-width:0!important}}
+  [class*="st-key-bfm_"] button, [class*="st-key-bff_"] button{{
+    font-size:.76rem!important; padding-left:.45rem!important; padding-right:.2rem!important}}
+  /* held on one line: a value that wraps ("R$1,159.4b / n") is worse than a small one,
+     and a header that breaks mid-word ("FUN / DS") stops being a label at all */
+  .bf-cell{{font-size:.68rem!important; padding-top:.5rem!important; white-space:nowrap}}
+  [class*="st-key-bfh"] button, [class*="st-key-bfh"] button *{{
+    font-size:.58rem!important; letter-spacing:.01em!important; white-space:nowrap!important}}
+  [class*="st-key-bfh_"] button{{padding-left:.6rem!important}}
+  [class*="st-key-bfhr_"] button{{padding-right:.35rem!important}}
+}}
 </style>"""
 
 
@@ -407,6 +466,40 @@ def _select_fund(key: str) -> None:
 def _cell(col, text: str, colour: str) -> None:
     col.markdown(f"<div class='bf-cell' style='color:{colour}'>{text}</div>",
                  unsafe_allow_html=True)
+
+
+def _ret_colour(v: float, pal: dict, cc: dict) -> str:
+    """Grey for a return we do not have — neither green nor red is honest about a blank."""
+    return pal["text_dim"] if v != v else (cc["long"] if v > 0 else cc["short"])
+
+
+def _sort_click(label: str) -> None:
+    """The same header again flips the direction; a different one starts in its natural
+    one, so a first click never lands you on the least interesting end of a column."""
+    cur, asc = st.session_state.get("fnd_sort", ("Assets", False))
+    st.session_state["fnd_sort"] = (label, not asc) if cur == label else (label, _SORTS[label][1])
+
+
+def _sorted(df: pd.DataFrame, key: str, asc: bool) -> pd.DataFrame:
+    """Names sort case-insensitively; numbers keep their blanks at the bottom either way,
+    because a fund with no 12-month return is not the worst performer."""
+    if key not in df:
+        return df
+    if df[key].dtype == object:
+        return df.sort_values(key, ascending=asc, key=lambda c: c.str.lower())
+    return df.sort_values(key, ascending=asc, na_position="last")
+
+
+def _header_row(active: str, asc: bool) -> None:
+    """Four clickable column headings. They sit OUTSIDE the scroll box so they stay put
+    while the list moves under them."""
+    for col, label in zip(st.columns(_COLS), _SORTS):
+        mark = (" ▲" if asc else " ▼") if label == active else ""
+        col.button(label + mark,
+                   key=f"{'bfh' if label == 'Manager' else 'bfhr'}_{label}",
+                   on_click=_sort_click, args=(label,), use_container_width=True,
+                   help=f"Sort by {label.lower()}" + (" — click again to reverse"
+                                                      if label == active else ""))
 
 
 def _fund_picker(met: pd.DataFrame):
@@ -442,8 +535,18 @@ def _fund_picker(met: pd.DataFrame):
 
     # Grouped on the REGISTERED gestor, never the label — see _resolve_label_clashes.
     agg = (d.groupby("gestor")
-            .agg(label=("gestor_en", "first"), aum=("aum", "sum"), funds=("cnpj", "nunique"))
-            .sort_values("aum", ascending=False))
+            .agg(label=("gestor_en", "first"), aum=("aum", "sum"), funds=("cnpj", "nunique")))
+    # ASSET-weighted, never averaged: a simple mean lets a manager's R$8m launch-year fund
+    # outvote its R$8bn flagship, which is the same rule the Managers league table runs on.
+    w = d[["gestor", "aum", "ret_12m"]].dropna()
+    if not w.empty:
+        agg["ret_12m"] = ((w["ret_12m"] * w["aum"]).groupby(w["gestor"]).sum()
+                          / w.groupby("gestor")["aum"].sum())
+    else:
+        agg["ret_12m"] = np.nan
+    scol, asc = st.session_state.get("fnd_sort", ("Assets", False))
+    skey = _SORTS[scol][0]
+    agg = _sorted(agg, skey, asc)
 
     # The first render opens the biggest manager; after that the state belongs to the
     # user and None is a LEGITIMATE value — every manager closed. Treating None as
@@ -458,10 +561,17 @@ def _fund_picker(met: pd.DataFrame):
     shown = agg.head(_MGR_PAGE)
     if open_mgr is not None and open_mgr not in shown.index:
         shown = pd.concat([agg.loc[[open_mgr]], shown])   # keep it visible however deep
+    # Sorting also sorts the funds INSIDE the open manager, so the open one is kept on
+    # screen rather than sorted off the page — losing the list you were re-sorting is the
+    # one thing the sort must not do. Said out loud, or a row above its alphabetical place
+    # just reads as a broken sort.
+    pinned = open_mgr is not None and open_mgr not in agg.head(_MGR_PAGE).index
     st.caption(f"**{len(agg):,}** managers · **{d['cnpj'].nunique():,}** funds · "
-               f"showing the top {len(shown)} by assets"
-               + (" — search to reach the rest" if len(agg) > len(shown) else ""))
-    st.markdown(_ROW_CSS, unsafe_allow_html=True)
+               f"showing the first {len(shown)} by {scol.lower()}"
+               + (" — search to reach the rest" if len(agg) > len(shown) else "")
+               + (" · the open manager is held at the top" if pinned else ""))
+    st.markdown(_row_css(pal), unsafe_allow_html=True)
+    _header_row(scol, asc)
 
     sel_key = st.session_state.get("fnd_key")
     # A bounded, scrolling box. Open a manager with 60 funds and an unbounded list pushes
@@ -470,27 +580,27 @@ def _fund_picker(met: pd.DataFrame):
     with st.container(height=_LIST_H):
         for gestor, m in shown.iterrows():
             is_open = gestor == open_mgr
-            c0, c1, c2 = st.columns([6, 2, 1.6])
+            c0, c1, c2, c3 = st.columns(_COLS)
             c0.button(f"{'▾' if is_open else '▸'}  {m['label']}", key=f"bfm_{gestor}",
                       on_click=_open_manager, args=(gestor,), use_container_width=True,
                       type="primary" if is_open else "secondary")
             _cell(c1, _brl(m["aum"]), pal["text"])
-            _cell(c2, f"{m['funds']:,} funds", pal["text_dim"])
+            _cell(c2, f"{m['funds']:,}", pal["text_dim"])   # the word lives in the header now
+            _cell(c3, _pct(m["ret_12m"]), _ret_colour(m["ret_12m"], pal, cc))
             if not is_open:
                 continue
-            funds = d[d["gestor"] == gestor].sort_values("aum", ascending=False)
+            funds = _sorted(d[d["gestor"] == gestor], _FUND_SORT[skey], asc)
             for _, r in funds.head(_FUND_PAGE).iterrows():
                 k = _fund_key(r)
-                s0, s1, s2, s3 = st.columns([0.35, 5.65, 2, 1.6])
+                s0, s1, s2, s3, s4 = st.columns([_INDENT, _COLS[0] - _INDENT, *_COLS[1:]])
                 s0.write("")
                 label = r["name_en"] + (f"  ·  {r['subclass']}" if r["subclass"] else "")
                 s1.button(label, key=f"bff_{k}", on_click=_select_fund, args=(k,),
                           use_container_width=True,
                           type="primary" if k == sel_key else "secondary")
                 _cell(s2, _brl(r["aum"], "m", 0), pal["text_dim"])
-                ret = r["ret_12m"]
-                _cell(s3, _pct(ret), pal["text_dim"] if ret != ret
-                      else (cc["long"] if ret > 0 else cc["short"]))
+                s3.write("")                    # a fund count belongs to a manager, not a fund
+                _cell(s4, _pct(r["ret_12m"]), _ret_colour(r["ret_12m"], pal, cc))
             if len(funds) > _FUND_PAGE:
                 st.caption(f"    …{len(funds) - _FUND_PAGE:,} more under this manager — "
                            f"search by fund name to reach them.")
