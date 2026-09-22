@@ -886,8 +886,9 @@ def _vol_product_focus(d, cm, corr_thr, corrname, moves, uni):
             color=alt.Color("side:N", scale=alt.Scale(domain=["down day", "up day"],
                                                       range=[cc["short"], cc["long"]]),
                             legend=alt.Legend(title=None, orient="top")),
-            tooltip=[alt.Tooltip("date:T"), alt.Tooltip("ret:Q", format="+.2f"),
-                     alt.Tooltip("div:Q", format="+.2f")])
+            tooltip=[alt.Tooltip("date:T", title="Date"),
+                     alt.Tooltip("ret:Q", title="Underlying move (%)", format="+.2f"),
+                     alt.Tooltip("div:Q", title="Implied vol change (pts)", format="+.2f")])
         vch = vpts
         for sub, lo2, hi2 in ((dd[dd["ret"] < 0], float(dd["ret"].min()), 0.0),
                               (dd[dd["ret"] > 0], 0.0, float(dd["ret"].max()))):
