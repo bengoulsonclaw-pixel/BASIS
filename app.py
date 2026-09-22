@@ -843,12 +843,19 @@ def _vol_iv_rv_history(d):
     # (vol left, underlying right) stay put while time zooms; the vconcat below
     # shares the x SCALE across both panels, so one gesture moves them together.
     zoomx = alt.selection_interval(bind="scales", encodings=["x"])
-    px_bg = alt.Chart(g.dropna(subset=["price"])).mark_line(
-        color=cc["muted"], strokeWidth=1.4, opacity=0.55).encode(
+    gp = g.dropna(subset=["price"])
+    px_fill = alt.Chart(gp).mark_area(color=cc["muted"], opacity=0.15).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("price:Q", scale=alt.Scale(zero=False), axis=None))
+    px_top = alt.Chart(gp).mark_line(
+        color=cc["muted"], strokeWidth=1.5, opacity=0.75).encode(
         x=alt.X("date:T", title=None),
         y=alt.Y("price:Q", title="underlying", scale=alt.Scale(zero=False),
                 axis=alt.Axis(orient="right")),
         tooltip=[alt.Tooltip("date:T"), alt.Tooltip("price:Q", title="underlying", format=".2f")])
+    # fill + line nested in ONE sub-layer so they share a single price scale (and one
+    # right axis); the outer independent-y resolve then splits price from the vol legs
+    px_bg = alt.layer(px_fill, px_top)
     vol_lines = alt.Chart(long.dropna(subset=["vol"])).mark_line(strokeWidth=2.0).encode(
         x=alt.X("date:T", title=None),
         y=alt.Y("vol:Q", title="annualised vol (%)", scale=alt.Scale(zero=False)),
