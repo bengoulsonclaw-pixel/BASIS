@@ -697,6 +697,8 @@ def _vol_charts(threshold):
                "care), ▴ = more than double it (realizing accelerating past the 1-month).")
 
     # ---- Short-term rates: own section, rate-vol convention (1σ moves in bp) ----
+    _vol_iv_rv_history(d)
+
     stir_path = VOL_DETAIL_FILE.parent / "stirvol.parquet"
     if stir_path.exists():
         sd = _filter_signals(_read_parquet_mtime(stir_path))
@@ -809,6 +811,65 @@ def _vol_charts(threshold):
             px_line = alt.Chart(g).mark_line(color=cc["ink"], strokeWidth=1.9).encode(
                 x="date:T", y=alt.Y("price:Q", title="underlying price", scale=alt.Scale(zero=False)))
             brand.show_chart(alt.layer(sp_area + sp_line, px_line).resolve_scale(y="independent").properties(height=320))
+
+
+def _vol_iv_rv_history(d):
+    """Implied vs realized THROUGH TIME for any product (Ben, 2026-09-22): a picker,
+    the two vol legs as lines on one time axis, and beneath it the spread
+    (implied − realized) — the series every z-score on this page is judged from.
+    Reads the vol book's persisted year (volatility_history.parquet: our own
+    implied post-overlay, matched 21-session realized)."""
+    import altair as alt
+    hist_path = VOL_DETAIL_FILE.parent / "volatility_history.parquet"
+    if not hist_path.exists():
+        return
+    h = _read_parquet_mtime(hist_path)
+    if h is None or h.empty or "iv" not in h.columns:
+        return
+    have = set(h["ticker"])
+    opts = [r.market for r in d.itertuples(index=False) if r.ticker in have]
+    if not opts:
+        return
+    st.markdown("#### Implied vs realized — history")
+    pick = st.selectbox("Product (most stretched first)", opts, key="vol_ivrv_pick")
+    row = d[d["market"] == pick].iloc[0]
+    g = h[h["ticker"] == row["ticker"]].sort_values("date").copy()
+    g["date"] = pd.to_datetime(g["date"])
+    cc = brand.chart_colors()
+
+    long = g.melt(id_vars=["date"], value_vars=["iv", "rv"], var_name="leg", value_name="vol")
+    long["leg"] = long["leg"].map({"iv": "Implied (1M, our curve)", "rv": "Realized (1M)"})
+    top = alt.Chart(long.dropna(subset=["vol"])).mark_line(strokeWidth=2.0).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("vol:Q", title="annualised vol (%)", scale=alt.Scale(zero=False)),
+        color=alt.Color("leg:N",
+                        scale=alt.Scale(domain=["Implied (1M, our curve)", "Realized (1M)"],
+                                        range=[cc["series"], cc["accent"]]),
+                        legend=alt.Legend(title=None, orient="top")),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("leg:N", title="leg"),
+                 alt.Tooltip("vol:Q", format=".1f")])
+    st.markdown(f"**{pick}** — implied {row['iv']:.1f} / realized {row['rv']:.1f} · "
+                f"spread {row['spread']:+.1f}"
+                + (f" · z {row['z']:+.2f} ({int(row['pctl'])}th %ile)" if pd.notna(row["z"]) else ""))
+    brand.show_chart(top.properties(height=270))
+
+    gg = g.dropna(subset=["spread"]).assign(pos=g["spread"].clip(lower=0),
+                                            neg=g["spread"].clip(upper=0))
+    zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
+        color=cc["muted"], strokeDash=[3, 3]).encode(y="y:Q")
+    a_pos = alt.Chart(gg).mark_area(opacity=0.28, color=cc["short"]).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("pos:Q", title="implied − realized (vol pts)"))
+    a_neg = alt.Chart(gg).mark_area(opacity=0.28, color=cc["long"]).encode(x="date:T", y="neg:Q")
+    s_line = alt.Chart(gg).mark_line(color=cc["ink"], strokeWidth=1.6).encode(
+        x="date:T", y=alt.Y("spread:Q"),
+        tooltip=[alt.Tooltip("date:T"), alt.Tooltip("spread:Q", format="+.1f")])
+    brand.show_chart((zero + a_pos + a_neg + s_line).properties(height=160))
+    st.caption("Top: our settlement-built constant-30-day implied (vendor backstop only where our "
+               "build has no marks) against the matched 21-session close-to-close realized. Bottom: "
+               "the spread, one minus the other — red shading = implied above realized (premium), "
+               "green = below (discount). This is the exact series each market's z-score and "
+               "percentile are judged from.")
 
 
 def _diverging_bars(allp, color, thr, x_title, rule_lines=True):
