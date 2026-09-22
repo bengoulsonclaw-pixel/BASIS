@@ -1,19 +1,43 @@
 {
- "generated_at": "21 Sep 2026 · 07:42 ET",
- "synopsis": "Energy is the morning's story: the geopolitical risk premium is deflating, with Brent down 2.7% to just above $101 and WTI at $97.56 on reports Trump could meet Iran's president this week — a potential off-ramp for the Gulf crisis that has kept Hormuz risk and freight rates at records. The products complex is unwinding harder, gasoil off 4.2% and heating oil down 3%, though reports of a global diesel shortage pers…",
- "commentary": "Energy is the morning's story: the geopolitical risk premium is deflating, with Brent down 2.7% to just above $101 and WTI at $97.56 on reports Trump could meet Iran's president this week — a potential off-ramp for the Gulf crisis that has kept Hormuz risk and freight rates at records. The products complex is unwinding harder, gasoil off 4.2% and heating oil down 3%, though reports of a global diesel shortage persisting into 2027 argue against chasing the crack lower too aggressively. Positioning amplifies the move: Brent net-longs were at their highest since May, so there's length to flush.\n\nEuropean TTF gas fell 4.5% in sympathy, and gold's 0.8% dip fits the same de-risking of the geopolitical hedge. The oil slide is doing the heavy lifting in rates — cheaper crude means softer inflation breakevens, and battered government bonds are rebounding, with OATs up over 1%, gilts and bunds firm, and the long end of the Treasury curve leading. That's despite hawkish Fed noise: Goolsbee warned restoring price stability \"won't be painless\" and flagged strong demand feeding inflation, while the Bundesbank sees German inflation staying high — so the front end stays anchored while the long end rallies on the energy impulse.\n\nLayer on US and China hailing positive talks ahead of the Trump-Xi summit, and risk tone is firmly constructive: equity index futures are green across the board (Stoxx 50 +1.5%, Nasdaq +1%), copper is up 1.5% on the trade thaw, and Chinese LNG buyers are reportedly re-engaging on long-term US supply deals. Watch the Iran headlines and the summit itself — both cut across energy, metals and the curve.",
+ "generated_at": "22 Sep 2026 · 07:38 ET",
+ "synopsis": "Energy is the morning's story, and it's a de-escalation trade. Crude turned lower overnight — Brent -1.5% toward $98 and WTI -2.3% to the low $90s — as markets tracked diplomatic efforts around Hormuz, with Washington signalling openness to Iran talks at the UN General Assembly and Saudi Arabia restarting the East-West pipeline, reopening a key Red Sea export route shut for two weeks after drone strikes.",
+ "commentary": "Energy is the morning's story, and it's a de-escalation trade. Crude turned lower overnight — Brent -1.5% toward $98 and WTI -2.3% to the low $90s — as markets tracked diplomatic efforts around Hormuz, with Washington signalling openness to Iran talks at the UN General Assembly and Saudi Arabia restarting the East-West pipeline, reopening a key Red Sea export route shut for two weeks after drone strikes. The whole curve is softening: prompt Brent spreads are the weakest in two weeks, put volumes have outpaced calls for three sessions, and the products complex followed — heating oil -1.7%, gasoil -2.2%, TTF -4.1%.\n\nThat said, the structural tightness story hasn't gone away: diesel is at record highs on strained refining capacity, and warnings of $150 Brent if disruption persists into 2027 keep the tail risk alive, according to reports. The macro backdrop remains the \"5% world\" — last week's Fed hike, the first in three years, reasserted credibility against oil-driven, supply-side sticky inflation, and huge AI-related financing demand is stacking on top of heavy government borrowing (the UK's £18.3bn August deficit underlines the fiscal strain, weighing on OATs and gilts sentiment).\n\nSofter crude is doing the rates market's work today: Treasuries caught a bid across the curve with the long bond +0.3%, on the logic that good oil news lets yields fall. Equity index futures held the AI rally — S&P flat, Nikkei +2.1% on yen dynamics and the tech bid — while copper's +1.3% pop stands out against a soft metals tape, riding China's data-center buildout ambitions; gold eased with the risk premium.",
  "headlines": [
   {
    "source": "FT",
-   "title": "Slide in oil prices drives rebound in battered government bonds — Brent crude falls to just above $100 amid speculation that Donald Trump could meet Iranian president this week",
+   "title": "Oil falls below $98 as Saudi Arabia signals East-West pipeline reopening",
+   "time": "07:19 ET",
+   "tag": "Energy"
+  },
+  {
+   "source": "The Guardian",
+   "title": "Oil falls below $100 a barrel on reports Iran 'makes strait of Hormuz offer'",
    "time": "",
    "tag": "Energy"
   },
   {
-   "source": "Bloomberg",
-   "title": "US LNG Producers Eye Bonanza If Trump and Xi Can Ease Tariffs",
-   "time": "07:27 ET",
+   "source": "FT",
+   "title": "Fed will need to be 'aggressive' on inflation, says top official",
+   "time": "11:10 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "FT",
+   "title": "Bank of Japan set to maintain new quarterly pace of rate rises",
+   "time": "00:30 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "FT",
+   "title": "'Stop the bleeding': Republicans tell Trump to ban US diesel exports",
+   "time": "19:28 ET",
    "tag": "Energy"
+  },
+  {
+   "source": "FT",
+   "title": "China spends record amount importing over 1,000 tonnes of gold this year",
+   "time": "03:45 ET",
+   "tag": "Metals"
   },
   {
    "source": "WSJ",
@@ -22,33 +46,9 @@
    "tag": "Energy"
   },
   {
-   "source": "Al Jazeera",
-   "title": "How oil, gas losses have shrunk Iran's GDP by 10 percent during war",
-   "time": "06:38 ET",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "FT",
-   "title": "The Gulf cargo trade that vanished — The Strait of Hormuz was a transit hub for goods from helium to corn",
-   "time": "",
-   "tag": "Geopolitics"
-  },
-  {
-   "source": "FT",
-   "title": "Chinese rare earth shipments to US drop ahead of Trump-Xi summit",
-   "time": "03:45 ET",
-   "tag": "Metals"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Gold Edges Lower as Traders Weigh Oil Prices and Fed Rate Path",
-   "time": "19:45 ET",
-   "tag": "Metals"
-  },
-  {
-   "source": "WSJ",
-   "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
-   "time": "12:20 ET",
+   "source": "The Guardian",
+   "title": "Trump seeks 'massive' Belarus fertiliser deal amid Canada trade war",
+   "time": "00:00 ET",
    "tag": "Agriculture"
   }
  ]

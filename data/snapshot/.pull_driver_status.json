@@ -1,10 +1,10 @@
 {
  "date": "2026-09-22",
  "runs": 2,
- "outcome": "running",
- "phase": "backup",
+ "outcome": "ok",
+ "phase": "done",
  "mc": "",
  "started": "2026-09-22T06:20:03",
- "when": "2026-09-22T06:32:36",
- "detail": "Bloomberg -4002 WORKFLOW_REVIEW_NEEDED block active - ring the Help Desk; pulling is pointless until cleared"
+ "when": "2026-09-22T06:32:57",
+ "detail": "complete in 12.6 min"
 }

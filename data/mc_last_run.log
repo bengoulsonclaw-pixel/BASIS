@@ -1,14 +1,14 @@
-ok=False
+ok=True
 Fetching prices from Bloomberg...
 
-  Loaded 80/80 products from the snapshot OVERNIGHT moves (live.parquet — same source as the dashboard heatmap; σ for 80)
-  Using the morning snapshot's OVERNIGHT moves (live.parquet, 80 products) — identical to the dashboard heatmap.
+  Loaded 79/80 products from the snapshot OVERNIGHT moves (live.parquet — same source as the dashboard heatmap; σ for 79)
+  Using the morning snapshot's OVERNIGHT moves (live.parquet, 79 products) — identical to the dashboard heatmap.
 
-  Pulled 80/80 products from Bloomberg
+  Pulled 79/80 products from Bloomberg
 
 Reading Bloomberg Terminal forwards (IMAP)...
 
-  Bloomberg: 8 stories, 5539 chars of context
+  Bloomberg: 8 stories, 6027 chars of context
 
 Reading forwarded metals reports (IMAP)...
 
@@ -22,19 +22,15 @@ Scraping news headlines (WSJ / FT RSS)...
   (skipped Associated Press: <urlopen error [Errno 11001] getaddrinfo failed>)
   (skipped PBS NewsHour: HTTP Error 404: Not Found)
   (skipped New York Times: HTTP Error 404: Not Found)
-  Total raw headlines collected: 128
+  Total raw headlines collected: 123
   + 8 Bloomberg headlines into the pool
-  Fetched 136 raw headlines — filtering with Claude...
+  Fetched 131 raw headlines — filtering with Claude...
 
-  (claude-fable-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuewGXJnebx4ByH7Njei'} — trying the next model)
-  (claude-sonnet-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuewJRAZCu7cw6WoD1iM'} — trying the next model)
-  (claude-haiku-4-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuewKeL5jiSFCJYKWAAZ'} — trying the next model)
-  (Claude headline selection failed on every model — using the keyword filter)
   Selected 10 relevant headlines
 
 Fetching today's economic calendar...
 
-  5 major release(s) scheduled today
+  0 major release(s) scheduled today
 
 Fetching market context from financial news sites...
 
@@ -47,26 +43,33 @@ Fetching market context from financial news sites...
   [context] Bloomberg: 6 items
   [context] WSJ Markets: 6 items
   [context] FT Markets: 6 items
-  [context] skipped Barchart RSS: no element found: line 1, column 0
+  [context] skipped Barchart RSS: HTTP Error 404: Not Found
   [context] Schwab Morning Update: 3000 chars
   [context] skipped Investing.com Pre-Market page: HTTP Error 403: Forbidden
   [context] BlackRock Weekly: 3000 chars
-  Collected 17821 chars of market context
+  Collected 18000 chars of market context
 
 Formatting commentary with Claude...
 
-  (commentary via claude-fable-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ceuewzon6VhAi69tbAjkN'})
-  (commentary from claude-fable-5 came back empty — retry 1/2)
-  (commentary via claude-fable-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ceuex8JV37c4G4h8M4yr2'})
-  (commentary from claude-fable-5 came back empty — retry 2/2)
-  (commentary via claude-sonnet-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuexGA1NhVrzeJGEBQUY'})
-  (commentary from claude-sonnet-5 came back empty — retry 1/2)
-  (commentary via claude-sonnet-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuexQRM5DcYZxBEgmiZe'})
-  (commentary from claude-sonnet-5 came back empty — retry 2/2)
-  (commentary via claude-haiku-4-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuexYJcW55FTS2hUqE41'})
-  (commentary from claude-haiku-4-5 came back empty — retry 1/2)
-  (commentary via claude-haiku-4-5 errored: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011Ceuexfi7Agip3B9yBH8cS'})
-  (commentary from claude-haiku-4-5 came back empty — retry 2/2)
+  (commentary generated by claude-fable-5)
+Energy is the morning's story, and it's a de-escalation trade. Crude turned lower overnight — Brent -1.5% toward $98 and WTI -2.3% to the low $90s — as markets tracked diplomatic efforts around Hormuz, with Washington signalling openness to Iran talks at the UN General Assembly and Saudi Arabia restarting the East-West pipeline, reopening a key Red Sea export route shut for two weeks after drone strikes. The whole curve is softening: prompt Brent spreads are the weakest in two weeks, put volumes have outpaced calls for three sessions, and the products complex followed — heating oil -1.7%, gasoil -2.2%, TTF -4.1%.
 
+That said, the structural tightness story hasn't gone away: diesel is at record highs on strained refining capacity, and warnings of $150 Brent if disruption persists into 2027 keep the tail risk alive, according to reports. The macro backdrop remains the "5% world" — last week's Fed hike, the first in three years, reasserted credibility against oil-driven, supply-side sticky inflation, and huge AI-related financing demand is stacking on top of heavy government borrowing (the UK's £18.3bn August deficit underlines the fiscal strain, weighing on OATs and gilts sentiment).
 
-*** Commentary came back empty after retries — NOT saving or emailing the report. Please re-run.
+Softer crude is doing the rates market's work today: Treasuries caught a bid across the curve with the long bond +0.3%, on the logic that good oil news lets yields fall. Equity index futures held the AI rally — S&P flat, Nikkei +2.1% on yen dynamics and the tech bid — while copper's +1.3% pop stands out against a soft metals tape, riding China's data-center buildout ambitions; gold eased with the risk premium.
+  BASIS Hot Sheet: 10 rows, collected 22 Sep 2026
+  Desk calendar: 1 rows for 22 Sep 2026
+  Option flow: nothing unusual — page 1 falls back to the movers table
+
+Translating to Portuguese...
+  (PT translation by claude-fable-5)
+Report (PT) saved to: C:\Users\Ben\OneDrive\Personal\AI\Futures_Movements\results\Morning Coffee 22 Set 2026 (PT).docx
+Report (EN) saved to: C:\Users\Ben\OneDrive\Personal\AI\Futures_Movements\results\Morning Coffee 22 Sep 2026 (EN).docx
+  Page flush: (PT) p1 +0.76in / p2 +4.35in, (EN) p1 +0.55in / p2 +4.65in
+
+Sending one email (PT pages first, then EN; both PDFs attached)...
+  (send attempt 1 failed: [WinError 10053] An established connection was aborted by the software in your h — retrying)
+  Email sent to benjamin.goulson@xpi.com.br  (6 pages inline, 2 PDF(s) attached)
+  Tidied the inbox — marked 25 unread email(s) as read.
+Dashboard sidecar written: results/_latest_briefing.json
+BASIS home-card export written: morning_coffee_home.json
