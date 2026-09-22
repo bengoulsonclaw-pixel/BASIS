@@ -1067,8 +1067,8 @@ def _skewreal_section():
     _wl = st.radio("Fit window", ["3M", "6M", "1Y"], index=1, horizontal=True, key="skr_win",
                    help="How much history the best-fit line sees. Short = current regime, "
                         "long = smoother gradient. The changes-beta column is the regime "
-                        "check: when it disagrees with the line's gradient, one trend "
-                        "dominated the window and the verdict is marked ≈ rather than ✓.")
+                        "check: when the levels fit disagrees with the daily-changes beta, one "
+                        "trend dominated the window and the verdict is marked ≈ rather than ✓.")
     win = {"3M": 63, "6M": 126, "1Y": 252}[_wl]
     df = _skewreal_table(win)
     if df is None or df.empty:
@@ -1076,22 +1076,23 @@ def _skewreal_section():
         return
     show = df.assign(
         conf=np.where(df["confident"], "✓", "≈ regime"),
-        Gradient=df["g_lvl"].map("{:+.2f}".format),
-        Chg=df["g_chg"].map("{:+.2f}".format),
+        Dn=df["g_dn"].map("{:+.2f}".format),
+        Up=df["g_up"].map("{:+.2f}".format),
         Put=[f"{w:.1f} vs {p:.1f} → {g:+.1f}" for w, p, g in zip(df["put_wing"], df["pred_put"], df["put_gap"])],
         Call=[f"{w:.1f} vs {p:.1f} → {g:+.1f}" for w, p, g in zip(df["call_wing"], df["pred_call"], df["call_gap"])],
-    )[["market", "iv_now", "Gradient", "Chg", "r2", "Put", "Call", "conf"]].rename(columns={
-        "market": "Market", "iv_now": "ATM", "Gradient": "Realized grad (per 1%)",
-        "Chg": "Chg-beta", "r2": "r²", "Put": "Put wing vs line → gap",
-        "Call": "Call wing vs line → gap", "conf": "Conf"})
+    )[["market", "iv_now", "Dn", "Up", "r2", "Put", "Call", "conf"]].rename(columns={
+        "market": "Market", "iv_now": "ATM", "Dn": "Down-beta (per 1%)",
+        "Up": "Up-beta (per 1%)", "r2": "r²", "Put": "Put wing vs path → gap",
+        "Call": "Call wing vs path → gap", "conf": "Conf"})
     st.dataframe(show, use_container_width=True, hide_index=True, height=420)
-    st.caption("**Gap > 0 = the wing looks cheap against the realized path** (the line predicts "
-               "MORE vol at that strike than the wing charges); < 0 = rich. Wings are our own "
-               "settlement-built 90/110% marks; the line is fitted on our own ATM history — "
-               "no vendor surface anywhere in this table. **r²** = how much of the vol's "
-               "variation the price level explains (1 = dots on the line, 0 = no relationship — "
-               "the gradient is noise there; ≥0.5 solid, <0.2 ignore the row). ✓ = the "
-               "daily-changes beta agrees with the line's gradient (sign and within 2×); "
+    st.caption("**Gap > 0 = the wing looks cheap against its realized vol response** (the beta "
+               "path predicts MORE vol at that strike than the wing charges); < 0 = rich. The "
+               "path travels today's ATM to each strike at the DOWN-day beta (put side) and "
+               "UP-day beta (call side) — the same betas as the Volatility page's response "
+               "section, asymmetric and trend-robust. Wings are our own settlement-built 90/110% "
+               "marks; nothing vendor anywhere in this table. **r²** = how tightly vol tracked "
+               "the price LEVEL over the window (the regime context; <0.2 = loose relationship, "
+               "lean on the betas). ✓ = levels fit and changes beta agree (sign, within 2×); "
                "≈ = one trending regime dominated the window — read the gap with care.")
 
     pick = st.selectbox("Chart a market (largest wing gap first)", df["market"].tolist(), key="skr_pick")
@@ -1142,18 +1143,21 @@ def _skewreal_section():
         smile_note = (f" **Solid gold curve = today's smile** — {_kind}; tails only ever rise; "
                       "small diamonds = the 80/120% marks. Where the smile sits below the dashed "
                       "line, options at that strike are cheap against the realized path; above = rich.")
-    st.markdown(f"**{pick}** — dots = the last {_wl} of (underlying, ATM vol); dashed = best fit "
-                "(the realized skew); **red cross = today's ATM strike** (spot, our ATM vol); "
-                "**gold diamonds = our wing marks at ±10%**; hollow circles = where the line says "
-                "ATM vol trades at those strikes." + smile_note)
+    st.markdown(f"**{pick}** — dots = the last {_wl} of (underlying, ATM vol); **dashed = the "
+                "expected-ATM path from its vol-betas** (kinked at today: down-beta slope to the "
+                "left, up-beta to the right — the same betas as the Volatility page's response "
+                "section); **red cross = today's ATM strike** (spot, our ATM vol); **gold "
+                "diamonds = our wing marks at ±10%**; hollow circles = where the beta path puts "
+                "ATM vol at those strikes." + smile_note)
     brand.show_chart(ch.properties(height=380))
     r = df[df["ticker"] == tk].iloc[0]
     side = "call" if abs(r["call_gap"]) >= abs(r["put_gap"]) else "put"
     gap = r[f"{side}_gap"]
-    st.caption(f"Verdict: the **{side} wing** is marked {r[f'{side}_wing']:.1f} where the realized "
-               f"path predicts {r[f'pred_{side}']:.1f} — **{'cheap' if gap > 0 else 'rich'} by "
-               f"{abs(gap):.1f} vols on arrival** (gradient {r['g_lvl']:+.2f}/1%, changes-beta "
-               f"{r['g_chg']:+.2f}, r² {r['r2']:.2f}"
+    st.caption(f"Verdict: the **{side} wing** is marked {r[f'{side}_wing']:.1f} where its "
+               f"{'down' if side == 'put' else 'up'}-move vol-beta path predicts "
+               f"{r[f'pred_{side}']:.1f} — **{'cheap' if gap > 0 else 'rich'} by "
+               f"{abs(gap):.1f} vols on arrival** (down-beta {r['g_dn']:+.2f} / up-beta "
+               f"{r['g_up']:+.2f} per 1%, levels r² {r['r2']:.2f}"
                + (", regime-flagged — treat as indicative" if not r["confident"] else "") + ").")
 
 

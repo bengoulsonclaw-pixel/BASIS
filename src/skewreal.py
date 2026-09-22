@@ -34,10 +34,25 @@ def _own_wings() -> pd.DataFrame:
     return h.sort_values("date").groupby("ticker").tail(1).set_index("ticker")
 
 
+def side_betas(j: pd.DataFrame):
+    """(down_slope, up_slope): Δiv per 1% move fitted separately on down and up
+    days — the vol-betas, in RAW slope form (down_slope is usually negative for
+    equity-style products: ret −1% → +Δiv). The asymmetric, regime-robust
+    estimator of the realized skew (Ben, 2026-09-24: the changes view deduces
+    skew better than the levels line)."""
+    d = j.dropna(subset=["ret", "div"])
+    dn, up = d[d["ret"] < 0], d[d["ret"] > 0]
+    g_dn = float(np.polyfit(dn["ret"], dn["div"], 1)[0]) if len(dn) >= 25 else float("nan")
+    g_up = float(np.polyfit(up["ret"], up["div"], 1)[0]) if len(up) >= 25 else float("nan")
+    return g_dn, g_up
+
+
 def analyze(window: int = 126) -> pd.DataFrame:
-    """Book-wide table: realized-skew gradient vs the implied wings, one verdict
-    per wing per product. Only products with own wing marks are judged — the
-    whole point is comparing OUR wings to OUR realized path."""
+    """Book-wide table: the realized vol-response path vs the implied wings, one
+    verdict per wing per product. Since 2026-09-24 the arrival predictions come
+    from the SIGNED side betas (down-beta prices the put wing, up-beta the call
+    wing — asymmetric and trend-robust); the levels fit stays as the regime
+    cross-check (r² + confidence). Only products with own wing marks are judged."""
     iv, px, wings = _own_iv(), _prices(), _own_wings()
     from .universe import name
     rows = []
@@ -47,19 +62,22 @@ def analyze(window: int = 126) -> pd.DataFrame:
             continue
         g_lvl, r2 = level_fit(j)
         g_chg = change_beta(j)
-        if not np.isfinite(g_lvl):
+        g_dn, g_up = side_betas(j)
+        if not (np.isfinite(g_dn) and np.isfinite(g_up)):
             continue
         w = wings.loc[tk]
         iv_now = float(j["iv"].iloc[-1])
-        pred_call = iv_now + g_lvl * WING_PCT
-        pred_put = iv_now - g_lvl * WING_PCT
+        pred_put = iv_now + g_dn * (-WING_PCT)     # travel −10% at the down-day response
+        pred_call = iv_now + g_up * (+WING_PCT)    # travel +10% at the up-day response
         call_gap = pred_call - float(w["call"])
         put_gap = pred_put - float(w["put"])
-        ratio = g_chg / g_lvl if np.isfinite(g_chg) and abs(g_lvl) > 1e-9 else float("nan")
+        ratio = g_chg / g_lvl if np.isfinite(g_chg) and np.isfinite(g_lvl) and abs(g_lvl) > 1e-9 else float("nan")
         confident = bool(np.isfinite(ratio) and ratio > 0 and 0.5 <= ratio <= 2.0)
         rows.append({
             "ticker": tk, "market": name(tk),
-            "g_lvl": round(g_lvl, 3), "g_chg": round(g_chg, 3) if np.isfinite(g_chg) else np.nan,
+            "g_dn": round(g_dn, 3), "g_up": round(g_up, 3),
+            "g_lvl": round(g_lvl, 3) if np.isfinite(g_lvl) else np.nan,
+            "g_chg": round(g_chg, 3) if np.isfinite(g_chg) else np.nan,
             "r2": round(r2, 2) if np.isfinite(r2) else np.nan,
             "iv_now": round(iv_now, 1),
             "put_wing": round(float(w["put"]), 1), "call_wing": round(float(w["call"]), 1),
@@ -82,19 +100,24 @@ def scatter_frame(ticker: str, window: int = 126):
     if j.empty:
         return None, None
     g_lvl, r2 = level_fit(j)
+    g_dn, g_up = side_betas(j)
     wings = _own_wings()
-    if ticker not in wings.index or not np.isfinite(g_lvl):
+    if ticker not in wings.index or not (np.isfinite(g_dn) and np.isfinite(g_up)):
         return None, None
     w = wings.loc[ticker]
     s_now, iv_now = float(j["px"].iloc[-1]), float(j["iv"].iloc[-1])
-    # draw the OLS line across the union of the traded range and the wing strikes,
-    # so the wing markers always sit ON the drawn line's span
+    # The dashed guide is the EXPECTED-ATM PATH from the side vol-betas (Ben,
+    # 2026-09-24): anchored at today's (spot, ATM), down-beta slope leftward,
+    # up-beta slope rightward — asymmetric and trend-robust, unlike the old
+    # single levels line. Drawn across the union of the traded range and the
+    # wing strikes so the wing markers always sit on its span.
     lo = min(float(j["dist"].min()), -WING_PCT)
     hi = max(float(j["dist"].max()), WING_PCT)
-    xs = np.array([lo, hi])
-    g, b = np.polyfit(j["dist"], j["iv"], 1)
     fit = {
-        "line": pd.DataFrame({"px": s_now * (1 + xs / 100.0), "iv": g * xs + b}),
+        "line": pd.DataFrame({
+            "px": [s_now * (1 + lo / 100.0), s_now, s_now * (1 + hi / 100.0)],
+            "iv": [iv_now + g_dn * lo, iv_now, iv_now + g_up * hi],
+        }),
         "wings": pd.DataFrame({
             "px": [s_now * (1 - WING_PCT / 100), s_now * (1 + WING_PCT / 100)],
             "iv": [float(w["put"]), float(w["call"])],
@@ -102,8 +125,8 @@ def scatter_frame(ticker: str, window: int = 126):
         }),
         "preds": pd.DataFrame({
             "px": [s_now * (1 - WING_PCT / 100), s_now * (1 + WING_PCT / 100)],
-            "iv": [g * (-WING_PCT) + b, g * WING_PCT + b],
-            "kind": ["line at put strike", "line at call strike"],
+            "iv": [iv_now + g_dn * (-WING_PCT), iv_now + g_up * WING_PCT],
+            "kind": ["beta path at put strike", "beta path at call strike"],
         }),
         "now": pd.DataFrame({"px": [s_now], "iv": [iv_now], "kind": ["today — ATM strike"]}),
     }
@@ -128,6 +151,7 @@ def scatter_frame(ticker: str, window: int = 126):
             })
     fit.update({
         "g_lvl": g_lvl, "r2": r2, "g_chg": change_beta(j),
+        "g_dn": g_dn, "g_up": g_up,
         "s_now": s_now, "iv_now": iv_now,
     })
     return j, fit
@@ -144,12 +168,12 @@ RADAR_SPARK_N = 130    # ~6 months of the story's own daily gap path per spark
 def _gap_history(ticker: str, wing: str, iv: pd.DataFrame, px: pd.DataFrame,
                  window: int = RADAR_WINDOW) -> list | None:
     """The item's own story series, rebuilt from stores already on disk: per day,
-    (levels-fit prediction at the wing distance) − (that day's own wing mark) —
+    (side-beta prediction at the wing distance) − (that day's own wing mark) —
     the same gap analyze() quotes for today, walked back ~6 months. The rolling
-    fit is level_fit's slope in closed form (rolling cov/var of iv on price,
-    rescaled to vol pts per 1% of that day's spot), so the whole path is a few
-    vectorized rolling ops — no per-day refits. Sparks are garnish: any problem
-    returns None rather than taking the provider down."""
+    beta is the OLS slope in closed form (rolling cov/var of Δiv on that SIDE's
+    daily moves — down days for the put wing, up days for the call), so the
+    whole path is a few vectorized rolling ops — no per-day refits. Sparks are
+    garnish: any problem returns None rather than taking the provider down."""
     try:
         if ticker not in iv.columns or ticker not in px.columns:
             return None
@@ -157,11 +181,14 @@ def _gap_history(ticker: str, wing: str, iv: pd.DataFrame, px: pd.DataFrame,
                       axis=1, sort=True).dropna()
         if len(j) < 40:                                    # move_frame's own floor
             return None
-        cov = j["px"].rolling(window, min_periods=40).cov(j["iv"])
-        var = j["px"].rolling(window, min_periods=40).var()
-        g = cov / var * j["px"] / 100.0                    # vol pts per 1% of the day's spot
-        sign = -1.0 if wing == "put" else 1.0
-        pred = j["iv"] + sign * g * WING_PCT
+        ret = np.log(j["px"]).diff() * 100.0
+        div = j["iv"].diff()
+        m = ret < 0 if wing == "put" else ret > 0
+        r_m, d_m = ret.where(m), div.where(m)
+        g = (r_m.rolling(window, min_periods=25).cov(d_m)
+             / r_m.rolling(window, min_periods=25).var())  # that side's vol-beta per 1%
+        dist = -WING_PCT if wing == "put" else WING_PCT
+        pred = j["iv"] + g * dist
         h = pd.read_parquet(SNAP / "own_skew_history.parquet")
         h = h[h["ticker"] == ticker].copy()
         h["date"] = pd.to_datetime(h["date"])
@@ -198,11 +225,12 @@ def radar_items() -> list:
         pct = "90%" if wing == "put" else "110%"
         out.append(hotsheet.item(
             tag="SKEW", key=f"{r.ticker}:{wing}:{side}", section="Volatility",
-            text=(f"**{r.market}** {pct} {wing} wing screens **{side}** against the "
-                  f"realized spot-vol path — marked {mark:.1f} vols vs {pred:.1f} "
-                  f"where the 6-month fit puts vol at that strike."),
+            text=(f"**{r.market}** {pct} {wing} wing screens **{side}** against its "
+                  f"realized vol response — marked {mark:.1f} vols vs {pred:.1f} where its "
+                  f"6-month {'down' if wing == 'put' else 'up'}-move vol-beta puts ATM at "
+                  f"that strike."),
             heat=hotsheet.heat_from_z(gap, full=RADAR_GAP_FULL),
-            metric=f"gap {gap:+.1f}", sub="vols vs realized path, 6m fit",
+            metric=f"gap {gap:+.1f}", sub="vols vs vol-beta path, 6m",
             value=float(gap), ticker=r.ticker,
             page="Skew Volatility", book="ficc",
             spark=_gap_history(r.ticker, wing, iv, px)))
