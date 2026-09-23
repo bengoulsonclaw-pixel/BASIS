@@ -14996,16 +14996,26 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
                                               (paths["wdate"].max()
                                                + pd.Timedelta(days=13)).isoformat()]),
                       axis=alt.Axis(format="%d %b", labelFontSize=12))
+        # legend labels carry each year's FINAL move (BBG-legend style, Ben 2026-09-23);
+        # one shared colour scale keys the lines, the legend and the edge labels together
+        _fin = hist.sort_values("step").groupby("year")["cum"].last()
+        _ylab = {int(y): f"{int(y)}  {v:+,.1f}" for y, v in _fin.items()}
+        hist = hist.assign(ylab=hist["year"].map(lambda y: _ylab[int(y)]))
+        _dom = [_ylab[y] for y in sorted(_ylab, reverse=True)]
+        _cscale = alt.Scale(scheme="category10", domain=_dom)
         yr_lines = alt.Chart(hist).mark_line(strokeWidth=1.4, opacity=0.75).encode(
             x=x_enc,
             y=alt.Y("cum:Q", title=f"cum move ({unit})", scale=alt.Scale(zero=False)),
-            color=alt.Color("year:O", scale=alt.Scale(scheme="category10"), legend=None),
+            color=alt.Color("ylab:N", scale=_cscale,
+                            legend=alt.Legend(orient="right", title=f"year · move ({unit})",
+                                              labelFont="monospace", labelFontSize=11.5,
+                                              labelLimit=0, symbolStrokeWidth=3)),
             tooltip=[alt.Tooltip("year:O"), alt.Tooltip("wdate:T", format="%d %b"),
-                     alt.Tooltip("cum:Q", title=f"cum ({unit})", format="+,.1f")])
+                     alt.Tooltip("cum:Q", title=f"cum ({unit})", format="+,.1f")]
+        ).interactive()   # radar-chart feel: drag to pan, wheel to zoom (layers share scales)
         layers = [alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
             color=cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="y:Q"), yr_lines]
-        # SEAG-style right-edge labels: each year's final value tags its own line
-        # (Ben 2026-09-23: "doesn't show how much" — the legend is retired for these)
+        # SEAG-style right-edge labels: each year's final value also tags its own line
         yr_last = hist.sort_values("step").groupby("year").tail(1).copy()
         if not yr_last.empty:
             yr_last["lbl"] = ["'" + str(int(y))[2:] + f" {c:+,.1f}"
@@ -15013,8 +15023,7 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
             layers.append(alt.Chart(yr_last).mark_text(
                 align="left", dx=7, fontSize=11, font="monospace", fontWeight="bold").encode(
                 x="wdate:T", y="cum:Q", text="lbl:N",
-                color=alt.Color("year:O", scale=alt.Scale(scheme="category10"),
-                                legend=None)))
+                color=alt.Color("ylab:N", scale=_cscale, legend=None)))
         if not med_path.empty:
             layers.append(alt.Chart(med_path).mark_line(
                 color=cc["ink"], strokeWidth=3, strokeDash=[7, 4]).encode(
@@ -15046,7 +15055,8 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
             "The Bloomberg-SEAG view of the same window: each line is one stored year's "
             "cumulative path through the stretch, normalized to zero at the window start "
             "(weekly closes, the finder's basis — each line's endpoint is that year's bar "
-            f"above). Each line carries its year and final move at its right end. "
+            f"above). The legend and each line's right-edge tag both carry that year's "
+            f"final move. **Drag to pan, scroll to zoom, double-click to reset.** "
             f"**Dashed** = the median path across the stored years.{_cur_note} "
             + ("For FI this runs in yield space — a RISING line here is the SEAG price "
                "chart falling." if seasmon.unit_of(ticker) == "bp" else "")
