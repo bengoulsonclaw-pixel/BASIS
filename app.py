@@ -14865,6 +14865,31 @@ def _seas_open_windows(mode: str):
     return seasmon.open_windows()
 
 
+# FX products whose TERMINAL convention is USD-first (USDJPY, USDCAD, …): our CME
+# futures quote these USD-per-ccy, i.e. the terminal chart upside-down.
+_FX_USD_FIRST = {"JYA Curncy", "SFA Curncy", "CDA Curncy", "PEA Curncy", "RAA Curncy",
+                 "SIRA Curncy", "SEA Curncy", "HEA Curncy", "KOA Curncy", "NOA Curncy",
+                 "CCA Curncy", "ISA Curncy", "PPA Curncy", "BRA Curncy"}
+
+
+def _seas_fx_note(ticker: str) -> str:
+    """Quote-convention gloss for FX windows — our FX products are the CME futures,
+    quoted USD per unit of foreign currency. For currencies a terminal quotes the
+    OTHER way up this window is the terminal's seasonality chart MIRRORED (Ben's
+    JPY catch 2026-09-23: SEAG +2.4% USDJPY = our −2.2% yen future, same move)."""
+    if universe.asset(ticker) != "FX":
+        return ""
+    m = re.search(r"\(([A-Z]{3})\)", universe.name(ticker))
+    ccy = m.group(1) if m else "CCY"
+    if ticker in _FX_USD_FIRST:
+        return (f" **FX mirror:** this is the CME future, quoted USD per {ccy} — a rising "
+                f"line = {ccy} STRENGTHENING. A terminal quotes USD{ccy} the other way up, "
+                "so its seasonality chart is this one flipped upside-down: our 'lower' and "
+                f"its 'higher' are the same {ccy} weakness.")
+    return (f" This is the CME future, quoted USD per {ccy} — the same way up as the "
+            f"terminal's {ccy}USD, so no mirror to worry about.")
+
+
 def _seas_fmt(unit: str) -> str:
     """Signed number format for a seasonality unit — bp whole, % one decimal."""
     return "{:+,.0f}" if unit == "bp" else "{:+,.1f}"
@@ -14954,7 +14979,7 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
         f"span **{wh}/{len(wy)}** (median {fmt.format(wy.median())}{unit}). Gold = the "
         "SEAG-style read anyone can reproduce on a terminal; blue = the finder's weekly "
         "alignment. Years where the two bars disagree in sign are the drift-fragile ones — "
-        "the window's edges, not its middle, decided them.")
+        "the window's edges, not its middle, decided them." + _seas_fx_note(ticker))
 
     # the SEAG overlay: every year's normalized walk through the window (Ben's ask,
     # 2026-09-08 — "show what it is we are flagging", the Bloomberg Seasonality Chart look)
@@ -14965,18 +14990,31 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
         cur = paths[paths["year"] == cur_iso]
         med_path = (hist.groupby("wdate")["cum"].median().reset_index()
                     if not hist.empty else pd.DataFrame())
+        # right-hand headroom so the end-of-line value labels never clip
         x_enc = alt.X("wdate:T", title=None,
+                      scale=alt.Scale(domain=[paths["wdate"].min().isoformat(),
+                                              (paths["wdate"].max()
+                                               + pd.Timedelta(days=13)).isoformat()]),
                       axis=alt.Axis(format="%d %b", labelFontSize=12))
         yr_lines = alt.Chart(hist).mark_line(strokeWidth=1.4, opacity=0.75).encode(
             x=x_enc,
             y=alt.Y("cum:Q", title=f"cum move ({unit})", scale=alt.Scale(zero=False)),
-            color=alt.Color("year:O", scale=alt.Scale(scheme="category10"),
-                            legend=alt.Legend(orient="right", title=None,
-                                              labelFontSize=11, symbolStrokeWidth=3)),
+            color=alt.Color("year:O", scale=alt.Scale(scheme="category10"), legend=None),
             tooltip=[alt.Tooltip("year:O"), alt.Tooltip("wdate:T", format="%d %b"),
                      alt.Tooltip("cum:Q", title=f"cum ({unit})", format="+,.1f")])
         layers = [alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
             color=cc["muted"], strokeDash=[4, 3], strokeWidth=1).encode(y="y:Q"), yr_lines]
+        # SEAG-style right-edge labels: each year's final value tags its own line
+        # (Ben 2026-09-23: "doesn't show how much" — the legend is retired for these)
+        yr_last = hist.sort_values("step").groupby("year").tail(1).copy()
+        if not yr_last.empty:
+            yr_last["lbl"] = ["'" + str(int(y))[2:] + f" {c:+,.1f}"
+                              for y, c in zip(yr_last["year"], yr_last["cum"])]
+            layers.append(alt.Chart(yr_last).mark_text(
+                align="left", dx=7, fontSize=11, font="monospace", fontWeight="bold").encode(
+                x="wdate:T", y="cum:Q", text="lbl:N",
+                color=alt.Color("year:O", scale=alt.Scale(scheme="category10"),
+                                legend=None)))
         if not med_path.empty:
             layers.append(alt.Chart(med_path).mark_line(
                 color=cc["ink"], strokeWidth=3, strokeDash=[7, 4]).encode(
@@ -14992,6 +15030,12 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
                 tooltip=[alt.Tooltip("year:O"), alt.Tooltip("wdate:T", format="%d %b"),
                          alt.Tooltip("cum:Q", title=f"{cur_iso} cum ({unit})",
                                      format="+,.1f")]))
+            _cl = cur.sort_values("step").tail(1).copy()
+            _cl["lbl"] = ["'" + str(cur_iso)[2:] + f" {float(v):+,.1f}" for v in _cl["cum"]]
+            layers.append(alt.Chart(_cl).mark_text(
+                align="left", dx=7, fontSize=11.5, font="monospace",
+                fontWeight="bold", color=cc["accent"]).encode(
+                x="wdate:T", y="cum:Q", text="lbl:N"))
         brand.show_chart(alt.layer(*layers).properties(
             height=300,
             title=f"{universe.yield_name(ticker)} — every year's walk through "
@@ -15002,9 +15046,11 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
             "The Bloomberg-SEAG view of the same window: each line is one stored year's "
             "cumulative path through the stretch, normalized to zero at the window start "
             "(weekly closes, the finder's basis — each line's endpoint is that year's bar "
-            f"above). **Dashed** = the median path across the stored years.{_cur_note} "
+            f"above). Each line carries its year and final move at its right end. "
+            f"**Dashed** = the median path across the stored years.{_cur_note} "
             + ("For FI this runs in yield space — a RISING line here is the SEAG price "
-               "chart falling." if seasmon.unit_of(ticker) == "bp" else ""))
+               "chart falling." if seasmon.unit_of(ticker) == "bp" else "")
+            + _seas_fx_note(ticker))
 
     # one year, Friday by Friday — the addends behind that year's streak entry
     yr_opts = sorted((int(y) for y in wy.index), reverse=True)
