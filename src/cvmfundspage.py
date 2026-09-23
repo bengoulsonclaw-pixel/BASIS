@@ -5,9 +5,13 @@ rule: src/cvmfunds.py. This module is presentation only — nothing here compute
 return, because everything is precomputed into data/signals/cvm_funds by the daily pull
 (app-wide rule: a page must not do 7m rows of work on open).
 
-Three sections, switched by the segmented control (the house pattern for in-page
+Four sections, switched by the segmented control (the house pattern for in-page
 sections — Company Fundamentals and Colleague Access use the same one):
 
+  Overview   where the industry's money went and whether it was earned. One row per
+             sector (asset class, or ANBIMA strategy), the flow-against-performance
+             quadrant, gross industry flow by month, launches and closures, and the
+             funds and managers behind the totals. This is the landing section.
   Explore    one table, one filter. A grain switch (by fund / by manager) and three
              column sets (Performance / Flows / Risk). This replaced a Screener and a
              Flows section whose columns were subsets of one another and which each
@@ -55,7 +59,7 @@ from src import auth, brand, cvmfunds
 _BN = 1e9
 _MM = 1e6
 
-_VIEWS = ["📊 Explore", "📈 Fund", "★ Watchlist"]
+_VIEWS = ["🗺️ Overview", "📊 Explore", "📈 Fund", "★ Watchlist"]
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────────────
@@ -118,6 +122,7 @@ NUM_S = dict(fn="num_s")        # signed: a flow
 PCT_0 = dict(fn="pct0")         # signed, whole percent — a flow as a share of assets
 PCT_R = dict(fn="pctr")         # a RATIO, not a move: "53% of CDI" takes no sign
 NUM_1 = dict(fn="num1")
+NUM_S_1 = dict(fn="num_s1")   # a signed R$bn flow, where 0.1bn still matters
 NUM_2 = dict(fn="num2")         # a Sharpe ratio, where the second decimal is the signal
 PCT_2 = dict(fn="pct2")         # a single day's move, which rounds to 0.0% at one decimal
 
@@ -130,6 +135,7 @@ _FORMATTERS = {
     "num1": lambda v: _num(v, 1),
     "num_s": lambda v: _num(v, signed=True),
     "num2": lambda v: _num(v, 2),
+    "num_s1": lambda v: _num(v, 1, signed=True),
     "pct2": lambda v: _pct(v, 2),
 }
 
@@ -1051,6 +1057,259 @@ def _tab_watchlist(met: pd.DataFrame) -> None:
         _fund_detail(met, d.iloc[rows[0]], key="wl")
 
 
+_GRAINS_OV = ["By asset class", "By strategy"]
+
+
+def _basis_toggles(key: str) -> dict:
+    """The three counting-basis switches, without the class/strategy filters.
+
+    The Overview uses the sector as its ROW, so filtering to one sector would empty the
+    page. It still needs the basis toggles, because the industry total is one of three
+    numbers that differ by 90% depending on them.
+    """
+    o1, o2, o3 = st.columns(3)
+    return {
+        "feeders": o1.toggle("Include feeders", value=False, key=f"{key}_feed",
+                             help="Fund-of-quotas classes hold another fund's units, so "
+                                  "their assets ARE that fund's counted twice."),
+        "exclusive": o2.toggle("Include exclusive", value=False, key=f"{key}_excl",
+                               help="Single-family and single-institution vehicles. Real "
+                                    "money, but nobody can buy them."),
+        "prev": o3.toggle("Include pension funds", value=False, key=f"{key}_prev",
+                          help="Pension wrappers. CVM files them under what they invest "
+                               "in; ANBIMA counts them separately."),
+    }
+
+
+def _wavg(d: pd.DataFrame, col: str, by: str) -> pd.Series:
+    """Asset-weighted mean, the same rule the manager league table runs on: a simple
+    average lets a small launch outvote a flagship."""
+    w = d[[by, "aum", col]].dropna()
+    if w.empty:
+        return pd.Series(dtype=float)
+    return (w[col] * w["aum"]).groupby(w[by]).sum() / w.groupby(by)["aum"].sum()
+
+
+def _sector_frame(d: pd.DataFrame, by: str) -> pd.DataFrame:
+    """One row per sector: size, this year's money, performance, and how many beat cash."""
+    g = d.groupby(by)
+    out = pd.DataFrame({
+        "funds": g["cnpj"].nunique(),
+        "aum": g["aum"].sum(),
+        "subs": g["subs_ytd"].sum(),
+        "redem": g["redem_ytd"].sum(),
+        "net": g["flow_ytd"].sum(),
+    })
+    out["share"] = out["aum"] / out["aum"].sum() * 100.0
+    # Net flow as a RATE, not a level. R$10bn into a R$3.6tn sector is noise; the same
+    # figure into a R$30bn one is the whole story, and only the ratio says which.
+    opening = out["aum"] - out["net"]
+    out["organic"] = np.where(opening > 0, out["net"] / opening * 100.0, np.nan)
+    out["ret_12m"] = _wavg(d, "ret_12m", by)
+    out["exc_12m"] = _wavg(d, "exc_12m", by) if "exc_12m" in d else np.nan
+    out["median_12m"] = g["ret_12m"].median()
+    if "exc_12m" in d:
+        rated = d[d["exc_12m"].notna()]
+        beat = rated[rated["exc_12m"] > 0].groupby(by)["cnpj"].nunique()
+        have = rated.groupby(by)["cnpj"].nunique()
+        out["beat"] = beat.reindex(out.index).fillna(0)
+        out["rated"] = have.reindex(out.index).fillna(0)
+        out["beat_pct"] = np.where(out["rated"] > 0, out["beat"] / out["rated"] * 100.0, np.nan)
+    return out.sort_values("aum", ascending=False)
+
+
+def _sector_table(sec: pd.DataFrame, label: str) -> None:
+    disp = pd.DataFrame({
+        label: sec.index,
+        "Funds": sec["funds"].values,
+        "Assets": (sec["aum"] / _BN).values,
+        "Share": sec["share"].values,
+        "Subs YTD": (sec["subs"] / _BN).values,
+        "Redeem YTD": (-sec["redem"] / _BN).values,     # shown as the outflow it is
+        "Net YTD": (sec["net"] / _BN).values,
+        "Net %": sec["organic"].values,
+        "12m": sec["ret_12m"].values,
+        "vs CDI": sec.get("exc_12m", pd.Series(np.nan, index=sec.index)).values,
+        "Beat CDI": sec.get("beat_pct", pd.Series(np.nan, index=sec.index)).values,
+    })
+    spec = {"Funds": NUM, "Assets": NUM_1, "Share": PCT_U, "Subs YTD": NUM_1,
+            "Redeem YTD": NUM_1, "Net YTD": NUM_S_1, "Net %": PCT, "12m": PCT,
+            "vs CDI": PCT, "Beat CDI": PCT_U}
+    brand.themed_dataframe(_as_text(disp, spec), {}, height=_grid_height(len(disp), 420),
+                           colorers=[(["Net YTD", "Net %", "12m", "vs CDI"], _move_colour)])
+    st.caption(_md(
+        "Assets and flows in **R$bn**, this calendar year. **Net %** is net flow against "
+        "the sector's opening assets — R$10bn into a R$3.6tn sector is noise and the rate "
+        "is what says so. Returns are **asset-weighted**; **Beat CDI** is the share of "
+        "classes with a full 12-month history that beat cash."))
+
+
+def _flow_vs_perf(sec: pd.DataFrame, label: str) -> None:
+    """Where money went against whether it was earned.
+
+    The quadrant that matters is up-and-left: money leaving a sector that beat cash. That
+    is a conversation, not a chart — and on a single-axis table it is invisible, because
+    the flow and the return sit ten columns apart.
+    """
+    if "exc_12m" not in sec or sec["exc_12m"].isna().all():
+        return
+    cc = brand.chart_colors()
+    pts = sec.reset_index().rename(columns={sec.index.name or "index": "sector"})
+    pts = pts.dropna(subset=["exc_12m", "organic"])
+    if pts.empty:
+        return
+    base = alt.Chart(pts).encode(
+        x=alt.X("exc_12m:Q", title="asset-weighted excess over CDI, 12m (%)"),
+        y=alt.Y("organic:Q", title="net flow, % of opening assets"),
+        tooltip=[alt.Tooltip("sector:N", title=label),
+                 alt.Tooltip("exc_12m:Q", title="vs CDI %", format="+.2f"),
+                 alt.Tooltip("organic:Q", title="net flow %", format="+.2f"),
+                 alt.Tooltip("aum:Q", title="assets R$", format=",.0f")])
+    chart = (base.mark_circle(opacity=0.85).encode(
+                 size=alt.Size("aum:Q", legend=None, scale=alt.Scale(range=[80, 1600])),
+                 color=alt.Color("organic:Q", legend=None,
+                                 scale=alt.Scale(scheme="redyellowgreen", domainMid=0)))
+             + base.mark_text(align="left", dx=9, dy=-9, fontSize=11, color=cc["ink"])
+                   .encode(text="sector:N"))
+    rules = (alt.Chart(pd.DataFrame({"z": [0]})).mark_rule(color=cc["muted"], strokeDash=[4, 4])
+             .encode(x="z:Q")
+             + alt.Chart(pd.DataFrame({"z": [0]})).mark_rule(color=cc["muted"],
+                                                             strokeDash=[4, 4]).encode(y="z:Q"))
+    brand.show_chart((chart + rules).properties(
+        height=330, title="Flow against performance — bubble size is assets"))
+    st.caption("Top-left is money **leaving** a sector that beat cash; bottom-right is "
+               "money **arriving** at one that did not. Both are worth a phone call.")
+
+
+def _industry_flow(opts: dict, klass: str | None = None) -> None:
+    """Gross subscriptions against redemptions for the whole industry, by month."""
+    m = cvmfunds.load_monthly(include_feeders=opts["feeders"],
+                              include_exclusive=opts["exclusive"],
+                              include_prev=opts["prev"], cvm_class=klass)
+    if m.empty:
+        st.info("No monthly aggregate in the store yet — it builds with the daily pull.")
+        return
+    cc = brand.chart_colors()
+    m = m.copy()
+    m["net"] = (m["subs"] - m["redem"]) / _BN
+    bars = pd.concat([
+        pd.DataFrame({"month": m["month"], "v": m["subs"] / _BN, "side": "Subscriptions"}),
+        pd.DataFrame({"month": m["month"], "v": -m["redem"] / _BN, "side": "Redemptions"}),
+    ], ignore_index=True)
+    base = alt.Chart(bars).mark_bar().encode(
+        x=alt.X("yearmonth(month):O", title=None),
+        y=alt.Y("v:Q", title="R$bn"),
+        color=alt.Color("side:N", title=None,
+                        scale=alt.Scale(domain=["Subscriptions", "Redemptions"],
+                                        range=[cc["long"], cc["short"]])),
+        tooltip=[alt.Tooltip("yearmonth(month):O", title="Month"),
+                 alt.Tooltip("side:N", title=""),
+                 alt.Tooltip("v:Q", title="R$bn", format=",.1f")])
+    line = (alt.Chart(m).mark_line(point=True, color=cc["ink"], strokeWidth=2)
+            .encode(x=alt.X("yearmonth(month):O", title=None), y=alt.Y("net:Q", title="R$bn"),
+                    tooltip=[alt.Tooltip("yearmonth(month):O", title="Month"),
+                             alt.Tooltip("net:Q", title="Net R$bn", format="+,.1f")]))
+    brand.show_chart((base + line).properties(
+        height=270, title="Industry subscriptions and redemptions by month (net in white)"))
+    gross_in, gross_out = m["subs"].sum(), m["redem"].sum()
+    churn = gross_in / abs(gross_in - gross_out) if gross_in != gross_out else float("nan")
+    st.caption(_md(
+        f"Over the cached window the industry took in **{_brl(gross_in)}** and paid out "
+        f"**{_brl(gross_out)}** to net **{_brl(gross_in - gross_out)}**"
+        + (f" — it moved **{churn:,.0f}×** its own net flow." if churn == churn else ".")
+        + "  The newest month is partial: CVM files daily and the window ends at the "
+          "snapshot date, not at month end."))
+
+
+def _launch_close(opts: dict) -> None:
+    """New share classes against ones that stopped filing."""
+    m = cvmfunds.load_monthly(include_feeders=opts["feeders"],
+                              include_exclusive=opts["exclusive"], include_prev=opts["prev"])
+    if m.empty or "launched" not in m:
+        return
+    cc = brand.chart_colors()
+    d = pd.concat([
+        pd.DataFrame({"month": m["month"], "n": m["launched"], "kind": "Launched"}),
+        pd.DataFrame({"month": m["month"], "n": -m["closed"], "kind": "Stopped filing"}),
+    ], ignore_index=True)
+    brand.show_chart(alt.Chart(d).mark_bar().encode(
+        x=alt.X("yearmonth(month):O", title=None),
+        y=alt.Y("n:Q", title="share classes"),
+        color=alt.Color("kind:N", title=None,
+                        scale=alt.Scale(domain=["Launched", "Stopped filing"],
+                                        range=[cc["series"], cc["short"]])),
+        tooltip=[alt.Tooltip("yearmonth(month):O", title="Month"),
+                 alt.Tooltip("kind:N", title=""), alt.Tooltip("n:Q", title="classes")])
+        .properties(height=230, title="Launches and closures by month"))
+    st.caption(
+        "Counted from FILING behaviour, not the registry: Resolução 175 re-registered the "
+        "whole industry, so 20,223 classes carry a 2025 “start” they did not have. The "
+        "first and last months read low by construction — nothing can be new in the "
+        "window's first month, and a closure is only visible once a class stops appearing.")
+
+
+def _biggest_movers(d: pd.DataFrame) -> None:
+    """The names behind the sector totals, both ends."""
+    c1, c2 = st.columns(2)
+    for col, (by, label, key) in zip((c1, c2), [("name_en", "Fund", "cnpj"),
+                                                ("gestor_en", "Manager", "gestor")]):
+        g = (d.groupby(by).agg(net=("flow_ytd", "sum"), aum=("aum", "sum"))
+              .sort_values("net"))
+        ends = pd.concat([g.tail(5).iloc[::-1], g.head(5)])
+        disp = pd.DataFrame({label: ends.index,
+                             "Net YTD": (ends["net"] / _BN).values,
+                             "Assets": (ends["aum"] / _BN).values})
+        with col:
+            st.markdown(f"**Biggest {label.lower()} moves this year**")
+            brand.themed_dataframe(
+                _as_text(disp, {"Net YTD": NUM_S_1, "Assets": NUM_1}), {},
+                height=_grid_height(len(disp), 400),
+                colorers=[(["Net YTD"], _move_colour)])
+    st.caption(_md("Net subscriptions minus redemptions this calendar year, in **R$bn** — "
+                   "the five that raised most and the five that lost most."))
+
+
+def _tab_overview(met: pd.DataFrame) -> None:
+    opts = _basis_toggles("ov")
+    d = cvmfunds.screen(met, cvm_class=None, include_feeders=opts["feeders"],
+                        include_exclusive=opts["exclusive"], include_prev=opts["prev"])
+    if d.empty:
+        st.info("Nothing in the store yet.")
+        return
+
+    gross_in, gross_out = d["subs_ytd"].sum(), d["redem_ytd"].sum()
+    rated = d["exc_12m"].notna().sum() if "exc_12m" in d else 0
+    beat = int((d["exc_12m"] > 0).sum()) if rated else 0
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Industry assets", _brl(d["aum"].sum(), dp=0))
+    k2.metric("Net flow YTD", _brl(gross_in - gross_out),
+              help="Subscriptions minus redemptions this calendar year.")
+    # _md(): st.metric parses markdown too, and two amounts either side of a slash is
+    # exactly the `$...$` pair Streamlit reads as LaTeX — it rendered in italic maths.
+    k3.metric("Gross in / out YTD", _md(f"{_brl(gross_in)} / {_brl(gross_out)}"),
+              help="The churn behind the net. A quiet net figure can hide enormous "
+                   "two-way movement.")
+    k4.metric("Beat CDI over 12m", f"{beat / rated * 100:.0f}%" if rated else "—",
+              help=f"{beat:,} of {rated:,} classes with a full 12-month history.")
+
+    grain = st.segmented_control("Grain", _GRAINS_OV, default=_GRAINS_OV[0], key="ov_grain",
+                                 label_visibility="collapsed") or _GRAINS_OV[0]
+    by, label = ("class_en", "Asset class") if grain == _GRAINS_OV[0] else ("strategy_en",
+                                                                           "Strategy")
+    sec = _sector_frame(d[d[by].astype(str).str.strip() != ""], by)
+    _sector_table(sec, label)
+
+    st.divider()
+    _flow_vs_perf(sec if grain == _GRAINS_OV[0] else sec.head(20), label)
+    st.divider()
+    _industry_flow(opts)
+    st.divider()
+    _launch_close(opts)
+    st.divider()
+    _biggest_movers(d)
+
+
+
 # ── page ────────────────────────────────────────────────────────────────────────────
 def render() -> None:
     st.subheader("🇧🇷 Brazil Funds")
@@ -1101,11 +1360,13 @@ def render() -> None:
     view = st.segmented_control("Section", _VIEWS, default=_VIEWS[0], key="cvm_view",
                                 label_visibility="collapsed")
     if view == _VIEWS[1]:
-        _tab_fund(met)
+        _tab_explore(met)
     elif view == _VIEWS[2]:
+        _tab_fund(met)
+    elif view == _VIEWS[3]:
         _tab_watchlist(met)
     else:                      # clicking the active segment deselects it — stay put
-        _tab_explore(met)
+        _tab_overview(met)
 
     st.divider()
     st.caption("Source: **CVM — Portal Dados Abertos** (daily filings + the fund/class/"

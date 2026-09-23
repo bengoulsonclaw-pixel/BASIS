@@ -72,6 +72,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 STORE = _ROOT / "data" / "signals" / "cvm_funds"
 REGISTRY = STORE / "registry.parquet"
 METRICS = STORE / "metrics.parquet"
+MONTHLY = STORE / "monthly_flow.parquet"   # industry subs/redemptions, small enough to read on open
 META = STORE / "meta.json"
 
 _INF_URL = "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{ym}.zip"
@@ -884,14 +885,33 @@ def compute_metrics(nav: pd.DataFrame, registry: pd.DataFrame,
                              out["exc_12m"] / out["vol"], np.nan) \
         if "exc_12m" in out else np.nan
 
-    # Flows: net money in, over the same windows. This is the one thing a performance
-    # table cannot tell you — a fund can be up 20% and bleeding.
+    # Flows: money in, over the same windows. This is the one thing a performance table
+    # cannot tell you — a fund can be up 20% and bleeding.
+    #
+    # GROSS subscriptions and redemptions are kept beside the net, not just the net. A
+    # fund that took R$3.1bn and paid out R$2.6bn nets to a tidy +R$0.5bn and looks calm;
+    # it churned six times that, and the industry view is about exactly that distinction.
     flows = nav.set_index("date")
-    for label, months in (("1m", 1), ("3m", 3), ("12m", 12)):
-        cut = last_date - pd.DateOffset(months=months)
+    _windows = [("1m", last_date - pd.DateOffset(months=1)),
+                ("3m", last_date - pd.DateOffset(months=3)),
+                ("12m", last_date - pd.DateOffset(months=12)),
+                ("ytd", pd.Timestamp(year=last_date.year, month=1, day=1))]
+    for label, cut in _windows:
         w = flows[flows.index > cut]
-        net = (w.groupby("fund_id")["subs"].sum() - w.groupby("fund_id")["redem"].sum())
-        out[f"flow_{label}"] = net
+        subs = w.groupby("fund_id")["subs"].sum()
+        redem = w.groupby("fund_id")["redem"].sum()
+        out[f"flow_{label}"] = subs - redem
+        if label in ("12m", "ytd"):
+            out[f"subs_{label}"] = subs
+            out[f"redem_{label}"] = redem
+
+    # When this class was first and last seen FILING, which is the only honest way to
+    # count launches and closures. The registry's `start` is the CLASS registration date,
+    # and Resolução 175 re-registered the whole industry — 20,223 classes carry a 2025
+    # "start" they did not have, so counting launches from it is meaningless.
+    seen_span = nav.groupby("fund_id")["date"].agg(["min", "max"])
+    out["first_seen"] = seen_span["min"]
+    out["last_seen"] = seen_span["max"]
 
     tail = latest.set_index("fund_id")
     out["aum"] = tail["pl"]
@@ -906,6 +926,44 @@ def compute_metrics(nav: pd.DataFrame, registry: pd.DataFrame,
     out["as_of"] = last_date
     out = out[out["class_aum"].fillna(0) >= min_aum]
     return out.sort_values("aum", ascending=False).reset_index(drop=True)
+
+
+def monthly_flow(nav: pd.DataFrame, registry: pd.DataFrame) -> pd.DataFrame:
+    """Gross subscriptions and redemptions by month, per class and per screening flag.
+
+    Precomputed because the alternative is scanning 6.4m fund-days on page open, which
+    the app-wide rule forbids and which measured at over ten minutes. Aggregating to
+    (month x class x the three screen flags) keeps it to a few hundred rows, so the page
+    can still honour the feeder / exclusive / pension toggles by summing the ones it
+    wants rather than re-reading the panel.
+    """
+    if nav.empty or registry.empty:
+        return pd.DataFrame()
+    keys = ["cvm_class", "is_feeder", "is_exclusive", "is_prev"]
+    d = nav.merge(registry[["cnpj", *keys]].drop_duplicates("cnpj"), on="cnpj", how="left")
+    d["month"] = d["date"].dt.to_period("M").dt.to_timestamp()
+    out = (d.groupby(["month", *keys], dropna=False)
+             .agg(subs=("subs", "sum"), redem=("redem", "sum"),
+                  classes=("cnpj", "nunique"))
+             .reset_index())
+
+    # Launches and closures have to be counted HERE, on the raw panel. compute_metrics
+    # keeps only classes that filed on the snapshot date, so by the time the metrics
+    # frame exists every class that shut down has already been dropped from it — a
+    # closure count taken there is structurally zero, which is what it read.
+    span = d.groupby("fund_id" if "fund_id" in d else "cnpj").agg(
+        first=("month", "min"), last=("month", "max"), **{k: (k, "first") for k in keys})
+    first_month, last_month = out["month"].min(), out["month"].max()
+    born = (span[span["first"] > first_month].groupby(["first", *keys], dropna=False)
+            .size().rename("launched").reset_index().rename(columns={"first": "month"}))
+    died = (span[span["last"] < last_month].groupby(["last", *keys], dropna=False)
+            .size().rename("closed").reset_index().rename(columns={"last": "month"}))
+    out = out.merge(born, on=["month", *keys], how="left")
+    out = out.merge(died, on=["month", *keys], how="left")
+    out[["launched", "closed"]] = out[["launched", "closed"]].fillna(0).astype(int)
+    for k in ("is_feeder", "is_exclusive", "is_prev"):
+        out[k] = out[k].fillna(False).astype(bool)
+    return out
 
 
 # ── build / load ────────────────────────────────────────────────────────────────────
@@ -940,6 +998,10 @@ def build(force: bool = False, months_back: int = MONTHS_BACK,
     print(f"CVM funds: {len(nav):,} fund-days over {len(have)} months")
     met = compute_metrics(nav, reg, min_aum=min_aum)
     met.to_parquet(METRICS, index=False)
+    try:
+        monthly_flow(nav, reg).to_parquet(MONTHLY, index=False)
+    except Exception as exc:                       # a missing extra must not fail the build
+        print(f"  CVM: monthly flow aggregate skipped ({type(exc).__name__}: {exc})")
 
     meta = {
         "built": datetime.now().isoformat(timespec="seconds"),
@@ -989,6 +1051,35 @@ def history(cnpj: str, subclass: str = "") -> pd.DataFrame:
 
 
 # ── screening ───────────────────────────────────────────────────────────────────────
+def load_monthly(include_feeders: bool = False, include_exclusive: bool = False,
+                 include_prev: bool = False, cvm_class: str | None = None) -> pd.DataFrame:
+    """The stored monthly aggregate, screened the same way the tables are.
+
+    Defaults match `screen()` so the industry chart and the industry table cannot end up
+    standing on different populations — the single most confusing thing a summary page
+    can do.
+    """
+    try:
+        m = pd.read_parquet(MONTHLY)
+    except Exception:
+        return pd.DataFrame()
+    if m.empty:
+        return m
+    if not include_feeders:
+        m = m[~m["is_feeder"]]
+    if not include_exclusive:
+        m = m[~m["is_exclusive"]]
+    if not include_prev:
+        m = m[~m["is_prev"]]
+    if cvm_class:
+        m = m[m["cvm_class"] == _CLASS_PT.get(cvm_class, cvm_class)]
+    agg = {"subs": ("subs", "sum"), "redem": ("redem", "sum"), "classes": ("classes", "sum")}
+    for extra in ("launched", "closed"):
+        if extra in m:
+            agg[extra] = (extra, "sum")
+    return m.groupby("month", as_index=False).agg(**agg)
+
+
 def search(d: pd.DataFrame, query: str) -> pd.DataFrame:
     """Free-text match over a screened frame: fund name, manager, or CNPJ.
 
