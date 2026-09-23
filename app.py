@@ -14999,7 +14999,12 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
         # legend labels carry each year's FINAL move (BBG-legend style, Ben 2026-09-23);
         # one shared colour scale keys the lines, the legend and the edge labels together
         _fin = hist.sort_values("step").groupby("year")["cum"].last()
-        _ylab = {int(y): f"{int(y)}  {v:+,.1f}" for y, v in _fin.items()}
+        # both bases in the legend (Ben 2026-09-23): wk = the drawn line's endpoint,
+        # dt = the fixed-date SEAG-comparable read from the streak table above
+        _dmap = {int(k): float(v) for k, v in dy.items()}
+        _ylab = {int(y): (f"{int(y)}  wk {v:+,.1f} · dt "
+                          + (f"{_dmap[int(y)]:+,.1f}" if int(y) in _dmap else "—"))
+                 for y, v in _fin.items()}
         hist = hist.assign(ylab=hist["year"].map(lambda y: _ylab[int(y)]))
         _dom = [_ylab[y] for y in sorted(_ylab, reverse=True)]
         _cscale = alt.Scale(scheme="category10", domain=_dom)
@@ -15007,7 +15012,8 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
             x=x_enc,
             y=alt.Y("cum:Q", title=f"cum move ({unit})", scale=alt.Scale(zero=False)),
             color=alt.Color("ylab:N", scale=_cscale,
-                            legend=alt.Legend(orient="right", title=f"year · move ({unit})",
+                            legend=alt.Legend(orient="right",
+                                              title=f"year · weeks · dates ({unit})",
                                               labelFont="monospace", labelFontSize=11.5,
                                               labelLimit=0, symbolStrokeWidth=3)),
             tooltip=[alt.Tooltip("year:O"), alt.Tooltip("wdate:T", format="%d %b"),
@@ -15055,8 +15061,10 @@ def _render_window_detail(ticker: str, row, unit: str, ns: str = "pp") -> None:
             "The Bloomberg-SEAG view of the same window: each line is one stored year's "
             "cumulative path through the stretch, normalized to zero at the window start "
             "(weekly closes, the finder's basis — each line's endpoint is that year's bar "
-            f"above). The legend and each line's right-edge tag both carry that year's "
-            f"final move. **Drag to pan, scroll to zoom, double-click to reset.** "
+            f"above). The legend carries each year's move on BOTH bases — **wk** is the "
+            f"drawn line's endpoint, **dt** the fixed-date SEAG-comparable read — and each "
+            f"line's right-edge tag repeats the weekly one. "
+            f"**Drag to pan, scroll to zoom, double-click to reset.** "
             f"**Dashed** = the median path across the stored years.{_cur_note} "
             + ("For FI this runs in yield space — a RISING line here is the SEAG price "
                "chart falling." if seasmon.unit_of(ticker) == "bp" else "")
