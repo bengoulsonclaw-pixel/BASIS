@@ -83,6 +83,7 @@ MONTHS_BACK = 13          # 13, not 12: a 12-month return needs an anchor BEFORE
 MIN_AUM = 10_000_000.0    # R$10m — below this a class is a shell or a wind-down, not a product
 TRADING_DAYS = 252
 CDI_SGS = 12              # BCB SGS 12 = CDI, annualised daily factor in percent
+SHARPE_VOL_FLOOR = 1.0    # below this annualised vol a class is a cash proxy, not a fund
 
 # CVM's own class, off registro_classe.Classificacao. Multimercado is the hedge-fund
 # analogue; the rest are here so the page can widen without a code change.
@@ -636,8 +637,73 @@ def cdi_index(start: date) -> pd.Series:
             return pd.Series(dtype=float)
         idx = pd.Series({pd.Timestamp(d): v for d, v in s.obs}).sort_index()
         return (1.0 + idx / 100.0).cumprod()
-    except Exception:
+    except Exception as exc:
+        # Named, not swallowed. This returning empty removes every benchmark column from
+        # the build, and a silent failure here cost an afternoon of looking for the bug
+        # in compute_metrics instead of in the BCB call.
+        print(f"  CVM: CDI fetch failed ({type(exc).__name__}: {exc})")
         return pd.Series(dtype=float)
+
+
+# ── watchlist ───────────────────────────────────────────────────────────────────────
+# Per user, because on the VPS several colleagues share one deployment and one desk's
+# shortlist is not another's. Login-free local runs still get a stable key — auth hands
+# back an implicit "local" admin — so the sentinel below is only a guard against auth
+# itself failing, not the normal local path.
+WATCHLIST = _ROOT / "data" / "cvm_watchlist.json"
+_LOCAL = "_local"
+
+
+def _watch_all() -> dict:
+    try:
+        return json.loads(WATCHLIST.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _watch_who() -> str:
+    """The signed-in user's email, or the shared local list."""
+    try:
+        from src import auth
+        user = auth.current_user()
+        return (user or {}).get("email") or _LOCAL
+    except Exception:
+        return _LOCAL
+
+
+def watchlist() -> list[str]:
+    """The fund keys ("cnpj|subclass") this user has starred, newest first."""
+    return list(_watch_all().get(_watch_who(), []))
+
+
+def watch_set(keys: list[str]) -> None:
+    all_lists = _watch_all()
+    all_lists[_watch_who()] = list(dict.fromkeys(keys))      # de-duped, order kept
+    WATCHLIST.parent.mkdir(parents=True, exist_ok=True)
+    WATCHLIST.write_text(json.dumps(all_lists, indent=1, ensure_ascii=False), encoding="utf-8")
+
+
+def watch_toggle(key: str) -> bool:
+    """Star or unstar one class. Returns True if it is now starred."""
+    keys = watchlist()
+    if key in keys:
+        watch_set([k for k in keys if k != key])
+        return False
+    watch_set([key] + keys)
+    return True
+
+
+def watch_add(keys: list[str]) -> int:
+    """Star several at once; returns how many were NEW.
+
+    The incoming list is de-duplicated FIRST: a selection carrying the same class twice
+    counted it twice and told the user "3 added" over a list that grew by two.
+    """
+    have = watchlist()
+    fresh = [k for k in dict.fromkeys(keys) if k not in have]
+    if fresh:
+        watch_set(fresh + have)
+    return len(fresh)
 
 
 # ── metrics ─────────────────────────────────────────────────────────────────────────
@@ -731,12 +797,33 @@ def compute_metrics(nav: pd.DataFrame, registry: pd.DataFrame,
     # Start the benchmark BEFORE the NAV window. A 12-month anchor lands within a day or
     # two of the oldest cached month, and a CDI index that begins on exactly that day has
     # nothing to `asof` back to — every 12-month %CDI silently drops out.
-    cdi = cdi_index((nav["date"].min() - pd.Timedelta(days=45)).date())
+    cdi_start = (nav["date"].min() - pd.Timedelta(days=45)).date()
+    cdi = cdi_index(cdi_start)
+    # One retry: this call competes with the thirteen gov.br archive downloads that ran
+    # seconds earlier, and BCB is the one that loses. A build that skips the benchmark is
+    # not a degraded build, it is a store with entire columns missing.
+    if cdi.empty:
+        time.sleep(5)
+        cdi = cdi_index(cdi_start)
+
+    # A fund that last filed three days ago must not show that move as "1 day". The long
+    # windows tolerate a stale observation — a 12-month number barely moves for it — but a
+    # one-day or one-week return IS the staleness, so those are blanked unless the class
+    # reported on the snapshot date itself.
+    seen = quota.notna()
+    fresh = seen.any() & (seen[::-1].idxmax() == last_date)
+
     rows = {}
-    for label, months in (("1m", 1), ("3m", 3), ("6m", 6), ("12m", 12)):
-        target = last_date - pd.DateOffset(months=months)
-        base = _anchor(quota, target)
-        rows[f"ret_{label}"] = (last_q / base - 1.0) * 100.0
+    # (label, offset, anchor tolerance). The tolerance has to shrink with the window: 12
+    # days of slack on a 1-day return would quietly measure a fortnight.
+    _WINDOWS = (("1d", pd.Timedelta(days=1), 4), ("1w", pd.Timedelta(days=7), 5),
+                ("1m", pd.DateOffset(months=1), 12), ("3m", pd.DateOffset(months=3), 12),
+                ("6m", pd.DateOffset(months=6), 12), ("12m", pd.DateOffset(months=12), 12))
+    for label, offset, tol in _WINDOWS:
+        target = last_date - offset
+        base = _anchor(quota, target, tol_days=tol)
+        ret = (last_q / base - 1.0) * 100.0
+        rows[f"ret_{label}"] = ret.where(fresh) if label in ("1d", "1w") else ret
         if not cdi.empty:
             c_now = cdi.asof(last_date)
             c_then = cdi.asof(target)
@@ -747,13 +834,30 @@ def compute_metrics(nav: pd.DataFrame, registry: pd.DataFrame,
                 # a CDI up 14% is not "-21% of CDI", it just lost money — so the negative
                 # case is left blank and the return column carries the story.
                 ret = rows[f"ret_{label}"]
-                rows[f"cdi_{label}"] = pd.Series(
-                    np.where((ret > 0) & (bench > 0),
-                             ret / (bench * 100.0) * 100.0, np.nan), index=ret.index)
+                if label not in ("1d", "1w"):
+                    # "% of CDI" over a single day is a ratio of two rounding errors. The
+                    # EXCESS is still meaningful there, so only the ratio is withheld.
+                    rows[f"cdi_{label}"] = pd.Series(
+                        np.where((ret > 0) & (bench > 0),
+                                 ret / (bench * 100.0) * 100.0, np.nan), index=ret.index)
                 rows[f"exc_{label}"] = ret - bench * 100.0
+
+    # Checked on the RESULT, not on `cdi.empty`. A short or partial BCB response is not
+    # empty but still cannot reach back a year, so every `asof` returns NaN, the branch
+    # never runs, and the store comes out complete-looking with no benchmark at all — no
+    # error, no blank cells, nothing the page can tell apart from "this fund is new".
+    # That is how the 2026-09-23 rebuild silently lost every cdi_ and exc_ column.
+    if not any(k.startswith("exc_") for k in rows):
+        print("  CVM: no usable CDI benchmark in this build — %CDI and excess-over-CDI "
+              "columns are ABSENT, not blank. Re-run when BCB responds.")
 
     ytd_target = pd.Timestamp(year=last_date.year, month=1, day=1)
     rows["ret_ytd"] = (last_q / _anchor(quota, ytd_target) - 1.0) * 100.0
+    # YTD carries its excess too, so the tearsheet's return ladder has no gap in it.
+    if not cdi.empty:
+        c_now, c_then = cdi.asof(last_date), cdi.asof(ytd_target)
+        if pd.notna(c_now) and pd.notna(c_then) and c_then:
+            rows["exc_ytd"] = rows["ret_ytd"] - (c_now / c_then - 1.0) * 100.0
 
     # fill_method=None on purpose: a fund that skips a day should leave a GAP, not a
     # forward-filled 0.0% return. Padding invents flat days that drag annualised vol down
@@ -768,7 +872,16 @@ def compute_metrics(nav: pd.DataFrame, registry: pd.DataFrame,
     rows["obs"] = quota.notna().sum()
 
     out = pd.DataFrame(rows)
-    out["sharpe"] = np.where(out["vol"] > 0, out["exc_12m"] / out["vol"], np.nan) \
+    # A FLOOR, not `> 0`. A CDI-tracking class runs 0.1-0.3% annualised vol, so dividing a
+    # -1.5% excess by it prints a Sharpe of -73: arithmetically correct and informationally
+    # empty. Below 1% annualised the class is a cash proxy and the ratio is left blank.
+    #
+    # Blanked on `glitch` for a second reason: that class's VOL is computed on clipped
+    # daily returns while its 12-month return is not clipped at all, so the ratio divides
+    # an unclipped numerator by a damped denominator. A re-based quota then prints a
+    # Sharpe of 512 off a "37,451% return" and tops every risk-adjusted ranking.
+    out["sharpe"] = np.where((out["vol"] > SHARPE_VOL_FLOOR) & ~out["glitch"].fillna(False),
+                             out["exc_12m"] / out["vol"], np.nan) \
         if "exc_12m" in out else np.nan
 
     # Flows: net money in, over the same windows. This is the one thing a performance
@@ -839,6 +952,10 @@ def build(force: bool = False, months_back: int = MONTHS_BACK,
         "n_classes": int(met["cnpj"].nunique()) if not met.empty else 0,
         "n_units": int(len(met)),
         "n_gestores": int(met["gestor"].nunique()) if not met.empty else 0,
+        # False means the BCB call failed during THIS build, so every cdi_/exc_ column is
+        # absent. The page reads it to say so, rather than showing blanks that look like
+        # missing fund history.
+        "has_benchmark": bool(any(str(c).startswith("exc_") for c in met.columns)),
         "min_aum": min_aum,
         "source": "CVM — Dados Abertos (informe diário + registro fundo/classe)",
         "seconds": round(time.time() - t0, 1),
@@ -936,7 +1053,7 @@ def by_gestor(d: pd.DataFrame, by_firm: bool = False) -> pd.DataFrame:
         "flow_3m": g["flow_3m"].sum(),
         "flow_12m": g["flow_12m"].sum(),
     })
-    for col in ("ret_12m", "ret_ytd", "ret_3m", "vol"):
+    for col in ("ret_12m", "ret_ytd", "ret_3m", "exc_12m", "vol"):
         if col not in d:
             continue
         w = d[[key, "aum", col]].dropna()
@@ -985,4 +1102,10 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    # `python src/cvmfunds.py` puts src/ on sys.path, NOT the repo root, so every deferred
+    # `from src import ...` in this file raises ModuleNotFoundError. cdi_index caught it
+    # and returned an empty series, so a CLI build dropped every %CDI and excess-over-CDI
+    # column while reporting success — the scheduled build was fine because run_daily
+    # imports the module properly. Found 2026-09-23.
+    sys.path.insert(0, str(_ROOT))
     raise SystemExit(main(sys.argv[1:]))

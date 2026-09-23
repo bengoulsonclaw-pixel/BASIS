@@ -339,3 +339,75 @@ def test_screen_speaks_english_and_filters_on_the_portuguese():
     got = cf.screen(met, cvm_class="Multi-strategy")
     assert len(got) == 2, "English class name must map back to 'Multimercado'"
     assert cf.screen(met, cvm_class="Equity").empty
+
+
+# ── 9. the short windows, the Sharpe guards, and the watchlist ───────────────
+def test_a_class_that_skipped_the_snapshot_gets_no_one_day_return():
+    """A fund whose last quota predates the snapshot must not show that move as "1 day".
+
+    The long windows tolerate a stale observation — a 12-month number barely moves for
+    it — but a 1d or 1w return IS the staleness. `last_q` is anchored with 8 days of
+    slack, so without this a class that last priced a week ago would report that week's
+    move in the 1-day column.
+    """
+    dates = pd.bdate_range(end="2026-08-26", periods=20)
+    current = pd.Series(np.linspace(100, 110, len(dates)), index=dates)
+    lagging = current.copy()
+    lagging.iloc[-4:] = np.nan                     # stopped pricing four sessions ago
+    quota = pd.DataFrame({"current|": current, "lagging|": lagging})
+
+    seen = quota.notna()
+    fresh = seen.any() & (seen[::-1].idxmax() == dates[-1])
+    assert bool(fresh["current|"]) is True
+    assert bool(fresh["lagging|"]) is False,         "a class that did not price on the snapshot date has no 1-day return"
+
+
+def test_sharpe_is_blank_for_a_cash_proxy():
+    """A CDI-tracker runs 0.1-0.3% annualised vol, so dividing a -1.5% excess by it
+    prints a Sharpe of -73: arithmetically right, informationally empty."""
+    out = pd.DataFrame({"vol": [0.2, 8.0], "exc_12m": [-1.5, 4.0],
+                        "glitch": [False, False]})
+    sharpe = np.where((out["vol"] > cf.SHARPE_VOL_FLOOR) & ~out["glitch"],
+                      out["exc_12m"] / out["vol"], np.nan)
+    assert np.isnan(sharpe[0]), "a sub-1% vol class must not carry a Sharpe"
+    assert sharpe[1] == pytest.approx(0.5)
+
+
+def test_sharpe_is_blank_for_a_rebased_quota():
+    """`glitch` clips the VOL but not the 12-month return, so the ratio would divide an
+    unclipped numerator by a damped denominator. Observed live: a re-based quota printed
+    a 37,451% return and a Sharpe of 512, topping every risk-adjusted ranking."""
+    out = pd.DataFrame({"vol": [73.0], "exc_12m": [37000.0], "glitch": [True]})
+    sharpe = np.where((out["vol"] > cf.SHARPE_VOL_FLOOR) & ~out["glitch"],
+                      out["exc_12m"] / out["vol"], np.nan)
+    assert np.isnan(sharpe[0])
+
+
+def test_watchlist_round_trips_and_dedupes(tmp_path, monkeypatch):
+    """Starring is per user and must not double-count: a selection carrying the same
+    class twice once reported "3 added" over a list that grew by two."""
+    monkeypatch.setattr(cf, "WATCHLIST", tmp_path / "wl.json")
+    monkeypatch.setattr(cf, "_watch_who", lambda: "someone@example.com")
+
+    assert cf.watchlist() == []
+    assert cf.watch_toggle("111|") is True
+    assert cf.watchlist() == ["111|"]
+    assert cf.watch_toggle("111|") is False
+    assert cf.watchlist() == []
+
+    assert cf.watch_add(["a|", "b|", "a|"]) == 2, "a repeated key counts once"
+    assert cf.watchlist() == ["a|", "b|"]
+    assert cf.watch_add(["b|", "c|"]) == 1, "already-starred keys are not re-added"
+    assert cf.watchlist() == ["c|", "a|", "b|"]
+
+
+def test_one_users_watchlist_is_not_anothers(tmp_path, monkeypatch):
+    """Several colleagues share one VPS deployment."""
+    monkeypatch.setattr(cf, "WATCHLIST", tmp_path / "wl.json")
+    monkeypatch.setattr(cf, "_watch_who", lambda: "ben@example.com")
+    cf.watch_add(["ben-fund|"])
+    monkeypatch.setattr(cf, "_watch_who", lambda: "someone@example.com")
+    assert cf.watchlist() == [], "a second user starts empty"
+    cf.watch_add(["other-fund|"])
+    monkeypatch.setattr(cf, "_watch_who", lambda: "ben@example.com")
+    assert cf.watchlist() == ["ben-fund|"], "and does not overwrite the first"

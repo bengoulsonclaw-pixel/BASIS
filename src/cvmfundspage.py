@@ -5,19 +5,25 @@ rule: src/cvmfunds.py. This module is presentation only — nothing here compute
 return, because everything is precomputed into data/signals/cvm_funds by the daily pull
 (app-wide rule: a page must not do 7m rows of work on open).
 
-Four sections, switched by the segmented control (the house pattern for in-page
+Three sections, switched by the segmented control (the house pattern for in-page
 sections — Company Fundamentals and Colleague Access use the same one):
 
-  Screener   the fund table, filtered. The default filter is the defensible one —
-             multi-strategy, ex-feeder, ex-exclusive, ex-pension — and the page says so
-             above the table rather than leaving the reader to assume a raw dump.
-  Managers   the league table, and the reconciliation block that shows what each
-             counting basis is worth. The gap between bases is bigger than the gap
-             between the top three managers, which is the point.
-  Flows      who raised and who bled. A performance table cannot answer this, and for
-             a broker it is usually the more useful question.
-  Fund       managers by assets, one opening to the funds underneath it; picking one
-             draws that share class — NAV against CDI, drawdown, assets and flows.
+  Explore    one table, one filter. A grain switch (by fund / by manager) and three
+             column sets (Performance / Flows / Risk). This replaced a Screener and a
+             Flows section whose columns were subsets of one another and which each
+             carried their OWN copy of the filter row — so a filter set in one was gone
+             the moment you moved to the other.
+  Fund       the tearsheet for one share class: a seven-window return ladder with the
+             excess over CDI under each, peer rank inside its own ANBIMA strategy, NAV
+             against CDI, drawdown, and where the capital came from.
+  Watchlist  the classes this user has starred. Per user, because on the VPS several
+             colleagues share one deployment.
+
+WHY EXCESS OVER CDI IS ON EVERY VIEW
+
+CDI compounded 14.6% over the twelve months to 2026-09-21, so a Brazilian fund up 14%
+LOST to cash. A return column on its own invites exactly the wrong read, which is why the
+excess travels with it everywhere rather than living in one corner of the page.
 
 EVERYTHING DESCRIPTIVE IS SHOWN IN ENGLISH
 
@@ -47,7 +53,7 @@ from src import auth, brand, cvmfunds
 _BN = 1e9
 _MM = 1e6
 
-_VIEWS = ["🔎 Screener", "🏦 Managers", "💸 Flows", "📈 Fund"]
+_VIEWS = ["📊 Explore", "📈 Fund", "★ Watchlist"]
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────────────
@@ -68,6 +74,10 @@ def _brl(v: float, unit: str = "bn", dp: int = 1) -> str:
 def _pct(v: float, dp: int = 1, signed: bool = True) -> str:
     if v is None or v != v:
         return "—"
+    # A value that rounds to zero loses its sign: "-0.00%" reads as a typo, and on the
+    # 1-day column — where most funds move a basis point — it was most of the table.
+    if round(float(v), dp) == 0:
+        return f"{0:.{dp}f}%"
     return f"{v:{'+' if signed else ''}.{dp}f}%"
 
 
@@ -94,6 +104,8 @@ NUM_S = dict(fn="num_s")        # signed: a flow
 PCT_0 = dict(fn="pct0")         # signed, whole percent — a flow as a share of assets
 PCT_R = dict(fn="pctr")         # a RATIO, not a move: "53% of CDI" takes no sign
 NUM_1 = dict(fn="num1")
+NUM_2 = dict(fn="num2")         # a Sharpe ratio, where the second decimal is the signal
+PCT_2 = dict(fn="pct2")         # a single day's move, which rounds to 0.0% at one decimal
 
 _FORMATTERS = {
     "pct": _pct,
@@ -103,6 +115,8 @@ _FORMATTERS = {
     "num": _num,
     "num1": lambda v: _num(v, 1),
     "num_s": lambda v: _num(v, signed=True),
+    "num2": lambda v: _num(v, 2),
+    "pct2": lambda v: _pct(v, 2),
 }
 
 
@@ -196,175 +210,187 @@ def _basis_line(opts: dict, n: int, aum: float) -> None:
 
 
 # ── tabs ────────────────────────────────────────────────────────────────────────────
-def _tab_screener(met: pd.DataFrame) -> None:
-    d, opts = _filters(met, "scr")
+def _fund_keys(d: pd.DataFrame) -> pd.Series:
+    return d["cnpj"] + "|" + d["subclass"].fillna("")
+
+
+# The three column sets. One table, one filter, one grain switch — the page used to carry
+# a Screener and a Flows section whose columns were a subset of one another, each with its
+# OWN copy of the filter row, which reset every time you moved between them.
+_COLSETS = ["Performance", "Flows", "Risk"]
+_GRAINS = ["By fund", "By manager"]
+_EXPLORE_HELP = {
+    "Performance": "Returns are net of fees — the published quota already is. "
+                   "**vs CDI** is excess over the Brazilian cash benchmark, which is the "
+                   "number that says whether a fund was worth owning. ⚠ marks a class "
+                   "that restruck its quota in the window — a filing artefact, not a "
+                   "market move — and those sort last.",
+    "Flows": "Net subscriptions minus redemptions, in **R$m**. A performance table cannot "
+             "answer this — a fund can be up 20% and bleeding.",
+    "Risk": "Volatility is annualised from daily quotas; drawdown is peak-to-trough over "
+            "the cached window. Sharpe is excess-over-CDI divided by that volatility.",
+}
+
+
+def _explore_funds(d: pd.DataFrame, colset: str) -> tuple[pd.DataFrame, dict, list]:
+    """(display frame, text-format spec, columns to colour) for the per-fund grain."""
+    warn = np.where(d["glitch"].fillna(False), "⚠ ", "")
+    base = {"Fund": warn + d["name_en"], "Manager": d["gestor_en"]}
+    if colset == "Flows":
+        disp = pd.DataFrame({**base,
+                             "Assets": d["aum"] / _MM,
+                             "Flow 1m": d["flow_1m"] / _MM,
+                             "Flow 3m": d["flow_3m"] / _MM,
+                             "Flow 12m": d["flow_12m"] / _MM,
+                             "% of assets": d["flow_3m"] / d["aum"].replace(0, np.nan) * 100.0,
+                             "Holders": d["holders"]})
+        spec = {"Assets": NUM, "Flow 1m": NUM_S, "Flow 3m": NUM_S, "Flow 12m": NUM_S,
+                "% of assets": PCT_0, "Holders": NUM}
+        return disp, spec, ["Flow 1m", "Flow 3m", "Flow 12m", "% of assets"]
+    if colset == "Risk":
+        disp = pd.DataFrame({**base,
+                             "Vol": d["vol"], "Max DD": d["max_dd"],
+                             "Sharpe": d.get("sharpe"), "12m": d["ret_12m"],
+                             "vs CDI 12m": d.get("exc_12m"),
+                             "Assets": d["aum"] / _MM})
+        spec = {"Vol": PCT_U, "Max DD": PCT_U, "Sharpe": NUM_2, "12m": PCT,
+                "vs CDI 12m": PCT, "Assets": NUM}
+        return disp, spec, ["12m", "vs CDI 12m", "Max DD"]
+    disp = pd.DataFrame({**base, "Strategy": d["strategy_en"],
+                         "1d": d.get("ret_1d"), "1w": d.get("ret_1w"),
+                         "1m": d["ret_1m"], "3m": d["ret_3m"], "6m": d.get("ret_6m"),
+                         "YTD": d["ret_ytd"], "12m": d["ret_12m"],
+                         "vs CDI 12m": d.get("exc_12m"), "Assets": d["aum"] / _MM})
+    spec = {"1d": PCT_2, "1w": PCT, "1m": PCT, "3m": PCT, "6m": PCT, "YTD": PCT,
+            "12m": PCT, "vs CDI 12m": PCT, "Assets": NUM}
+    return disp, spec, ["1d", "1w", "1m", "3m", "6m", "YTD", "12m", "vs CDI 12m"]
+
+
+def _explore_managers(lt: pd.DataFrame, colset: str) -> tuple[pd.DataFrame, dict, list]:
+    """The same three column sets, one row per manager. Returns are ASSET-weighted."""
+    base = {"Manager": lt["label"]}
+    if colset == "Flows":
+        disp = pd.DataFrame({**base, "Funds": lt["funds"], "Assets": lt["aum"] / _BN,
+                             "Flow 3m": lt["flow_3m"] / _MM,
+                             "Flow 12m": lt["flow_12m"] / _MM, "Holders": lt["holders"]})
+        return disp, {"Funds": NUM, "Assets": NUM_1, "Flow 3m": NUM_S,
+                      "Flow 12m": NUM_S, "Holders": NUM}, ["Flow 3m", "Flow 12m"]
+    if colset == "Risk":
+        disp = pd.DataFrame({**base, "Funds": lt["funds"], "Assets": lt["aum"] / _BN,
+                             "Vol": lt.get("vol"), "12m": lt.get("ret_12m"),
+                             "vs CDI 12m": lt.get("exc_12m")})
+        return disp, {"Funds": NUM, "Assets": NUM_1, "Vol": PCT_U, "12m": PCT,
+                      "vs CDI 12m": PCT}, ["12m", "vs CDI 12m"]
+    disp = pd.DataFrame({**base, "Funds": lt["funds"], "Assets": lt["aum"] / _BN,
+                         "Share": lt["share"], "3m": lt.get("ret_3m"),
+                         "YTD": lt.get("ret_ytd"), "12m": lt.get("ret_12m"),
+                         "vs CDI 12m": lt.get("exc_12m")})
+    return disp, {"Funds": NUM, "Assets": NUM_1, "Share": PCT_U, "3m": PCT, "YTD": PCT,
+                  "12m": PCT, "vs CDI 12m": PCT}, ["3m", "YTD", "12m", "vs CDI 12m"]
+
+
+def _star_bar(d: pd.DataFrame, sel) -> None:
+    """Add the rows ticked in the table to the watchlist.
+
+    A per-row star button is not possible inside st.dataframe — the grid is a canvas, not
+    DOM — so selecting rows and pressing once is the honest version of a ★ column.
+    """
+    try:
+        rows = list(sel["selection"]["rows"]) if sel else []
+    except (KeyError, TypeError):
+        rows = []
+    c1, c2 = st.columns([1.1, 3])
+    if not rows:
+        c2.caption("Tick rows in the table to add them to your watchlist.")
+        return
+    if c1.button(f"★  Add {len(rows)} to watchlist", key="ex_star", type="primary",
+                 use_container_width=True):
+        keys = _fund_keys(d.iloc[rows]).tolist()
+        added = cvmfunds.watch_add(keys)
+        c2.success(f"Added {added}." if added == len(keys)
+                   else f"Added {added} — {len(keys) - added} already on the list.")
+
+
+def _tab_explore(met: pd.DataFrame) -> None:
+    d, opts = _filters(met, "ex")
     if d.empty:
         st.info("No funds match that filter.")
         return
+    g1, g2 = st.columns([1, 1.4])
+    grain = g1.segmented_control("Group by", _GRAINS, default=_GRAINS[0], key="ex_grain",
+                                 label_visibility="collapsed") or _GRAINS[0]
+    colset = g2.segmented_control("Columns", _COLSETS, default=_COLSETS[0], key="ex_cols",
+                                  label_visibility="collapsed") or _COLSETS[0]
     _basis_line(opts, d["cnpj"].nunique(), d["aum"].sum())
 
-    sort_by = st.radio("Sort by", ["Assets", "12m return", "YTD return", "3m flow",
-                                   "Vol (low first)", "Max drawdown"],
-                       horizontal=True, key="scr_sort", label_visibility="collapsed")
-    col, asc = {"Assets": ("aum", False), "12m return": ("ret_12m", False),
-                "YTD return": ("ret_ytd", False), "3m flow": ("flow_3m", False),
-                "Vol (low first)": ("vol", True), "Max drawdown": ("max_dd", False)}[sort_by]
-    d = d.sort_values(col, ascending=asc, na_position="last").head(300)
-
-    disp = pd.DataFrame({
-        # A class that re-based its quota or amortised prints a ±50% day that is not a
-        # market move. Its risk numbers are computed on clipped returns and are still
-        # not trustworthy, so the row is MARKED rather than hidden — one such fund sits
-        # in the ten largest multimercados and would otherwise read as a 69%-vol
-        # blow-up next to Verde and Kapitalo.
-        "Fund": np.where(d["glitch"].fillna(False), "⚠ ", "") + d["name_en"],
-        "Manager": d["gestor_en"],
-        "Strategy": d["strategy_en"],
-        "Assets": d["aum"] / _MM,
-        "1m": d["ret_1m"], "3m": d["ret_3m"], "12m": d["ret_12m"], "YTD": d["ret_ytd"],
-        "%CDI 12m": d.get("cdi_12m"),
-        "Vol": d["vol"], "Max DD": d["max_dd"],
-        "Flow 3m": d["flow_3m"] / _MM,
-        "Holders": d["holders"],
-    })
-    disp = _as_text(disp, {"Assets": NUM, "1m": PCT, "3m": PCT, "12m": PCT, "YTD": PCT,
-                           "%CDI 12m": PCT_R, "Vol": PCT_U, "Max DD": PCT_U,
-                           "Flow 3m": NUM_S, "Holders": NUM})
-    n_flag = int(d["glitch"].fillna(False).sum())
-    st.caption("Assets and 3m flow in **R$m**. Returns are net of fees — the published quota "
-               "already is. **%CDI** is shown only where fund and benchmark are both positive."
-               + (f"  ·  **⚠** marks the {n_flag} class(es) here that printed a single-day "
-                  "quota move over 50% — a re-basing or an amortisation, not a market move. "
-                  "Their volatility and drawdown are not comparable."
-                  if n_flag else ""))
-    brand.themed_dataframe(disp, {}, height=560,
-                           colorers=[(["1m", "3m", "12m", "YTD", "Max DD", "Flow 3m"],
-                                      _move_colour)])
-    if len(d) == 300:
-        st.caption("Showing the first 300 rows of the current filter — narrow it to see the rest.")
-
-
-def _tab_managers(met: pd.DataFrame) -> None:
-    d, opts = _filters(met, "mgr")
-    if d.empty:
-        st.info("No funds match that filter.")
+    if grain == _GRAINS[1]:
+        _explore_by_manager(met, d, colset)
         return
+
+    # Each column set arrives sorted by the thing it is about, so the table opens on the
+    # interesting end without anyone touching a control.
+    sort_col = {"Performance": "ret_12m", "Flows": "flow_3m", "Risk": "vol"}[colset]
+    asc = colset == "Risk"                      # least volatile first is the useful end
+    # Re-based quotas sort LAST, whatever the column. They are real filings and stay on
+    # the page behind their ⚠, but a class whose quota was restruck prints a "+488%"
+    # twelve-month return and would otherwise own the top of every performance ranking —
+    # a filing artefact presented as the best fund in Brazil.
+    d = (d.assign(_glitch=d["glitch"].fillna(False))
+          .sort_values(["_glitch", sort_col], ascending=[True, asc], na_position="last")
+          .drop(columns="_glitch").head(300))
+    disp, spec, moves = _explore_funds(d, colset)
+    st.caption(_EXPLORE_HELP[colset])
+
+    sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=520,
+                                 colorers=[(moves, _move_colour)],
+                                 on_select="rerun", selection_mode="multi-row",
+                                 key=f"ex_tbl_{colset}")
+    _star_bar(d, sel)
+    if len(d) == 300:
+        st.caption("Showing the first 300 rows of this filter — narrow it to see the rest.")
+
+
+def _explore_by_manager(met: pd.DataFrame, d: pd.DataFrame, colset: str) -> None:
+    """The league table, plus the reconciliation block that says what each counting basis
+    is worth. The gap between bases is wider than the gap between the top three managers,
+    which is why it stays on the page instead of being resolved silently — folded into an
+    expander now, because it is context you read once, not every visit."""
     by_firm = st.toggle(
-        "Group the entities of one house together", value=False, key="mgr_firm",
+        "Group the entities of one house together", value=False, key="ex_firm",
         help="BTG Pactual runs three separately registered gestores and Itaú two. Off, "
              "each is its own row (CVM's unit, and what everything else here counts). On, "
              "they merge into one house — the question people actually ask, and how "
              "ANBIMA consolidates.")
     lt = cvmfunds.by_gestor(d, by_firm=by_firm)
-    _basis_line(opts, d["cnpj"].nunique(), d["aum"].sum())
-
     tot = cvmfunds.industry_totals(met)
     if tot:
-        st.markdown("**How much the counting basis is worth**")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Gross, all classes", _brl(tot["gross"], dp=0),
-                  help="Every multimercado class summed. Wrong, and the number most often "
-                       "quoted.")
-        # ASCII hyphen, not U+2212: Streamlit parses the delta string to pick its arrow
-        # direction, and a typographic minus reads as unparseable — which drew an UP
-        # arrow on a number that is smaller than gross. delta_color="off" keeps it grey.
-        m2.metric("Ex-feeder", _brl(tot["ex_feeder"], dp=0),
-                  delta=f"-{tot['feeder_overstate']:.0f}% vs gross", delta_color="off",
-                  help="Fund-of-quotas classes removed — each real pool counted once.")
-        m3.metric("Ex-feeder, ex-pension", _brl(tot["ex_feeder_ex_prev"], dp=0),
-                  help="The basis closest to an ANBIMA headline.")
-        m4.metric("Pension carve-out", _brl(tot["prev"], dp=0),
-                  help="Pension (*previdência*) multi-strategy, which ANBIMA counts as its "
-                       "own category.")
-        st.caption("ANBIMA published R$1,519bn of multimercado with Itaú Asset at 9.8%. "
-                   "The third column here is the comparable basis; the residual gap is "
-                   "ANBIMA consolidating economic groups — their one “BTG Pactual” is three "
-                   "separately registered gestores in CVM's file — plus a vintage difference.")
-        st.divider()
-
-    top = lt.head(25).reset_index(drop=True)
-    cc = brand.chart_colors()
-    chart = (alt.Chart(top.assign(bn=top["aum"] / _BN,
-                                  Manager=top["label"].str.slice(0, 44)))
-             .mark_bar(color=cc["series"])
-             .encode(x=alt.X("bn:Q", title="assets (R$bn)"),
-                     y=alt.Y("Manager:N", sort="-x", title=None),
-                     tooltip=[alt.Tooltip("Manager:N"),
-                              alt.Tooltip("bn:Q", title="R$bn", format=",.1f"),
-                              alt.Tooltip("share:Q", title="share %", format=".1f"),
-                              alt.Tooltip("funds:Q", title="funds")])
-             .properties(height=min(620, 26 * len(top)) or 100))
-    brand.show_chart(chart)
-
-    disp = pd.DataFrame({
-        "Manager": lt["label"],
-        "Assets": lt["aum"] / _BN,
-        "Share": lt["share"],
-        "Funds": lt["funds"],
-        "12m": lt.get("ret_12m"), "YTD": lt.get("ret_ytd"), "Vol": lt.get("vol"),
-        "Flow 3m": lt["flow_3m"] / _MM, "Flow 12m": lt["flow_12m"] / _MM,
-        "Holders": lt["holders"],
-    }).head(60)
-    st.caption("Returns here are **asset-weighted** across each manager's funds — a simple "
-               "average lets an R$8m launch outvote an R$8bn flagship. Assets in R$bn, "
-               "flows in R$m.")
-    disp = _as_text(disp, {"Assets": NUM_1, "Share": PCT_U, "Funds": NUM, "12m": PCT,
-                           "YTD": PCT, "Vol": PCT_U, "Flow 3m": NUM_S,
-                           "Flow 12m": NUM_S, "Holders": NUM})
-    brand.themed_dataframe(
-        disp, {}, height=520,
-        colorers=[(["12m", "YTD", "Flow 3m", "Flow 12m"], _move_colour)])
-
-
-def _tab_flows(met: pd.DataFrame) -> None:
-    d, opts = _filters(met, "flw")
-    if d.empty:
-        st.info("No funds match that filter.")
-        return
-    win = st.radio("Window", ["1m", "3m", "12m"], index=1, horizontal=True, key="flw_win")
-    col = f"flow_{win}"
-    _basis_line(opts, d["cnpj"].nunique(), d["aum"].sum())
-    st.caption("Net subscriptions minus redemptions, in **R$m**. This is the question a "
-               "performance table cannot answer — a fund can be up 20% and bleeding assets, "
-               "and the flow is the part that shows up as client activity.")
-
-    net = d[col].sum()
-    g = d.groupby("gestor_en")[col].sum().sort_values()
-    k1, k2, k3 = st.columns(3)
-    k1.metric(f"Net flow, {win}", _brl(net, "m", 0))
-    k2.metric("Managers raising", f"{int((g > 0).sum()):,}")
-    k3.metric("Managers losing", f"{int((g < 0).sum()):,}")
-
-    both = pd.concat([g.head(15), g.tail(15)]).drop_duplicates()
-    cc = brand.chart_colors()
-    frame = both.reset_index()
-    frame.columns = ["Manager", "flow"]
-    frame["mm"] = frame["flow"] / _MM
-    frame["Manager"] = frame["Manager"].str.title().str.slice(0, 44)
-    chart = (alt.Chart(frame).mark_bar()
-             .encode(x=alt.X("mm:Q", title=f"net flow, {win} (R$m)"),
-                     y=alt.Y("Manager:N", sort="-x", title=None),
-                     color=alt.condition(alt.datum.mm > 0, alt.value(cc["long"]),
-                                         alt.value(cc["short"])),
-                     tooltip=[alt.Tooltip("Manager:N"),
-                              alt.Tooltip("mm:Q", title="R$m", format="+,.0f")])
-             .properties(height=min(680, 24 * len(frame)) or 100))
-    brand.show_chart(chart)
-
-    st.markdown(f"**Biggest single-fund moves, {win}**")
-    d2 = d.sort_values(col, na_position="last")
-    ends = pd.concat([d2.tail(12).iloc[::-1], d2.head(12)])
-    disp = pd.DataFrame({
-        "Fund": ends["name_en"], "Manager": ends["gestor_en"],
-        "Assets": ends["aum"] / _MM, f"Flow {win}": ends[col] / _MM,
-        "% of assets": ends[col] / ends["aum"].replace(0, np.nan) * 100.0,
-        "12m": ends["ret_12m"], "Holders": ends["holders"],
-    })
-    disp = _as_text(disp, {"Assets": NUM, f"Flow {win}": NUM_S, "% of assets": PCT_0,
-                           "12m": PCT, "Holders": NUM})
-    brand.themed_dataframe(
-        disp, {}, height=460,
-        colorers=[([f"Flow {win}", "% of assets", "12m"], _move_colour)])
+        with st.expander("How much the counting basis is worth", expanded=False):
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Gross, all classes", _brl(tot["gross"], dp=0),
+                      help="Every multimercado class summed. Wrong, and the number most "
+                           "often quoted.")
+            # ASCII hyphen, not U+2212: Streamlit parses the delta string to pick its arrow
+            # direction, and a typographic minus reads as unparseable — which drew an UP
+            # arrow on a number smaller than gross. delta_color="off" keeps it grey.
+            m2.metric("Ex-feeder", _brl(tot["ex_feeder"], dp=0),
+                      delta=f"-{tot['feeder_overstate']:.0f}% vs gross", delta_color="off",
+                      help="Fund-of-quotas classes removed — each real pool counted once.")
+            m3.metric("Ex-feeder, ex-pension", _brl(tot["ex_feeder_ex_prev"], dp=0),
+                      help="The basis closest to an ANBIMA headline.")
+            m4.metric("Pension carve-out", _brl(tot["prev"], dp=0),
+                      help="Pension (previdência) multi-strategy, which ANBIMA counts as "
+                           "its own category.")
+            st.caption("ANBIMA published R$1,519bn of multimercado with Itaú Asset at 9.8%. "
+                       "The third column here is the comparable basis; the residual gap is "
+                       "ANBIMA consolidating economic groups — their one BTG Pactual is "
+                       "three separately registered gestores in CVM's file — plus a vintage "
+                       "difference.")
+    disp, spec, moves = _explore_managers(lt, colset)
+    st.caption("Returns are **asset-weighted** across each manager's funds — a simple "
+               "average lets an R$8m launch outvote an R$8bn flagship. "
+               + _EXPLORE_HELP[colset])
+    brand.themed_dataframe(_as_text(disp, spec), {}, height=520,
+                           colorers=[(moves, _move_colour)])
 
 
 # The picker shows managers first and opens ONE at a time. Streamlit executes the body of
@@ -630,12 +656,27 @@ def _tab_fund(met: pd.DataFrame) -> None:
         return
     st.divider()
 
+    key = f"{row['cnpj']}|{row['subclass'] or ''}"
+    starred = key in cvmfunds.watchlist()
+    h1, h2 = st.columns([5, 1.2])
+    h1.markdown(f"### {row['name_en']}")
+    if h2.button("★  Starred" if starred else "☆  Add to watchlist", key="fnd_star",
+                 use_container_width=True, type="primary" if starred else "secondary"):
+        cvmfunds.watch_toggle(key)
+        st.rerun()
+
+    _ladder(row)
+    st.markdown("")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Assets", _brl(row["aum"], "m", 0))
-    m2.metric("12m", _pct(row["ret_12m"]))
-    m3.metric("Vol (ann.)", _pct(row["vol"], signed=False))
-    m4.metric("Max drawdown", _pct(row["max_dd"], signed=False))
+    m2.metric("Vol (ann.)", _pct(row["vol"], signed=False))
+    m3.metric("Max drawdown", _pct(row["max_dd"], signed=False))
+    m4.metric("Sharpe", _num(row.get("sharpe"), 2),
+              help="Excess over CDI divided by annualised volatility.")
     m5.metric("Holders", f"{row['holders']:,.0f}" if row["holders"] == row["holders"] else "—")
+    rank = _peer_rank(met, row)
+    if rank:
+        st.caption("Ranks " + rank)
     st.caption(f"**{row['gestor_en']}** · {row['strategy_en'] or row['class_en']} · "
                f"{row['audience_en']} investors"
                + ("  ·  ⚠️ feeder (fund-of-quotas)" if row["is_feeder"] else "")
@@ -692,6 +733,9 @@ def _tab_fund(met: pd.DataFrame) -> None:
                                           alt.Tooltip("dd:Q", format=".2f")])
                          .properties(height=230, title="Drawdown"))
     with a2:
+        _aum_bridge(h, row)
+    st.markdown("")
+    with st.expander("Assets and cumulative net flow over time", expanded=False):
         fl = h[["date", "subs", "redem", "pl"]].copy()
         fl["net"] = (fl["subs"].fillna(0) - fl["redem"].fillna(0)).cumsum() / _MM
         fl["assets"] = fl["pl"] / _MM
@@ -707,6 +751,138 @@ def _tab_fund(met: pd.DataFrame) -> None:
                                  tooltip=[alt.Tooltip("date:T"), alt.Tooltip("series:N"),
                                           alt.Tooltip("v:Q", format=",.0f")])
                          .properties(height=230, title="Assets and cumulative net flow"))
+
+
+
+# The return ladder. Each window carries its excess over CDI underneath, because in Brazil
+# the raw number alone does not say whether a fund was worth owning — CDI compounded 14.6%
+# over the last twelve months, so +14% is a loss against cash.
+_LADDER = [("1d", "ret_1d", "exc_1d"), ("1w", "ret_1w", "exc_1w"),
+           ("1m", "ret_1m", "exc_1m"), ("3m", "ret_3m", "exc_3m"),
+           ("6m", "ret_6m", "exc_6m"), ("YTD", "ret_ytd", "exc_ytd"),
+           ("12m", "ret_12m", "exc_12m")]
+
+
+def _ladder(row: pd.Series) -> None:
+    """Seven windows across, each with its excess over cash beneath it."""
+    cc = brand.chart_colors()
+    for col, (label, ret_key, exc_key) in zip(st.columns(len(_LADDER)), _LADDER):
+        val = row.get(ret_key)
+        dp = 2 if label == "1d" else 1
+        col.metric(label, _pct(val, dp))
+        if exc_key and exc_key in row.index and row.get(exc_key) == row.get(exc_key):
+            exc = row[exc_key]
+            tone = cc["long"] if exc > 0 else cc["short"]
+            col.markdown(
+                f"<div style='margin-top:-.7rem;font-size:.72rem;color:{tone}'>"
+                f"{_pct(exc, dp)} vs CDI</div>", unsafe_allow_html=True)
+        elif exc_key:
+            col.markdown("<div style='margin-top:-.7rem;font-size:.72rem;color:#8b929c'>"
+                         "— vs CDI</div>", unsafe_allow_html=True)
+
+
+def _peer_rank(met: pd.DataFrame, row: pd.Series) -> str:
+    """Where this class sits inside its own ANBIMA strategy over 12 months.
+
+    "+12%" means nothing on its own when the whole category did 14%. The peer set is the
+    same strategy on the same defensible basis — ex-feeder, ex-exclusive — so the rank is
+    against products, not against a pile of duplicate feeder classes.
+    """
+    strat, mine = row.get("strategy_en"), row.get("ret_12m")
+    if not strat or mine != mine:
+        return ""
+    peers = cvmfunds.screen(met, cvm_class=None, min_aum=0)
+    peers = peers[(peers["strategy_en"] == strat) & peers["ret_12m"].notna()]
+    if len(peers) < 5:
+        return ""
+    better = int((peers["ret_12m"] > mine).sum())
+    pct = (1 - better / len(peers)) * 100
+    return (f"**{better + 1}** of **{len(peers)}** in {strat} over 12m "
+            f"({pct:.0f}th percentile)")
+
+
+def _aum_bridge(h: pd.DataFrame, row: pd.Series) -> None:
+    """Where the change in capital actually came from.
+
+    Assets move for two completely different reasons — the market, and investors handing
+    money over or taking it back — and a single assets line cannot tell you which. A fund
+    can grow while bleeding clients, which is the case worth spotting. This splits the
+    window's change into the two, and they sum to it by construction.
+    """
+    fl = h.dropna(subset=["pl"]).copy()
+    if len(fl) < 2:
+        return
+    start_pl, end_pl = float(fl["pl"].iloc[0]), float(fl["pl"].iloc[-1])
+    net_flow = float((fl["subs"].fillna(0) - fl["redem"].fillna(0)).sum())
+    # Performance is the RESIDUAL, not a separate estimate: whatever the change in assets
+    # is not explained by money moving in or out is what the market did to it.
+    perf = (end_pl - start_pl) - net_flow
+
+    bars = pd.DataFrame({
+        "part": ["Start", "Net flow", "Performance", "End"],
+        "value": [start_pl / _MM, net_flow / _MM, perf / _MM, end_pl / _MM],
+        "kind": ["level", "flow", "perf", "level"],
+    })
+    cc = brand.chart_colors()
+    chart = (alt.Chart(bars).mark_bar()
+             .encode(x=alt.X("part:N", sort=None, title=None),
+                     y=alt.Y("value:Q", title="R$m"),
+                     color=alt.Color("kind:N", legend=None,
+                                     scale=alt.Scale(domain=["level", "flow", "perf"],
+                                                     range=[cc["muted"], cc["series"],
+                                                            cc["accent"]])),
+                     tooltip=[alt.Tooltip("part:N", title=""),
+                              alt.Tooltip("value:Q", title="R$m", format=",.0f")])
+             .properties(height=230, title="Where the capital came from"))
+    brand.show_chart(chart)
+    grew = end_pl >= start_pl
+    st.caption(
+        f"Over the cached window assets went {'up' if grew else 'down'} "
+        f"**{_brl(abs(end_pl - start_pl), 'm', 0)}** — "
+        f"**{_brl(net_flow, 'm', 0)}** of investor money "
+        f"{'in' if net_flow >= 0 else 'out'}, **{_brl(perf, 'm', 0)}** from performance."
+        + ("  Growing while investors withdraw."
+           if grew and net_flow < 0 else
+           "  Shrinking despite money coming in." if not grew and net_flow > 0 else ""))
+
+
+def _tab_watchlist(met: pd.DataFrame) -> None:
+    keys = cvmfunds.watchlist()
+    if not keys:
+        st.info("Nothing starred yet. Tick rows in **Explore** and press "
+                "“★ Add to watchlist”, or star a fund from its own page.")
+        return
+    all_funds = cvmfunds.screen(met, cvm_class=None, min_aum=0,
+                               include_feeders=True, include_exclusive=True,
+                               include_prev=True)
+    ident = _fund_keys(all_funds)
+    d = all_funds[ident.isin(keys)].copy()
+    # Order follows the watchlist, newest star first, rather than whatever the store held.
+    d["_rank"] = _fund_keys(d).map({k: i for i, k in enumerate(keys)})
+    d = d.sort_values("_rank")
+
+    missing = len(keys) - len(d)
+    st.caption(f"**{len(d)}** starred · assets and flows in **R$m**"
+               + (f" · {missing} no longer in the store (wound up, or below the size floor)"
+                  if missing else ""))
+    colset = st.segmented_control("Columns", _COLSETS, default=_COLSETS[0], key="wl_cols",
+                                  label_visibility="collapsed") or _COLSETS[0]
+    disp, spec, moves = _explore_funds(d, colset)
+    sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=420,
+                                 colorers=[(moves, _move_colour)],
+                                 on_select="rerun", selection_mode="multi-row",
+                                 key=f"wl_tbl_{colset}")
+    try:
+        rows = list(sel["selection"]["rows"]) if sel else []
+    except (KeyError, TypeError):
+        rows = []
+    c1, c2 = st.columns([1.1, 3])
+    if rows and c1.button(f"Remove {len(rows)}", key="wl_drop", use_container_width=True):
+        drop = set(_fund_keys(d.iloc[rows]))
+        cvmfunds.watch_set([k for k in keys if k not in drop])
+        st.rerun()
+    if not rows:
+        c2.caption("Tick rows to remove them.")
 
 
 # ── page ────────────────────────────────────────────────────────────────────────────
@@ -759,13 +935,11 @@ def render() -> None:
     view = st.segmented_control("Section", _VIEWS, default=_VIEWS[0], key="cvm_view",
                                 label_visibility="collapsed")
     if view == _VIEWS[1]:
-        _tab_managers(met)
-    elif view == _VIEWS[2]:
-        _tab_flows(met)
-    elif view == _VIEWS[3]:
         _tab_fund(met)
+    elif view == _VIEWS[2]:
+        _tab_watchlist(met)
     else:                      # clicking the active segment deselects it — stay put
-        _tab_screener(met)
+        _tab_explore(met)
 
     st.divider()
     st.caption("Source: **CVM — Portal Dados Abertos** (daily filings + the fund/class/"

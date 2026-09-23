@@ -31,6 +31,10 @@ playwright-browsers/
 #    non-regenerable history (own30_history, stir_curve_history, append-only
 #    fundamentals). Only pure computation outputs stay ignored. ────────────────
 data/signals/
+# Per-user fund shortlists. NOT committed on purpose: the VPS self-heals
+# from GitHub every 15 minutes, so a tracked copy would overwrite every
+# colleague's starred funds on each sync.
+data/cvm_watchlist.json
 data/wasde_snapshots/
 
 # ── Generated reports / exports ───────────────────────────────────────────────
