@@ -134,6 +134,17 @@ _FORMATTERS = {
 }
 
 
+def _grid_height(n: int, cap: int = 520) -> int:
+    """Grid height that follows the row count, up to a cap.
+
+    Streamlit draws a FIXED-height dataframe, so a two-row watchlist sat in 420px of empty
+    ruled lines and a search narrowed to three hits did the same. 35px a row plus the
+    header is what the grid actually uses; the cap is what turns it into a scroll box once
+    there is enough to scroll.
+    """
+    return int(min(cap, 42 + 35 * max(int(n), 1)))
+
+
 def _as_text(df: pd.DataFrame, spec: dict) -> pd.DataFrame:
     """Render the named columns to strings so blanks stay blank. See the note above."""
     out = df.copy()
@@ -381,7 +392,7 @@ def _tab_explore(met: pd.DataFrame) -> None:
     disp, spec, moves = _explore_funds(d, colset)
     st.caption(_EXPLORE_HELP[colset])
 
-    sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=520,
+    sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=_grid_height(len(disp)),
                                  colorers=[(moves, _move_colour)],
                                  on_select="rerun", selection_mode="multi-row",
                                  key=f"ex_tbl_{colset}")
@@ -436,7 +447,8 @@ def _explore_by_manager(met: pd.DataFrame, d: pd.DataFrame, colset: str) -> None
     st.markdown(f"<div style='color:{pal['gold']};font-size:.85rem;margin:.1rem 0 .3rem'>"
                 f"☑&nbsp; Tick a manager below to list its funds underneath."
                 f"</div>", unsafe_allow_html=True)
-    sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=460,
+    sel = brand.themed_dataframe(_as_text(disp, spec), {},
+                                 height=_grid_height(len(disp), 460),
                                  colorers=[(moves, _move_colour)],
                                  on_select="rerun", selection_mode="single-row",
                                  key=f"ex_mgr_{colset}_{by_firm}")
@@ -469,7 +481,7 @@ def _manager_drilldown(met: pd.DataFrame, d: pd.DataFrame, lt: pd.DataFrame, sel
                 f"{_brl(sub['aum'].sum())}")
     fdisp, fspec, fmoves = _explore_funds(sub.head(_FUND_PAGE), colset)
     fsel = brand.themed_dataframe(_as_text(fdisp, fspec), {},
-                                  height=min(420, 60 + 36 * len(sub)),
+                                  height=_grid_height(min(len(sub), _FUND_PAGE), 420),
                                   colorers=[(fmoves, _move_colour)],
                                   on_select="rerun", selection_mode="multi-row",
                                   key=f"ex_sub_{colset}")
@@ -1011,7 +1023,8 @@ def _tab_watchlist(met: pd.DataFrame) -> None:
     colset = st.segmented_control("Columns", _COLSETS, default=_COLSETS[0], key="wl_cols",
                                   label_visibility="collapsed") or _COLSETS[0]
     disp, spec, moves = _explore_funds(d, colset)
-    sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=420,
+    sel = brand.themed_dataframe(_as_text(disp, spec), {},
+                                 height=_grid_height(len(disp), 420),
                                  colorers=[(moves, _move_colour)],
                                  on_select="rerun", selection_mode="multi-row",
                                  key=f"wl_tbl_{colset}")
