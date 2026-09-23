@@ -15224,33 +15224,53 @@ def render_seasonality() -> None:
             wb = wb[wb["hit"] >= 0.999]
         if wb.empty:
             st.caption("No window clears these filters right now — widen either control.")
+        # selectable grid (Ben 2026-09-23: click a row → the Window detail below loads
+        # it). st.dataframe with single-row select — the one table that trades the
+        # terminal-HTML look for native row clicks; Styler carries the palette.
         w_rows = []
         for _, r in wb.iterrows():
             w_rows.append({
-                "st": (f"open · wk {int(r['into'])} of {int(r['weeks'])}"
-                       if r["status"] == "open" else
-                       ("opens next week" if int(r["ahead"]) == 1
-                        else f"opens in {int(r['ahead'])}w")),
-                "name": r["name"],
-                "wspan": _seas_wspan(r["start"], r["weeks"]), "win": r["label"],
-                "dir": "↑ higher" if r["dir"] == "Higher" else "↓ lower",
-                "hit": f"{int(r['wins'])}/{int(r['n'])}",
-                "dhit": (f"{int(r['date_wins'])}/{int(r['date_n'])}"
-                         if int(r.get("date_n", 0) or 0) else "—"),
-                "med": float(r["med"]), "worst": float(r["worst"]), "unit": r["unit"],
+                "Status": (f"open · wk {int(r['into'])} of {int(r['weeks'])}"
+                           if r["status"] == "open" else
+                           ("opens next week" if int(r["ahead"]) == 1
+                            else f"opens in {int(r['ahead'])}w")),
+                "Product": r["name"],
+                "Direction": "↑ higher" if r["dir"] == "Higher" else "↓ lower",
+                "Date x → y": r["label"],
+                "Hit (dates)": (f"{int(r['date_wins'])}/{int(r['date_n'])}"
+                                if int(r.get("date_n", 0) or 0) else "—"),
+                "Week x → y": _seas_wspan(r["start"], r["weeks"]),
+                "Hit (weeks)": f"{int(r['wins'])}/{int(r['n'])}",
+                "Med": float(r["med"]), "Worst": float(r["worst"]), "Unit": r["unit"],
             })
-        brand.terminal_table(w_rows, [
-            {"key": "st", "label": "Status"},
-            {"key": "name", "label": "Product"},
-            {"key": "dir", "label": "Direction"},
-            {"key": "win", "label": "Date x → y"},
-            {"key": "dhit", "label": "Hit (dates)", "align": "right"},
-            {"key": "wspan", "label": "Week x → y"},
-            {"key": "hit", "label": "Hit (weeks)", "align": "right"},
-            {"key": "med", "label": "Med", "color": True, "fmt": "{:+,.1f}"},
-            {"key": "worst", "label": "Worst", "align": "right", "fmt": "{:+,.1f}"},
-            {"key": "unit", "label": "Unit"},
-        ])
+        _pal = brand.palette()
+        _up, _dn = (("#46C58A", "#EC6A57") if _pal["name"] == "dark"
+                    else ("#0F7A45", "#C0392B"))
+        _disp = pd.DataFrame(w_rows)
+        _sty = (_disp.style.format({"Med": "{:+,.1f}", "Worst": "{:+,.1f}"})
+                .set_properties(**{"background-color": _pal["surface"],
+                                   "color": _pal["text"]})
+                .map(lambda v: (f"color:{_up if v > 0 else _dn};font-weight:600"
+                                if isinstance(v, (int, float)) and v == v else ""),
+                     subset=["Med"]))
+        _ev = st.dataframe(_sty, use_container_width=True, hide_index=True,
+                           height=min(38 * (len(_disp) + 1) + 4, 640),
+                           on_select="rerun", selection_mode="single-row",
+                           key="seas_board_grid")
+        _sel = list(_ev.selection.rows) if _ev is not None and _ev.selection else []
+        if _sel:
+            _r = wb.iloc[int(_sel[0])]
+            _sig = (_r["ticker"], int(_r["start"]), int(_r["weeks"]), _r["dir"])
+            # apply a click once — the pickers stay free to steer afterwards
+            if st.session_state.get("_seas_bd_click") != _sig:
+                st.session_state["_seas_bd_click"] = _sig
+                _aw = _seas_all_windows(MODE)
+                _sub = _aw[_aw["ticker"] == _sig[0]].reset_index(drop=True)
+                _m = _sub[(_sub["start"] == _sig[1]) & (_sub["weeks"] == _sig[2])
+                          & (_sub["dir"] == _sig[3])]
+                st.session_state["seas_bd_prod"] = _sig[0]
+                if not _m.empty:
+                    st.session_state[f"seas_bd_win_{_sig[0]}"] = int(_m.index[0])
         st.caption(
             "**This is the list the Hot Sheet's SEAS stories come from** — calendar windows "
             "across the **whole book** (deliberately ignoring the sector filter above, so a "
@@ -15268,8 +15288,9 @@ def render_seasonality() -> None:
             "example. Trust windows where the two scores agree. The left control narrows to "
             "windows just entering (the Hot Sheet's framing) or widens to every window "
             "running; the right one sets the agreement bar. Windows found by searching a "
-            "decade of history are descriptive, not a signal. Pick any row below to unpack "
-            "its streak year by year.")
+            "decade of history are descriptive, not a signal. **Click a row above** to load "
+            "it straight into the Window detail below — the pickers there also reach every "
+            "product's windows, open or not.")
 
         aw = _seas_all_windows(MODE)
         if aw is not None and not aw.empty:
