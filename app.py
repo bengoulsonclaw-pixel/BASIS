@@ -1322,8 +1322,6 @@ _GROUP_TABS = {
                            ("🛢️ OPEC Report", "OPEC Report"),
                            ("🥇 Precious Metals", "Precious Metals"),
                            ("🥇 Gold Engine", "Gold Engine")],
-    "Brazil Fundamentals": [("🇧🇷 Brazil Production", "Brazil Production"),
-                            ("🇧🇷 Brazil Funds", "Brazil Funds")],
     "Seasonality":        [("📅 Product Seasonality", "Seasonality"),
                            ("🔀 Spread Seasonality", "Seasonality Spreads")],
 }
@@ -17065,10 +17063,12 @@ with st.sidebar:
         _nav_button("07 · Client ETFs", "eq:ETFs")
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
-    # Brazil Fundamentals (Ben, 2026-09-23): Brazil Production + Brazil Funds. It sat in
-    # the numbered FICC list, but the fund screener spans equities, fixed income and
-    # multi-strategy managers, so it belongs where both desks can reach it.
-    _nav_button("🇧🇷 Brazil Fundamentals", "Brazil Production")
+    # Two separate modules (Ben, 2026-09-23), not one group with a tab row: they share a
+    # country and nothing else — one is physical output from the regulators ANP and ANM,
+    # the other is the fund industry from CVM. They sit in Cross-asset because the fund
+    # screener spans equities, fixed income and multi-strategy, so both desks need it.
+    _nav_button("🇧🇷 Brazil Production", "Brazil Production")
+    _nav_button("🇧🇷 Brazil Hedge Funds", "Brazil Funds")
     _nav_button("Strategy Builder", "Strategy Builder")
     # Trade Idea sits here rather than in the FICC list (Ben, 2026-09-08): the builder covers
     # both desks, so the page has to be reachable from both.
