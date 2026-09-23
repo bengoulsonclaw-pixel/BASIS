@@ -1,55 +1,55 @@
 {
- "generated_at": "22 Sep 2026 · 07:38 ET",
- "synopsis": "Energy is the morning's story, and it's a de-escalation trade. Crude turned lower overnight — Brent -1.5% toward $98 and WTI -2.3% to the low $90s — as markets tracked diplomatic efforts around Hormuz, with Washington signalling openness to Iran talks at the UN General Assembly and Saudi Arabia restarting the East-West pipeline, reopening a key Red Sea export route shut for two weeks after drone strikes.",
- "commentary": "Energy is the morning's story, and it's a de-escalation trade. Crude turned lower overnight — Brent -1.5% toward $98 and WTI -2.3% to the low $90s — as markets tracked diplomatic efforts around Hormuz, with Washington signalling openness to Iran talks at the UN General Assembly and Saudi Arabia restarting the East-West pipeline, reopening a key Red Sea export route shut for two weeks after drone strikes. The whole curve is softening: prompt Brent spreads are the weakest in two weeks, put volumes have outpaced calls for three sessions, and the products complex followed — heating oil -1.7%, gasoil -2.2%, TTF -4.1%.\n\nThat said, the structural tightness story hasn't gone away: diesel is at record highs on strained refining capacity, and warnings of $150 Brent if disruption persists into 2027 keep the tail risk alive, according to reports. The macro backdrop remains the \"5% world\" — last week's Fed hike, the first in three years, reasserted credibility against oil-driven, supply-side sticky inflation, and huge AI-related financing demand is stacking on top of heavy government borrowing (the UK's £18.3bn August deficit underlines the fiscal strain, weighing on OATs and gilts sentiment).\n\nSofter crude is doing the rates market's work today: Treasuries caught a bid across the curve with the long bond +0.3%, on the logic that good oil news lets yields fall. Equity index futures held the AI rally — S&P flat, Nikkei +2.1% on yen dynamics and the tech bid — while copper's +1.3% pop stands out against a soft metals tape, riding China's data-center buildout ambitions; gold eased with the risk premium.",
+ "generated_at": "23 Sep 2026 · 07:30 ET",
+ "synopsis": "Energy is the morning's talking point, and the story is one of unwinding war premium. Brent is limping toward its longest losing streak in over a year, hovering just under $100 as traders lean into hopes of progress in US-Iran talks and higher supply — Brent put volumes hit a record, dominated by downside protection at the $92/$93 and even $69/$70 strikes, while the call skew is the least bullish since June.",
+ "commentary": "Energy is the morning's talking point, and the story is one of unwinding war premium. Brent is limping toward its longest losing streak in over a year, hovering just under $100 as traders lean into hopes of progress in US-Iran talks and higher supply — Brent put volumes hit a record, dominated by downside protection at the $92/$93 and even $69/$70 strikes, while the call skew is the least bullish since June. WTI slipped 0.6% to $89.95 with open interest at its lowest since April last year, though products are diverging: gasoil ripped 4.3% and RBOB gained 1.1% on a gasoline crack at its firmest since mid-August, a reminder that Gulf disruption is still biting refined-product balances even as crude deflates.\n\nThe macro backdrop is a hawkish-Fed, strong-dollar regime — the greenback hit its highest since July after the Fed's first hike in three years, with traders now hedging a shallower tightening cycle than priced. That dollar strength is squeezing the metals complex: gold fell 0.6%, silver 1.3%, platinum nearly 2%, with the whole precious space trading as a rates story. Grains also buckled under the firmer dollar, with corn and both wheats off more than 1%. In rates, the eurozone's punchy composite PMI beat (53.1 vs 51.7 expected) knocked Bunds and OATs lower, while a soft UK print pressured sterling; Treasuries were marginally bid.\n\nEquity futures are flat-to-heavy in the West, but the Nikkei surged 2.3% and KOSPI 1.4% ahead of the Trump-Xi summit — with PBoC pre-holiday liquidity injections adding support.",
  "headlines": [
   {
-   "source": "FT",
-   "title": "Oil falls below $98 as Saudi Arabia signals East-West pipeline reopening",
-   "time": "07:19 ET",
-   "tag": "Energy"
+   "source": "WSJ",
+   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek — Nasdaq leads declines, Nvidia down 16%",
+   "time": "",
+   "tag": "Equities"
   },
   {
-   "source": "The Guardian",
-   "title": "Oil falls below $100 a barrel on reports Iran 'makes strait of Hormuz offer'",
+   "source": "FT",
+   "title": "Oil price on track for longest losing streak in more than 12 months — Brent crude falls below $99 amid Middle East talks",
    "time": "",
    "tag": "Energy"
   },
   {
-   "source": "FT",
-   "title": "Fed will need to be 'aggressive' on inflation, says top official",
-   "time": "11:10 ET",
+   "source": "Bloomberg",
+   "title": "Traders Load Up on Hedges for Shallower Fed Rate-Hike Cycle",
+   "time": "16:30 ET",
    "tag": "Rates"
   },
   {
    "source": "FT",
-   "title": "Bank of Japan set to maintain new quarterly pace of rate rises",
-   "time": "00:30 ET",
+   "title": "OECD sounds alarm on surging government bond yields — debt interest bills increasing pressure on public finances",
+   "time": "",
    "tag": "Rates"
   },
   {
-   "source": "FT",
-   "title": "'Stop the bleeding': Republicans tell Trump to ban US diesel exports",
-   "time": "19:28 ET",
-   "tag": "Energy"
+   "source": "WSJ",
+   "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
+   "time": "12:20 ET",
+   "tag": "Agriculture"
   },
   {
    "source": "FT",
-   "title": "China spends record amount importing over 1,000 tonnes of gold this year",
-   "time": "03:45 ET",
+   "title": "US proposes $10bn fund with Arab allies to bypass Hormuz — new energy infrastructure across the Middle East",
+   "time": "",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "WSJ",
+   "title": "Comex Gold, Silver Settle Lower — gold down 1.4%, silver falls 2.5%",
+   "time": "",
    "tag": "Metals"
   },
   {
    "source": "WSJ",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts — updates take chill out of early February outlook",
+   "time": "",
    "tag": "Energy"
-  },
-  {
-   "source": "The Guardian",
-   "title": "Trump seeks 'massive' Belarus fertiliser deal amid Canada trade war",
-   "time": "00:00 ET",
-   "tag": "Agriculture"
   }
  ]
 }
