@@ -1,5 +1,5 @@
 {
- "asof": "2026-09-22T01:11:55",
+ "asof": "2026-09-23T01:09:19",
  "events": [
   {
    "date": "2025-03-19",
@@ -3422,8 +3422,8 @@
    "color": "#C62828",
    "auto": false,
    "bbg": "UNH US Equity",
-   "sub": "Unitedhealth Group Inc \u00b7 S&P 500, Dow Jones 30 \u00b7 US",
-   "tip": "Unitedhealth Group Inc \u2014 Health Care \u00b7 S&P 500, Dow Jones 30 \u00b7 US \u00b7 339bn"
+   "sub": "Unitedhealth Group \u00b7 S&P 500, Dow Jones 30 \u00b7 US",
+   "tip": "Unitedhealth Group \u2014 Health Care \u00b7 S&P 500, Dow Jones 30 \u00b7 US \u00b7 339bn"
   },
   {
    "date": "2026-10-13",
@@ -4062,8 +4062,8 @@
    "color": "#558B2F",
    "auto": false,
    "bbg": "PM US Equity",
-   "sub": "Philip Morris International Inc \u00b7 S&P 500 \u00b7 US",
-   "tip": "Philip Morris International Inc \u2014 Consumer Staples \u00b7 S&P 500 \u00b7 US \u00b7 292bn"
+   "sub": "Philip Morris International \u00b7 S&P 500 \u00b7 US",
+   "tip": "Philip Morris International \u2014 Consumer Staples \u00b7 S&P 500 \u00b7 US \u00b7 292bn"
   },
   {
    "date": "2026-10-21",
@@ -4573,7 +4573,7 @@
    "label": "\u22ef 97 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Bloom Energy Class A, Sherwin Williams, Mondelez International Inc Class A, Ecolab, Royal Caribbean Group, Paccar Inc, Oneok, Carrier Global, Paypal Holdings, Orange, Ferrovial N.V. Ordinary Shares, Centene Corp, Labcorp Holdings, Incyte Corp, Hubbell Inc, Ppg Industries, Edison International, Expand Energy, Essex Property Trust Reit, Beiersdorf Ag, Invesco Ltd, Costar Group, Bxp, Umb Financial, Zurn Elkay Water Solutions Corp, A O Smith, Noble Corporation Plc, Red Rock Resorts Ors Class A, Kiniksa Pharmaceuticals Internatio, Cheesecake Factory Inc, Commvault Systems, Archrock, Herc Holdings, Champion Homes Inc, Varonis Systems, Franklin Electric, Ceco Environmental, Arcus Biosciences, Renasant Corp, Asbury Automotive Group Inc\u2026"
+   "tip": "Bloom Energy Class A, Sherwin Williams, Mondelez International Class A, Ecolab, Royal Caribbean Group, Paccar Inc, Oneok, Carrier Global, Paypal Holdings, Orange, Ferrovial N.V. Ordinary Shares, Centene Corp, Labcorp Holdings, Incyte Corp, Hubbell Inc, Ppg Industries, Edison International, Expand Energy, Essex Property Trust Reit, Beiersdorf Ag, Invesco Ltd, Costar Group, Bxp, Umb Financial, Zurn Elkay Water Solutions Corp, A O Smith, Noble Corporation Plc, Red Rock Resorts Ors Class A, Kiniksa Pharmaceuticals Internatio, Cheesecake Factory Inc, Commvault Systems, Archrock, Herc Holdings, Champion Homes Inc, Varonis Systems, Franklin Electric, Ceco Environmental, Arcus Biosciences, Renasant Corp, Asbury Automotive Group Inc\u2026"
   },
   {
    "date": "2026-10-28",
@@ -5113,7 +5113,7 @@
    "label": "\u22ef 172 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Apollo Global Management, Ferrari Nv, Astera Labs, Inc. Common Stock, Corteva, Bayer Ag, Exelon Corp, Iqvia Holdings, Thomson Reuters Corporation Common Shares, Archer Daniels Midland, Live Nation Entertainment, Yum Brands, Sysco, Axon Enterprise, Martin Marietta Materials, Kimberly Clark, Zoetis Inc Class A, Super Micro Computer Inc, Expeditors International Of Washin, Xylem Inc, Global Payments Inc, International Flavors & Fragrances, Broadridge Financial Solutions Inc, Cdw, Zebra Technologies Corp Class A, Leidos Holdings, Ball Corp, Assurant Inc, Stanley Black & Decker Inc, Skyworks Solutions, Associated British Foods Plc, Gartner, Pinnacle West, Jack Henry And Associates Inc, Fresenius Medical Care Ag, Clorox, Kymera Therapeutics, Henry Schein, Spyre Therapeutics Inc, Vaxcyte, Jackson Financial Class A\u2026"
+   "tip": "Apollo Global Management, Ferrari Nv, Astera Labs, Inc. Common Stock, Corteva, Bayer Ag, Exelon Corp, Iqvia Holdings, Thomson Reuters Corporation Common Shares, Archer Daniels Midland, Live Nation Entertainment, Yum Brands, Sysco, Axon Enterprise, Martin Marietta Materials, Kimberly Clark, Zoetis Inc Class A, Super Micro Computer Inc, Expeditors International Of Washin, Xylem Inc, Global Payments Inc, International Flavors & Fragrances, Broadridge Financial Solutions Inc, Cdw, Zebra Technologies Corp Class A, Leidos Holdings, Ball Corp, Assurant Inc, Stanley Black & Decker, Skyworks Solutions, Associated British Foods Plc, Gartner, Pinnacle West, Jack Henry And Associates Inc, Fresenius Medical Care Ag, Clorox, Kymera Therapeutics, Henry Schein, Spyre Therapeutics Inc, Vaxcyte, Jackson Financial Class A\u2026"
   },
   {
    "date": "2026-11-04",
@@ -6246,8 +6246,8 @@
    "color": "#558B2F",
    "auto": false,
    "bbg": "WMT US Equity",
-   "sub": "Walmart Inc \u00b7 S&P 500, Nasdaq 100, Dow Jones 30 \u00b7 US",
-   "tip": "Walmart Inc \u2014 Consumer Staples \u00b7 S&P 500, Nasdaq 100, Dow Jones 30 \u00b7 US \u00b7 855bn"
+   "sub": "Walmart \u00b7 S&P 500, Nasdaq 100, Dow Jones 30 \u00b7 US",
+   "tip": "Walmart \u2014 Consumer Staples \u00b7 S&P 500, Nasdaq 100, Dow Jones 30 \u00b7 US \u00b7 855bn"
   },
   {
    "date": "2026-11-19",
