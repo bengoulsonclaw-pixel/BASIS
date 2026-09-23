@@ -12,10 +12,12 @@ sections — Company Fundamentals and Colleague Access use the same one):
              column sets (Performance / Flows / Risk). This replaced a Screener and a
              Flows section whose columns were subsets of one another and which each
              carried their OWN copy of the filter row — so a filter set in one was gone
-             the moment you moved to the other.
-  Fund       the tearsheet for one share class: a seven-window return ladder with the
-             excess over CDI under each, peer rank inside its own ANBIMA strategy, NAV
-             against CDI, drawdown, and where the capital came from.
+             the moment you moved to the other. Ticking ONE row draws that fund's whole
+             tearsheet underneath the table; ticking several shortlists them instead.
+  Fund       the same tearsheet, reached through the manager drill-down: a seven-window
+             return ladder with the excess over CDI under each, peer rank inside its own
+             ANBIMA strategy, NAV against CDI, drawdown, where the capital came from, and
+             gross subscriptions against redemptions by month.
   Watchlist  the classes this user has starred. Per user, because on the VPS several
              colleagues share one deployment.
 
@@ -301,19 +303,38 @@ def _explore_managers(lt: pd.DataFrame, colset: str) -> tuple[pd.DataFrame, dict
                   "12m": PCT, "vs CDI 12m": PCT}, ["3m", "YTD", "12m", "vs CDI 12m"]
 
 
+def _selected_rows(sel) -> list:
+    try:
+        return list(sel["selection"]["rows"]) if sel else []
+    except (KeyError, TypeError):
+        return []
+
+
+def _after_table(met: pd.DataFrame, d: pd.DataFrame, sel, key: str) -> None:
+    """Star bar for a multi-row pick; the full tearsheet when exactly one row is ticked.
+
+    One row means "show me this fund", several means "shortlist these" — the same gesture
+    reads as both, so the count decides rather than a second control.
+    """
+    # `_add`, not `_star`: the tearsheet below has its own star button keyed `{key}_star`,
+    # and both rendering under one key is a Streamlit error, not a styling quirk.
+    _star_bar(d, sel, key=f"{key}_add")
+    rows = _selected_rows(sel)
+    if len(rows) == 1:
+        st.divider()
+        _fund_detail(met, d.iloc[rows[0]], key=key)
+
+
 def _star_bar(d: pd.DataFrame, sel, key: str = "ex_star") -> None:
     """Add the rows ticked in the table to the watchlist.
 
     A per-row star button is not possible inside st.dataframe — the grid is a canvas, not
     DOM — so selecting rows and pressing once is the honest version of a ★ column.
     """
-    try:
-        rows = list(sel["selection"]["rows"]) if sel else []
-    except (KeyError, TypeError):
-        rows = []
+    rows = _selected_rows(sel)
     c1, c2 = st.columns([1.1, 3])
     if not rows:
-        c2.caption("Tick rows in the table to add them to your watchlist.")
+        c2.caption("Tick one row to chart that fund, or several to shortlist them.")
         return
     if c1.button(f"★  Add {len(rows)} to watchlist", key=key, type="primary",
                  use_container_width=True):
@@ -357,7 +378,7 @@ def _tab_explore(met: pd.DataFrame) -> None:
                                  colorers=[(moves, _move_colour)],
                                  on_select="rerun", selection_mode="multi-row",
                                  key=f"ex_tbl_{colset}")
-    _star_bar(d, sel)
+    _after_table(met, d, sel, key="exf")
     if len(d) == 300:
         st.caption("Showing the first 300 rows of this filter — narrow it to see the rest.")
 
@@ -412,11 +433,11 @@ def _explore_by_manager(met: pd.DataFrame, d: pd.DataFrame, colset: str) -> None
                                  colorers=[(moves, _move_colour)],
                                  on_select="rerun", selection_mode="single-row",
                                  key=f"ex_mgr_{colset}_{by_firm}")
-    _manager_drilldown(d, lt, sel, colset, by_firm)
+    _manager_drilldown(met, d, lt, sel, colset, by_firm)
 
 
-def _manager_drilldown(d: pd.DataFrame, lt: pd.DataFrame, sel, colset: str,
-                       by_firm: bool) -> None:
+def _manager_drilldown(met: pd.DataFrame, d: pd.DataFrame, lt: pd.DataFrame, sel,
+                       colset: str, by_firm: bool) -> None:
     """The funds inside the manager picked in the league table.
 
     Opened by SELECTION rather than by an expander per row: Streamlit runs the body of a
@@ -448,7 +469,7 @@ def _manager_drilldown(d: pd.DataFrame, lt: pd.DataFrame, sel, colset: str,
     if len(sub) > _FUND_PAGE:
         st.caption(f"Showing the largest {_FUND_PAGE} of {len(sub)} — the Fund section "
                    f"searches the rest.")
-    _star_bar(sub.head(_FUND_PAGE), fsel, key="ex_sub_star")
+    _after_table(met, sub.head(_FUND_PAGE), fsel, key="exm")
 
 
 # The picker shows managers first and opens ONE at a time. Streamlit executes the body of
@@ -707,20 +728,64 @@ def _fund_picker(met: pd.DataFrame):
     st.session_state["fnd_key"] = sel_key
     return d[keys == sel_key].iloc[0]
 
+def _flow_chart(h: pd.DataFrame) -> None:
+    """Subscriptions and redemptions GROSS, by month, with the net on top.
 
-def _tab_fund(met: pd.DataFrame) -> None:
-    row = _fund_picker(met)
-    if row is None:
+    The cumulative-net line elsewhere answers "did money arrive"; it cannot answer "how
+    much churned". A fund taking R$800m and paying out R$780m is a very different animal
+    from one quietly taking R$20m, and netted to a single line the two are identical.
+    Monthly, because daily subscription bars on thirteen months of history are a haystack.
+    """
+    cc = brand.chart_colors()
+    m = h[["date", "subs", "redem"]].copy()
+    m["month"] = m["date"].dt.to_period("M").dt.to_timestamp()
+    g = m.groupby("month", as_index=False).agg(subs=("subs", "sum"), redem=("redem", "sum"))
+    if g.empty or (g["subs"].abs().sum() + g["redem"].abs().sum()) == 0:
+        st.caption("No subscription or redemption activity recorded in the window.")
         return
-    st.divider()
+    g["net"] = (g["subs"] - g["redem"]) / _MM
+    bars = pd.concat([
+        pd.DataFrame({"month": g["month"], "v": g["subs"] / _MM, "side": "Subscriptions"}),
+        # redemptions plot DOWNWARD so the two sides read against each other rather than
+        # stacking into a total nobody asked for
+        pd.DataFrame({"month": g["month"], "v": -g["redem"] / _MM, "side": "Redemptions"}),
+    ], ignore_index=True)
 
-    key = f"{row['cnpj']}|{row['subclass'] or ''}"
-    starred = key in cvmfunds.watchlist()
+    base = alt.Chart(bars).mark_bar().encode(
+        x=alt.X("yearmonth(month):O", title=None),
+        y=alt.Y("v:Q", title="R$m"),
+        color=alt.Color("side:N", title=None,
+                        scale=alt.Scale(domain=["Subscriptions", "Redemptions"],
+                                        range=[cc["long"], cc["short"]])),
+        tooltip=[alt.Tooltip("yearmonth(month):O", title="Month"),
+                 alt.Tooltip("side:N", title=""),
+                 alt.Tooltip("v:Q", title="R$m", format=",.0f")])
+    line = (alt.Chart(g).mark_line(point=True, color=cc["ink"], strokeWidth=2)
+            .encode(x=alt.X("yearmonth(month):O", title=None),
+                    y=alt.Y("net:Q", title="R$m"),
+                    tooltip=[alt.Tooltip("yearmonth(month):O", title="Month"),
+                             alt.Tooltip("net:Q", title="Net R$m", format=",.0f")]))
+    brand.show_chart((base + line).properties(
+        height=250, title="Subscriptions and redemptions by month (net in white)"))
+    gross_in, gross_out = g["subs"].sum(), g["redem"].sum()
+    st.caption(_md(
+        f"Took in **{_brl(gross_in, 'm', 0)}**, paid out **{_brl(gross_out, 'm', 0)}** — "
+        f"net **{_brl(gross_in - gross_out, 'm', 0)}** over the cached window."))
+
+
+def _fund_detail(met: pd.DataFrame, row: pd.Series, *, key: str) -> None:
+    """The whole tearsheet for one share class, callable from anywhere.
+
+    `key` namespaces the widgets, because this now renders both on the Fund section and
+    underneath the Explore table, and two star buttons with one key is a Streamlit error.
+    """
+    fkey = f"{row['cnpj']}|{row['subclass'] or ''}"
+    starred = fkey in cvmfunds.watchlist()
     h1, h2 = st.columns([5, 1.2])
     h1.markdown(f"### {row['name_en']}")
-    if h2.button("★  Starred" if starred else "☆  Add to watchlist", key="fnd_star",
+    if h2.button("★  Starred" if starred else "☆  Add to watchlist", key=f"{key}_star",
                  use_container_width=True, type="primary" if starred else "secondary"):
-        cvmfunds.watch_toggle(key)
+        cvmfunds.watch_toggle(fkey)
         st.rerun()
 
     _ladder(row)
@@ -730,7 +795,8 @@ def _tab_fund(met: pd.DataFrame) -> None:
     m2.metric("Vol (ann.)", _pct(row["vol"], signed=False))
     m3.metric("Max drawdown", _pct(row["max_dd"], signed=False))
     m4.metric("Sharpe", _num(row.get("sharpe"), 2),
-              help="Excess over CDI divided by annualised volatility.")
+              help="Excess over CDI divided by annualised volatility. Blank for a class "
+                   "under 1% vol, where the ratio is a division artefact.")
     m5.metric("Holders", f"{row['holders']:,.0f}" if row["holders"] == row["holders"] else "—")
     rank = _peer_rank(met, row)
     if rank:
@@ -769,16 +835,16 @@ def _tab_fund(met: pd.DataFrame) -> None:
                                       "NAV": (c / base.iloc[0] * 100.0).values,
                                       "series": "CDI"}))
     plot = pd.concat(long, ignore_index=True).dropna(subset=["NAV"])
-    chart = (alt.Chart(plot).mark_line()
-             .encode(x=alt.X("date:T", title=None),
-                     y=alt.Y("NAV:Q", title="rebased to 100", scale=alt.Scale(zero=False)),
-                     color=alt.Color("series:N", title=None,
-                                     scale=alt.Scale(domain=["Fund", "CDI"],
-                                                     range=[cc["accent"], cc["muted"]])),
-                     tooltip=[alt.Tooltip("date:T"), alt.Tooltip("series:N"),
-                              alt.Tooltip("NAV:Q", format=",.1f")])
-             .properties(height=300, title="NAV against CDI"))
-    brand.show_chart(chart)
+    brand.show_chart(
+        alt.Chart(plot).mark_line()
+        .encode(x=alt.X("date:T", title=None),
+                y=alt.Y("NAV:Q", title="rebased to 100", scale=alt.Scale(zero=False)),
+                color=alt.Color("series:N", title=None,
+                                scale=alt.Scale(domain=["Fund", "CDI"],
+                                                range=[cc["accent"], cc["muted"]])),
+                tooltip=[alt.Tooltip("date:T"), alt.Tooltip("series:N"),
+                         alt.Tooltip("NAV:Q", format=",.1f")])
+        .properties(height=300, title="NAV against CDI"))
 
     a1, a2 = st.columns(2)
     with a1:
@@ -792,24 +858,30 @@ def _tab_fund(met: pd.DataFrame) -> None:
                          .properties(height=230, title="Drawdown"))
     with a2:
         _aum_bridge(h, row)
-    st.markdown("")
-    with st.expander("Assets and cumulative net flow over time", expanded=False):
-        fl = h[["date", "subs", "redem", "pl"]].copy()
-        fl["net"] = (fl["subs"].fillna(0) - fl["redem"].fillna(0)).cumsum() / _MM
-        fl["assets"] = fl["pl"] / _MM
-        melted = fl.melt("date", ["net", "assets"], var_name="series", value_name="v")
-        melted["series"] = melted["series"].map({"net": "Cumulative net flow",
-                                                 "assets": "Assets"})
-        brand.show_chart(alt.Chart(melted).mark_line()
-                         .encode(x=alt.X("date:T", title=None),
-                                 y=alt.Y("v:Q", title="R$m", scale=alt.Scale(zero=False)),
-                                 color=alt.Color("series:N", title=None,
-                                                 scale=alt.Scale(range=[cc["series"],
-                                                                        cc["ink"]])),
-                                 tooltip=[alt.Tooltip("date:T"), alt.Tooltip("series:N"),
-                                          alt.Tooltip("v:Q", format=",.0f")])
-                         .properties(height=230, title="Assets and cumulative net flow"))
 
+    _flow_chart(h)
+
+    fl = h[["date", "subs", "redem", "pl"]].copy()
+    fl["net"] = (fl["subs"].fillna(0) - fl["redem"].fillna(0)).cumsum() / _MM
+    fl["assets"] = fl["pl"] / _MM
+    melted = fl.melt("date", ["net", "assets"], var_name="series", value_name="v")
+    melted["series"] = melted["series"].map({"net": "Cumulative net flow", "assets": "Assets"})
+    brand.show_chart(alt.Chart(melted).mark_line()
+                     .encode(x=alt.X("date:T", title=None),
+                             y=alt.Y("v:Q", title="R$m", scale=alt.Scale(zero=False)),
+                             color=alt.Color("series:N", title=None,
+                                             scale=alt.Scale(range=[cc["series"], cc["ink"]])),
+                             tooltip=[alt.Tooltip("date:T"), alt.Tooltip("series:N"),
+                                      alt.Tooltip("v:Q", format=",.0f")])
+                     .properties(height=230, title="Assets and cumulative net flow"))
+
+
+def _tab_fund(met: pd.DataFrame) -> None:
+    row = _fund_picker(met)
+    if row is None:
+        return
+    st.divider()
+    _fund_detail(met, row, key="fnd")
 
 
 # The return ladder. Each window carries its excess over CDI underneath, because in Brazil
@@ -930,17 +1002,17 @@ def _tab_watchlist(met: pd.DataFrame) -> None:
                                  colorers=[(moves, _move_colour)],
                                  on_select="rerun", selection_mode="multi-row",
                                  key=f"wl_tbl_{colset}")
-    try:
-        rows = list(sel["selection"]["rows"]) if sel else []
-    except (KeyError, TypeError):
-        rows = []
+    rows = _selected_rows(sel)
     c1, c2 = st.columns([1.1, 3])
     if rows and c1.button(f"Remove {len(rows)}", key="wl_drop", use_container_width=True):
         drop = set(_fund_keys(d.iloc[rows]))
         cvmfunds.watch_set([k for k in keys if k not in drop])
         st.rerun()
     if not rows:
-        c2.caption("Tick rows to remove them.")
+        c2.caption("Tick one row to chart that fund, or several to remove them.")
+    elif len(rows) == 1:
+        st.divider()
+        _fund_detail(met, d.iloc[rows[0]], key="wl")
 
 
 # ── page ────────────────────────────────────────────────────────────────────────────
