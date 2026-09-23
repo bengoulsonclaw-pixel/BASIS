@@ -15466,20 +15466,8 @@ def render_seasonality() -> None:
     st.caption(f"Colour is clamped at ±{vmax:,.1f} {unit} (the 90th percentile of "
                f"|monthly moves|) so one outlier month doesn't wash the map out{_n}.")
 
-    srows = []
-    for lbl, k in [("Median", "med"), ("Years up", "hit")]:
-        row = {"lbl": lbl}
-        for m in range(1, 13):
-            v = stats.loc[m, k]
-            if pd.isna(v):
-                row[seasmon.MONTH_LABELS[m - 1]] = "—"
-            elif k == "hit":
-                row[seasmon.MONTH_LABELS[m - 1]] = f"{round(v * stats.loc[m, 'n'])}/{int(stats.loc[m, 'n'])}"
-            else:
-                row[seasmon.MONTH_LABELS[m - 1]] = fmt.format(v)
-        srows.append(row)
-    brand.terminal_table(srows, [{"key": "lbl", "label": ""}] + [
-        {"key": lab, "label": lab, "align": "right"} for lab in seasmon.MONTH_LABELS])
+    # (the Median/Years-up strip that sat here was cut 2026-09-23 — Ben's de-noise
+    # call: the heatmap shows every cell it summarised, the tiles show the extremes)
 
     # average-year path
     spd, sinfo = seasmon.seasonal_path(weekly, tkr)
@@ -15542,17 +15530,8 @@ def render_seasonality() -> None:
             "numbered weeks of each year (edges drift a few days year to year). Trust the "
             "windows where the two scores agree. **Worst** = the most adverse single year "
             "inside the window — even a 9-of-10 pattern has an exception. Descriptive "
-            "history, not a signal. Pick any row below to unpack its streak year by year.")
-
-        brand.panel_header("Window detail", right="the streak, year by year")
-        _wd_opts = list(bw.index)
-        _wd_sel = st.selectbox(
-            "Window", _wd_opts,
-            format_func=lambda i: f"{'↑' if bw.loc[i, 'dir'] == 'Higher' else '↓'} "
-                                  f"{bw.loc[i, 'label']}  ·  "
-                                  f"{_seas_wspan(bw.loc[i, 'start'], bw.loc[i, 'weeks'])}",
-            key=f"seas_windetail_{tkr}", label_visibility="collapsed")
-        _render_window_detail(tkr, bw.loc[_wd_sel], unit, ns="pp")
+            "history, not a signal. **Unpack any of these in the Window detail near the "
+            "top of the page** — its pickers reach every product's windows, open or not.")
 
     # ---- client PDF (2026-08-22: the last module without one) --------------------
     st.divider()
