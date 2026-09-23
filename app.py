@@ -15448,11 +15448,18 @@ def render_seasonality() -> None:
         x=alt.X("mon:N", sort=seasmon.MONTH_LABELS, title=None,
                 axis=alt.Axis(labelAngle=0, orient="top", labelFontSize=12)),
         y=alt.Y("year:O", sort="descending", title=None, axis=alt.Axis(labelFontSize=12)))
+    # stepped red-family / green-family scale (Ben 2026-09-23: sign must read at a
+    # glance — a plain red→dark→green interpolation turned mild months purple/teal).
+    # Dark stops = the Home heatmap's terminal σ palette (heatmap_html._TERM_STOPS).
+    _hm_dom = [f * vmax for f in (-1, -0.75, -0.5, -0.2, 0, 0.4, 0.75, 1)]
+    _hm_rng = (["#8E2F26", "#7A2D26", "#6B3630", "#4A3A38",
+                "#2C3742", "#245C43", "#17734A", "#0F5C36"]
+               if pal["name"] == "dark" else
+               ["#B93425", "#CB6450", "#E0A493", "#EFD6CE",
+                "#F4F5F7", "#CFE6D7", "#93C9A7", "#1F7A44"])
     cells = base.mark_rect(stroke=pal["canvas"], strokeWidth=1.4).encode(
         color=alt.Color("val:Q", legend=None,
-                        scale=alt.Scale(domain=[-vmax, 0, vmax],
-                                        range=[cc["short"], pal["surface"], cc["long"]],
-                                        clamp=True)),
+                        scale=alt.Scale(domain=_hm_dom, range=_hm_rng, clamp=True)),
         tooltip=[alt.Tooltip("year:O"), alt.Tooltip("mon:N", title="Month"),
                  alt.Tooltip("val:Q", title=f"Change ({unit})", format="+,.1f")])
     labels = base.mark_text(fontSize=11.5, font="monospace").encode(
@@ -15463,8 +15470,9 @@ def render_seasonality() -> None:
         height=max(230, 26 * mat.shape[0] + 40),
         title=f"{universe.yield_name(tkr)} — monthly change ({unit}), year × month"))
     _n = " · *current month to date (excluded from stats)" if meta["partial"] else ""
-    st.caption(f"Colour is clamped at ±{vmax:,.1f} {unit} (the 90th percentile of "
-               f"|monthly moves|) so one outlier month doesn't wash the map out{_n}.")
+    st.caption(f"**Green = up months, red = down** — depth of colour is the size of the "
+               f"move, clamped at ±{vmax:,.1f} {unit} (the 90th percentile of |monthly "
+               f"moves|) so one outlier month doesn't wash the map out{_n}.")
 
     # (the Median/Years-up strip that sat here was cut 2026-09-23 — Ben's de-noise
     # call: the heatmap shows every cell it summarised, the tiles show the extremes)
