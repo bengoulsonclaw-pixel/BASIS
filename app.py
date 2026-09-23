@@ -15252,9 +15252,15 @@ def render_seasonality() -> None:
                                    "color": _pal["text"]})
                 .map(lambda v: (f"color:{_up if v > 0 else _dn};font-weight:600"
                                 if isinstance(v, (int, float)) and v == v else ""),
-                     subset=["Med"]))
+                     subset=["Med"])
+                # headers follow the palette too — the grid's own chrome doesn't
+                .map_index(lambda _: (f"background-color:{_pal['surface']};"
+                                      f"color:{_pal['text_dim']};font-weight:600"),
+                           axis="columns"))
+        _rh = 33
         _ev = st.dataframe(_sty, use_container_width=True, hide_index=True,
-                           height=min(38 * (len(_disp) + 1) + 4, 640),
+                           row_height=_rh,
+                           height=min(_rh * (len(_disp) + 1) + 3, 636),
                            on_select="rerun", selection_mode="single-row",
                            key="seas_board_grid")
         _sel = list(_ev.selection.rows) if _ev is not None and _ev.selection else []
