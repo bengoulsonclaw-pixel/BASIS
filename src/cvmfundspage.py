@@ -81,6 +81,18 @@ def _pct(v: float, dp: int = 1, signed: bool = True) -> str:
     return f"{v:{'+' if signed else ''}.{dp}f}%"
 
 
+def _md(text: str) -> str:
+    """Escape currency before it reaches Streamlit markdown.
+
+    Streamlit reads `$...$` as LaTeX, so TWO amounts in one caption swallow everything
+    between them: "a simple average lets an R$8m launch outvote an R$8bn flagship"
+    rendered as "lets an R8mlaunchoutvoteanR8bn flagship", italicised. A single amount is
+    harmless — it takes a pair — so this is only needed where a string carries more than
+    one, which is easy to introduce by concatenating two captions that each carry one.
+    """
+    return text.replace("$", r"\$")
+
+
 def _num(v: float, dp: int = 0, signed: bool = False) -> str:
     if v is None or v != v:
         return "—"
@@ -289,7 +301,7 @@ def _explore_managers(lt: pd.DataFrame, colset: str) -> tuple[pd.DataFrame, dict
                   "12m": PCT, "vs CDI 12m": PCT}, ["3m", "YTD", "12m", "vs CDI 12m"]
 
 
-def _star_bar(d: pd.DataFrame, sel) -> None:
+def _star_bar(d: pd.DataFrame, sel, key: str = "ex_star") -> None:
     """Add the rows ticked in the table to the watchlist.
 
     A per-row star button is not possible inside st.dataframe — the grid is a canvas, not
@@ -303,7 +315,7 @@ def _star_bar(d: pd.DataFrame, sel) -> None:
     if not rows:
         c2.caption("Tick rows in the table to add them to your watchlist.")
         return
-    if c1.button(f"★  Add {len(rows)} to watchlist", key="ex_star", type="primary",
+    if c1.button(f"★  Add {len(rows)} to watchlist", key=key, type="primary",
                  use_container_width=True):
         keys = _fund_keys(d.iloc[rows]).tolist()
         added = cvmfunds.watch_add(keys)
@@ -386,11 +398,51 @@ def _explore_by_manager(met: pd.DataFrame, d: pd.DataFrame, colset: str) -> None
                        "three separately registered gestores in CVM's file — plus a vintage "
                        "difference.")
     disp, spec, moves = _explore_managers(lt, colset)
-    st.caption("Returns are **asset-weighted** across each manager's funds — a simple "
-               "average lets an R$8m launch outvote an R$8bn flagship. "
-               + _EXPLORE_HELP[colset])
-    brand.themed_dataframe(_as_text(disp, spec), {}, height=520,
-                           colorers=[(moves, _move_colour)])
+    st.caption(_md(
+        "Returns are **asset-weighted** across each manager's funds — a simple average "
+        "lets an R$8m launch outvote an R$8bn flagship. Pick a row to open that "
+        "manager's funds underneath. " + _EXPLORE_HELP[colset]))
+    sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=460,
+                                 colorers=[(moves, _move_colour)],
+                                 on_select="rerun", selection_mode="single-row",
+                                 key=f"ex_mgr_{colset}_{by_firm}")
+    _manager_drilldown(d, lt, sel, colset, by_firm)
+
+
+def _manager_drilldown(d: pd.DataFrame, lt: pd.DataFrame, sel, colset: str,
+                       by_firm: bool) -> None:
+    """The funds inside the manager picked in the league table.
+
+    Opened by SELECTION rather than by an expander per row: Streamlit runs the body of a
+    collapsed expander, so forty of them would build every manager's fund rows on every
+    rerun. Selecting also keeps the league table itself sortable, which is what it is for.
+    """
+    try:
+        rows = list(sel["selection"]["rows"]) if sel else []
+    except (KeyError, TypeError):
+        rows = []
+    if not rows:
+        return
+    # Grouped on the REGISTERED gestor unless the firm merge is on — the same key
+    # by_gestor grouped by, or the funds underneath would belong to a different entity.
+    key = lt.index[rows[0]]
+    sub = d[(d["firm"] if by_firm else d["gestor"]) == key]
+    if sub.empty:
+        return
+    sub = sub.sort_values("aum", ascending=False)
+    st.markdown(f"**{lt.iloc[rows[0]]['label']}** — {len(sub)} "
+                f"{'fund' if len(sub) == 1 else 'funds'}, "
+                f"{_brl(sub['aum'].sum())}")
+    fdisp, fspec, fmoves = _explore_funds(sub.head(_FUND_PAGE), colset)
+    fsel = brand.themed_dataframe(_as_text(fdisp, fspec), {},
+                                  height=min(420, 60 + 36 * len(sub)),
+                                  colorers=[(fmoves, _move_colour)],
+                                  on_select="rerun", selection_mode="multi-row",
+                                  key=f"ex_sub_{colset}")
+    if len(sub) > _FUND_PAGE:
+        st.caption(f"Showing the largest {_FUND_PAGE} of {len(sub)} — the Fund section "
+                   f"searches the rest.")
+    _star_bar(sub.head(_FUND_PAGE), fsel, key="ex_sub_star")
 
 
 # The picker shows managers first and opens ONE at a time. Streamlit executes the body of
@@ -836,14 +888,14 @@ def _aum_bridge(h: pd.DataFrame, row: pd.Series) -> None:
              .properties(height=230, title="Where the capital came from"))
     brand.show_chart(chart)
     grew = end_pl >= start_pl
-    st.caption(
+    st.caption(_md(
         f"Over the cached window assets went {'up' if grew else 'down'} "
         f"**{_brl(abs(end_pl - start_pl), 'm', 0)}** — "
         f"**{_brl(net_flow, 'm', 0)}** of investor money "
         f"{'in' if net_flow >= 0 else 'out'}, **{_brl(perf, 'm', 0)}** from performance."
         + ("  Growing while investors withdraw."
            if grew and net_flow < 0 else
-           "  Shrinking despite money coming in." if not grew and net_flow > 0 else ""))
+           "  Shrinking despite money coming in." if not grew and net_flow > 0 else "")))
 
 
 def _tab_watchlist(met: pd.DataFrame) -> None:
