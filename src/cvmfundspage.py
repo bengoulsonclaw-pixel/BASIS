@@ -847,20 +847,32 @@ def _fund_detail(met: pd.DataFrame, row: pd.Series, *, key: str) -> None:
                          alt.Tooltip("NAV:Q", format=",.1f")])
         .properties(height=300, title="NAV against CDI"))
 
-    a1, a2 = st.columns(2)
-    with a1:
-        dd = pd.DataFrame({"date": h["date"],
-                           "dd": (h["quota"] / h["quota"].cummax() - 1.0) * 100.0})
-        brand.show_chart(alt.Chart(dd).mark_area(color=cc["short"], opacity=0.7)
-                         .encode(x=alt.X("date:T", title=None),
-                                 y=alt.Y("dd:Q", title="drawdown (%)"),
-                                 tooltip=[alt.Tooltip("date:T"),
-                                          alt.Tooltip("dd:Q", format=".2f")])
-                         .properties(height=230, title="Drawdown"))
-    with a2:
-        _aum_bridge(h, row)
+    # Full width and directly beneath the NAV chart, on the same time axis: a drawdown is
+    # read AGAINST the price line above it — this dip is that fall — and at half width its
+    # ticks landed on different dates from the chart it explains.
+    dd = pd.DataFrame({"date": h["date"],
+                       "dd": (h["quota"] / h["quota"].cummax() - 1.0) * 100.0})
+    brand.show_chart(alt.Chart(dd).mark_area(color=cc["short"], opacity=0.7)
+                     .encode(x=alt.X("date:T", title=None),
+                             y=alt.Y("dd:Q", title="below previous peak (%)"),
+                             tooltip=[alt.Tooltip("date:T"),
+                                      alt.Tooltip("dd:Q", title="Drawdown %", format=".2f")])
+                     .properties(height=190, title="Drawdown — how far below its own high"))
+    worst = float(dd["dd"].min()) if len(dd) else float("nan")
+    if worst == worst and worst < 0:
+        trough = dd.loc[dd["dd"].idxmin(), "date"]
+        back = dd[(dd["date"] > trough) & (dd["dd"] >= -0.05)]
+        st.caption(
+            # abs(): the word "fall" already carries the direction, and "fall of -10.8%"
+            # is a double negative that reads as a gain on a second glance.
+            f"Zero means a new high. Worst fall **{_pct(abs(worst), 1, signed=False)}** from "
+            f"its peak, reached {trough:%d %b %Y}"
+            + (f", back to a new high by {back['date'].iloc[0]:%d %b %Y}."
+               if not back.empty else " — not yet recovered."))
 
     _flow_chart(h)
+
+    _aum_bridge(h, row)
 
     fl = h[["date", "subs", "redem", "pl"]].copy()
     fl["net"] = (fl["subs"].fillna(0) - fl["redem"].fillna(0)).cumsum() / _MM
