@@ -14859,6 +14859,12 @@ def _seas_spread_screener(mode: str):
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
+def _seas_all_windows(mode: str):
+    """Every product's finder windows, open or not — the detail picker's universe."""
+    return seasmon.all_windows()
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
 def _seas_open_windows(mode: str):
     """Whole-book open/upcoming windows — the SEAS radar's source list (JSON scan
     cache per data day + ISO week, so this is normally a disk read)."""
@@ -15265,18 +15271,34 @@ def render_seasonality() -> None:
             "decade of history are descriptive, not a signal. Pick any row below to unpack "
             "its streak year by year.")
 
-        if not wb.empty:
-            brand.panel_header("Window detail", right="the streak, year by year")
-            _bd_opts = list(wb.index)
-            _bd_sel = st.selectbox(
-                "Board window", _bd_opts,
-                format_func=lambda i: f"{wb.loc[i, 'name']}  ·  "
-                                      f"{'↑' if wb.loc[i, 'dir'] == 'Higher' else '↓'} "
-                                      f"{wb.loc[i, 'label']}  ·  "
-                                      f"{_seas_wspan(wb.loc[i, 'start'], wb.loc[i, 'weeks'])}",
-                key="seas_board_windetail", label_visibility="collapsed")
-            _render_window_detail(wb.loc[_bd_sel, "ticker"], wb.loc[_bd_sel],
-                                  wb.loc[_bd_sel, "unit"], ns="bd")
+        aw = _seas_all_windows(MODE)
+        if aw is not None and not aw.empty:
+            brand.panel_header("Window detail",
+                               right="any product · any window · the streak, year by year")
+            pc0, pc1 = st.columns([1.4, 2.2])
+            prods = list(dict.fromkeys(aw["ticker"]))
+            # follow the board's current top row by default, but offer the whole book
+            _def_p = (wb.iloc[0]["ticker"] if not wb.empty
+                      and wb.iloc[0]["ticker"] in prods else prods[0])
+            p_sel = pc0.selectbox("Product", prods, index=prods.index(_def_p),
+                                  format_func=universe.yield_name,
+                                  key="seas_bd_prod", label_visibility="collapsed")
+            sub = aw[aw["ticker"] == p_sel].reset_index(drop=True)
+            _def_w = 0
+            if not wb.empty and wb.iloc[0]["ticker"] == p_sel:
+                _m = sub[(sub["start"] == int(wb.iloc[0]["start"]))
+                         & (sub["weeks"] == int(wb.iloc[0]["weeks"]))
+                         & (sub["dir"] == wb.iloc[0]["dir"])]
+                if not _m.empty:
+                    _def_w = int(_m.index[0])
+            w_sel = pc1.selectbox(
+                "Window", list(sub.index), index=_def_w,
+                format_func=lambda i: f"{'↑' if sub.loc[i, 'dir'] == 'Higher' else '↓'} "
+                                      f"{sub.loc[i, 'label']}  ·  "
+                                      f"{_seas_wspan(sub.loc[i, 'start'], sub.loc[i, 'weeks'])}"
+                                      f"  ·  {int(sub.loc[i, 'wins'])}/{int(sub.loc[i, 'n'])}",
+                key=f"seas_bd_win_{p_sel}", label_visibility="collapsed")
+            _render_window_detail(p_sel, sub.loc[w_sel], sub.loc[w_sel, "unit"], ns="bd")
 
     # ---- month screener -----------------------------------------------------
     c0, c1, c2 = st.columns([1.1, 2.35, 0.6], vertical_alignment="bottom")

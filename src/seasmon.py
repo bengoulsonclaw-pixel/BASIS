@@ -845,6 +845,13 @@ def window_weeks(ticker: str, year: int, start: int, weeks: int) -> pd.DataFrame
     return out.dropna(subset=["move"]).reset_index(drop=True)
 
 
+def all_windows() -> pd.DataFrame:
+    """EVERY product's finder windows (top 4 each direction, open or not), straight
+    off the daily scan cache — the board filters this to open/upcoming; the detail
+    picker offers it whole (Ben 2026-09-23: choose a product, then ANY window)."""
+    return pd.DataFrame(_radar_payload().get("windows", []))
+
+
 def open_windows(horizon: int = 4) -> pd.DataFrame:
     """The page's windows board: every strong window across the WHOLE book that
     is running right now (start ≤ this ISO week < start + length, wrapping the
