@@ -411,3 +411,45 @@ def test_one_users_watchlist_is_not_anothers(tmp_path, monkeypatch):
     cf.watch_add(["other-fund|"])
     monkeypatch.setattr(cf, "_watch_who", lambda: "ben@example.com")
     assert cf.watchlist() == ["ben-fund|"], "and does not overwrite the first"
+
+
+# ── 10. free-text search ─────────────────────────────────────────────────────
+def _searchable() -> pd.DataFrame:
+    return pd.DataFrame({
+        "cnpj": ["11111111000111", "22222222000122", "33333333000133"],
+        "name": ["MACRO MASTER FUNDO DE INVESTIMENTO", "ITAÚ SINFONIA CRÉDITO PRIVADO",
+                 "EQUITY MASTER FIF"],
+        "name_en": ["Macro Master", "Itaú Sinfonia Private Credit", "Equity Master"],
+        "gestor": ["KAPITALO INVESTIMENTOS LTDA.", "ITAU UNIBANCO ASSET MANAGEMENT LTDA.",
+                   "SPX GESTÃO DE RECURSOS LTDA"],
+        "gestor_en": ["Kapitalo", "Itau Unibanco Asset Management", "SPX"],
+    })
+
+
+@pytest.mark.parametrize("query, want", [
+    ("kapitalo", ["11111111000111"]),                 # manager, tidied label
+    ("GESTÃO DE RECURSOS", ["33333333000133"]),       # manager, registered name only
+    ("sinfonia", ["22222222000122"]),                 # fund name
+    ("CRÉDITO PRIVADO", ["22222222000122"]),          # registered Portuguese fund name
+    ("master", ["11111111000111", "33333333000133"]),
+    ("22222222", ["22222222000122"]),                 # CNPJ
+])
+def test_search_matches_both_spellings_and_cnpj(query, want):
+    """Names are tidied for display but the registered spelling is what people paste in
+    from a vendor system, so both are searched."""
+    assert list(cf.search(_searchable(), query)["cnpj"]) == want
+
+
+def test_a_short_number_does_not_match_cnpjs():
+    """CNPJ matching needs six digits. Fewer and a query like "10" hits a third of the
+    register on its tax number while the user is still typing a fund name."""
+    assert cf.search(_searchable(), "111").empty, \
+        "three digits must not fall through to a CNPJ match"
+    assert len(cf.search(_searchable(), "111111")) == 1
+
+
+def test_empty_search_is_a_no_op():
+    d = _searchable()
+    assert len(cf.search(d, "")) == len(d)
+    assert len(cf.search(d, "   ")) == len(d)
+    assert cf.search(d, "nothing-matches-this").empty

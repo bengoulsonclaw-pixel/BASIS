@@ -989,6 +989,30 @@ def history(cnpj: str, subclass: str = "") -> pd.DataFrame:
 
 
 # ── screening ───────────────────────────────────────────────────────────────────────
+def search(d: pd.DataFrame, query: str) -> pd.DataFrame:
+    """Free-text match over a screened frame: fund name, manager, or CNPJ.
+
+    Both spellings of each name are searched — the tidied English label AND the registered
+    Portuguese — so "Itau Unibanco" and "ITAU UNIBANCO ASSET MANAGEMENT LTDA." both land,
+    and a name the tidier trimmed a word from is still reachable by that word.
+
+    CNPJ matching needs six digits before it engages. Fewer than that and a query like
+    "10" matches a third of the register on its tax number while the user is typing a
+    fund name.
+    """
+    q = (query or "").strip()
+    if not q or d.empty:
+        return d
+    hit = pd.Series(False, index=d.index)
+    for col in ("name_en", "name", "gestor_en", "gestor"):
+        if col in d:
+            hit = hit | d[col].str.contains(q, case=False, na=False, regex=False)
+    digits = "".join(ch for ch in q if ch.isdigit())
+    if len(digits) >= 6 and "cnpj" in d:
+        hit = hit | d["cnpj"].str.contains(digits, na=False, regex=False)
+    return d[hit]
+
+
 def screen(met: pd.DataFrame, *, cvm_class: str | None = "Multimercado",
            include_feeders: bool = False, include_exclusive: bool = False,
            include_prev: bool = False, publico: list[str] | None = None,

@@ -182,7 +182,13 @@ def _filters(met: pd.DataFrame, key: str) -> tuple[pd.DataFrame, dict]:
                             placeholder="all strategies",
                             help="ANBIMA's finer cut, translated — Macro, Long/Short, "
                                  "Offshore, Rates & FX, and so on.")
-    gest = c3.text_input("Manager contains", "", key=f"{key}_gestor", placeholder="e.g. Kapitalo")
+    # Was "Manager contains", which could not find a fund by its own name — you had to
+    # already know who ran it. Same matcher the Fund picker uses: name, manager, CNPJ.
+    gest = c3.text_input("Search", "", key=f"{key}_gestor",
+                         placeholder="fund, manager or CNPJ",
+                         help="Matches the fund name, the manager, or a CNPJ (six digits "
+                              "or more). Both the tidied English name and the registered "
+                              "Portuguese one are searched.")
     min_aum = c4.number_input("Min assets (R$m)", min_value=0, value=100, step=50,
                               key=f"{key}_minaum") * _MM
 
@@ -205,8 +211,9 @@ def _filters(met: pd.DataFrame, key: str) -> tuple[pd.DataFrame, dict]:
 
     d = cvmfunds.screen(met, cvm_class=None if klass == "(all)" else klass,
                         include_feeders=feeders, include_exclusive=excl,
-                        include_prev=prev, gestor=gest or None, min_aum=min_aum,
+                        include_prev=prev, min_aum=min_aum,
                         publico=["Retail"] if retail else None)
+    d = cvmfunds.search(d, gest)
     if picked:
         d = d[d["strategy_en"].isin(picked)]
     return d, {"class": klass, "feeders": feeders, "exclusive": excl, "prev": prev,
@@ -627,13 +634,7 @@ def _fund_picker(met: pd.DataFrame):
         st.info("Nothing in the store at that size.")
         return None
     if q:
-        digits = "".join(ch for ch in q if ch.isdigit())
-        hit = False
-        for col in ("name_en", "name", "gestor_en", "gestor"):
-            hit = hit | d[col].str.contains(q, case=False, na=False, regex=False)
-        if len(digits) >= 6:
-            hit = hit | d["cnpj"].str.contains(digits, na=False, regex=False)
-        d = d[hit]
+        d = cvmfunds.search(d, q)
         if d.empty:
             st.info(f"Nothing matches “{q}”.")
             return None
