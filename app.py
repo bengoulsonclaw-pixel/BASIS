@@ -15161,21 +15161,26 @@ def render_seasonality() -> None:
             for _, r in strong.iterrows()))
 
     cur_month = month == date.today().month
+    # each sector collapses to one line (Ben 2026-09-23, "tidies up the page") — the
+    # header carries the read-at-a-glance meta, the bias strip above stays the summary
     for a in [a for a in assets if a in set(scr["asset"])]:
         sub = scr[scr["asset"] == a]
         unit = sub["unit"].iloc[0]
         fmt = _seas_fmt(unit)
-        brand.panel_header(a, right=f"{len(sub)} products · {unit}")
-        rows = []
-        for _, r in sub.iterrows():
-            rows.append({
-                "name": r["name"],
-                "med": float(r["med"]), "hitpic": float((r["hit"] - 0.5) * 4),
-                "hit": f"{round(r['hit'] * r['n'])}/{r['n']} {r['bias']}".replace(" —", ""),
-                "mean": float(r["mean"]), "best": float(r["best"]), "worst": float(r["worst"]),
-                "this": None if pd.isna(r["this_year"]) else float(r["this_year"]),
-            })
-        brand.terminal_table(rows, [
+        _nb = int((sub["bias"] != "—").sum())
+        _lbl = (f"**{a.upper()}** · {len(sub)} products · {unit}"
+                + (f" · {_nb} with a seasonal bias this month" if _nb else ""))
+        with st.expander(_lbl, expanded=False):
+            rows = []
+            for _, r in sub.iterrows():
+                rows.append({
+                    "name": r["name"],
+                    "med": float(r["med"]), "hitpic": float((r["hit"] - 0.5) * 4),
+                    "hit": f"{round(r['hit'] * r['n'])}/{r['n']} {r['bias']}".replace(" —", ""),
+                    "mean": float(r["mean"]), "best": float(r["best"]), "worst": float(r["worst"]),
+                    "this": None if pd.isna(r["this_year"]) else float(r["this_year"]),
+                })
+            brand.terminal_table(rows, [
             {"key": "name", "label": "Product"},
             {"key": "med", "label": f"Med {unit}", "color": True, "fmt": fmt},
             {"key": "hitpic", "label": "Hit ±", "zbar": True},
