@@ -155,21 +155,31 @@ def _as_text(df: pd.DataFrame, spec: dict) -> pd.DataFrame:
 
 
 def _move_colour(col):
-    """Green up / red down, matching the rest of the app's move columns.
+    """Green up / red down, in the ACTIVE theme's colours.
 
     Reads the RENDERED cell, not the number, because the frame reaching the grid is
     already text (see the formatting note below). The sign character is the signal, and
-    "—" — a value we do not have — is grey rather than either.
+    "—" — a value we do not have — is neither green nor red.
+
+    The colours come from the palette rather than being hard-coded. #137333 and #c5221f
+    are light-background greens and reds; on the dark surface (#272D36) this page is
+    normally read against, a whole table of them sits at roughly 2:1 contrast and is
+    genuinely hard to read. The dark palette's #46C58A / #EC6A57 are the same signals
+    pitched for that background, and they follow the theme toggle.
     """
+    pal = brand.palette()
+    up = f"color:{pal['green']};font-weight:700"
+    down = f"color:{pal['red']};font-weight:700"
+    flat = f"color:{pal['faint']}"
     out = []
     for v in col:
         t = str(v).strip()
         if t.startswith("+"):
-            out.append("color:#137333;font-weight:700")
+            out.append(up)
         elif t.startswith(("-", "−")):
-            out.append("color:#c5221f;font-weight:700")
+            out.append(down)
         else:
-            out.append("color:#888")
+            out.append(flat)
     return out
 
 

@@ -17038,10 +17038,6 @@ with st.sidebar:
                 st.caption(_group)
                 for _s in _strats:
                     _nav_button(_s, _s)
-        # Brazil Fundamentals — its own module (Ben 2026-08-29): Brazil Production + Brazil Funds,
-        # moved out of Fundamentals into their own tab-group (see _GROUP_TABS above).
-        _n_mod += 1
-        _nav_button(f"{_n_mod:02d} · Brazil Fundamentals", "Brazil Production")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Correlations", "Product Correlations")
         _n_mod += 1
@@ -17069,6 +17065,10 @@ with st.sidebar:
         _nav_button("07 · Client ETFs", "eq:ETFs")
     # Cross-asset / System: shared across BOTH desks, not FICC-only.
     st.markdown('<div class="bt-sect">Cross-asset</div>', unsafe_allow_html=True)
+    # Brazil Fundamentals (Ben, 2026-09-23): Brazil Production + Brazil Funds. It sat in
+    # the numbered FICC list, but the fund screener spans equities, fixed income and
+    # multi-strategy managers, so it belongs where both desks can reach it.
+    _nav_button("🇧🇷 Brazil Fundamentals", "Brazil Production")
     _nav_button("Strategy Builder", "Strategy Builder")
     # Trade Idea sits here rather than in the FICC list (Ben, 2026-09-08): the builder covers
     # both desks, so the page has to be reachable from both.
