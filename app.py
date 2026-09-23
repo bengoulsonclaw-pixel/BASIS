@@ -15125,6 +15125,158 @@ def render_seasonality() -> None:
                 "machine (it backfills on the next Bloomberg session).")
         return
 
+    # ---- seasonal windows board: the Hot Sheet's SEAS radar, in full ---------
+    st.divider()
+    with st.spinner("Scanning the book's seasonal windows… (first open of the day "
+                    "pays the scan; the morning pull normally has it cached)"):
+        wb = _seas_open_windows(MODE)
+    if wb is not None and not wb.empty:
+        n_open = int((wb["status"] == "open").sum())
+        brand.panel_header("Seasonal windows — open now & opening soon",
+                           right=f"whole book · {n_open} open · hit ≥ {seasmon.HIT_STRONG:.0%}")
+        wc0, wc1 = st.columns([1.6, 2.4])
+        w_show = wc0.radio("Show", ["Entering now & soon", "Everything open or upcoming"],
+                           horizontal=True, key="seas_wb_show", label_visibility="collapsed",
+                           help="Entering = windows in their first ~3 weeks or starting within "
+                                "the next fortnight (the Hot Sheet's framing). Everything = "
+                                "every window currently running or starting within a month.")
+        w_hit = wc1.radio("Agreement", ["≥ 80% of years", f"All (≥ {seasmon.HIT_STRONG:.0%})",
+                                        "Perfect record"],
+                          index=2,      # Ben 2026-09-23: open on the perfect records
+                          horizontal=True, key="seas_wb_hit", label_visibility="collapsed")
+        if w_show == "Entering now & soon":
+            wb = wb[((wb["status"] == "open") & (wb["into"] <= 3)) |
+                    ((wb["status"] == "upcoming") & (wb["ahead"] <= 2))]
+        if w_hit == "≥ 80% of years":
+            wb = wb[wb["hit"] >= 0.80]
+        elif w_hit == "Perfect record":
+            wb = wb[wb["hit"] >= 0.999]
+        if wb.empty:
+            st.caption("No window clears these filters right now — widen either control.")
+        w_rows = []
+        for _, r in wb.iterrows():
+            w_rows.append({
+                "st": (f"open · wk {int(r['into'])} of {int(r['weeks'])}"
+                       if r["status"] == "open" else
+                       ("opens next week" if int(r["ahead"]) == 1
+                        else f"opens in {int(r['ahead'])}w")),
+                "name": r["name"],
+                "wspan": _seas_wspan(r["start"], r["weeks"]), "win": r["label"],
+                "dir": "↑ higher" if r["dir"] == "Higher" else "↓ lower",
+                "hit": f"{int(r['wins'])}/{int(r['n'])}",
+                "dhit": (f"{int(r['date_wins'])}/{int(r['date_n'])}"
+                         if int(r.get("date_n", 0) or 0) else "—"),
+                "med": float(r["med"]), "worst": float(r["worst"]), "unit": r["unit"],
+            })
+        brand.terminal_table(w_rows, [
+            {"key": "st", "label": "Status"},
+            {"key": "name", "label": "Product"},
+            {"key": "dir", "label": "Direction"},
+            {"key": "win", "label": "Date x → y"},
+            {"key": "dhit", "label": "Hit (dates)", "align": "right"},
+            {"key": "wspan", "label": "Week x → y"},
+            {"key": "hit", "label": "Hit (weeks)", "align": "right"},
+            {"key": "med", "label": "Med", "color": True, "fmt": "{:+,.1f}"},
+            {"key": "worst", "label": "Worst", "align": "right", "fmt": "{:+,.1f}"},
+            {"key": "unit", "label": "Unit"},
+        ])
+        st.caption(
+            "**This is the list the Hot Sheet's SEAS stories come from** — calendar windows "
+            "across the **whole book** (deliberately ignoring the sector filter above, so a "
+            "Hot Sheet story always has its row here). A *window* is a 4–16-week calendar "
+            f"stretch this product moved one way in ≥ {seasmon.HIT_STRONG:.0%} of the stored "
+            "years (≥ 5 complete years; overlapping echoes collapsed to the strongest — the "
+            "same finder that fills the per-product tables under the detail below). "
+            "**Med / Worst** = the median and most adverse single-year move over the window, "
+            "in the product's own unit (% of price, bp of yield for FI). Every window is "
+            "scored twice: **Date x → y / Hit (dates)** replays the fixed calendar dates "
+            "(the Bloomberg-SEAG convention); **Week x → y / Hit (weeks)** replays the "
+            "same numbered weeks of each year, whose edges drift up to ±6 days against "
+            "the calendar. A record that softens badly under fixed dates was riding whatever "
+            "the drifting week-edges caught — early-November election weeks, in one live "
+            "example. Trust windows where the two scores agree. The left control narrows to "
+            "windows just entering (the Hot Sheet's framing) or widens to every window "
+            "running; the right one sets the agreement bar. Windows found by searching a "
+            "decade of history are descriptive, not a signal. Pick any row below to unpack "
+            "its streak year by year.")
+
+        if not wb.empty:
+            brand.panel_header("Window detail", right="the streak, year by year")
+            _bd_opts = list(wb.index)
+            _bd_sel = st.selectbox(
+                "Board window", _bd_opts,
+                format_func=lambda i: f"{wb.loc[i, 'name']}  ·  "
+                                      f"{'↑' if wb.loc[i, 'dir'] == 'Higher' else '↓'} "
+                                      f"{wb.loc[i, 'label']}  ·  "
+                                      f"{_seas_wspan(wb.loc[i, 'start'], wb.loc[i, 'weeks'])}",
+                key="seas_board_windetail", label_visibility="collapsed")
+            _render_window_detail(wb.loc[_bd_sel, "ticker"], wb.loc[_bd_sel],
+                                  wb.loc[_bd_sel, "unit"], ns="bd")
+
+        with st.expander("❓ What is a seasonal window — and how do I read one?"):
+            st.markdown(
+                "**The rule.** For every product the finder tests every possible calendar "
+                "stretch — starting any week of the year, lasting 4 to 16 weeks, about 676 "
+                "stretches — and asks one question of each year on the store: *did this "
+                "stretch finish higher or lower than it started?* If at least "
+                f"**{seasmon.HIT_STRONG:.0%} of the years agreed** on the direction (over at "
+                "least 5 complete years), it's a window. 6-of-10 is barely better than a "
+                "coin flip, so it isn't one. Nearly-identical overlapping stretches collapse "
+                "into the single strongest, so one pattern shows once.")
+            if not wb.empty:
+                _top = wb.iloc[0]
+                _wy = seasmon.window_years(weekly, _top["ticker"], int(_top["start"]),
+                                           int(_top["weeks"]))
+                if not _wy.empty:
+                    _wfmt = _seas_fmt(_top["unit"])
+                    st.markdown(
+                        f"**A live example — {_top['name']}, {_top['label']}** (the "
+                        "strongest window on the board right now). The same stretch, "
+                        "measured in every stored year:")
+                    brand.terminal_table(
+                        [{str(int(y)): float(v) for y, v in _wy.items()}],
+                        [{"key": str(int(y)), "label": str(int(y)), "color": True,
+                          "fmt": _wfmt} for y in _wy.index])
+                    st.caption(
+                        f"That table **is** the window: {int(_top['wins'])} of "
+                        f"{int(_top['n'])} years one way, median "
+                        f"{_wfmt.format(_top['med'])}{_top['unit']} — the board's Med column "
+                        "is the middle value of exactly these numbers, and Worst is the "
+                        "most adverse one.")
+            st.markdown(
+                "**Why they exist.** For physical commodities the *cause* repeats on the "
+                "calendar, so the price pattern does too: natural gas prices the storage "
+                "cycle (injection vs withdrawal), RBOB's February collapse is the "
+                "winter→summer grade switch written into refinery regulation, grains fade "
+                "into harvest, cattle and hogs follow the feedlot cycle. **Financial "
+                "products have seasonal patterns too, but flow- and behaviour-driven** — "
+                "the *Sell-in-May / Halloween* effect, September's long record as the weak "
+                "equity month, year-end rallies, tax-loss and fund year-end flows, index "
+                "calendars dominated by dividends and carry. Those mechanisms are real but "
+                "weaker than a storage cycle, and a decade of equity drift flatters every "
+                "long-side equity window — read them with an extra grain of salt.\n\n"
+                "**How a desk uses one.** (1) *Timing an existing intention* — establish "
+                "length you wanted anyway ahead of the strong stretch, not into the weak "
+                "one. (2) *A yardstick for current price action* — a market rallying "
+                "through its seasonally weak window is fighting the tide, which is "
+                "information; a rally inside the strong window is partly 'just the "
+                "season'. (3) *Risk framing* — same hit rate, different stakes: a window "
+                "whose worst year was flat is a different proposition from one whose worst "
+                "year lost 20%.\n\n"
+                "**The caveat that keeps this honest.** ~676 stretches are tested per "
+                "product, so a few 8- or 9-of-10 records will exist by pure luck — the way "
+                "someone in a room of 676 coin-flippers flips eight heads. And because the "
+                "finder aligns years by week-of-year, a window's real start and end dates "
+                "drift up to ±6 days across years — the **Hit (dates)** column re-measures "
+                "every window on the fixed calendar dates shown (the Bloomberg-SEAG "
+                "convention), and a record that softens badly there was riding whatever the "
+                "drifting week-edges caught (a late-Aug Dow window quietly sweeping US "
+                "election weeks was the live example). Before reading anything into a window, ask *is there a "
+                "story?* — a storage cycle is a story; 'this index went up in most "
+                "Octobers' may just be the decade — and trust the windows where both "
+                "columns agree. Windows describe history — they promise nothing about "
+                "year eleven.")
+
     # ---- month screener -----------------------------------------------------
     c0, c1, c2 = st.columns([1.1, 2.35, 0.6], vertical_alignment="bottom")
     mo_sel = c0.selectbox("Month", seasmon.MONTH_LABELS, index=date.today().month - 1,
@@ -15351,157 +15503,6 @@ def render_seasonality() -> None:
                                   f"{_seas_wspan(bw.loc[i, 'start'], bw.loc[i, 'weeks'])}",
             key=f"seas_windetail_{tkr}", label_visibility="collapsed")
         _render_window_detail(tkr, bw.loc[_wd_sel], unit, ns="pp")
-
-    # ---- seasonal windows board: the Hot Sheet's SEAS radar, in full ---------
-    st.divider()
-    with st.spinner("Scanning the book's seasonal windows… (first open of the day "
-                    "pays the scan; the morning pull normally has it cached)"):
-        wb = _seas_open_windows(MODE)
-    if wb is not None and not wb.empty:
-        n_open = int((wb["status"] == "open").sum())
-        brand.panel_header("Seasonal windows — open now & opening soon",
-                           right=f"whole book · {n_open} open · hit ≥ {seasmon.HIT_STRONG:.0%}")
-        wc0, wc1 = st.columns([1.6, 2.4])
-        w_show = wc0.radio("Show", ["Entering now & soon", "Everything open or upcoming"],
-                           horizontal=True, key="seas_wb_show", label_visibility="collapsed",
-                           help="Entering = windows in their first ~3 weeks or starting within "
-                                "the next fortnight (the Hot Sheet's framing). Everything = "
-                                "every window currently running or starting within a month.")
-        w_hit = wc1.radio("Agreement", ["≥ 80% of years", f"All (≥ {seasmon.HIT_STRONG:.0%})",
-                                        "Perfect record"],
-                          horizontal=True, key="seas_wb_hit", label_visibility="collapsed")
-        if w_show == "Entering now & soon":
-            wb = wb[((wb["status"] == "open") & (wb["into"] <= 3)) |
-                    ((wb["status"] == "upcoming") & (wb["ahead"] <= 2))]
-        if w_hit == "≥ 80% of years":
-            wb = wb[wb["hit"] >= 0.80]
-        elif w_hit == "Perfect record":
-            wb = wb[wb["hit"] >= 0.999]
-        if wb.empty:
-            st.caption("No window clears these filters right now — widen either control.")
-        w_rows = []
-        for _, r in wb.iterrows():
-            w_rows.append({
-                "st": (f"open · wk {int(r['into'])} of {int(r['weeks'])}"
-                       if r["status"] == "open" else
-                       ("opens next week" if int(r["ahead"]) == 1
-                        else f"opens in {int(r['ahead'])}w")),
-                "name": r["name"],
-                "wspan": _seas_wspan(r["start"], r["weeks"]), "win": r["label"],
-                "dir": "↑ higher" if r["dir"] == "Higher" else "↓ lower",
-                "hit": f"{int(r['wins'])}/{int(r['n'])}",
-                "dhit": (f"{int(r['date_wins'])}/{int(r['date_n'])}"
-                         if int(r.get("date_n", 0) or 0) else "—"),
-                "med": float(r["med"]), "worst": float(r["worst"]), "unit": r["unit"],
-            })
-        brand.terminal_table(w_rows, [
-            {"key": "st", "label": "Status"},
-            {"key": "name", "label": "Product"},
-            {"key": "dir", "label": "Direction"},
-            {"key": "win", "label": "Date x → y"},
-            {"key": "dhit", "label": "Hit (dates)", "align": "right"},
-            {"key": "wspan", "label": "Week x → y"},
-            {"key": "hit", "label": "Hit (weeks)", "align": "right"},
-            {"key": "med", "label": "Med", "color": True, "fmt": "{:+,.1f}"},
-            {"key": "worst", "label": "Worst", "align": "right", "fmt": "{:+,.1f}"},
-            {"key": "unit", "label": "Unit"},
-        ])
-        st.caption(
-            "**This is the list the Hot Sheet's SEAS stories come from** — calendar windows "
-            "across the **whole book** (deliberately ignoring the sector filter above, so a "
-            "Hot Sheet story always has its row here). A *window* is a 4–16-week calendar "
-            f"stretch this product moved one way in ≥ {seasmon.HIT_STRONG:.0%} of the stored "
-            "years (≥ 5 complete years; overlapping echoes collapsed to the strongest — the "
-            "same finder that fills the per-product tables under the detail below). "
-            "**Med / Worst** = the median and most adverse single-year move over the window, "
-            "in the product's own unit (% of price, bp of yield for FI). Every window is "
-            "scored twice: **Date x → y / Hit (dates)** replays the fixed calendar dates "
-            "(the Bloomberg-SEAG convention); **Week x → y / Hit (weeks)** replays the "
-            "same numbered weeks of each year, whose edges drift up to ±6 days against "
-            "the calendar. A record that softens badly under fixed dates was riding whatever "
-            "the drifting week-edges caught — early-November election weeks, in one live "
-            "example. Trust windows where the two scores agree. The left control narrows to "
-            "windows just entering (the Hot Sheet's framing) or widens to every window "
-            "running; the right one sets the agreement bar. Windows found by searching a "
-            "decade of history are descriptive, not a signal. Pick any row below to unpack "
-            "its streak year by year.")
-
-        if not wb.empty:
-            brand.panel_header("Window detail", right="the streak, year by year")
-            _bd_opts = list(wb.index)
-            _bd_sel = st.selectbox(
-                "Board window", _bd_opts,
-                format_func=lambda i: f"{wb.loc[i, 'name']}  ·  "
-                                      f"{'↑' if wb.loc[i, 'dir'] == 'Higher' else '↓'} "
-                                      f"{wb.loc[i, 'label']}  ·  "
-                                      f"{_seas_wspan(wb.loc[i, 'start'], wb.loc[i, 'weeks'])}",
-                key="seas_board_windetail", label_visibility="collapsed")
-            _render_window_detail(wb.loc[_bd_sel, "ticker"], wb.loc[_bd_sel],
-                                  wb.loc[_bd_sel, "unit"], ns="bd")
-
-        with st.expander("❓ What is a seasonal window — and how do I read one?"):
-            st.markdown(
-                "**The rule.** For every product the finder tests every possible calendar "
-                "stretch — starting any week of the year, lasting 4 to 16 weeks, about 676 "
-                "stretches — and asks one question of each year on the store: *did this "
-                "stretch finish higher or lower than it started?* If at least "
-                f"**{seasmon.HIT_STRONG:.0%} of the years agreed** on the direction (over at "
-                "least 5 complete years), it's a window. 6-of-10 is barely better than a "
-                "coin flip, so it isn't one. Nearly-identical overlapping stretches collapse "
-                "into the single strongest, so one pattern shows once.")
-            if not wb.empty:
-                _top = wb.iloc[0]
-                _wy = seasmon.window_years(weekly, _top["ticker"], int(_top["start"]),
-                                           int(_top["weeks"]))
-                if not _wy.empty:
-                    _wfmt = _seas_fmt(_top["unit"])
-                    st.markdown(
-                        f"**A live example — {_top['name']}, {_top['label']}** (the "
-                        "strongest window on the board right now). The same stretch, "
-                        "measured in every stored year:")
-                    brand.terminal_table(
-                        [{str(int(y)): float(v) for y, v in _wy.items()}],
-                        [{"key": str(int(y)), "label": str(int(y)), "color": True,
-                          "fmt": _wfmt} for y in _wy.index])
-                    st.caption(
-                        f"That table **is** the window: {int(_top['wins'])} of "
-                        f"{int(_top['n'])} years one way, median "
-                        f"{_wfmt.format(_top['med'])}{_top['unit']} — the board's Med column "
-                        "is the middle value of exactly these numbers, and Worst is the "
-                        "most adverse one.")
-            st.markdown(
-                "**Why they exist.** For physical commodities the *cause* repeats on the "
-                "calendar, so the price pattern does too: natural gas prices the storage "
-                "cycle (injection vs withdrawal), RBOB's February collapse is the "
-                "winter→summer grade switch written into refinery regulation, grains fade "
-                "into harvest, cattle and hogs follow the feedlot cycle. **Financial "
-                "products have seasonal patterns too, but flow- and behaviour-driven** — "
-                "the *Sell-in-May / Halloween* effect, September's long record as the weak "
-                "equity month, year-end rallies, tax-loss and fund year-end flows, index "
-                "calendars dominated by dividends and carry. Those mechanisms are real but "
-                "weaker than a storage cycle, and a decade of equity drift flatters every "
-                "long-side equity window — read them with an extra grain of salt.\n\n"
-                "**How a desk uses one.** (1) *Timing an existing intention* — establish "
-                "length you wanted anyway ahead of the strong stretch, not into the weak "
-                "one. (2) *A yardstick for current price action* — a market rallying "
-                "through its seasonally weak window is fighting the tide, which is "
-                "information; a rally inside the strong window is partly 'just the "
-                "season'. (3) *Risk framing* — same hit rate, different stakes: a window "
-                "whose worst year was flat is a different proposition from one whose worst "
-                "year lost 20%.\n\n"
-                "**The caveat that keeps this honest.** ~676 stretches are tested per "
-                "product, so a few 8- or 9-of-10 records will exist by pure luck — the way "
-                "someone in a room of 676 coin-flippers flips eight heads. And because the "
-                "finder aligns years by week-of-year, a window's real start and end dates "
-                "drift up to ±6 days across years — the **Hit (dates)** column re-measures "
-                "every window on the fixed calendar dates shown (the Bloomberg-SEAG "
-                "convention), and a record that softens badly there was riding whatever the "
-                "drifting week-edges caught (a late-Aug Dow window quietly sweeping US "
-                "election weeks was the live example). Before reading anything into a window, ask *is there a "
-                "story?* — a storage cycle is a story; 'this index went up in most "
-                "Octobers' may just be the decade — and trust the windows where both "
-                "columns agree. Windows describe history — they promise nothing about "
-                "year eleven.")
 
     # ---- client PDF (2026-08-22: the last module without one) --------------------
     st.divider()
