@@ -367,6 +367,7 @@ def _explore_by_manager(met: pd.DataFrame, d: pd.DataFrame, colset: str) -> None
     is worth. The gap between bases is wider than the gap between the top three managers,
     which is why it stays on the page instead of being resolved silently — folded into an
     expander now, because it is context you read once, not every visit."""
+    pal = brand.palette()
     by_firm = st.toggle(
         "Group the entities of one house together", value=False, key="ex_firm",
         help="BTG Pactual runs three separately registered gestores and Itaú two. Off, "
@@ -400,8 +401,13 @@ def _explore_by_manager(met: pd.DataFrame, d: pd.DataFrame, colset: str) -> None
     disp, spec, moves = _explore_managers(lt, colset)
     st.caption(_md(
         "Returns are **asset-weighted** across each manager's funds — a simple average "
-        "lets an R$8m launch outvote an R$8bn flagship. Pick a row to open that "
-        "manager's funds underneath. " + _EXPLORE_HELP[colset]))
+        "lets an R$8m launch outvote an R$8bn flagship. " + _EXPLORE_HELP[colset]))
+    # On its own line, not buried mid-caption. Read as one sentence in a four-line block
+    # of methodology it was invisible: the drill-down shipped and looked like nothing had
+    # changed, because nothing does until a row is ticked.
+    st.markdown(f"<div style='color:{pal['gold']};font-size:.85rem;margin:.1rem 0 .3rem'>"
+                f"☑&nbsp; Tick a manager below to list its funds underneath."
+                f"</div>", unsafe_allow_html=True)
     sel = brand.themed_dataframe(_as_text(disp, spec), {}, height=460,
                                  colorers=[(moves, _move_colour)],
                                  on_select="rerun", selection_mode="single-row",
