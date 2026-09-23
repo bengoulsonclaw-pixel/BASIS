@@ -15276,7 +15276,7 @@ def render_seasonality() -> None:
             brand.panel_header("Window detail",
                                right="any product · any window · the streak, year by year")
             pc0, pc1 = st.columns([1.4, 2.2])
-            prods = list(dict.fromkeys(aw["ticker"]))
+            prods = sorted(set(aw["ticker"]), key=lambda t: universe.yield_name(t).lower())
             # follow the board's current top row by default, but offer the whole book
             _def_p = (wb.iloc[0]["ticker"] if not wb.empty
                       and wb.iloc[0]["ticker"] in prods else prods[0])
