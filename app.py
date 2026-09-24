@@ -2554,15 +2554,23 @@ def _pull_stage_bar(stat: dict) -> None:
     running = outcome in ("running", "retrying")
     ok_ish  = outcome in ("ok", "compute_partial")
     failed  = (not running) and bool(outcome) and not ok_ish
-    want_mc = bool(mc) or (running and _mc_run_after_pull())
+    mode = stat.get("mode", "")   # "" full pull · "compute" Re-run signals · "coffee" Run report
+    want_mc = (mode == "coffee") or (mode == "" and (bool(mc) or (running and _mc_run_after_pull())))
 
-    stages = ["📡 Bloomberg pull", "🧮 Compute signals"]
-    if want_mc:
-        stages.append("☕ Morning Coffee")
-    stages.append("✅ Done")
+    if mode == "coffee":                                   # Run Morning Coffee (no fetch/compute)
+        stages = ["☕ Morning Coffee", "✅ Done"]
+        idx = {"coffee": 0, "backup": 0, "done": 1}.get(phase)
+    elif mode == "compute":                                # Re-run signals (no fetch)
+        stages = ["🧮 Compute signals", "✅ Done"]
+        idx = {"compute": 0, "backup": 0, "done": 1}.get(phase)
+    else:                                                  # full Bloomberg pull
+        stages = ["📡 Bloomberg pull", "🧮 Compute signals"]
+        if want_mc:
+            stages.append("☕ Morning Coffee")
+        stages.append("✅ Done")
+        idx = {"preflight": 0, "fetch": 0, "retrying": 0, "compute": 1, "backup": 1,
+               "coffee": (2 if want_mc else len(stages) - 1), "done": len(stages) - 1}.get(phase)
     done_i = len(stages) - 1
-    idx = {"preflight": 0, "fetch": 0, "retrying": 0, "compute": 1, "backup": 1,
-           "coffee": (2 if want_mc else done_i), "done": done_i}.get(phase)
     if idx is None:
         idx = done_i if ok_ish else 0
 
@@ -2586,8 +2594,11 @@ def _pull_stage_bar(stat: dict) -> None:
     if running and phase in ("", "preflight", "fetch", "retrying"):
         st.info("⏳ **Pulling from Bloomberg** — keep the Terminal open until the next step.")
     elif running and phase in ("compute", "backup"):
-        st.success("✅ **Bloomberg fetch complete — you can CLOSE the Bloomberg Terminal now.**  "
-                   "🧮 Computing signals (local maths — no Terminal needed)…")
+        if mode == "compute":
+            st.info("🧮 **Recomputing all signals** (local maths — no Terminal needed)…")
+        else:
+            st.success("✅ **Bloomberg fetch complete — you can CLOSE the Bloomberg Terminal now.**  "
+                       "🧮 Computing signals (local maths — no Terminal needed)…")
     elif running and (phase == "coffee" or mc == "running"):
         st.info("☕ **Morning Coffee — building the report and emailing the desk…**")
     elif outcome == "ok":
@@ -2687,6 +2698,25 @@ def _pull_status_fragment() -> None:
     if not running:
         _x.button("✕", key="pull_banner_dismiss", help="Dismiss until the next pull",
                   on_click=_dismiss_pull_banner, args=(stat.get("when"),))
+
+
+def _spawn_pull_driver(*extra_args: str) -> None:
+    """Launch run_pull.py DETACHED + file-logged so the app NEVER blocks — the persistent
+    _pull_status_fragment reads its status file every few seconds, advances the staged bar
+    hands-free and refreshes caches on completion, and a server bounce / dropped session
+    can't take a running job with it (2026-08-21 lesson). Modes: no args = full pull;
+    --compute-only = Re-run signals; --coffee-only [--no-email] = Run Morning Coffee.
+    Replaces the old in-process run_daily.run() / run_morning_coffee() which froze the whole
+    app (and dropped the browser link) for minutes while they worked."""
+    _con = (ROOT / "logs" / "pull_driver_console.log").open("w", encoding="utf-8")
+    subprocess.Popen(
+        [sys.executable, "-u", str(ROOT / "run_pull.py"), *extra_args], cwd=str(ROOT),
+        stdout=_con, stderr=subprocess.STDOUT,
+        creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS))
+    _con.close()
+    st.session_state["pull_launched_at"] = time.time()
+    st.session_state.pop("pull_banner_seen", None)      # a fresh run's bar starts un-dismissed…
+    st.session_state.pop("_pull_refreshed_for", None)   # …and its completion re-refreshes caches
 
 
 def _md_add_cb(seat: str) -> None:
@@ -2899,11 +2929,13 @@ def _mc_synopsis_card() -> None:
             _cr, _ce, _ct = st.columns([1.3, 1.15, 2.0], vertical_alignment="center")
             if _cr.button("☕ Run report", key="home_mc_run", use_container_width=True,
                           help="Build today's report from the latest snapshot + news and refresh "
-                               "these cards (~1–2 min). Emails the desk too ONLY if Auto-email is on."):
-                with st.spinner("Building the Morning Coffee report… (~1–2 min)"):
-                    _ok = run_morning_coffee(email=_auto)
-                st.toast(("Report built & emailed ☕" if _auto else "Report built — not emailed")
-                         if _ok else "Run failed — see the log", icon="☕" if _ok else "⚠️")
+                               "these cards. Emails the desk too ONLY if Auto-email is on. Runs in "
+                               "the BACKGROUND — the status bar tracks it, no waiting or freeze."):
+                # Detached (run_pull.py --coffee-only) so the app never freezes; --no-email when
+                # Auto-email is off = build + refresh the cards only. The status bar tracks it.
+                _spawn_pull_driver("--coffee-only", *([] if _auto else ["--no-email"]))
+                st.toast("Building Morning Coffee in the background — the status bar tracks it.",
+                         icon="☕")
                 st.rerun()
             if _ce.button("✉️ Email it", key="home_mc_email", use_container_width=True,
                           help="Email the LAST report to the desk now, without rebuilding it."):
@@ -3124,17 +3156,8 @@ def render_home() -> None:
         # _pull_status_fragment above reads the driver's status file every few seconds, so the
         # staged bar (fetch → close Terminal → compute → coffee → done) advances hands-free and the
         # sidebar refreshes no matter what this session does next.
-        _con = (ROOT / "logs" / "pull_driver_console.log").open("w", encoding="utf-8")
-        subprocess.Popen(
-            [sys.executable, "-u", str(ROOT / "run_pull.py")], cwd=str(ROOT),
-            stdout=_con, stderr=subprocess.STDOUT,
-            creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP
-                           | subprocess.DETACHED_PROCESS))
-        _con.close()
-        st.session_state["pull_launched_at"] = time.time()
+        _spawn_pull_driver()                                # full pull (fetch → compute → MC → push)
         st.session_state.pop("ficc_pull_confirm", None)
-        st.session_state.pop("pull_banner_seen", None)      # a fresh pull's bar starts un-dismissed…
-        st.session_state.pop("_pull_refreshed_for", None)   # …and its completion re-refreshes caches
         st.rerun()
 
     # Heavy handlers are DEFERRED (flag set here, executed below the row): blocking inside a
@@ -3181,10 +3204,13 @@ def render_home() -> None:
     if IS_ADMIN and st.session_state.pop("ficc_pull_go", False):
         _run_ficc_pull()
     if IS_ADMIN and st.session_state.pop("rerun_signals_go", False):
-        with st.spinner("Recomputing all signals…"):
-            run_daily.run()
-        _resolve_compute_partial()   # stores are fresh now — retire any "compute steps failed" banner
-        load_signals.clear(); st.rerun()
+        # Detached recompute + push (run_pull.py --compute-only), NOT in-process: the old
+        # run_daily.run() blocked the whole app for minutes and dropped the browser link, so
+        # the page stuck on a dead spinner. The status bar now tracks it and refreshes the
+        # signals on completion, and the driver's own status update retires the compute banner.
+        _spawn_pull_driver("--compute-only")
+        st.toast("Recomputing signals in the background — the status bar tracks it.", icon="⏳")
+        st.rerun()
     # (Excel export + Weekly Review buttons and the old banners removed in the
     #  2026-08-20 redesign per Ben — Excel lives on via `snapshot.py --excel`.)
     # Auto-run Morning Coffee + email the desk after a successful pull (admin, persisted toggle).

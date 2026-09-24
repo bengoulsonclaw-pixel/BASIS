@@ -32,6 +32,16 @@ import time
 from datetime import datetime, date
 from pathlib import Path
 
+# _log() prints to stdout, which the app captures to a UTF-8 file — but when the driver is
+# launched some other way (a plain console, a piped test), stdout can default to cp1252 and a
+# '✓' in a status line would raise UnicodeEncodeError and kill the run mid-flight. Force UTF-8
+# with a replace-fallback so a log symbol can never take the driver down.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT = Path(__file__).resolve().parent
 SNAP = ROOT / "data" / "snapshot"
 PY = ROOT / ".venv" / "Scripts" / "python.exe"
@@ -95,11 +105,12 @@ def _global_python() -> str:
     return "python"
 
 
-def _run_morning_coffee() -> bool:
-    """Build + EMAIL the Morning Coffee. Best-effort: a failure NEVER fails the pull (the
-    snapshot is already safe on disk). It reads the snapshot + IMAP + web — no Terminal
-    needed — so it is fine to run after the user has closed Bloomberg. The send is confirmed
-    from the CLI's own 'Email sent' log line."""
+def _run_morning_coffee(email: bool = True) -> bool:
+    """Build the Morning Coffee report (and EMAIL it unless email=False — the app's Run-report
+    button with Auto-email off). Best-effort: a failure NEVER fails the pull (the snapshot is
+    already safe on disk). It reads the snapshot + IMAP + web — no Terminal needed — so it is
+    fine to run after the user has closed Bloomberg. A send is confirmed from the CLI's own
+    'Email sent' log line."""
     main_py = MC_DIR / "main.py"
     if not main_py.exists():
         _log(f"Morning Coffee: project not found at {MC_DIR} — skipping")
@@ -111,8 +122,10 @@ def _run_morning_coffee() -> bool:
         # a BASIS module, it must read the real snapshot, never synthesise demo data over it. The
         # central protection is run_daily.run()'s mock-vs-real-snapshot guard; this is belt-and-braces.
         env = {**os.environ, "PYTHONUTF8": "1", "DATAFEED_MODE": "snapshot"}
-        _log("Morning Coffee: building the report and emailing the desk…")
-        r = subprocess.run([_global_python(), str(main_py)], cwd=str(MC_DIR),
+        _log("Morning Coffee: building the report"
+             + (" and emailing the desk…" if email else " (no email)…"))
+        args = [_global_python(), str(main_py)] + ([] if email else ["--no-email"])
+        r = subprocess.run(args, cwd=str(MC_DIR),
                            capture_output=True, text=True, timeout=900, env=env)
         # Persist Morning Coffee's OWN stdout/stderr — the driver used to DISCARD it, so a
         # failed send (e.g. the ~6MB Gmail upload timing out, 2026-09-09) left no trace to
@@ -124,9 +137,9 @@ def _run_morning_coffee() -> bool:
                 encoding="utf-8")
         except Exception:
             pass
-        ok = r.returncode == 0 and "Email sent" in (r.stdout or "")
+        ok = r.returncode == 0 and (("Email sent" in (r.stdout or "")) if email else True)
         if ok:
-            _log("Morning Coffee: SENT ✓ (rc=0)")
+            _log("Morning Coffee: SENT ✓ (rc=0)" if email else "Morning Coffee: BUILT ✓ (no email, rc=0)")
         else:
             # surface the report's own failure line into the driver log, not a bland "did NOT confirm"
             _why = next((ln.strip() for ln in reversed((r.stdout or "").splitlines())
@@ -186,8 +199,12 @@ def _newest_write() -> float:
 _LAST_RC = 0          # exit code of the last phase — 2 = compute ran but some steps died
 
 
-def _run_phase(args: list[str], stall_min: float | None, cap_min: float, tag: str) -> bool:
-    """Run snapshot.py with the given args; kill on write-stall or the hard cap."""
+def _run_phase(args: list[str], stall_min: float | None, cap_min: float, tag: str,
+               script: str = "snapshot.py") -> bool:
+    """Run `script` (snapshot.py by default) with the given args; kill on write-stall or the
+    hard cap. Re-run signals runs the LIGHT run_daily.py rebuild through here (script=
+    'run_daily.py') — same as the app's old in-process Re-run, so it stays fast and skips the
+    heavy external stores (COT/gold/CVM/ANM) that the full pull's snapshot.py --compute does."""
     import os
     # bloomberg for the fetch (it pulls the Terminal); SNAPSHOT for the compute — by then the user
     # has closed the Terminal (the app says "safe to close" the moment the fetch is done), and the
@@ -196,11 +213,11 @@ def _run_phase(args: list[str], stall_min: float | None, cap_min: float, tag: st
     # bloomberg compute made it reach a now-dead Terminal ("request workers are dead", 2026-09-08).
     # Snapshot mode reads the fetched data instead. The manifest's `source` label is read from
     # .fetch_meta.json (written by the fetch, snapshot.py:482), so it stays correct either way.
-    _mode = "snapshot" if "--compute" in args else "bloomberg"
+    _mode = "bloomberg" if (script == "snapshot.py" and "--compute" not in args) else "snapshot"
     env = {**os.environ, "DATAFEED_MODE": _mode, "PYTHONUTF8": "1"}
     LOG.parent.mkdir(parents=True, exist_ok=True)
     out = (ROOT / "logs" / f"pull_driver_{tag}.log").open("w", encoding="utf-8")
-    proc = subprocess.Popen([str(PY), "-u", str(ROOT / "snapshot.py"), *args],
+    proc = subprocess.Popen([str(PY), "-u", str(ROOT / script), *args],
                             cwd=str(ROOT), stdout=out, stderr=subprocess.STDOUT, env=env)
     t0 = time.time()
     try:
@@ -246,6 +263,9 @@ def _terminal_running() -> bool:
 
 def main() -> int:
     auto = "--auto" in sys.argv
+    compute_only = "--compute-only" in sys.argv   # Re-run signals: recompute + push, no fetch
+    coffee_only = "--coffee-only" in sys.argv      # Run Morning Coffee: MC + push, no fetch/compute
+    no_email = "--no-email" in sys.argv            # coffee-only: build the report but don't email
 
     if auto:
         now = datetime.now()
@@ -266,47 +286,63 @@ def main() -> int:
     LOCK.write_text(str(datetime.now()), encoding="utf-8")
     try:
         runs = _read_status().get("runs", 0) + 1
-        _status(runs=runs, outcome="running", phase="preflight", mc="",
+        _status(runs=runs, outcome="running", mc="",
+                mode=("compute" if compute_only else "coffee" if coffee_only else ""),
+                phase=("compute" if compute_only else "coffee" if coffee_only else "preflight"),
                 started=datetime.now().isoformat(timespec="seconds"))
-        _log(f"=== driver run #{runs} (auto={auto}) ===")
-
-        reason = _preflight()
-        if reason:
-            _log(f"pre-flight refused: {reason}")
-            _status(outcome="preflight_refused", detail=reason)
-            return 1
-        _log("pre-flight OK — Bloomberg serving")
+        _mode = " compute-only" if compute_only else " coffee-only" if coffee_only else ""
+        _log(f"=== driver run #{runs} (auto={auto}{_mode}) ===")
 
         t0 = time.time()
-        _status(phase="fetch")
-        ok = _run_phase(["--fetch"], STALL_MIN, FETCH_CAP_MIN, "fetch")
-        if not ok:
-            _log("fetch attempt 1 failed/stalled — ONE clean retry (the playbook)")
-            _status(outcome="retrying")
-            time.sleep(10)
-            ok = _run_phase(["--fetch"], STALL_MIN, FETCH_CAP_MIN, "fetch_retry")
-        if not ok:
-            _log("fetch failed twice — giving up for this run")
-            _status(outcome="fetch_failed_twice",
-                    detail="both fetch attempts stalled/failed — see logs/pull_driver_*.log")
-            return 1
+        # Bloomberg part (pre-flight + fetch). The no-fetch modes — Re-run signals
+        # (--compute-only) and Run Morning Coffee (--coffee-only) — skip it and work off
+        # the snapshot already on disk, so a heavy action never touches the Terminal.
+        if not (compute_only or coffee_only):
+            reason = _preflight()
+            if reason:
+                _log(f"pre-flight refused: {reason}")
+                _status(outcome="preflight_refused", detail=reason)
+                return 1
+            _log("pre-flight OK — Bloomberg serving")
+            _status(phase="fetch")
+            ok = _run_phase(["--fetch"], STALL_MIN, FETCH_CAP_MIN, "fetch")
+            if not ok:
+                _log("fetch attempt 1 failed/stalled — ONE clean retry (the playbook)")
+                _status(outcome="retrying")
+                time.sleep(10)
+                ok = _run_phase(["--fetch"], STALL_MIN, FETCH_CAP_MIN, "fetch_retry")
+            if not ok:
+                _log("fetch failed twice — giving up for this run")
+                _status(outcome="fetch_failed_twice",
+                        detail="both fetch attempts stalled/failed — see logs/pull_driver_*.log")
+                return 1
+            # fetch done — Bloomberg no longer needed; the app says "safe to close the Terminal"
 
-        # fetch done — Bloomberg is no longer needed; the app now says "safe to close the Terminal"
-        _status(phase="compute")
-        ok = _run_phase(["--compute"], None, COMPUTE_CAP_MIN, "compute")
-        if not ok:
-            _status(outcome="compute_failed",
-                    detail="fetched data is safe on disk — 'Re-run signals' in the app")
-            return 1
-        _compute_partial = _LAST_RC == 2
+        # Compute (rebuild the signals) — Run Morning Coffee (--coffee-only) skips it.
+        # Re-run signals (--compute-only) runs the LIGHT run_daily rebuild (fast, no ANM);
+        # a full pull runs the heavy snapshot.py --compute (external stores + run_daily).
+        _compute_partial = False
+        if not coffee_only:
+            _status(phase="compute")
+            if compute_only:
+                ok = _run_phase([], None, COMPUTE_CAP_MIN, "compute", script="run_daily.py")
+            else:
+                ok = _run_phase(["--compute"], None, COMPUTE_CAP_MIN, "compute")
+            if not ok:
+                _status(outcome="compute_failed",
+                        detail="fetched data is safe on disk — 'Re-run signals' in the app")
+                return 1
+            _compute_partial = _LAST_RC == 2
 
         # Morning Coffee — driver-owned (2026-08-28) so it runs on EVERY completed pull
         # (manual OR --auto), survives any app/session state, and its progress shows in the
         # app's pull status bar. Reads snapshot + IMAP + web, so no Terminal is needed.
         # Runs BEFORE the backup so its output rides the same push (below).
-        if _mc_after_pull_on():
+        # ...on a full pull (per the toggle) or a coffee-only run; never on compute-only.
+        # coffee-only honours --no-email (Run report with Auto-email off = build, don't send).
+        if coffee_only or (not compute_only and _mc_after_pull_on()):
             _status(phase="coffee", mc="running")
-            _status(mc="sent" if _run_morning_coffee() else "failed")
+            _status(mc="sent" if _run_morning_coffee(email=not no_email) else "failed")
 
         # ONE data push, LAST — after compute AND Morning Coffee — so the fresh
         # signals AND today's briefing (data/morning_coffee_home.json) reach the
