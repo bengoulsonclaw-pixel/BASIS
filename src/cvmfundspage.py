@@ -17,7 +17,8 @@ sections — Company Fundamentals and Colleague Access use the same one):
              Flows section whose columns were subsets of one another and which each
              carried their OWN copy of the filter row — so a filter set in one was gone
              the moment you moved to the other. Ticking ONE row draws that fund's whole
-             tearsheet underneath the table; ticking several shortlists them instead.
+             tearsheet underneath the table; ticking SEVERAL compares them — one overlay
+             rebased to a common date, plus what the selection runs and raises together.
   Fund       the same tearsheet, reached through the manager drill-down: a seven-window
              return ladder with the excess over CDI under each, peer rank inside its own
              ANBIMA strategy, NAV against CDI, drawdown, where the capital came from, and
@@ -357,6 +358,9 @@ def _after_table(met: pd.DataFrame, d: pd.DataFrame, sel, key: str) -> None:
     if len(rows) == 1:
         st.divider()
         _fund_detail(met, d.iloc[rows[0]], key=key)
+    elif len(rows) > 1:
+        st.divider()
+        _fund_compare(met, d.iloc[rows].sort_values("aum", ascending=False), key=key)
 
 
 def _star_bar(d: pd.DataFrame, sel, key: str = "ex_star") -> None:
@@ -1331,6 +1335,107 @@ def _biggest_movers(d: pd.DataFrame) -> None:
                 colorers=[(["Net YTD"], _move_colour)])
     st.caption(_md("Net subscriptions minus redemptions this calendar year, in **R$bn** — "
                    "the five that raised most and the five that lost most."))
+
+
+_COMPARE_MAX = 8          # more lines than this and the overlay stops being readable
+
+
+def _fund_compare(met: pd.DataFrame, sel_rows: pd.DataFrame, key: str) -> None:
+    """Several funds at once: how they compare, and what they add up to.
+
+    Two questions, and they are not the same one. The overlay answers "which of these
+    did better", rebased to a COMMON date so the lines start together — rebasing each to
+    its own first day compares a two-year record against a two-month one and calls it a
+    chart. The stacked assets and the combined flows answer "what does this group run,
+    and is it raising", which is the aggregate the selection implies.
+    """
+    picked = sel_rows.head(_COMPARE_MAX)
+    hists, labels = [], []
+    for _, r in picked.iterrows():
+        h = cvmfunds.history(r["cnpj"], r["subclass"] or "")
+        h = h.dropna(subset=["quota"])
+        if len(h) < 2:
+            continue
+        hists.append(h.assign(fund=r["name_en"]))
+        labels.append(r["name_en"])
+    if len(hists) < 2:
+        st.info("Not enough cached history on the selected classes to compare them.")
+        return
+
+    st.markdown(f"### {len(hists)} funds compared")
+    if len(sel_rows) > _COMPARE_MAX:
+        st.caption(f"Charting the largest {_COMPARE_MAX} of {len(sel_rows)} selected — "
+                   f"more lines than that and the overlay stops being readable.")
+
+    cc = brand.chart_colors()
+    all_h = pd.concat(hists, ignore_index=True)
+
+    # A COMMON base date: the latest first-observation across the selection, so every
+    # line starts at 100 on the same day and the comparison is like for like.
+    base_date = max(h["date"].min() for h in hists)
+    reb = []
+    for h in hists:
+        w = h[h["date"] >= base_date]
+        if w.empty or float(w["quota"].iloc[0]) <= 0:
+            continue
+        reb.append(pd.DataFrame({"date": w["date"].values, "series": w["fund"].iloc[0],
+                                 "NAV": (w["quota"] / w["quota"].iloc[0] * 100.0).values}))
+    cdi = cvmfunds.cdi_index(base_date.date())
+    if not cdi.empty:
+        idx = pd.DatetimeIndex(sorted(all_h[all_h["date"] >= base_date]["date"].unique()))
+        c = cdi.reindex(idx).ffill().dropna()
+        if not c.empty:
+            reb.append(pd.DataFrame({"date": c.index, "series": "CDI",
+                                     "NAV": (c / c.iloc[0] * 100.0).values}))
+    if reb:
+        plot = pd.concat(reb, ignore_index=True)
+        order = labels + ["CDI"]
+        rng = [cc["accent"], cc["series"], cc["long"], cc["short"], "#9B7BD4", "#E8A33D",
+               "#59C2D6", "#D46A9B"][:len(labels)] + [cc["muted"]]
+        brand.show_chart(
+            alt.Chart(plot).mark_line().encode(
+                x=alt.X("date:T", title=None),
+                y=alt.Y("NAV:Q", title="rebased to 100", scale=alt.Scale(zero=False)),
+                color=alt.Color("series:N", title=None, sort=order,
+                                scale=alt.Scale(domain=order, range=rng),
+                                legend=alt.Legend(labelLimit=280)),
+                tooltip=[alt.Tooltip("date:T"), alt.Tooltip("series:N", title="Fund"),
+                         alt.Tooltip("NAV:Q", format=",.1f")])
+            .properties(height=320, title="NAV against CDI, rebased to a common start"))
+        st.caption(_md(
+            f"All rebased to 100 on **{base_date:%d %b %Y}** — the first date every "
+            f"selected class had priced, so the lines are comparable. A fund that started "
+            f"earlier has history before this point that is not drawn."))
+
+    # What the group runs, and where the money went.
+    combined = (all_h.groupby("date", as_index=False)
+                     .agg(pl=("pl", "sum"), subs=("subs", "sum"), redem=("redem", "sum")))
+    a1, a2 = st.columns([3, 2])
+    with a1:
+        area = all_h[["date", "fund", "pl"]].copy()
+        area["assets"] = area["pl"] / _MM
+        brand.show_chart(
+            alt.Chart(area).mark_area().encode(
+                x=alt.X("date:T", title=None),
+                y=alt.Y("assets:Q", title="R$m", stack="zero"),
+                color=alt.Color("fund:N", title=None, sort=labels,
+                                scale=alt.Scale(domain=labels, range=rng[:len(labels)]),
+                                legend=None),
+                tooltip=[alt.Tooltip("date:T"), alt.Tooltip("fund:N", title="Fund"),
+                         alt.Tooltip("assets:Q", title="R$m", format=",.0f")])
+            .properties(height=250, title="Combined assets, by fund"))
+    with a2:
+        _aum_bridge(combined, picked.iloc[0])
+
+    _flow_chart(combined)
+
+    tot_aum = float(picked["aum"].sum())
+    net = float(combined["subs"].sum() - combined["redem"].sum())
+    st.caption(_md(
+        f"Together these {len(hists)} classes run **{_brl(tot_aum, 'm', 0)}** and took "
+        f"**{_brl(net, 'm', 0)}** net over the cached window. Assets stack from zero, so "
+        f"a class that launched mid-window joins the total when it starts filing — which "
+        f"is what happened to the group's money."))
 
 
 def _tab_overview(met: pd.DataFrame) -> None:
