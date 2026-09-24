@@ -20,10 +20,25 @@ Set-Location $PSScriptRoot
 # loops, 2-minute revivals instead of 10 seconds). A second instance now exits.
 # (match the -File invocation only — a diagnostic shell whose command text merely
 #  MENTIONS the script must never count as a running keeper)
-$others = @(Get-CimInstance Win32_Process -Filter 'Name = "powershell.exe" OR Name = "pwsh.exe"' |
-            Where-Object { $_.ProcessId -ne $PID -and
-                           $_.CommandLine -match '-File\s+\S*run_basis_server\.ps1' })
-if ($others.Count -gt 0) { exit 0 }
+# Hardened 2026-09-24: the CommandLine scan below is check-then-act, which has a TOCTOU
+# race — two keepers starting together each saw "no other keeper" and both ran (two server
+# trees, one orphaned). A named mutex is ATOMIC, so exactly one keeper can hold it. FAIL-OPEN
+# by design: a mutex glitch must NEVER leave BASIS with no keeper, so any error falls back to
+# the original scan and we otherwise proceed; only a clean "another keeper already holds the
+# lock" exits. Holding the object in a script-scope variable stops the GC releasing the lock
+# mid-loop; an abandoned mutex (a prior keeper crashed holding it) is handed straight to us.
+$haveLock = $true
+try {
+    $script:keeperMutex = New-Object System.Threading.Mutex($false, "Global\BASIS_Server_Keeper_v1")
+    try { $haveLock = $script:keeperMutex.WaitOne(0) }
+    catch [System.Threading.AbandonedMutexException] { $haveLock = $true }   # prior keeper died holding it
+} catch {
+    $others = @(Get-CimInstance Win32_Process -Filter 'Name = "powershell.exe" OR Name = "pwsh.exe"' |
+                Where-Object { $_.ProcessId -ne $PID -and
+                               $_.CommandLine -match '-File\s+\S*run_basis_server\.ps1' })
+    $haveLock = ($others.Count -eq 0)
+}
+if (-not $haveLock) { exit 0 }
 $env:DATAFEED_MODE = "snapshot"
 $env:PYTHONUTF8 = "1"
 if (Test-Path "$PSScriptRoot\playwright-browsers") {
