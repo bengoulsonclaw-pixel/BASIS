@@ -145,6 +145,44 @@ def test_apply_badges_day_one_is_quiet(tmp_store):
     assert today[0]["badge"] == ""               # no history — everything NEW would be noise
 
 
+# --- heat_delta + the Morning-Coffee 5-hot / 5-new split (2026-09-24) --------
+def test_apply_heat_delta(tmp_store):
+    rep = {"p": {"status": "ok", "n": 1, "ms": 1, "err": "", "over_cap": 0}}
+    hotsheet.stamp([_it("a", heat=40)], rep, asof=date(2026, 8, 16), log=lambda *a: None)
+    hotsheet.stamp([_it("b", heat=55)], rep, asof=date(2026, 8, 17), log=lambda *a: None)
+    today = [_it("a", heat=70), _it("b", heat=50), _it("c", heat=90)]
+    hotsheet.apply_heat_delta(today, asof=date(2026, 8, 18))
+    d = {i["key"]: i["heat_delta"] for i in today}
+    assert d["TST:a"] == 30.0            # 70 − most-recent prior stamp (40)
+    assert d["TST:b"] == -5.0            # 50 − 55
+    assert d["TST:c"] is None            # never stamped → a genuinely NEW story
+
+
+def test_split_strip_hot_then_new_and_rising(tmp_store):
+    rep = {"p": {"status": "ok", "n": 1, "ms": 1, "err": "", "over_cap": 0}}
+    # yesterday: the five heat-100 themes, plus two soon-to-rise items at low heat
+    prior = [_it(f"h{t}", heat=100, tag=t) for t in "ABCDE"]
+    prior += [_it("riseH", heat=30, tag="H"), _it("riseI", heat=50, tag="I")]
+    hotsheet.stamp(prior, rep, asof=date(2026, 8, 17), log=lambda *a: None)
+    today = [_it(f"h{t}", heat=100, tag=t) for t in "ABCDE"]     # persistent hottest, not new
+    today += [_it("newF", heat=80, tag="F"), _it("newG", heat=78, tag="G")]     # NEW entrants
+    today += [_it("riseH", heat=90, tag="H"), _it("riseI", heat=85, tag="I")]   # risers +60 / +35
+    today += [_it("fillJ", heat=70, tag="J")]                                    # NEW but low heat
+    hotsheet.apply_badges(today, asof=date(2026, 8, 18))
+    hotsheet.apply_heat_delta(today, asof=date(2026, 8, 18))
+    out = hotsheet.split_strip(today)
+
+    hot = [it for it in out if it["group"] == "hot"]
+    new = [it for it in out if it["group"] == "new"]
+    assert len(hot) == 5 and len(new) == 5
+    assert {it["tag"] for it in hot} == set("ABCDE")             # the five heat-100 themes
+    new_tags = [it["tag"] for it in new]
+    assert new_tags[:3] == ["F", "G", "J"]                       # NEW entrants first (by heat)
+    assert new_tags[3:] == ["H", "I"]                            # then risers, biggest gain first
+    assert next(it for it in new if it["tag"] == "H")["heat_delta"] == 60.0
+    assert all(it["key"] not in {h["key"] for h in hot} for it in new)   # nothing shown twice
+
+
 # --- the persisted sheet: page opens read a file, never run providers -------
 _OK_REP = {"p": {"status": "ok", "n": 1, "ms": 1, "err": "", "over_cap": 0}}
 _BAD_REP = {"p": {"status": "failed", "n": 0, "ms": 1, "err": "boom", "over_cap": 0}}
