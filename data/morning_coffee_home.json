@@ -1,19 +1,37 @@
 {
- "generated_at": "24 Sep 2026 · 07:59 ET",
- "synopsis": "Energy is running the show again this morning. Brent tacked on another 1.7% to $104.83 and WTI 1.3% to $93.31 after an Iranian official warned the conflict with the US could expand into the Indian Ocean, and the crude complex is flashing genuine physical tightness: Brent's prompt spread blew out to nearly $5 backwardation, the WTI cash roll hit a record, and the WTI-Brent spread is its widest since May.",
- "commentary": "Energy is running the show again this morning. Brent tacked on another 1.7% to $104.83 and WTI 1.3% to $93.31 after an Iranian official warned the conflict with the US could expand into the Indian Ocean, and the crude complex is flashing genuine physical tightness: Brent's prompt spread blew out to nearly $5 backwardation, the WTI cash roll hit a record, and the WTI-Brent spread is its widest since May. TTF gas jumped 3.4% in sympathy. That oil impulse is feeding straight into the bond market, where the global sell-off deepened and the 30-year Treasury yield hit its highest since 2004 — an inflation-plus-fiscal cocktail, with the Fed's first hike in three years still fresh and markets coming round to the idea it has more work to do.\n\nJobless claims at their lowest since mid-May only reinforce the case. The transmission is textbook: long-end futures took the brunt (US Long Bond -0.3%, Buxl -0.6%, Bunds and OATs lower) while the short end held, steepening the curve; equity indices sagged under the yield pressure, Nasdaq futures off 0.9% and the S&P -0.5%. The dollar hit a fresh two-month peak, dragging gold to $4,301 and silver down 1.3% — real yields and the greenback trumping the geopolitical bid for now. One offset: the Trump-Xi summit opened with the trade truce extended to January 10 and first US-China AI talks confirmed, lifting the KOSPI 1.4%.\n\nWatch the summit headlines, Iran escalation risk, and whether the long end finds a floor — that's the axis for everything else today.",
+ "generated_at": "24 Sep 2026 · 08:55 ET",
+ "synopsis": "Energy is again the epicenter this morning: Brent is up 1.7% to $104.83 and WTI +1.25% to $93.31 after an Iranian official warned the war with the US could expand into the Indian Ocean, dimming hopes for a deal to reopen the Strait of Hormuz. The crude curve is screaming physical tightness — Brent's prompt spread near $5 backwardated, the WTI cash roll at a record, and WTI's 50/100-day golden cross confirming mome…",
+ "commentary": "Energy is again the epicenter this morning: Brent is up 1.7% to $104.83 and WTI +1.25% to $93.31 after an Iranian official warned the war with the US could expand into the Indian Ocean, dimming hopes for a deal to reopen the Strait of Hormuz. The crude curve is screaming physical tightness — Brent's prompt spread near $5 backwardated, the WTI cash roll at a record, and WTI's 50/100-day golden cross confirming momentum. That oil impulse is feeding straight into the bond market, where the selloff deepened and the US 30-year yield hit its highest since 2004.\n\nWith the Fed having delivered its first hike in three years and markets increasingly convinced more work is needed, oil-driven inflation is colliding with heavy fiscal and AI-related financing demand — a competition for capital that should keep long-end yields under pressure. Jobless claims at 197k, below estimates, gave the Fed no reason to relent. The transmission is a classic bear-steepener: long bond and Ultra futures down, Bund and Buxl following, while the short end held. Equity-index futures are lower across the board — Nasdaq -0.9% as long-duration tech absorbs the rate shock — despite a constructive Trump-Xi summit that extended the trade truce to January 10 with AI talks confirmed, lifting KOSPI futures +1.4%.\n\nThe dollar hit a fresh two-month peak, pressing gold (-0.4%) and silver (-1.3%) even as risk sours — real-yield and dollar headwinds trumping haven demand, while copper firmed on the truce. TTF gas jumped 3.4% on the same supply anxiety. Watch Hormuz headlines, summit deliverables, and whether the long end finds a bid.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "*US 30-YEAR TREASURY YIELD RISES TO HIGHEST SINCE 2004",
+   "title": "Latest Oil Market News and Analysis for Sept. 24 — Oil surged as Iran threatened to expand the war in the Middle East, worsening the outlook for a deal to reopen the vital Strait of Hormuz.",
+   "time": "",
+   "tag": "Energy"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "Bond Selloff Deepens, US 30-Year Yield Hits New High",
    "time": "",
    "tag": "Rates"
   },
   {
    "source": "Financial Times",
-   "title": "US Treasury yields soar most since 'liberation day' tariffs shook markets — traders crank up bets on Federal Reserve rate rises",
+   "title": "US Treasury yields soar most since 'liberation day' tariffs shook markets — Traders crank up bets on Federal Reserve rate rises after data fuels worries economy is overheating",
    "time": "",
    "tag": "Rates"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "*US JOBLESS CLAIMS 197,000 IN SEPT. 19 WEEK; EST. 200K",
+   "time": "",
+   "tag": "Macro"
+  },
+  {
+   "source": "Financial Times",
+   "title": "US and China extend trade truce as Trump welcomes Xi — Treasury secretary Scott Bessent says the countries have agreed to extension until January 10",
+   "time": "",
+   "tag": "Geopolitics"
   },
   {
    "source": "Financial Times",
@@ -22,34 +40,16 @@
    "tag": "Rates"
   },
   {
-   "source": "Financial Times",
-   "title": "Global bond sell-off deepens as oil climbs back to $105",
-   "time": "07:04 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Al Jazeera",
-   "title": "Could the oil shock push fuel prices even higher? From Hormuz to the Black Sea, pressure on main supply routes is testing the global energy market",
+   "source": "Wall Street Journal",
+   "title": "Comex Gold, Silver Settle Lower — Gold settled 1.4% lower, down two of the past three sessions, and silver fell 2.5%, down three of the past four sessions.",
    "time": "",
-   "tag": "Energy"
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "Comex Gold, Silver Settle Lower",
-   "time": "14:01 ET",
    "tag": "Metals"
   },
   {
    "source": "Wall Street Journal",
-   "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
-   "time": "12:20 ET",
-   "tag": "Agriculture"
+   "title": "Natural Gas Falls on Shifting Weather Forecasts — U.S. natural gas futures fell after weekend updates took some of the chill out of early February weather forecasts.",
+   "time": "",
+   "tag": "Energy"
   }
  ]
 }
