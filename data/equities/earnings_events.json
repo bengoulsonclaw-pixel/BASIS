@@ -1,5 +1,5 @@
 {
- "asof": "2026-09-23T01:09:19",
+ "asof": "2026-09-24T07:19:38",
  "events": [
   {
    "date": "2025-03-19",
@@ -9,7 +9,7 @@
    "auto": false,
    "bbg": "CRML US Equity",
    "sub": "Critical Metals Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Critical Metals Corp \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 980mm"
+   "tip": "Critical Metals Corp \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
   },
   {
    "date": "2025-05-07",
@@ -19,7 +19,7 @@
    "auto": false,
    "bbg": "CNTX US Equity",
    "sub": "Context Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Context Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 43mm"
+   "tip": "Context Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 35mm"
   },
   {
    "date": "2025-05-09",
@@ -69,7 +69,7 @@
    "auto": false,
    "bbg": "CMTV US Equity",
    "sub": "Community Bancorp Vt \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Community Bancorp Vt \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 226mm"
+   "tip": "Community Bancorp Vt \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 220mm"
   },
   {
    "date": "2025-07-22",
@@ -79,7 +79,7 @@
    "auto": false,
    "bbg": "FGBI US Equity",
    "sub": "First Guaranty Bancshares Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "First Guaranty Bancshares Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 145mm"
+   "tip": "First Guaranty Bancshares Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 126mm"
   },
   {
    "date": "2025-07-23",
@@ -159,7 +159,7 @@
    "auto": false,
    "bbg": "ASMB US Equity",
    "sub": "Assembly Biosciences Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Assembly Biosciences Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 718mm"
+   "tip": "Assembly Biosciences Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 488mm"
   },
   {
    "date": "2025-08-06",
@@ -189,7 +189,7 @@
    "auto": false,
    "bbg": "ARTV US Equity",
    "sub": "Artiva Biotherapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Artiva Biotherapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 563mm"
+   "tip": "Artiva Biotherapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 377mm"
   },
   {
    "date": "2025-08-09",
@@ -199,17 +199,7 @@
    "auto": false,
    "bbg": "ECBK US Equity",
    "sub": "Ecb Bancorp Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ecb Bancorp Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 182mm"
-  },
-  {
-   "date": "2025-08-11",
-   "icon": "",
-   "label": "IMMX",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "IMMX US Equity",
-   "sub": "Immix Biopharma \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Immix Biopharma \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 969mm"
+   "tip": "Ecb Bancorp Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 175mm"
   },
   {
    "date": "2025-08-11",
@@ -219,7 +209,7 @@
    "auto": false,
    "bbg": "GALT US Equity",
    "sub": "Galectin Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Galectin Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 391mm"
+   "tip": "Galectin Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 408mm"
   },
   {
    "date": "2025-08-11",
@@ -274,22 +264,22 @@
   {
    "date": "2025-08-11",
    "icon": "",
-   "label": "ELTX",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ELTX US Equity",
-   "sub": "Elicio Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Elicio Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 78mm"
-  },
-  {
-   "date": "2025-08-11",
-   "icon": "",
    "label": "TENX",
    "color": "#C62828",
    "auto": false,
    "bbg": "TENX US Equity",
    "sub": "Tenax Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
    "tip": "Tenax Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 69mm"
+  },
+  {
+   "date": "2025-08-11",
+   "icon": "",
+   "label": "ELTX",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "ELTX US Equity",
+   "sub": "Elicio Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Elicio Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 49mm"
   },
   {
    "date": "2025-08-12",
@@ -299,7 +289,7 @@
    "auto": false,
    "bbg": "CAMP US Equity",
    "sub": "Camp4 Therapeutics Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Camp4 Therapeutics Corp \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 271mm"
+   "tip": "Camp4 Therapeutics Corp \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 233mm"
   },
   {
    "date": "2025-08-13",
@@ -314,22 +304,12 @@
   {
    "date": "2025-08-14",
    "icon": "",
-   "label": "CLYM",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "CLYM US Equity",
-   "sub": "Climb Bio Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Climb Bio Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 942mm"
-  },
-  {
-   "date": "2025-08-14",
-   "icon": "",
    "label": "ANTX",
    "color": "#C62828",
    "auto": false,
    "bbg": "ANTX US Equity",
    "sub": "An2 Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "An2 Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 212mm"
+   "tip": "An2 Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 182mm"
   },
   {
    "date": "2025-09-05",
@@ -339,7 +319,7 @@
    "auto": false,
    "bbg": "CNTB US Equity",
    "sub": "Connect Biopharma Holdings Ltd \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Connect Biopharma Holdings Ltd \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 145mm"
+   "tip": "Connect Biopharma Holdings Ltd \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 67mm"
   },
   {
    "date": "2026-01-13",
@@ -502,16 +482,6 @@
    "tip": "Energous Corp \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 64mm"
   },
   {
-   "date": "2026-07-01",
-   "icon": "",
-   "label": "FC",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "FC US Equity",
-   "sub": "Franklin Covey \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Franklin Covey \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 232mm"
-  },
-  {
    "date": "2026-07-07",
    "icon": "",
    "label": "KRUS",
@@ -604,26 +574,6 @@
   {
    "date": "2026-07-23",
    "icon": "",
-   "label": "HOG",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "HOG US Equity",
-   "sub": "Harley Davidson \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Harley Davidson \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-07-23",
-   "icon": "",
-   "label": "HZO",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "HZO US Equity",
-   "sub": "Marinemax Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Marinemax Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-07-23",
-   "icon": "",
    "label": "LVWR",
    "color": "#E65100",
    "auto": false,
@@ -650,16 +600,6 @@
    "bbg": "NVTS US Equity",
    "sub": "Navitas Semiconductor \u00b7 Russell 2000 \u00b7 US",
    "tip": "Navitas Semiconductor \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-07-27",
-   "icon": "",
-   "label": "CMRE",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "CMRE US Equity",
-   "sub": "Costamare \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Costamare \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
   },
   {
    "date": "2026-07-27",
@@ -734,42 +674,12 @@
   {
    "date": "2026-07-28",
    "icon": "",
-   "label": "ASH",
-   "color": "#795548",
-   "auto": false,
-   "bbg": "ASH US Equity",
-   "sub": "Ashland \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ashland \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-07-28",
-   "icon": "",
    "label": "TTAM",
    "color": "#795548",
    "auto": false,
    "bbg": "TTAM US Equity",
    "sub": "Titan America Sa \u00b7 Russell 2000 \u00b7 US",
    "tip": "Titan America Sa \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-07-28",
-   "icon": "",
-   "label": "ACHC",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ACHC US Equity",
-   "sub": "Acadia Healthcare Company \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Acadia Healthcare Company \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-07-28",
-   "icon": "",
-   "label": "HURN",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "HURN US Equity",
-   "sub": "Huron Consulting Group \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Huron Consulting Group \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
   },
   {
    "date": "2026-07-28",
@@ -784,10 +694,12 @@
   {
    "date": "2026-07-28",
    "icon": "",
-   "label": "\u22ef 2 more",
-   "color": "#616161",
+   "label": "SB",
+   "color": "#37474F",
    "auto": false,
-   "tip": "Safe Bulkers, Cf Bankshares Inc"
+   "bbg": "SB US Equity",
+   "sub": "Safe Bulkers \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Safe Bulkers \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 881mm"
   },
   {
    "date": "2026-07-29",
@@ -842,32 +754,12 @@
   {
    "date": "2026-07-29",
    "icon": "",
-   "label": "CRK",
-   "color": "#1B5E20",
-   "auto": false,
-   "bbg": "CRK US Equity",
-   "sub": "Comstock Resources \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Comstock Resources \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
-  },
-  {
-   "date": "2026-07-29",
-   "icon": "",
    "label": "LMND",
    "color": "#283593",
    "auto": false,
    "bbg": "LMND US Equity",
    "sub": "Lemonade Inc \u00b7 Russell 2000 \u00b7 US",
    "tip": "Lemonade Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
-  },
-  {
-   "date": "2026-07-29",
-   "icon": "",
-   "label": "ADPT",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ADPT US Equity",
-   "sub": "Adaptive Biotechnologies \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Adaptive Biotechnologies \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-07-29",
@@ -892,10 +784,30 @@
   {
    "date": "2026-07-29",
    "icon": "",
-   "label": "\u22ef 22 more",
+   "label": "NGVT",
+   "color": "#795548",
+   "auto": false,
+   "bbg": "NGVT US Equity",
+   "sub": "Ingevity \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Ingevity \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-07-29",
+   "icon": "",
+   "label": "PBI",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "PBI US Equity",
+   "sub": "Pitney Bowes \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Pitney Bowes \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-07-29",
+   "icon": "",
+   "label": "\u22ef 11 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Benchmark Electronics Inc, Ingevity, Diebold Nixdorf Inc, Pitney Bowes, Pebblebrook Hotel Trust Reit, Insperity, Porch Group, Strategic Education, Sonos, Fortrea Holdings Inc, Conmed Corp, Empire State Realty Reit Class A, Frontier Group Holdings, Ryerson Holding, Teekay Corporation Corp Ltd, Ardmore Shipping Corp, Wabash National, Farmland Partners Inc, Regional Management Corp, Anika Therapeutics Inc, Claros Mortgage Trust Inc, Unisys"
+   "tip": "Pebblebrook Hotel Trust Reit, Insperity, Porch Group, Strategic Education, Sonos, Frontier Group Holdings, Ryerson Holding, Teekay Corporation Corp Ltd, Wabash National, Regional Management Corp, Unisys"
   },
   {
    "date": "2026-07-30",
@@ -1000,10 +912,10 @@
   {
    "date": "2026-07-30",
    "icon": "",
-   "label": "\u22ef 44 more",
+   "label": "\u22ef 26 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Unibail-Rodamco, Segro Reit Plc, Symrise Ag, Informa Plc, Life Time Group Holdings, Schroders Plc, Rentokil Initial Plc, Ptc Therapeutics, Bgc Group Inc Class A, Sphere Entertainment Class A, Granite Construction, Kite Realty Group Trust Reit, Cno Financial Group, Dyne Therapeutics, Brookfield Infrastructure Corp Cla, Cinemark Holdings Inc, Hni, Nmi Holdings, Steven Madden, Veracyte, Disc Medicine, Baldwin Insurance Group Class A, Diamondrock Hospitality, Phinia, Caredx, Uniti Group Inc, Federal Agricultural Mortgage Non, Stagwell Class A, Vericel, Huntsman Corp, Bigbear.Ai Holdings, Rpc Inc, Myers Industries Inc, Castle Biosciences, Wave Life Sciences Inc, Republic Airways Holdings, Hippo Holdings, Suncoke Energy Inc, Cerus Corp, Fulgent Genetics\u2026"
+   "tip": "Unibail-Rodamco, Segro Reit Plc, Symrise Ag, Informa Plc, Life Time Group Holdings, Schroders Plc, Rentokil Initial Plc, Ptc Therapeutics, Sphere Entertainment Class A, Kite Realty Group Trust Reit, Nmi Holdings, Steven Madden, Veracyte, Disc Medicine, Phinia, Uniti Group Inc, Stagwell Class A, Vericel, Rpc Inc, Myers Industries Inc, Wave Life Sciences Inc, Republic Airways Holdings, Suncoke Energy Inc, Titan International Inc, Myriad Genetics, Onewater Marine Class A Inc"
   },
   {
    "date": "2026-07-31",
@@ -1058,16 +970,6 @@
   {
    "date": "2026-07-31",
    "icon": "",
-   "label": "BBUC",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "BBUC US Equity",
-   "sub": "Brookfield Business Corp Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Brookfield Business Corp Class A \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
-  },
-  {
-   "date": "2026-07-31",
-   "icon": "",
    "label": "ALW",
    "color": "#283593",
    "auto": false,
@@ -1098,20 +1000,12 @@
   {
    "date": "2026-07-31",
    "icon": "",
-   "label": "CRI",
-   "color": "#E65100",
+   "label": "IRMD",
+   "color": "#C62828",
    "auto": false,
-   "bbg": "CRI US Equity",
-   "sub": "Carters \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Carters \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-07-31",
-   "icon": "",
-   "label": "\u22ef 1 more",
-   "color": "#616161",
-   "auto": false,
-   "tip": "Iradimed"
+   "bbg": "IRMD US Equity",
+   "sub": "Iradimed \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Iradimed \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
   },
   {
    "date": "2026-08-03",
@@ -1132,16 +1026,6 @@
    "bbg": "MATX US Equity",
    "sub": "Matson Inc \u00b7 Russell 2000 \u00b7 US",
    "tip": "Matson Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
-  },
-  {
-   "date": "2026-08-03",
-   "icon": "",
-   "label": "CRSP",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "CRSP US Equity",
-   "sub": "Crispr Therapeutics Ag \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Crispr Therapeutics Ag \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
   },
   {
    "date": "2026-08-03",
@@ -1176,36 +1060,6 @@
   {
    "date": "2026-08-03",
    "icon": "",
-   "label": "INDV",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "INDV US Equity",
-   "sub": "Indivior Pharmaceuticals Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Indivior Pharmaceuticals Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
-  },
-  {
-   "date": "2026-08-03",
-   "icon": "",
-   "label": "ATKR",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "ATKR US Equity",
-   "sub": "Atkore \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Atkore \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-08-03",
-   "icon": "",
-   "label": "ALG",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "ALG US Equity",
-   "sub": "Alamo Group \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Alamo Group \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-08-03",
-   "icon": "",
    "label": "KOS",
    "color": "#1B5E20",
    "auto": false,
@@ -1216,10 +1070,50 @@
   {
    "date": "2026-08-03",
    "icon": "",
-   "label": "\u22ef 14 more",
+   "label": "SBH",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "SBH US Equity",
+   "sub": "Sally Beauty Holdings \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Sally Beauty Holdings \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-08-03",
+   "icon": "",
+   "label": "ORIC",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "ORIC US Equity",
+   "sub": "Oric Pharmaceuticals \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Oric Pharmaceuticals \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-08-03",
+   "icon": "",
+   "label": "SIBN",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "SIBN US Equity",
+   "sub": "Si Bone \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Si Bone \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 873mm"
+  },
+  {
+   "date": "2026-08-03",
+   "icon": "",
+   "label": "MTUS",
+   "color": "#795548",
+   "auto": false,
+   "bbg": "MTUS US Equity",
+   "sub": "Metallus Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Metallus Inc \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 776mm"
+  },
+  {
+   "date": "2026-08-03",
+   "icon": "",
+   "label": "\u22ef 4 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Sally Beauty Holdings, Oric Pharmaceuticals, Backblaze Inc Class A, Design Therapeutics, Ibotta Class A, Si Bone, Metallus Inc, Costamare Bulkers Holdings Ltd, Clearpoint Neuro Inc, Viemed Healthcare Inc, Freightcar America Inc, Keros Therapeutics, Site Centers, Commercial Vehicle Group Inc"
+   "tip": "Viemed Healthcare Inc, Freightcar America Inc, Keros Therapeutics, Site Centers"
   },
   {
    "date": "2026-08-04",
@@ -1284,26 +1178,6 @@
   {
    "date": "2026-08-04",
    "icon": "",
-   "label": "DNTH",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "DNTH US Equity",
-   "sub": "Dianthus Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Dianthus Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
-  },
-  {
-   "date": "2026-08-04",
-   "icon": "",
-   "label": "GBTG",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "GBTG US Equity",
-   "sub": "Global Business Travel Group Class \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Global Business Travel Group Class \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
-  },
-  {
-   "date": "2026-08-04",
-   "icon": "",
    "label": "CTEC",
    "color": "#C62828",
    "auto": false,
@@ -1314,20 +1188,40 @@
   {
    "date": "2026-08-04",
    "icon": "",
-   "label": "IDYA",
-   "color": "#C62828",
+   "label": "PLMR",
+   "color": "#283593",
    "auto": false,
-   "bbg": "IDYA US Equity",
-   "sub": "Ideaya Biosciences \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ideaya Biosciences \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+   "bbg": "PLMR US Equity",
+   "sub": "Palomar Holdings \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Palomar Holdings \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-08-04",
    "icon": "",
-   "label": "\u22ef 21 more",
+   "label": "OPEN",
+   "color": "#AD1457",
+   "auto": false,
+   "bbg": "OPEN US Equity",
+   "sub": "Opendoor Technologies Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Opendoor Technologies Class A \u2014 Real Estate \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-08-04",
+   "icon": "",
+   "label": "PGEN",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "PGEN US Equity",
+   "sub": "Precigen \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Precigen \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-08-04",
+   "icon": "",
+   "label": "\u22ef 6 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Palomar Holdings, Opendoor Technologies Class A, Callaway Golf Company, Precigen, Chemours, Eplus, Brightstar Lottery Plc, Palvella Therapeutics Inc, Lemaitre Vascular, Ardent Health Inc, Energizer Holdings Inc, Azenta, Amprius Technologies Inc, Bellring Brands, Brightview Holdings, Pacira Biosciences, Eastman Kodak, Agnt, Hyster Yale Inc Class A, Strata Critical Medical Class A, Consumer Portfolio Services Inc"
+   "tip": "Eplus, Palvella Therapeutics Inc, Lemaitre Vascular, Pacira Biosciences, Eastman Kodak, Strata Critical Medical Class A"
   },
   {
    "date": "2026-08-05",
@@ -1392,16 +1286,6 @@
   {
    "date": "2026-08-05",
    "icon": "",
-   "label": "ACT",
-   "color": "#283593",
-   "auto": false,
-   "bbg": "ACT US Equity",
-   "sub": "Enact Holdings Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Enact Holdings Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
-  },
-  {
-   "date": "2026-08-05",
-   "icon": "",
    "label": "HSX",
    "color": "#283593",
    "auto": false,
@@ -1422,20 +1306,30 @@
   {
    "date": "2026-08-05",
    "icon": "",
-   "label": "GFF",
-   "color": "#37474F",
+   "label": "KLIC",
+   "color": "#1565C0",
    "auto": false,
-   "bbg": "GFF US Equity",
-   "sub": "Griffon \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Griffon \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
+   "bbg": "KLIC US Equity",
+   "sub": "Kulicke And Soffa Industries Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Kulicke And Soffa Industries Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-08-05",
    "icon": "",
-   "label": "\u22ef 32 more",
+   "label": "JJSF",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "JJSF US Equity",
+   "sub": "J And J Snack Foods Corp \u00b7 Russell 2000 \u00b7 US",
+   "tip": "J And J Snack Foods Corp \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-08-05",
+   "icon": "",
+   "label": "\u22ef 15 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Kulicke And Soffa Industries Inc, Helmerich & Payne, Genworth Financial Inc, Grail Inc, Digi International, Central Garden And Pet, Central Garden And Pet Class A, Fluence Energy Inc Class A, Blue Bird, J And J Snack Foods Corp, Edgewell Personal Care, Universal Technical Institute, Compass Minerals International, Satellogic Class A, Paysign Inc, Legacy Housing Corp, Tat Technologies Ltd, Atn International Inc, Evgo Inc Class A, Editas Medicine, Everspin Technologies Inc, Clearfield Inc, Seaport Entertainment Group Inc, Rmr Group Class A, Immuneering Class A, Akebia Therapeutics Inc, Kaltura Inc, Amtech Systems Inc, Rgc Resources Inc, Net Lease Office Properties, Lifemd Inc, Koru Medical Systems Inc"
+   "tip": "Universal Technical Institute, Compass Minerals International, Satellogic Class A, Paysign Inc, Legacy Housing Corp, Tat Technologies Ltd, Everspin Technologies Inc, Seaport Entertainment Group Inc, Rmr Group Class A, Amtech Systems Inc, Kaltura Inc, Rgc Resources Inc, Net Lease Office Properties, Lifemd Inc, Koru Medical Systems Inc"
   },
   {
    "date": "2026-08-06",
@@ -1480,52 +1374,12 @@
   {
    "date": "2026-08-06",
    "icon": "",
-   "label": "CTRE",
-   "color": "#AD1457",
-   "auto": false,
-   "bbg": "CTRE US Equity",
-   "sub": "Caretrust Reit \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Caretrust Reit \u2014 Real Estate \u00b7 Russell 2000 \u00b7 US \u00b7 9bn"
-  },
-  {
-   "date": "2026-08-06",
-   "icon": "",
-   "label": "IMVT",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "IMVT US Equity",
-   "sub": "Immunovant \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Immunovant \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 9bn"
-  },
-  {
-   "date": "2026-08-06",
-   "icon": "",
-   "label": "ESE",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "ESE US Equity",
-   "sub": "Esco Technologies \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Esco Technologies \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
-  },
-  {
-   "date": "2026-08-06",
-   "icon": "",
    "label": "SRRK",
    "color": "#C62828",
    "auto": false,
    "bbg": "SRRK US Equity",
    "sub": "Scholar Rock Holding \u00b7 Russell 2000 \u00b7 US",
    "tip": "Scholar Rock Holding \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
-  },
-  {
-   "date": "2026-08-06",
-   "icon": "",
-   "label": "CGON",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "CGON US Equity",
-   "sub": "Cg Oncology \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Cg Oncology \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
   },
   {
    "date": "2026-08-06",
@@ -1540,10 +1394,50 @@
   {
    "date": "2026-08-06",
    "icon": "",
-   "label": "\u22ef 58 more",
+   "label": "RGTI",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "RGTI US Equity",
+   "sub": "Rigetti Computing \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Rigetti Computing \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
+  },
+  {
+   "date": "2026-08-06",
+   "icon": "",
+   "label": "BBOX",
+   "color": "#AD1457",
+   "auto": false,
+   "bbg": "BBOX LN Equity",
+   "sub": "Tritax Big Box Reit Plc \u00b7 FTSE 100 \u00b7 London",
+   "tip": "Tritax Big Box Reit Plc \u2014 Real Estate \u00b7 FTSE 100 \u00b7 London \u00b7 4bn"
+  },
+  {
+   "date": "2026-08-06",
+   "icon": "",
+   "label": "PSN",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "PSN LN Equity",
+   "sub": "Persimmon Plc \u00b7 FTSE 100 \u00b7 London",
+   "tip": "Persimmon Plc \u2014 Consumer Discretionary \u00b7 FTSE 100 \u00b7 London \u00b7 4bn"
+  },
+  {
+   "date": "2026-08-06",
+   "icon": "",
+   "label": "MMS",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "MMS US Equity",
+   "sub": "Maximus \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Maximus \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-08-06",
+   "icon": "",
+   "label": "\u22ef 31 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Rigetti Computing, Tritax Big Box Reit Plc, Avient Corp, Persimmon Plc, Celldex Therapeutics, Cleanspark, Maximus, Northern Oil And Gas, Bkv, Trevi Therapeutics, Five9, Guardian Pharmacy Services Class A, Bobs Discount Furniture Inc, Aurinia Pharmaceuticals, Perdoceo Education, Tic Solutions Inc, Ingles Markets Class A, Atlanticus Holdings Corp, The Realreal, Liquidity Services Inc, Avalo Therapeutics, Profrac Holding Class A, Mitek Systems Inc, Pra Group Inc, Pubmatic Class A, Ironwood Pharma Class A, Matthews International Corp Class, Natural Grocers By Vitamin Cottage, Starling Oncology, Vaalco Energy Inc, Frontview Reit, Evommune, Relmada Therapeutics Inc, I3 Verticals Class A, Magnera, Arcturus Therapeutics Holdings Inc, Serve Robotics, Gevo, Zentalis Pharmaceuticals, Cerence\u2026"
+   "tip": "Northern Oil And Gas, Trevi Therapeutics, Perdoceo Education, Tic Solutions Inc, The Realreal, Liquidity Services Inc, Mitek Systems Inc, Pra Group Inc, Pubmatic Class A, Ironwood Pharma Class A, Matthews International Corp Class, Natural Grocers By Vitamin Cottage, Starling Oncology, Relmada Therapeutics Inc, Magnera, Serve Robotics, Zentalis Pharmaceuticals, Opus Genetics Inc, Sab Biotherapeutics, Trisalus Lf Sc Cm A, Palladyne Ai Corp, Techtarget Inc, Natures Sunshine Products Inc, Rci Hospitality Holdings Inc, Silvaco Group Inc, Voyager Therapeutics, Octave Specialty Group Inc, Shutterstock, Korro Bio, Lee Enterprises Inc, Innovate Corp"
   },
   {
    "date": "2026-08-07",
@@ -1578,42 +1472,12 @@
   {
    "date": "2026-08-07",
    "icon": "",
-   "label": "HE",
-   "color": "#00695C",
-   "auto": false,
-   "bbg": "HE US Equity",
-   "sub": "Hawaiian Electric Industries \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Hawaiian Electric Industries \u2014 Utilities \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-08-07",
-   "icon": "",
    "label": "SBET",
    "color": "#283593",
    "auto": false,
    "bbg": "SBET US Equity",
    "sub": "Sharplink Inc \u00b7 Russell 2000 \u00b7 US",
    "tip": "Sharplink Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-08-07",
-   "icon": "",
-   "label": "DCH",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "DCH US Equity",
-   "sub": "Dauch Corporation \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Dauch Corporation \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-08-07",
-   "icon": "",
-   "label": "BZH",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "BZH US Equity",
-   "sub": "Beazer Homes \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Beazer Homes \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 883mm"
   },
   {
    "date": "2026-08-07",
@@ -1636,16 +1500,6 @@
    "tip": "Johnson Outdoors Inc Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 491mm"
   },
   {
-   "date": "2026-08-07",
-   "icon": "",
-   "label": "EMBC",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "EMBC US Equity",
-   "sub": "Embecta \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Embecta \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 283mm"
-  },
-  {
    "date": "2026-08-10",
    "icon": "",
    "label": "VREX",
@@ -1658,32 +1512,12 @@
   {
    "date": "2026-08-10",
    "icon": "",
-   "label": "ALCO",
-   "color": "#558B2F",
-   "auto": false,
-   "bbg": "ALCO US Equity",
-   "sub": "Alico Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Alico Inc \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 306mm"
-  },
-  {
-   "date": "2026-08-10",
-   "icon": "",
    "label": "GENC",
    "color": "#37474F",
    "auto": false,
    "bbg": "GENC US Equity",
    "sub": "Gencor Industries Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Gencor Industries Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 281mm"
-  },
-  {
-   "date": "2026-08-10",
-   "icon": "",
-   "label": "ESOA",
-   "color": "#1B5E20",
-   "auto": false,
-   "bbg": "ESOA US Equity",
-   "sub": "Energy Services Of America Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Energy Services Of America Corp \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 215mm"
+   "tip": "Gencor Industries Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 255mm"
   },
   {
    "date": "2026-08-11",
@@ -1716,26 +1550,6 @@
    "tip": "Vestis \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
   },
   {
-   "date": "2026-08-11",
-   "icon": "",
-   "label": "BORR",
-   "color": "#1B5E20",
-   "auto": false,
-   "bbg": "BORR US Equity",
-   "sub": "Borr Drilling \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Borr Drilling \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-08-12",
-   "icon": "",
-   "label": "ELVN",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ELVN US Equity",
-   "sub": "Enliven Therapeutics \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Enliven Therapeutics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
-  },
-  {
    "date": "2026-08-12",
    "icon": "",
    "label": "NNE",
@@ -1753,7 +1567,7 @@
    "auto": false,
    "bbg": "DJCO US Equity",
    "sub": "Daily Journal \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Daily Journal \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 837mm"
+   "tip": "Daily Journal \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 909mm"
   },
   {
    "date": "2026-08-12",
@@ -1763,7 +1577,7 @@
    "auto": false,
    "bbg": "FWDI US Equity",
    "sub": "Forward Industries Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Forward Industries Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 423mm"
+   "tip": "Forward Industries Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 595mm"
   },
   {
    "date": "2026-08-12",
@@ -1808,16 +1622,6 @@
   {
    "date": "2026-08-13",
    "icon": "",
-   "label": "GLOB",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "GLOB US Equity",
-   "sub": "Globant \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Globant \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-08-13",
-   "icon": "",
    "label": "MDWD",
    "color": "#C62828",
    "auto": false,
@@ -1843,7 +1647,7 @@
    "auto": false,
    "bbg": "DRUG US Equity",
    "sub": "Bright Minds Biosciences \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Bright Minds Biosciences \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 756mm"
+   "tip": "Bright Minds Biosciences \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 568mm"
   },
   {
    "date": "2026-08-19",
@@ -1883,7 +1687,7 @@
    "auto": false,
    "bbg": "HOV US Equity",
    "sub": "Hovnanian Enterprises Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Hovnanian Enterprises Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 739mm"
+   "tip": "Hovnanian Enterprises Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 687mm"
   },
   {
    "date": "2026-08-24",
@@ -1903,7 +1707,7 @@
    "auto": false,
    "bbg": "BOX US Equity",
    "sub": "Box Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Box Inc Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
+   "tip": "Box Inc Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-08-25",
@@ -1928,32 +1732,12 @@
   {
    "date": "2026-08-25",
    "icon": "",
-   "label": "ANAB",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ANAB US Equity",
-   "sub": "Anaptysbio \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Anaptysbio \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-08-25",
-   "icon": "",
    "label": "CTRN",
    "color": "#E65100",
    "auto": false,
    "bbg": "CTRN US Equity",
    "sub": "Citi Trends Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Citi Trends Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 619mm"
-  },
-  {
-   "date": "2026-08-25",
-   "icon": "",
-   "label": "ELMD",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ELMD US Equity",
-   "sub": "Electromed Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Electromed Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 334mm"
+   "tip": "Citi Trends Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 422mm"
   },
   {
    "date": "2026-08-25",
@@ -1964,26 +1748,6 @@
    "bbg": "STRT US Equity",
    "sub": "Strattec Security Corp \u00b7 Russell 2000 \u00b7 US",
    "tip": "Strattec Security Corp \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 325mm"
-  },
-  {
-   "date": "2026-08-25",
-   "icon": "",
-   "label": "AVXL",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "AVXL US Equity",
-   "sub": "Anavex Life Sciences Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Anavex Life Sciences Corp \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 288mm"
-  },
-  {
-   "date": "2026-08-25",
-   "icon": "",
-   "label": "AREC",
-   "color": "#1B5E20",
-   "auto": false,
-   "bbg": "AREC US Equity",
-   "sub": "American Resources Corp Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "American Resources Corp Class A \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 268mm"
   },
   {
    "date": "2026-08-25",
@@ -2024,16 +1788,6 @@
    "bbg": "URBN US Equity",
    "sub": "Urban Outfitters \u00b7 Russell 2000 \u00b7 US",
    "tip": "Urban Outfitters \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
-  },
-  {
-   "date": "2026-08-26",
-   "icon": "",
-   "label": "ANF",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "ANF US Equity",
-   "sub": "Abercrombie And Fitch Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Abercrombie And Fitch Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
   },
   {
    "date": "2026-08-26",
@@ -2098,10 +1852,12 @@
   {
    "date": "2026-08-26",
    "icon": "",
-   "label": "\u22ef 2 more",
-   "color": "#616161",
+   "label": "LTRX",
+   "color": "#1565C0",
    "auto": false,
-   "tip": "Lantronix Inc, Domo Inc Class B"
+   "bbg": "LTRX US Equity",
+   "sub": "Lantronix Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Lantronix Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 256mm"
   },
   {
    "date": "2026-08-27",
@@ -2171,7 +1927,7 @@
    "auto": false,
    "bbg": "HQY US Equity",
    "sub": "Healthequity \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Healthequity \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 9bn"
+   "tip": "Healthequity \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
   },
   {
    "date": "2026-08-27",
@@ -2196,20 +1952,30 @@
   {
    "date": "2026-08-27",
    "icon": "",
-   "label": "CSIQ",
+   "label": "PD",
    "color": "#1565C0",
    "auto": false,
-   "bbg": "CSIQ US Equity",
-   "sub": "Canadian Solar \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Canadian Solar \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 972mm"
+   "bbg": "PD US Equity",
+   "sub": "Pagerduty \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Pagerduty \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 956mm"
   },
   {
    "date": "2026-08-27",
    "icon": "",
-   "label": "\u22ef 4 more",
+   "label": "\u22ef 3 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Pagerduty, Malibu Boats Class A Inc, Build A Bear Workshop, Titan Machinery Inc"
+   "tip": "Malibu Boats Class A Inc, Titan Machinery Inc, Build A Bear Workshop"
+  },
+  {
+   "date": "2026-08-31",
+   "icon": "",
+   "label": "AREC",
+   "color": "#1B5E20",
+   "auto": false,
+   "bbg": "AREC US Equity",
+   "sub": "American Resources Corp Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "American Resources Corp Class A \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 202mm"
   },
   {
    "date": "2026-09-01",
@@ -2269,27 +2035,7 @@
    "auto": false,
    "bbg": "AGX US Equity",
    "sub": "Argan \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Argan \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
-  },
-  {
-   "date": "2026-09-02",
-   "icon": "",
-   "label": "AEO",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "AEO US Equity",
-   "sub": "American Eagle Outfitters \u00b7 Russell 2000 \u00b7 US",
-   "tip": "American Eagle Outfitters \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-09-02",
-   "icon": "",
-   "label": "CXM",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "CXM US Equity",
-   "sub": "Sprinklr Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Sprinklr Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+   "tip": "Argan \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
   },
   {
    "date": "2026-09-02",
@@ -2314,12 +2060,32 @@
   {
    "date": "2026-09-02",
    "icon": "",
-   "label": "GOLD",
+   "label": "FCEL",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "FCEL US Equity",
+   "sub": "Fuelcell Energy Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Fuelcell Energy Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-09-02",
+   "icon": "",
+   "label": "GIII",
    "color": "#E65100",
    "auto": false,
-   "bbg": "GOLD US Equity",
-   "sub": "Gold Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Gold Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+   "bbg": "GIII US Equity",
+   "sub": "G Iii Apparel Group Ltd \u00b7 Russell 2000 \u00b7 US",
+   "tip": "G Iii Apparel Group Ltd \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-09-02",
+   "icon": "",
+   "label": "DAKT",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "DAKT US Equity",
+   "sub": "Daktronics Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Daktronics Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 849mm"
   },
   {
    "date": "2026-09-02",
@@ -2354,10 +2120,10 @@
   {
    "date": "2026-09-02",
    "icon": "",
-   "label": "\u22ef 2 more",
+   "label": "\u22ef 1 more",
    "color": "#616161",
    "auto": false,
-   "tip": "J Jill Inc, Chargepoint Holdings Inc Class A"
+   "tip": "J Jill Inc"
   },
   {
    "date": "2026-09-03",
@@ -2412,26 +2178,6 @@
   {
    "date": "2026-09-03",
    "icon": "",
-   "label": "AMBA",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "AMBA US Equity",
-   "sub": "Ambarella \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ambarella \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-09-03",
-   "icon": "",
-   "label": "ABM",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "ABM US Equity",
-   "sub": "Abm Industries Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Abm Industries Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-09-03",
-   "icon": "",
    "label": "WLY",
    "color": "#616161",
    "auto": false,
@@ -2442,30 +2188,50 @@
   {
    "date": "2026-09-03",
    "icon": "",
-   "label": "ASAN",
-   "color": "#1565C0",
+   "label": "NX",
+   "color": "#37474F",
    "auto": false,
-   "bbg": "ASAN US Equity",
-   "sub": "Asana Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Asana Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+   "bbg": "NX US Equity",
+   "sub": "Quanex Building Products Corp \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Quanex Building Products Corp \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 916mm"
   },
   {
    "date": "2026-09-03",
    "icon": "",
-   "label": "GIII",
+   "label": "MAMA",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "MAMA US Equity",
+   "sub": "Mamas Creations Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Mamas Creations Inc \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 767mm"
+  },
+  {
+   "date": "2026-09-03",
+   "icon": "",
+   "label": "SWBI",
    "color": "#E65100",
    "auto": false,
-   "bbg": "GIII US Equity",
-   "sub": "G Iii Apparel Group Ltd \u00b7 Russell 2000 \u00b7 US",
-   "tip": "G Iii Apparel Group Ltd \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+   "bbg": "SWBI US Equity",
+   "sub": "Smith Wesson Brands Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Smith Wesson Brands Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 612mm"
   },
   {
    "date": "2026-09-03",
    "icon": "",
-   "label": "\u22ef 11 more",
+   "label": "OXM",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "OXM US Equity",
+   "sub": "Oxford Industries Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Oxford Industries Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 546mm"
+  },
+  {
+   "date": "2026-09-03",
+   "icon": "",
+   "label": "\u22ef 3 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Quanex Building Products Corp, Mamas Creations Inc, Smith Wesson Brands Inc, Oxford Industries Inc, Concrete Pumping Holdings Inc, Barnes And Noble Education Inc, Shoe Station Group Inc, Genesco Inc, Land End, Torrid Holdings Inc, Egain Corp"
+   "tip": "Concrete Pumping Holdings Inc, Shoe Station Group Inc, Land End"
   },
   {
    "date": "2026-09-07",
@@ -2500,16 +2266,6 @@
   {
    "date": "2026-09-08",
    "icon": "",
-   "label": "BRZE",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "BRZE US Equity",
-   "sub": "Braze Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Braze Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
-  },
-  {
-   "date": "2026-09-08",
-   "icon": "",
    "label": "UNFI",
    "color": "#558B2F",
    "auto": false,
@@ -2520,12 +2276,12 @@
   {
    "date": "2026-09-08",
    "icon": "",
-   "label": "ASO",
-   "color": "#E65100",
+   "label": "ABM",
+   "color": "#37474F",
    "auto": false,
-   "bbg": "ASO US Equity",
-   "sub": "Academy Sports And Outdoors \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Academy Sports And Outdoors \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+   "bbg": "ABM US Equity",
+   "sub": "Abm Industries Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Abm Industries Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
   },
   {
    "date": "2026-09-08",
@@ -2540,6 +2296,16 @@
   {
    "date": "2026-09-08",
    "icon": "",
+   "label": "AVO",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "AVO US Equity",
+   "sub": "Mission Produce Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Mission Produce Inc \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-09-08",
+   "icon": "",
    "label": "MEI",
    "color": "#1565C0",
    "auto": false,
@@ -2550,12 +2316,12 @@
   {
    "date": "2026-09-08",
    "icon": "",
-   "label": "ALMU",
-   "color": "#1565C0",
+   "label": "BNED",
+   "color": "#E65100",
    "auto": false,
-   "bbg": "ALMU US Equity",
-   "sub": "Aeluma Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Aeluma Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 250mm"
+   "bbg": "BNED US Equity",
+   "sub": "Barnes And Noble Education Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Barnes And Noble Education Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 389mm"
   },
   {
    "date": "2026-09-09",
@@ -2590,16 +2356,6 @@
   {
    "date": "2026-09-09",
    "icon": "",
-   "label": "FCEL",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "FCEL US Equity",
-   "sub": "Fuelcell Energy Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Fuelcell Energy Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-09-09",
-   "icon": "",
    "label": "WLTH",
    "color": "#283593",
    "auto": false,
@@ -2610,32 +2366,12 @@
   {
    "date": "2026-09-09",
    "icon": "",
-   "label": "AVO",
-   "color": "#558B2F",
-   "auto": false,
-   "bbg": "AVO US Equity",
-   "sub": "Mission Produce Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Mission Produce Inc \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-09-09",
-   "icon": "",
    "label": "ODD",
    "color": "#558B2F",
    "auto": false,
    "bbg": "ODD US Equity",
    "sub": "Oddity Tech Class A \u00b7 Russell 2000 \u00b7 US",
    "tip": "Oddity Tech Class A \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 629mm"
-  },
-  {
-   "date": "2026-09-09",
-   "icon": "",
-   "label": "AVNW",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "AVNW US Equity",
-   "sub": "Aviat Networks Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Aviat Networks Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 267mm"
   },
   {
    "date": "2026-09-09",
@@ -2670,42 +2406,12 @@
   {
    "date": "2026-09-10",
    "icon": "",
-   "label": "FIZZ",
-   "color": "#558B2F",
-   "auto": false,
-   "bbg": "FIZZ US Equity",
-   "sub": "National Beverage \u00b7 Russell 2000 \u00b7 US",
-   "tip": "National Beverage \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-09-10",
-   "icon": "",
    "label": "RH",
    "color": "#E65100",
    "auto": false,
    "bbg": "RH US Equity",
    "sub": "Rh \u00b7 Russell 2000 \u00b7 US",
    "tip": "Rh \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-09-10",
-   "icon": "",
-   "label": "DAKT",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "DAKT US Equity",
-   "sub": "Daktronics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Daktronics Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 918mm"
-  },
-  {
-   "date": "2026-09-10",
-   "icon": "",
-   "label": "FEIM",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "FEIM US Equity",
-   "sub": "Frequency Electronics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Frequency Electronics Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 640mm"
   },
   {
    "date": "2026-09-10",
@@ -2720,26 +2426,6 @@
   {
    "date": "2026-09-10",
    "icon": "",
-   "label": "IBEX",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "IBEX US Equity",
-   "sub": "Ibex Ltd \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ibex Ltd \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 493mm"
-  },
-  {
-   "date": "2026-09-10",
-   "icon": "",
-   "label": "CAL",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "CAL US Equity",
-   "sub": "Caleres Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Caleres Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 458mm"
-  },
-  {
-   "date": "2026-09-10",
-   "icon": "",
    "label": "ZUMZ",
    "color": "#E65100",
    "auto": false,
@@ -2750,20 +2436,22 @@
   {
    "date": "2026-09-10",
    "icon": "",
-   "label": "DBI",
+   "label": "LOVE",
    "color": "#E65100",
    "auto": false,
-   "bbg": "DBI US Equity",
-   "sub": "Designer Brands Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Designer Brands Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 297mm"
+   "bbg": "LOVE US Equity",
+   "sub": "Lovesac Company \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Lovesac Company \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 232mm"
   },
   {
    "date": "2026-09-10",
    "icon": "",
-   "label": "\u22ef 4 more",
-   "color": "#616161",
+   "label": "RFIL",
+   "color": "#1565C0",
    "auto": false,
-   "tip": "1-800 Flowers.Com Class A, Lovesac Company, Evi Industries Inc, Rf Industries Ltd"
+   "bbg": "RFIL US Equity",
+   "sub": "Rf Industries Ltd \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Rf Industries Ltd \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 116mm"
   },
   {
    "date": "2026-09-11",
@@ -2816,16 +2504,6 @@
    "tip": "Us Gold Corp \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 266mm"
   },
   {
-   "date": "2026-09-14",
-   "icon": "",
-   "label": "IMMR",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "IMMR US Equity",
-   "sub": "Immersion Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Immersion Corp \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 250mm"
-  },
-  {
    "date": "2026-09-15",
    "icon": "",
    "label": "EPM",
@@ -2833,7 +2511,7 @@
    "auto": false,
    "bbg": "EPM US Equity",
    "sub": "Evolution Petroleum Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Evolution Petroleum Corp \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 125mm"
+   "tip": "Evolution Petroleum Corp \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 145mm"
   },
   {
    "date": "2026-09-16",
@@ -2848,32 +2526,12 @@
   {
    "date": "2026-09-16",
    "icon": "",
-   "label": "CBRL",
-   "color": "#E65100",
-   "auto": false,
-   "bbg": "CBRL US Equity",
-   "sub": "Cracker Barrel Old Country Store I \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Cracker Barrel Old Country Store I \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-09-16",
-   "icon": "",
    "label": "RZLT",
    "color": "#C62828",
    "auto": false,
    "bbg": "RZLT US Equity",
    "sub": "Rezolute \u00b7 Russell 2000 \u00b7 US",
    "tip": "Rezolute \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 482mm"
-  },
-  {
-   "date": "2026-09-16",
-   "icon": "",
-   "label": "ESP",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "ESP US Equity",
-   "sub": "Espey Manufacturing And Electronic \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Espey Manufacturing And Electronic \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 189mm"
   },
   {
    "date": "2026-09-17",
@@ -2896,26 +2554,6 @@
    "tip": "Scholastic \u2014 Communication \u00b7 Russell 2000 \u00b7 US \u00b7 760mm"
   },
   {
-   "date": "2026-09-17",
-   "icon": "",
-   "label": "ABAT",
-   "color": "#795548",
-   "auto": false,
-   "bbg": "ABAT US Equity",
-   "sub": "American Battery Technology Compan \u00b7 Russell 2000 \u00b7 US",
-   "tip": "American Battery Technology Compan \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 327mm"
-  },
-  {
-   "date": "2026-09-21",
-   "icon": "",
-   "label": "EBF",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "EBF US Equity",
-   "sub": "Ennis Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ennis Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 544mm"
-  },
-  {
    "date": "2026-09-22",
    "icon": "",
    "label": "SMIN",
@@ -2924,16 +2562,6 @@
    "bbg": "SMIN LN Equity",
    "sub": "Smiths Group Plc \u00b7 FTSE 100 \u00b7 London",
    "tip": "Smiths Group Plc \u2014 Industrials \u00b7 FTSE 100 \u00b7 London \u00b7 7bn"
-  },
-  {
-   "date": "2026-09-22",
-   "icon": "",
-   "label": "AIR",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "AIR US Equity",
-   "sub": "Aar \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Aar \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
   },
   {
    "date": "2026-09-22",
@@ -2974,16 +2602,6 @@
    "bbg": "SFIX US Equity",
    "sub": "Stitch Fix Class A \u00b7 Russell 2000 \u00b7 US",
    "tip": "Stitch Fix Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 439mm"
-  },
-  {
-   "date": "2026-09-22",
-   "icon": "",
-   "label": "BNTC",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "BNTC US Equity",
-   "sub": "Benitec Biopharma Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Benitec Biopharma Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 437mm"
   },
   {
    "date": "2026-09-22",
@@ -3088,16 +2706,6 @@
   {
    "date": "2026-09-24",
    "icon": "",
-   "label": "CNXC",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "CNXC US Equity",
-   "sub": "Concentrix \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Concentrix \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-09-24",
-   "icon": "",
    "label": "LPTH",
    "color": "#1565C0",
    "auto": false,
@@ -3114,6 +2722,16 @@
    "bbg": "PRGS US Equity",
    "sub": "Progress Software Corp \u00b7 Russell 2000 \u00b7 US",
    "tip": "Progress Software Corp \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-09-28",
+   "icon": "",
+   "label": "IDT",
+   "color": "#616161",
+   "auto": false,
+   "bbg": "IDT US Equity",
+   "sub": "Idt Class B \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Idt Class B \u2014 Communication \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
   },
   {
    "date": "2026-09-28",
@@ -3148,12 +2766,22 @@
   {
    "date": "2026-09-29",
    "icon": "",
-   "label": "IDT",
-   "color": "#616161",
+   "label": "AIR",
+   "color": "#37474F",
    "auto": false,
-   "bbg": "IDT US Equity",
-   "sub": "Idt Class B \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Idt Class B \u2014 Communication \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+   "bbg": "AIR US Equity",
+   "sub": "Aar \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Aar \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
+  },
+  {
+   "date": "2026-09-29",
+   "icon": "",
+   "label": "CNXC",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "CNXC US Equity",
+   "sub": "Concentrix \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Concentrix \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
   },
   {
    "date": "2026-09-30",
@@ -3203,7 +2831,7 @@
    "auto": false,
    "bbg": "CALM US Equity",
    "sub": "Cal Maine Foods \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Cal Maine Foods \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+   "tip": "Cal Maine Foods \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
   },
   {
    "date": "2026-09-30",
@@ -3253,7 +2881,7 @@
    "auto": false,
    "bbg": "ANGO US Equity",
    "sub": "Angiodynamics \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Angiodynamics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 652mm"
+   "tip": "Angiodynamics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 641mm"
   },
   {
    "date": "2026-10-06",
@@ -3268,22 +2896,22 @@
   {
    "date": "2026-10-06",
    "icon": "",
+   "label": "APOG",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "APOG US Equity",
+   "sub": "Apogee Enterprises Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Apogee Enterprises Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 768mm"
+  },
+  {
+   "date": "2026-10-06",
+   "icon": "",
    "label": "VLGEA",
    "color": "#558B2F",
    "auto": false,
    "bbg": "VLGEA US Equity",
    "sub": "Village Super Market Inc Class A \u00b7 Russell 2000 \u00b7 US",
    "tip": "Village Super Market Inc Class A \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 655mm"
-  },
-  {
-   "date": "2026-10-07",
-   "icon": "",
-   "label": "AZZ",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "AZZ US Equity",
-   "sub": "Azz Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Azz Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-10-07",
@@ -3318,16 +2946,6 @@
   {
    "date": "2026-10-08",
    "icon": "",
-   "label": "AEHR",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "AEHR US Equity",
-   "sub": "Aehr Test Systems \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Aehr Test Systems \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
-  },
-  {
-   "date": "2026-10-08",
-   "icon": "",
    "label": "NRIX",
    "color": "#C62828",
    "auto": false,
@@ -3358,16 +2976,6 @@
   {
    "date": "2026-10-08",
    "icon": "",
-   "label": "APOG",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "APOG US Equity",
-   "sub": "Apogee Enterprises Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Apogee Enterprises Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 863mm"
-  },
-  {
-   "date": "2026-10-08",
-   "icon": "",
    "label": "PKE",
    "color": "#37474F",
    "auto": false,
@@ -3383,7 +2991,7 @@
    "auto": false,
    "bbg": "HELE US Equity",
    "sub": "Helen Of Troy Ltd \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Helen Of Troy Ltd \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 666mm"
+   "tip": "Helen Of Troy Ltd \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 688mm"
   },
   {
    "date": "2026-10-09",
@@ -3468,12 +3076,12 @@
   {
    "date": "2026-10-13",
    "icon": "",
-   "label": "HWC",
-   "color": "#283593",
+   "label": "AZZ",
+   "color": "#37474F",
    "auto": false,
-   "bbg": "HWC US Equity",
-   "sub": "Hancock Whitney \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Hancock Whitney \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
+   "bbg": "AZZ US Equity",
+   "sub": "Azz Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Azz Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-10-13",
@@ -3714,10 +3322,10 @@
   {
    "date": "2026-10-15",
    "icon": "",
-   "label": "\u22ef 8 more",
+   "label": "\u22ef 7 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Glacier Bancorp Inc, Cohen & Steers Inc, Whitbread Plc, Simmons First National Class A, Manpower, Wafd Inc, Westamerica Bancorporation, Insteel Industries Inc"
+   "tip": "Glacier Bancorp Inc, Whitbread Plc, Cohen & Steers Inc, Simmons First National Class A, Manpower, Wafd Inc, Westamerica Bancorporation"
   },
   {
    "date": "2026-10-16",
@@ -3797,7 +3405,7 @@
    "auto": false,
    "bbg": "HIFS US Equity",
    "sub": "Hingham Institution For Savings \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Hingham Institution For Savings \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 668mm"
+   "tip": "Hingham Institution For Savings \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 643mm"
   },
   {
    "date": "2026-10-16",
@@ -3807,7 +3415,7 @@
    "auto": false,
    "bbg": "ATLO US Equity",
    "sub": "Ames National Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Ames National Corp \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 282mm"
+   "tip": "Ames National Corp \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 275mm"
   },
   {
    "date": "2026-10-16",
@@ -3817,7 +3425,7 @@
    "auto": false,
    "bbg": "BVFL US Equity",
    "sub": "Bv Financial Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Bv Financial Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 180mm"
+   "tip": "Bv Financial Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 176mm"
   },
   {
    "date": "2026-10-19",
@@ -3897,7 +3505,7 @@
    "auto": false,
    "bbg": "HBCP US Equity",
    "sub": "Home Bancorp Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Home Bancorp Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 550mm"
+   "tip": "Home Bancorp Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 529mm"
   },
   {
    "date": "2026-10-19",
@@ -3925,7 +3533,7 @@
    "label": "\u22ef 3 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Coastalsouth Bancshares Inc, Flexsteel Industries Inc, Peoples Bancorp Of North Carolina"
+   "tip": "Flexsteel Industries Inc, Coastalsouth Bancshares Inc, Peoples Bancorp Of North Carolina"
   },
   {
    "date": "2026-10-20",
@@ -4033,7 +3641,7 @@
    "label": "\u22ef 35 more",
    "color": "#616161",
    "auto": false,
-   "tip": "3M, General Motors, Northrop Grumman Corp, Deutsche Boerse Ag, Msci, Eqt, Halliburton, Quest Diagnostics Inc, Keycorp, Omnicom Group Inc, Equifax, Genuine Parts, Pentair, Gatx, Balchem, Fulton Financial, Pennymac Financial Services, Nicolet Bankshares Inc, Amc Entertainment Holdings Inc Cla, Monarch Casino And Resort, Bank First Corp, Peoples Bancorp Inc, Columbia Financial Inc, Mercantile Bank Corp, Trustco Bank Corp, Hanmi Financial Corp, Capital City Bank Inc, Smartfinancial Inc, Orrstown Financial Services Inc, Pennymac Mortgage Investment Trust, Bar Harbor Bankshares, Bridgewater Bancshares Inc, Greene County Bancorp Inc, Fs Bancorp Inc, Fvcbankcorp Inc"
+   "tip": "3M, General Motors, Northrop Grumman Corp, Deutsche Boerse Ag, Msci, Eqt, Halliburton, Quest Diagnostics Inc, Keycorp, Omnicom Group Inc, Equifax, Genuine Parts, Pentair, Gatx, Hancock Whitney, Balchem, Fulton Financial, Pennymac Financial Services, Nicolet Bankshares Inc, Amc Entertainment Holdings Inc Cla, Monarch Casino And Resort, Bank First Corp, Peoples Bancorp Inc, Columbia Financial Inc, Mercantile Bank Corp, Trustco Bank Corp, Hanmi Financial Corp, Smartfinancial Inc, Capital City Bank Inc, Orrstown Financial Services Inc, Pennymac Mortgage Investment Trust, Bar Harbor Bankshares, Bridgewater Bancshares Inc, Fs Bancorp Inc, Fvcbankcorp Inc"
   },
   {
    "date": "2026-10-21",
@@ -4141,7 +3749,7 @@
    "label": "\u22ef 75 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Elevance Health Inc, Csx, Moodys Corp, United Rentals, Teradyne, Westinghouse Air Brake Technologie, Vivmark Residential, United Airlines Holdings, Northern Trust, Crown Castle Inc, Teledyne Technologies Inc, Firstenergy Corp, Las Vegas Sands, Veralto Corp, Packaging Corp Of America, Southwest Airlines, Nvr, Globe Life, Avery Dennison Corp, Old National Bancorp, Essential Properties Realty Trust, Selective Insurance Group, Unifirst, Oceaneering International Inc, Patterson Uti Energy Inc, Sl Green Realty Reit Corp, Texas Capital Bancshares, United Community Banks Inc, Cathay General Bancorp, Cvb Financial Corp, Badger Meter, Wesbanco, M I Homes Inc, Townebank, Goosehead Insurance Class A, Bankunited, Banc Of California, Wd-40, First Merchants, Kaiser Aluminium\u2026"
+   "tip": "Elevance Health Inc, Csx, Moodys Corp, United Rentals, Teradyne, Westinghouse Air Brake Technologie, Vivmark Residential, United Airlines Holdings, Northern Trust, Crown Castle Inc, Teledyne Technologies Inc, Firstenergy Corp, Las Vegas Sands, Veralto Corp, Packaging Corp Of America, Southwest Airlines, Nvr, Globe Life, Avery Dennison Corp, Old National Bancorp, Essential Properties Realty Trust, Selective Insurance Group, Unifirst, Oceaneering International Inc, Patterson Uti Energy Inc, Sl Green Realty Reit Corp, Texas Capital Bancshares, United Community Banks Inc, Cathay General Bancorp, Wesbanco, Cvb Financial Corp, Badger Meter, M I Homes Inc, Townebank, Bankunited, Wd-40, Banc Of California, Hornbeck Offshore Services, First Merchants, Kaiser Aluminium\u2026"
   },
   {
    "date": "2026-10-22",
@@ -4249,7 +3857,7 @@
    "label": "\u22ef 99 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Norfolk Southern Corp, Honeywell International Inc, Barclays Plc, Baker Hughes Class A, Comfort Systems Usa, Ford Motor Co, Argenx, Nasdaq Inc, Cbre Group Class A, Pg&E Corp, Roper Technologies, Huntington Bancshares Inc, Verisign, West Pharmaceutical Services, Dover Corp, Centerpoint Energy, Pultegroup, Dow, Tractor Supply, Healthpeak Properties Inc, Textron Inc, Allegion Plc, Hasbro, Deckers Outdoor, Firstcash Holdings Inc, Sainsbury(J) Plc, United Bankshares, Enova International, Atlantic Union Bankshares, Associated Bancorp, Maxlinear, Phillips Edison And Company, Eastern Bankshares Inc, First Financial Bankshares Inc, Garrett Motion, First Bancorp, Wsfs Financial, Bread Financial Holdings, Independent Bank Corp, First Financial Bancorp\u2026"
+   "tip": "Norfolk Southern Corp, Honeywell International Inc, Barclays Plc, Baker Hughes Class A, Comfort Systems Usa, Ford Motor Co, Argenx, Nasdaq Inc, Cbre Group Class A, Pg&E Corp, Roper Technologies, Huntington Bancshares Inc, Verisign, West Pharmaceutical Services, Dover Corp, Centerpoint Energy, Pultegroup, Dow, Tractor Supply, Healthpeak Properties Inc, Textron Inc, Allegion Plc, Hasbro, Deckers Outdoor, Firstcash Holdings Inc, Sainsbury(J) Plc, United Bankshares, Maxlinear, Phillips Edison And Company, Atlantic Union Bankshares, Associated Bancorp, Eastern Bankshares Inc, Garrett Motion, First Financial Bankshares Inc, Enova International, Wsfs Financial, First Bancorp, Bread Financial Holdings, Independent Bank Corp, First Financial Bancorp\u2026"
   },
   {
    "date": "2026-10-23",
@@ -4304,22 +3912,22 @@
   {
    "date": "2026-10-23",
    "icon": "",
-   "label": "FLG",
-   "color": "#283593",
-   "auto": false,
-   "bbg": "FLG US Equity",
-   "sub": "Flagstar Bank National Association \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Flagstar Bank National Association \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
-  },
-  {
-   "date": "2026-10-23",
-   "icon": "",
    "label": "CORZ",
    "color": "#1565C0",
    "auto": false,
    "bbg": "CORZ US Equity",
    "sub": "Core Scientific Inc \u00b7 Russell 2000 \u00b7 US",
    "tip": "Core Scientific Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
+  },
+  {
+   "date": "2026-10-23",
+   "icon": "",
+   "label": "FLG",
+   "color": "#283593",
+   "auto": false,
+   "bbg": "FLG US Equity",
+   "sub": "Flagstar Bank National Association \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Flagstar Bank National Association \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
   },
   {
    "date": "2026-10-23",
@@ -4465,7 +4073,7 @@
    "label": "\u22ef 39 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Brown & Brown Inc, Revvity, Universal Health Services Inc Clas, Alexandria Real Estate Equities Re, Ameris Bancorp, Ufp Industries, Dorman Products, Park National Corp, Polaris Inc, Seacoast Banking Of Florida, Agilysys Inc, Bank Of Hawaii, Nbt Bancorp, H2O America, Calix Networks, Enterprise Financial Services Corp, Northwest Bancshares Inc, Netstreit, German American Bancorp Inc, Firstsun Capital Bancorp, Lakeland Financial Corp, Harmonic, Hbt Financial Inc, Easterly Government Properties Inc, Five Star Bancorp, Ramaco Resources Inc Class A, Capital Bancorp Inc, Universal Health Realty Income Tru, Sierra Bancorp, Nrc Health, Farmers And Merchants Bancorp Inc, Commercial Bancgroup Inc, Bank Of Marin Bancorp, Neighborhood Intelligence, First United Corp, Ohio Valley Banc Corp, Citizens Community Bancorp Inc, Mainstreet Bancshares, Seven Hills Realty Trust"
+   "tip": "Brown & Brown Inc, Revvity, Universal Health Services Inc Clas, Alexandria Real Estate Equities Re, Ameris Bancorp, Ufp Industries, Park National Corp, Polaris Inc, Dorman Products, Seacoast Banking Of Florida, Agilysys Inc, Bank Of Hawaii, Nbt Bancorp, H2O America, Northwest Bancshares Inc, Calix Networks, Enterprise Financial Services Corp, Netstreit, German American Bancorp Inc, Firstsun Capital Bancorp, Lakeland Financial Corp, Hbt Financial Inc, Harmonic, Easterly Government Properties Inc, Five Star Bancorp, Ramaco Resources Inc Class A, Universal Health Realty Income Tru, Capital Bancorp Inc, Sierra Bancorp, Nrc Health, Farmers And Merchants Bancorp Inc, Bank Of Marin Bancorp, Commercial Bancgroup Inc, Neighborhood Intelligence, First United Corp, Ohio Valley Banc Corp, Citizens Community Bancorp Inc, Mainstreet Bancshares, Seven Hills Realty Trust"
   },
   {
    "date": "2026-10-27",
@@ -4570,10 +4178,10 @@
   {
    "date": "2026-10-27",
    "icon": "",
-   "label": "\u22ef 97 more",
+   "label": "\u22ef 98 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Bloom Energy Class A, Sherwin Williams, Mondelez International Class A, Ecolab, Royal Caribbean Group, Paccar Inc, Oneok, Carrier Global, Paypal Holdings, Orange, Ferrovial N.V. Ordinary Shares, Centene Corp, Labcorp Holdings, Incyte Corp, Hubbell Inc, Ppg Industries, Edison International, Expand Energy, Essex Property Trust Reit, Beiersdorf Ag, Invesco Ltd, Costar Group, Bxp, Umb Financial, Zurn Elkay Water Solutions Corp, A O Smith, Noble Corporation Plc, Red Rock Resorts Ors Class A, Kiniksa Pharmaceuticals Internatio, Cheesecake Factory Inc, Commvault Systems, Archrock, Herc Holdings, Champion Homes Inc, Varonis Systems, Franklin Electric, Ceco Environmental, Arcus Biosciences, Renasant Corp, Asbury Automotive Group Inc\u2026"
+   "tip": "Bloom Energy Class A, Sherwin Williams, Mondelez International Class A, Ecolab, Royal Caribbean Group, Paccar Inc, Oneok, Carrier Global, Paypal Holdings, Orange, Ferrovial N.V. Ordinary Shares, Centene Corp, Labcorp Holdings, Incyte Corp, Hubbell Inc, Ppg Industries, Edison International, Expand Energy, Essex Property Trust Reit, Beiersdorf Ag, Invesco Ltd, Costar Group, Bxp, Umb Financial, Zurn Elkay Water Solutions Corp, A O Smith, Noble Corporation Plc, Red Rock Resorts Ors Class A, Kiniksa Pharmaceuticals Internatio, Commvault Systems, Archrock, Cheesecake Factory Inc, Champion Homes Inc, Varonis Systems, Herc Holdings, Ceco Environmental, Franklin Electric, Arcus Biosciences, Renasant Corp, Mirion Technologies Class A\u2026"
   },
   {
    "date": "2026-10-28",
@@ -4678,7 +4286,7 @@
   {
    "date": "2026-10-28",
    "icon": "",
-   "label": "\u22ef 171 more",
+   "label": "\u22ef 170 more",
    "color": "#616161",
    "auto": false,
    "tip": "Airbus, Airbus Group, Servicenow, Cvs Health, Bnp Paribas Sa, Starbucks Corp, Automatic Data Processing Inc, Phillips 66, Equinix Reit, General Dynamics Corp, Regeneron Pharmaceuticals, Carvana Class A, Glaxosmithkline, Fedex Corp, Kinder Morgan, Hilton Worldwide Holdings, Oreilly Automotive Inc, Boston Scientific Corp, Deutsche Bank Ag, Te Connectivity Plc, Public Storage Reit, Garmin, Standard Chartered Plc, Ventas Reit, Basf N, Chipotle Mexican Grill, Mercedes-Benz Group N Ag, Prudential Financial Inc, Flex Ltd, Old Dominion Freight Line, Biogen, Raymond James, Extra Space Storage Reit, Ge Healthcare Technologies, Kraft Heinz, Dassault Syst., Fiserv Inc, Cognizant Technology Solutions Cla, American Water Works, Otis Worldwide\u2026"
@@ -4786,7 +4394,7 @@
   {
    "date": "2026-10-29",
    "icon": "",
-   "label": "\u22ef 198 more",
+   "label": "\u22ef 201 more",
    "color": "#616161",
    "auto": false,
    "tip": "Banco Bilbao Vizcaya Argentaria Sa, Anheuser-Busch Inbev Sa, Bristol Myers Squibb, S&P Global, Altria Group Inc, Stryker, Southern, Quanta Services Inc, Trane Technologies Plc, Ing Groep Nv, Intercontinental Exchange Inc, Strategy Inc Common Stock Class A, Republic Services Inc, American Electric Power Inc, Lloyds Banking Group Plc, Monolithic Power Systems Inc, Arthur J Gallagher, Crh Public Limited Plc, Ametek Inc, Societe Generale, Coinbase Global Inc Class A, Edwards Lifesciences, Entergy Corp, Ameriprise Finance Inc, L3Harris Technologies, Xcel Energy Inc, STMicro, D R Horton, Volkswagen Non-Voting Pref Ag, Hartford Insurance Group, Wec Energy Group, Dexcom Inc, Emcor Group, Alnylam Pharmaceuticals, Inc. Common Stock, Resmed, Vulcan Materials, Reddit Class A, Fox Class A, Willis Towers Watson, Ingersoll Rand Inc\u2026"
@@ -4897,7 +4505,7 @@
    "label": "\u22ef 28 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Dominion Energy, Credit Agricole, Waters Corp, Cboe Global Markets, Church And Dwight Inc, T Rowe Price Group, Lyondellbasell Industries Class A, Charter Communications Class A, Brightspring Health Services Inc, Airtel Africa Plc, Federal Realty Investment Trust Re, Txnm Energy Inc, Sensient Technologies, Portland General Electric, Piper Sandler Companies, Wisdomtree, Newell Brands Inc, Butterfly Network Class A, Xenia Hotels Resorts Reit, Proto Labs, Virtus Investment Partners, Middlesex Water, Arbor Realty Trust Reit, The Marcus Corp, Standard Motor Products Inc, Tiptree Inc, Ponce Financial Group Inc, Graftech International Ltd"
+   "tip": "Dominion Energy, Credit Agricole, Waters Corp, Cboe Global Markets, Church And Dwight Inc, T Rowe Price Group, Lyondellbasell Industries Class A, Charter Communications Class A, Airtel Africa Plc, Brightspring Health Services Inc, Federal Realty Investment Trust Re, Txnm Energy Inc, Sensient Technologies, Portland General Electric, Piper Sandler Companies, Wisdomtree, Newell Brands Inc, Butterfly Network Class A, Xenia Hotels Resorts Reit, Proto Labs, Virtus Investment Partners, Middlesex Water, The Marcus Corp, Arbor Realty Trust Reit, Standard Motor Products Inc, Tiptree Inc, Ponce Financial Group Inc, Graftech International Ltd"
   },
   {
    "date": "2026-11-02",
@@ -5002,10 +4610,10 @@
   {
    "date": "2026-11-02",
    "icon": "",
-   "label": "\u22ef 63 more",
+   "label": "\u22ef 68 more",
    "color": "#616161",
    "auto": false,
-   "tip": "On Semiconductor Corp, Loews, Sba Communications Reit Corp Class, Krystal Biotech, Ryman Hospitality Properties Reit, Sm Energy, Tg Therapeutics, Cipher Digital Inc, Vse Corp, Jbt Marel, Xenon Pharmaceuticals, Crescent Energy Class A, Solaris Energy Infrastructure Inc, One Gas, Paymentus Holdings Inc Class A, Cabot Corp, Apple Hospitality Reit Inc, Otter Tail, Energy Fuels, Adeia, Boise Cascade, Biocryst Pharmaceuticals, V2X, Nuvation Bio Class A, Ufp Technologies Inc, Addus Homecare Corp, Vertex Class A, Voyager Technologies Class A, Pediatrix Medical Group Inc, Ichor Holdings, Diversified Healthcare Trust, Inspire Medical Systems, Syndax Pharmaceuticals, Innovative Industrial Properties I, Safety Insurance Group Inc, Atlas Energy Solutions, Umh Properties Inc, Alexanders Reit Inc, Napco Security Technologies, Tennant\u2026"
+   "tip": "On Semiconductor Corp, Loews, Sba Communications Reit Corp Class, Krystal Biotech, Ryman Hospitality Properties Reit, Sm Energy, Tg Therapeutics, Cipher Digital Inc, Vse Corp, Jbt Marel, Xenon Pharmaceuticals, Solaris Energy Infrastructure Inc, Crescent Energy Class A, One Gas, Paymentus Holdings Inc Class A, Cno Financial Group, Cabot Corp, Comstock Resources, Otter Tail, Energy Fuels, Aehr Test Systems, Adeia, Boise Cascade, V2X, Nuvation Bio Class A, Ufp Technologies Inc, Vertex Class A, Biocryst Pharmaceuticals, Ichor Holdings, Voyager Technologies Class A, Pediatrix Medical Group Inc, Addus Homecare Corp, Diversified Healthcare Trust, Inspire Medical Systems, Syndax Pharmaceuticals, Innovative Industrial Properties I, Safety Insurance Group Inc, Atlas Energy Solutions, Umh Properties Inc, Bigbear.Ai Holdings\u2026"
   },
   {
    "date": "2026-11-03",
@@ -5110,10 +4718,10 @@
   {
    "date": "2026-11-03",
    "icon": "",
-   "label": "\u22ef 172 more",
+   "label": "\u22ef 182 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Apollo Global Management, Ferrari Nv, Astera Labs, Inc. Common Stock, Corteva, Bayer Ag, Exelon Corp, Iqvia Holdings, Thomson Reuters Corporation Common Shares, Archer Daniels Midland, Live Nation Entertainment, Yum Brands, Sysco, Axon Enterprise, Martin Marietta Materials, Kimberly Clark, Zoetis Inc Class A, Super Micro Computer Inc, Expeditors International Of Washin, Xylem Inc, Global Payments Inc, International Flavors & Fragrances, Broadridge Financial Solutions Inc, Cdw, Zebra Technologies Corp Class A, Leidos Holdings, Ball Corp, Assurant Inc, Stanley Black & Decker, Skyworks Solutions, Associated British Foods Plc, Gartner, Pinnacle West, Jack Henry And Associates Inc, Fresenius Medical Care Ag, Clorox, Kymera Therapeutics, Henry Schein, Spyre Therapeutics Inc, Vaxcyte, Jackson Financial Class A\u2026"
+   "tip": "Apollo Global Management, Ferrari Nv, Astera Labs, Inc. Common Stock, Corteva, Bayer Ag, Exelon Corp, Iqvia Holdings, Thomson Reuters Corporation Common Shares, Archer Daniels Midland, Live Nation Entertainment, Yum Brands, Sysco, Axon Enterprise, Martin Marietta Materials, Kimberly Clark, Zoetis Inc Class A, Super Micro Computer Inc, Expeditors International Of Washin, Xylem Inc, Global Payments Inc, International Flavors & Fragrances, Broadridge Financial Solutions Inc, Cdw, Zebra Technologies Corp Class A, Leidos Holdings, Ball Corp, Assurant Inc, Stanley Black & Decker, Skyworks Solutions, Associated British Foods Plc, Gartner, Pinnacle West, Jack Henry And Associates Inc, Fresenius Medical Care Ag, Clorox, Kymera Therapeutics, Henry Schein, Spyre Therapeutics Inc, Vaxcyte, Immunitybio\u2026"
   },
   {
    "date": "2026-11-04",
@@ -5218,10 +4826,10 @@
   {
    "date": "2026-11-04",
    "icon": "",
-   "label": "\u22ef 232 more",
+   "label": "\u22ef 247 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Coherent, Allstate Corp, Cencora, Ww Grainger Inc, Aflac, Sempra, Devon Energy, Honeywell Aerospace Inc, Ebay, American International Group, Tko Group Holdings Inc Class A, Bmw Ag, Iron Mountain Inc, Ameren, Koninklijke Ahold Delhaize Nv, Atmos Energy, Heidelberg Materials Ag, Corpay, Texas Pacific Land, Eversource Energy, Ppl Corp, Fresenius Se And Co Kgaa, Bunge Global Sa, Fair Isaac, Steris, Fidelity National Information Serv, Cf Industries Holdings Inc, Host Hotels & Resorts Reit, Apa, Vonovia Se, Continental Ag, Trimble Inc, Charles River Laboratories Interna, Albemarle Corp, Aes, Hut Corp, Kinetik Holdings Class A, Compass Inc Class A, Qiagen Nv, Marks And Spencer Group Plc\u2026"
+   "tip": "Coherent, Allstate Corp, Cencora, Ww Grainger Inc, Aflac, Sempra, Devon Energy, Honeywell Aerospace Inc, Ebay, American International Group, Tko Group Holdings Inc Class A, Bmw Ag, Iron Mountain Inc, Ameren, Koninklijke Ahold Delhaize Nv, Atmos Energy, Heidelberg Materials Ag, Corpay, Texas Pacific Land, Eversource Energy, Ppl Corp, Fresenius Se And Co Kgaa, Bunge Global Sa, Fair Isaac, Steris, Fidelity National Information Serv, Cf Industries Holdings Inc, Host Hotels & Resorts Reit, Apa, Vonovia Se, Continental Ag, Trimble Inc, Charles River Laboratories Interna, Albemarle Corp, Hut Corp, Aes, Kinetik Holdings Class A, Qiagen Nv, Marks And Spencer Group Plc, Terreno Realty Reit\u2026"
   },
   {
    "date": "2026-11-05",
@@ -5326,7 +4934,7 @@
   {
    "date": "2026-11-05",
    "icon": "",
-   "label": "\u22ef 326 more",
+   "label": "\u22ef 348 more",
    "color": "#616161",
    "auto": false,
    "tip": "Monster Beverage, Lumentum Holdings, Warner Bros. Discovery Series A, Motorola Solutions Inc, Eog Resources, Cummins Inc, Cigna, Moderna, Deutsche Post Ag, Air Products And Chemicals, Targa Resources, Transdigm Group, Engie, National Grid Plc, Cardinal Health, Becton Dickinson, Rockwell Automation Inc, Vistra, Rheinmetall Ag, Commerzbank Ag, Siemens Healthineers Ag, Microchip Technology Inc, Consolidated Edison, Legrand, Hershey Foods, Expedia Group, Kenvue, Mettler Toledo, Hochtief Ag, Echostar Class A, Tapestry, Nrg Energy Inc, Ralph Lauren Class A, Viatris, Bt Group Plc, Amcor Plc, Gen Digital, Evergy, Zimmer Biomet Holdings, News Class B\u2026"
@@ -5404,6 +5012,16 @@
   {
    "date": "2026-11-06",
    "icon": "",
+   "label": "CLMT",
+   "color": "#1B5E20",
+   "auto": false,
+   "bbg": "CLMT US Equity",
+   "sub": "Calumet \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Calumet \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
+  },
+  {
+   "date": "2026-11-06",
+   "icon": "",
    "label": "DK",
    "color": "#1B5E20",
    "auto": false,
@@ -5414,30 +5032,20 @@
   {
    "date": "2026-11-06",
    "icon": "",
-   "label": "CLMT",
-   "color": "#1B5E20",
+   "label": "BIPC",
+   "color": "#00695C",
    "auto": false,
-   "bbg": "CLMT US Equity",
-   "sub": "Calumet \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Calumet \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+   "bbg": "BIPC US Equity",
+   "sub": "Brookfield Infrastructure Corp Cla \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Brookfield Infrastructure Corp Cla \u2014 Utilities \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
   },
   {
    "date": "2026-11-06",
    "icon": "",
-   "label": "ATMU",
-   "color": "#37474F",
-   "auto": false,
-   "bbg": "ATMU US Equity",
-   "sub": "Atmus Filtration Technologies \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Atmus Filtration Technologies \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
-  },
-  {
-   "date": "2026-11-06",
-   "icon": "",
-   "label": "\u22ef 21 more",
+   "label": "\u22ef 26 more",
    "color": "#616161",
    "auto": false,
-   "tip": "National Healthcare Corp, Alpha Metallurgical Resource, Trump Media Technology Group, Interface, Ani Pharmaceuticals, Wendys, Sylvamo Corp, Marcus & Millichap Inc, Biglari Holdings Incinary Class B, Graham Corp, Koppers Holdings Inc, Prime Medicine, Gray Media Inc, Advansix, Holley, Lyell Immunopharma, Ni Holdings Inc, Tredegar Corp, Alx Oncology Holdings Inc, Conduent, 1Stdibs Com Inc"
+   "tip": "Atmus Filtration Technologies, National Healthcare Corp, Trump Media Technology Group, Alpha Metallurgical Resource, Interface, Ani Pharmaceuticals, Wendys, Sylvamo Corp, Marcus & Millichap Inc, Biglari Holdings Incinary Class B, Graham Corp, Koppers Holdings Inc, Immix Biopharma, Prime Medicine, Fulgent Genetics, Amc Global Media Class A, Gray Media Inc, Advansix, Lyell Immunopharma, American Battery Technology Compan, Ni Holdings Inc, Holley, Tredegar Corp, Conduent, Alx Oncology Holdings Inc, 1Stdibs Com Inc"
   },
   {
    "date": "2026-11-09",
@@ -5542,10 +5150,10 @@
   {
    "date": "2026-11-09",
    "icon": "",
-   "label": "\u22ef 54 more",
+   "label": "\u22ef 84 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Paramount Skydance Corp Class B, Gea Group Ag, Hims Hers Health Class A, Rum Group Class A, Life360, Plug Power, Bitdeer Technologies Group Class A, Biohaven, Keel Infrastructure Corp, Sonida Senior Living, Septerna, Quantum Computing, Surgery Partners, Harrow, Dole Plc, Annexon, Sable Offshore Class A, Olema Pharmaceuticals, Compass Diversified, American Public Education, Viant Technology Inc Class A, Lincoln Educational Services Corp, Alpha And Omega Semiconductor, Green Dot Class A, Hallador Energy, Ceva, Cannae Holdings Inc, Energy Vault Holdings, Prokidney Corp Class A, Alti Global Inc Class A, Gemini Space Station Inc Class A, Caledonia Mining Plc, Consolidated Water Ltd, Summit Midstream Corp, Bally S, Natural Gas Services Group, International Money Express Inc, Iheartmedia Class A, Powerfleet, Velo3D Inc\u2026"
+   "tip": "Paramount Skydance Corp Class B, Gea Group Ag, Caretrust Reit, Immunovant, Hims Hers Health Class A, Enact Holdings Inc, Cg Oncology, Crispr Therapeutics Ag, Global Business Travel Group Class, Rum Group Class A, Avient Corp, Genworth Financial Inc, Ideaya Biosciences, Life360, Erock Inc Class A, Bitdeer Technologies Group Class A, Plug Power, Five9, Guardian Pharmacy Services Class A, Celldex Therapeutics, Aurinia Pharmaceuticals, Biohaven, Keel Infrastructure Corp, Sonida Senior Living, Septerna, Quantum Computing, Surgery Partners, Atlanticus Holdings Corp, Dauch Corporation, Harrow, Dole Plc, Ceva, Sable Offshore Class A, Olema Pharmaceuticals, Compass Diversified, Profrac Holding Class A, Alpha And Omega Semiconductor, Viant Technology Inc Class A, Lincoln Educational Services Corp, American Public Education\u2026"
   },
   {
    "date": "2026-11-10",
@@ -5600,12 +5208,32 @@
   {
    "date": "2026-11-10",
    "icon": "",
+   "label": "ASST",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "ASST US Equity",
+   "sub": "Strive Inc Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Strive Inc Class A \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-11-10",
+   "icon": "",
    "label": "LUNR",
    "color": "#37474F",
    "auto": false,
    "bbg": "LUNR US Equity",
    "sub": "Intuitive Machines Inc Class A \u00b7 Russell 2000 \u00b7 US",
    "tip": "Intuitive Machines Inc Class A \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-11-10",
+   "icon": "",
+   "label": "BKV",
+   "color": "#1B5E20",
+   "auto": false,
+   "bbg": "BKV US Equity",
+   "sub": "Bkv \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Bkv \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
   },
   {
    "date": "2026-11-10",
@@ -5620,40 +5248,20 @@
   {
    "date": "2026-11-10",
    "icon": "",
-   "label": "ASST",
-   "color": "#C62828",
+   "label": "BRSL",
+   "color": "#E65100",
    "auto": false,
-   "bbg": "ASST US Equity",
-   "sub": "Strive Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Strive Inc Class A \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+   "bbg": "BRSL US Equity",
+   "sub": "Brightstar Lottery Plc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Brightstar Lottery Plc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
   },
   {
    "date": "2026-11-10",
    "icon": "",
-   "label": "BCAX",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "BCAX US Equity",
-   "sub": "Bicara Therapeutics Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Bicara Therapeutics Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
-  },
-  {
-   "date": "2026-11-10",
-   "icon": "",
-   "label": "TBPH",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "TBPH US Equity",
-   "sub": "Theravance Biopharma \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Theravance Biopharma \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 883mm"
-  },
-  {
-   "date": "2026-11-10",
-   "icon": "",
-   "label": "\u22ef 13 more",
+   "label": "\u22ef 14 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Kopin Corp, 4D Molecular Therapeutics Inc, Hyliion Holdings Corp, Ars Pharmaceuticals, American Integrity Insurance Group, 908 Devices, Capricor Therapeutics, Perma Fix Environmental Services I, Public Policy Holding Inc, Protara Therapeutics Inc, Black Rock Coffee Bar Class A, Nkarta, Adc Therapeutics Sa"
+   "tip": "Bicara Therapeutics Inc, Kopin Corp, 4D Molecular Therapeutics Inc, Hyliion Holdings Corp, Ars Pharmaceuticals, Capricor Therapeutics, American Integrity Insurance Group, 908 Devices, Perma Fix Environmental Services I, Public Policy Holding Inc, Protara Therapeutics Inc, Nkarta, Adc Therapeutics Sa, Black Rock Coffee Bar Class A"
   },
   {
    "date": "2026-11-11",
@@ -5728,16 +5336,6 @@
   {
    "date": "2026-11-11",
    "icon": "",
-   "label": "ERAS",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ERAS US Equity",
-   "sub": "Erasca \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Erasca \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
-  },
-  {
-   "date": "2026-11-11",
-   "icon": "",
    "label": "ICG",
    "color": "#283593",
    "auto": false,
@@ -5748,20 +5346,30 @@
   {
    "date": "2026-11-11",
    "icon": "",
-   "label": "DLO",
-   "color": "#283593",
+   "label": "ERAS",
+   "color": "#C62828",
    "auto": false,
-   "bbg": "DLO US Equity",
-   "sub": "Dlocal Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Dlocal Class A \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+   "bbg": "ERAS US Equity",
+   "sub": "Erasca \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Erasca \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
   },
   {
    "date": "2026-11-11",
    "icon": "",
-   "label": "\u22ef 38 more",
+   "label": "GRAL",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "GRAL US Equity",
+   "sub": "Grail Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Grail Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 5bn"
+  },
+  {
+   "date": "2026-11-11",
+   "icon": "",
+   "label": "\u22ef 53 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Celcuity, Heartflow, Accelerant Holdings Class A, Firefly Aerospace, Sellas Life Sciences Group Inc, Mcgraw Hill, Pagseguro Digital Ltd Class A, Flowco Holdings Class A, Pelagos Insurance Capital Ltd, Anterix, Alto Neuroscience Inc, Staar Surgical, Savara, Sky Harbour Group Class A, Himalaya Shipping Ltd, Nexxen International Ltd, Ovid Therapeutics, Prelude Therapeutics, Idaho Strategic Resources Inc, Kyverna Therapeutics, Atea Pharmaceuticals, Vox Royalty Corp, Diamedica Therapeutics Inc, Abeona Therapeutics Inc, M Tron Industries Inc, Sanara Medtech Inc, B And G Foods Inc, Global Water Resources Inc, Ridenow Group Inc Class B, Acumen Pharmaceuticals Inc, Quicklogic Corp, Smart Sand Inc, Armata Pharmaceuticals, Lucid Diagnostics Inc, Ampco Pittsburgh Corp, Caribou Biosciences, Curiositystream Inc Class A, Proficient Auto Logistics Inc"
+   "tip": "Accelerant Holdings Class A, Dlocal Class A, Heartflow Inc, Celcuity, Firefly Aerospace, Enliven Therapeutics, Sellas Life Sciences Group Inc, Digi International, Mcgraw Hill, Pagseguro Digital Ltd Class A, Applied Aerospace And Defense Inc, Flowco Holdings Class A, Pelagos Insurance Capital Ltd, Bobs Discount Furniture Inc, Anterix, Ardent Health Inc, Staar Surgical, Savara, Alto Neuroscience Inc, Ibotta Class A, Apnimed Inc, Himalaya Shipping Ltd, Sky Harbour Group Class A, Nexxen International Ltd, Ovid Therapeutics, Frontview Reit, Prelude Therapeutics, Kyverna Therapeutics, Idaho Strategic Resources Inc, Atea Pharmaceuticals, Diamedica Therapeutics Inc, Vox Royalty Corp, Avidia Bancorp Inc, M Tron Industries Inc, Abeona Therapeutics Inc, Sanara Medtech Inc, Immuneering Class A, Aeluma Inc, B And G Foods Inc, Global Water Resources Inc\u2026"
   },
   {
    "date": "2026-11-12",
@@ -5866,10 +5474,10 @@
   {
    "date": "2026-11-12",
    "icon": "",
-   "label": "\u22ef 83 more",
+   "label": "\u22ef 91 more",
    "color": "#616161",
    "auto": false,
-   "tip": "United Utilities Group Plc, Alliance Laundry Holdings, Ondas Inc, Webull Corp Class A, Veradermics, Burberry Group Plc, National Energy Services Reunited, Perpetua Resources, Alumis, Infleqtion Inc, Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Eton Pharmaceutcials Inc, Wolverine World Wide, Adi Global Distribution, Lb Pharmaceuticals Inc, Elemental Royalty Corp, Aktis Oncology Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences, Vor Biopharma, York Space Systems Inc, T1 Energy, Lumexa Imaging Holdings, Aevex Corp Class A, Candel Therapeutics Inc, Aebi Schmidt Holding Ag, Evolv Technologies Holdings Class, Lightwave Logic, Anteris Technologies Global Corp, Cardinal Infrastructure Group Inc, Dakota Gold Corp, Aura Biosciences, Whitefiber Inc, Neurogene, Shattuck Labs Inc\u2026"
+   "tip": "United Utilities Group Plc, Ondas Inc, Alliance Laundry Holdings, Webull Corp Class A, Veradermics, Burberry Group Plc, National Energy Services Reunited, Perpetua Resources, Infleqtion Inc, Stubhub Holdings Inc Class A, Nektar Therapeutics, Kodiak Sciences, Stoneco Class A, Zenas Biopharma, Wolverine World Wide, Eton Pharmaceutcials Inc, Adi Global Distribution, Elemental Royalty Corp, Lb Pharmaceuticals Inc, Meiragtx Holdings Plc, Omeros, Jade Biosciences, Vor Biopharma, York Space Systems Inc, T1 Energy, Edgewell Personal Care, Marinemax Inc, Lumexa Imaging Holdings, Aevex Corp Class A, Aktis Oncology Inc, Alumis, Aebi Schmidt Holding Ag, Lightwave Logic, Dakota Gold Corp, Beazer Homes, Evolv Technologies Holdings Class, Candel Therapeutics Inc, Avalo Therapeutics, Whitefiber Inc, Neurogene\u2026"
   },
   {
    "date": "2026-11-13",
@@ -5894,12 +5502,22 @@
   {
    "date": "2026-11-13",
    "icon": "",
+   "label": "HE",
+   "color": "#00695C",
+   "auto": false,
+   "bbg": "HE US Equity",
+   "sub": "Hawaiian Electric Industries \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Hawaiian Electric Industries \u2014 Utilities \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-13",
+   "icon": "",
    "label": "INBX",
    "color": "#C62828",
    "auto": false,
    "bbg": "INBX US Equity",
    "sub": "Inhibrx Biosciences Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Inhibrx Biosciences Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+   "tip": "Inhibrx Biosciences Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
   },
   {
    "date": "2026-11-13",
@@ -5914,12 +5532,32 @@
   {
    "date": "2026-11-13",
    "icon": "",
+   "label": "CLYM",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "CLYM US Equity",
+   "sub": "Climb Bio Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Climb Bio Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 719mm"
+  },
+  {
+   "date": "2026-11-13",
+   "icon": "",
+   "label": "CMDB",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "CMDB US Equity",
+   "sub": "Costamare Bulkers Holdings Ltd \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Costamare Bulkers Holdings Ltd \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 542mm"
+  },
+  {
+   "date": "2026-11-13",
+   "icon": "",
    "label": "FBYD",
    "color": "#37474F",
    "auto": false,
    "bbg": "FBYD US Equity",
    "sub": "Falcon S Beyond Global Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Falcon S Beyond Global Inc Class A \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 524mm"
+   "tip": "Falcon S Beyond Global Inc Class A \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 324mm"
   },
   {
    "date": "2026-11-13",
@@ -5929,17 +5567,7 @@
    "auto": false,
    "bbg": "IKT US Equity",
    "sub": "Inhibikase Therapeutics \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Inhibikase Therapeutics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 349mm"
-  },
-  {
-   "date": "2026-11-13",
-   "icon": "",
-   "label": "ELDN",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ELDN US Equity",
-   "sub": "Eledon Pharmaceuticals Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Eledon Pharmaceuticals Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 277mm"
+   "tip": "Inhibikase Therapeutics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 300mm"
   },
   {
    "date": "2026-11-13",
@@ -5949,27 +5577,25 @@
    "auto": false,
    "bbg": "AIRO US Equity",
    "sub": "Airo Group Holdings Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Airo Group Holdings Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 256mm"
+   "tip": "Airo Group Holdings Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 226mm"
   },
   {
    "date": "2026-11-13",
    "icon": "",
-   "label": "SIDU",
-   "color": "#37474F",
+   "label": "\u22ef 3 more",
+   "color": "#616161",
    "auto": false,
-   "bbg": "SIDU US Equity",
-   "sub": "Sidus Space Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Sidus Space Inc Class A \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 225mm"
+   "tip": "Sidus Space Inc Class A, Eledon Pharmaceuticals Inc, Brand Engagement Network Inc"
   },
   {
-   "date": "2026-11-13",
+   "date": "2026-11-14",
    "icon": "",
-   "label": "BNAI",
-   "color": "#1565C0",
+   "label": "CGEM",
+   "color": "#C62828",
    "auto": false,
-   "bbg": "BNAI US Equity",
-   "sub": "Brand Engagement Network Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Brand Engagement Network Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 101mm"
+   "bbg": "CGEM US Equity",
+   "sub": "Cullinan Therapeutics \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Cullinan Therapeutics \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
   },
   {
    "date": "2026-11-16",
@@ -5994,12 +5620,22 @@
   {
    "date": "2026-11-16",
    "icon": "",
-   "label": "AVLN",
+   "label": "HP",
+   "color": "#1B5E20",
+   "auto": false,
+   "bbg": "HP US Equity",
+   "sub": "Helmerich & Payne \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Helmerich & Payne \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+  },
+  {
+   "date": "2026-11-16",
+   "icon": "",
+   "label": "COAG",
    "color": "#C62828",
    "auto": false,
-   "bbg": "AVLN US Equity",
-   "sub": "Avalyn Pharma Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Avalyn Pharma Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+   "bbg": "COAG US Equity",
+   "sub": "Hemab Therapeutics Holdings Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Hemab Therapeutics Holdings Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
   },
   {
    "date": "2026-11-16",
@@ -6014,12 +5650,42 @@
   {
    "date": "2026-11-16",
    "icon": "",
+   "label": "HAWK",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "HAWK US Equity",
+   "sub": "Hawkeye Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Hawkeye Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-16",
+   "icon": "",
    "label": "AVBP",
    "color": "#C62828",
    "auto": false,
    "bbg": "AVBP US Equity",
    "sub": "Arrivent Biopharma \u00b7 Russell 2000 \u00b7 US",
    "tip": "Arrivent Biopharma \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-11-16",
+   "icon": "",
+   "label": "AVLN",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "AVLN US Equity",
+   "sub": "Avalyn Pharma Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Avalyn Pharma Inc \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-11-16",
+   "icon": "",
+   "label": "BRUN",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "BRUN US Equity",
+   "sub": "Boost Run Inc Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Boost Run Inc Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
   },
   {
    "date": "2026-11-16",
@@ -6034,50 +5700,10 @@
   {
    "date": "2026-11-16",
    "icon": "",
-   "label": "JCAP",
-   "color": "#283593",
-   "auto": false,
-   "bbg": "JCAP US Equity",
-   "sub": "Jefferson Capital Inc \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Jefferson Capital Inc \u2014 Financials \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-11-16",
-   "icon": "",
-   "label": "ABUS",
-   "color": "#C62828",
-   "auto": false,
-   "bbg": "ABUS US Equity",
-   "sub": "Arbutus Biopharma Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Arbutus Biopharma Corp \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
-  },
-  {
-   "date": "2026-11-16",
-   "icon": "",
-   "label": "YSWY",
-   "color": "#558B2F",
-   "auto": false,
-   "bbg": "YSWY US Equity",
-   "sub": "Yesway Inc Class A \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Yesway Inc Class A \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 793mm"
-  },
-  {
-   "date": "2026-11-16",
-   "icon": "",
-   "label": "UAMY",
-   "color": "#795548",
-   "auto": false,
-   "bbg": "UAMY US Equity",
-   "sub": "United States Antimony Corp \u00b7 Russell 2000 \u00b7 US",
-   "tip": "United States Antimony Corp \u2014 Materials \u00b7 Russell 2000 \u00b7 US \u00b7 763mm"
-  },
-  {
-   "date": "2026-11-16",
-   "icon": "",
-   "label": "\u22ef 12 more",
+   "label": "\u22ef 20 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Cormedix, Enviri Corp, Elmet Group, Cabaletta Bio, Virgin Galactic Holdings Inc Shs C, Enanta Pharmaceuticals Inc, Primeenergy Resources Corp, Outdoor Holding, Encore Energy, Tss Inc, Stereotaxis Inc, Us Goldmining Inc"
+   "tip": "Jefferson Capital Inc, Arbutus Biopharma Corp, Yesway Inc Class A, United States Antimony Corp, Elmet Group, Cormedix, Enviri Corp, Gmr Solutions Inc Class A, Virgin Galactic Holdings Inc Shs C, Cabaletta Bio, Enanta Pharmaceuticals Inc, Primeenergy Resources Corp, Evommune, Outdoor Holding, Encore Energy, Tss Inc, Espey Manufacturing And Electronic, Corbus Pharmaceuticals Holdings, Stereotaxis Inc, Us Goldmining Inc"
   },
   {
    "date": "2026-11-17",
@@ -6132,12 +5758,32 @@
   {
    "date": "2026-11-17",
    "icon": "",
+   "label": "ENR",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "ENR US Equity",
+   "sub": "Energizer Holdings Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Energizer Holdings Inc \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-17",
+   "icon": "",
    "label": "LZB",
    "color": "#E65100",
    "auto": false,
    "bbg": "LZB US Equity",
    "sub": "La-Z-Boy Inc \u00b7 Russell 2000 \u00b7 US",
    "tip": "La-Z-Boy Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-11-17",
+   "icon": "",
+   "label": "BRBR",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "BRBR US Equity",
+   "sub": "Bellring Brands \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Bellring Brands \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 981mm"
   },
   {
    "date": "2026-11-17",
@@ -6232,12 +5878,30 @@
   {
    "date": "2026-11-18",
    "icon": "",
+   "label": "GFF",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "GFF US Equity",
+   "sub": "Griffon \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Griffon \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+  },
+  {
+   "date": "2026-11-18",
+   "icon": "",
    "label": "BLND",
    "color": "#AD1457",
    "auto": false,
    "bbg": "BLND LN Equity",
    "sub": "British Land Reit Plc \u00b7 FTSE 100 \u00b7 London",
    "tip": "British Land Reit Plc \u2014 Real Estate \u00b7 FTSE 100 \u00b7 London \u00b7 4bn"
+  },
+  {
+   "date": "2026-11-18",
+   "icon": "",
+   "label": "\u22ef 3 more",
+   "color": "#616161",
+   "auto": false,
+   "tip": "Borr Drilling, Brightview Holdings, Cerence"
   },
   {
    "date": "2026-11-19",
@@ -6322,6 +5986,16 @@
   {
    "date": "2026-11-19",
    "icon": "",
+   "label": "ESE",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "ESE US Equity",
+   "sub": "Esco Technologies \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Esco Technologies \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 7bn"
+  },
+  {
+   "date": "2026-11-19",
+   "icon": "",
    "label": "BAB",
    "color": "#37474F",
    "auto": false,
@@ -6332,12 +6006,10 @@
   {
    "date": "2026-11-19",
    "icon": "",
-   "label": "INVP",
-   "color": "#283593",
+   "label": "\u22ef 4 more",
+   "color": "#616161",
    "auto": false,
-   "bbg": "INVP LN Equity",
-   "sub": "Investec Plc \u00b7 FTSE 100 \u00b7 London",
-   "tip": "Investec Plc \u2014 Financials \u00b7 FTSE 100 \u00b7 London \u00b7 4bn"
+   "tip": "Investec Plc, Atkore, Globant, I3 Verticals Class A"
   },
   {
    "date": "2026-11-20",
@@ -6348,6 +6020,46 @@
    "bbg": "BKE US Equity",
    "sub": "Buckle \u00b7 Russell 2000 \u00b7 US",
    "tip": "Buckle \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-20",
+   "icon": "",
+   "label": "AZTA",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "AZTA US Equity",
+   "sub": "Azenta \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Azenta \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-11-23",
+   "icon": "",
+   "label": "FLNC",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "FLNC US Equity",
+   "sub": "Fluence Energy Inc Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Fluence Energy Inc Class A \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-11-23",
+   "icon": "",
+   "label": "ALCO",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "ALCO US Equity",
+   "sub": "Alico Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Alico Inc \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 292mm"
+  },
+  {
+   "date": "2026-11-23",
+   "icon": "",
+   "label": "ESOA",
+   "color": "#1B5E20",
+   "auto": false,
+   "bbg": "ESOA US Equity",
+   "sub": "Energy Services Of America Corp \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Energy Services Of America Corp \u2014 Energy \u00b7 Russell 2000 \u00b7 US \u00b7 202mm"
   },
   {
    "date": "2026-11-24",
@@ -6420,6 +6132,36 @@
    "tip": "Londonmetric Property Reit Plc \u2014 Real Estate \u00b7 FTSE 100 \u00b7 London \u00b7 4bn"
   },
   {
+   "date": "2026-11-24",
+   "icon": "",
+   "label": "CLSK",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "CLSK US Equity",
+   "sub": "Cleanspark \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Cleanspark \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 4bn"
+  },
+  {
+   "date": "2026-11-24",
+   "icon": "",
+   "label": "CLFD",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "CLFD US Equity",
+   "sub": "Clearfield Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Clearfield Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 422mm"
+  },
+  {
+   "date": "2026-11-24",
+   "icon": "",
+   "label": "AVXL",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "AVXL US Equity",
+   "sub": "Anavex Life Sciences Corp \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Anavex Life Sciences Corp \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 218mm"
+  },
+  {
    "date": "2026-11-25",
    "icon": "",
    "label": "DE",
@@ -6458,6 +6200,66 @@
    "bbg": "VEEV US Equity",
    "sub": "Veeva Systems Class A \u00b7 S&P 500 \u00b7 US",
    "tip": "Veeva Systems Class A \u2014 Health Care \u00b7 S&P 500 \u00b7 US \u00b7 42bn"
+  },
+  {
+   "date": "2026-11-25",
+   "icon": "",
+   "label": "ANF",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "ANF US Equity",
+   "sub": "Abercrombie And Fitch Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Abercrombie And Fitch Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 6bn"
+  },
+  {
+   "date": "2026-11-25",
+   "icon": "",
+   "label": "CENT",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "CENT US Equity",
+   "sub": "Central Garden And Pet \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Central Garden And Pet \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-25",
+   "icon": "",
+   "label": "CENTA",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "CENTA US Equity",
+   "sub": "Central Garden And Pet Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Central Garden And Pet Class A \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-25",
+   "icon": "",
+   "label": "BLBD",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "BLBD US Equity",
+   "sub": "Blue Bird \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Blue Bird \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-25",
+   "icon": "",
+   "label": "IMKTA",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "IMKTA US Equity",
+   "sub": "Ingles Markets Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Ingles Markets Class A \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-11-25",
+   "icon": "",
+   "label": "EMBC",
+   "color": "#C62828",
+   "auto": false,
+   "bbg": "EMBC US Equity",
+   "sub": "Embecta \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Embecta \u2014 Health Care \u00b7 Russell 2000 \u00b7 US \u00b7 316mm"
   },
   {
    "date": "2026-11-27",
@@ -6510,6 +6312,26 @@
    "tip": "Netapp Inc \u2014 Information Technology \u00b7 S&P 500 \u00b7 US \u00b7 39bn"
   },
   {
+   "date": "2026-12-01",
+   "icon": "",
+   "label": "AMBA",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "AMBA US Equity",
+   "sub": "Ambarella \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Ambarella \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-12-01",
+   "icon": "",
+   "label": "AEO",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "AEO US Equity",
+   "sub": "American Eagle Outfitters \u00b7 Russell 2000 \u00b7 US",
+   "tip": "American Eagle Outfitters \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
    "date": "2026-12-02",
    "icon": "",
    "label": "CRM",
@@ -6528,6 +6350,46 @@
    "bbg": "ITX SM Equity",
    "sub": "Industria De Diseno Textil Sa \u00b7 Euro Stoxx 50 \u00b7 Madrid",
    "tip": "Industria De Diseno Textil Sa \u2014 Consumer Discretionary \u00b7 Euro Stoxx 50 \u00b7 Madrid \u00b7 167bn"
+  },
+  {
+   "date": "2026-12-02",
+   "icon": "",
+   "label": "ASAN",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "ASAN US Equity",
+   "sub": "Asana Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Asana Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 2bn"
+  },
+  {
+   "date": "2026-12-02",
+   "icon": "",
+   "label": "CXM",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "CXM US Equity",
+   "sub": "Sprinklr Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Sprinklr Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
+   "date": "2026-12-02",
+   "icon": "",
+   "label": "CHPT",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "CHPT US Equity",
+   "sub": "Chargepoint Holdings Inc Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Chargepoint Holdings Inc Class A \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 248mm"
+  },
+  {
+   "date": "2026-12-02",
+   "icon": "",
+   "label": "CURV",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "CURV US Equity",
+   "sub": "Torrid Holdings Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Torrid Holdings Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 237mm"
   },
   {
    "date": "2026-12-03",
@@ -6550,6 +6412,26 @@
    "tip": "Ulta Beauty Inc \u2014 Consumer Discretionary \u00b7 S&P 500 \u00b7 US \u00b7 24bn"
   },
   {
+   "date": "2026-12-03",
+   "icon": "",
+   "label": "GCO",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "GCO US Equity",
+   "sub": "Genesco Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Genesco Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 370mm"
+  },
+  {
+   "date": "2026-12-03",
+   "icon": "",
+   "label": "DOMO",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "DOMO US Equity",
+   "sub": "Domo Inc Class B \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Domo Inc Class B \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 167mm"
+  },
+  {
    "date": "2026-12-08",
    "icon": "",
    "label": "CASY",
@@ -6558,6 +6440,36 @@
    "bbg": "CASY US Equity",
    "sub": "Caseys General Stores Inc \u00b7 S&P 500 \u00b7 US",
    "tip": "Caseys General Stores Inc \u2014 Consumer Staples \u00b7 S&P 500 \u00b7 US \u00b7 22bn"
+  },
+  {
+   "date": "2026-12-08",
+   "icon": "",
+   "label": "ASO",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "ASO US Equity",
+   "sub": "Academy Sports And Outdoors \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Academy Sports And Outdoors \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-12-08",
+   "icon": "",
+   "label": "BRZE",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "BRZE US Equity",
+   "sub": "Braze Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Braze Class A \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-12-08",
+   "icon": "",
+   "label": "DBI",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "DBI US Equity",
+   "sub": "Designer Brands Class A \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Designer Brands Class A \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 318mm"
   },
   {
    "date": "2026-12-09",
@@ -6580,6 +6492,16 @@
    "tip": "Adobe Inc \u2014 Information Technology \u00b7 S&P 500, Nasdaq 100 \u00b7 US \u00b7 99bn"
   },
   {
+   "date": "2026-12-09",
+   "icon": "",
+   "label": "CBRL",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "CBRL US Equity",
+   "sub": "Cracker Barrel Old Country Store I \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Cracker Barrel Old Country Store I \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 1bn"
+  },
+  {
    "date": "2026-12-10",
    "icon": "",
    "label": "ORCL",
@@ -6590,6 +6512,36 @@
    "tip": "Oracle \u2014 Information Technology \u00b7 S&P 500 \u00b7 US \u00b7 449bn"
   },
   {
+   "date": "2026-12-10",
+   "icon": "",
+   "label": "FIZZ",
+   "color": "#558B2F",
+   "auto": false,
+   "bbg": "FIZZ US Equity",
+   "sub": "National Beverage \u00b7 Russell 2000 \u00b7 US",
+   "tip": "National Beverage \u2014 Consumer Staples \u00b7 Russell 2000 \u00b7 US \u00b7 3bn"
+  },
+  {
+   "date": "2026-12-10",
+   "icon": "",
+   "label": "FEIM",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "FEIM US Equity",
+   "sub": "Frequency Electronics Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Frequency Electronics Inc \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 949mm"
+  },
+  {
+   "date": "2026-12-10",
+   "icon": "",
+   "label": "CAL",
+   "color": "#E65100",
+   "auto": false,
+   "bbg": "CAL US Equity",
+   "sub": "Caleres Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Caleres Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 426mm"
+  },
+  {
    "date": "2026-12-15",
    "icon": "",
    "label": "LEN",
@@ -6598,6 +6550,26 @@
    "bbg": "LEN US Equity",
    "sub": "Lennar A Class A \u00b7 S&P 500 \u00b7 US",
    "tip": "Lennar A Class A \u2014 Consumer Discretionary \u00b7 S&P 500 \u00b7 US \u00b7 19bn"
+  },
+  {
+   "date": "2026-12-15",
+   "icon": "",
+   "label": "IMMR",
+   "color": "#1565C0",
+   "auto": false,
+   "bbg": "IMMR US Equity",
+   "sub": "Immersion Corp \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Immersion Corp \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 245mm"
+  },
+  {
+   "date": "2026-12-21",
+   "icon": "",
+   "label": "EBF",
+   "color": "#37474F",
+   "auto": false,
+   "bbg": "EBF US Equity",
+   "sub": "Ennis Inc \u00b7 Russell 2000 \u00b7 US",
+   "tip": "Ennis Inc \u2014 Industrials \u00b7 Russell 2000 \u00b7 US \u00b7 544mm"
   }
  ]
 }

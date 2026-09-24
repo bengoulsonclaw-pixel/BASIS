@@ -70636,7 +70636,7 @@
  },
  "NWS US Equity": {
   "ticker": "NWS US Equity",
-  "pulled": "2026-09-08",
+  "pulled": "2026-09-24",
   "empty": true
  },
  "KIM US Equity": {
@@ -93456,7 +93456,7 @@
  },
  "NWSA US Equity": {
   "ticker": "NWSA US Equity",
-  "pulled": "2026-09-15",
+  "pulled": "2026-09-24",
   "empty": true
  },
  "ETN US Equity": {
@@ -109177,6 +109177,36 @@
  "C US Equity": {
   "ticker": "C US Equity",
   "pulled": "2026-09-22",
+  "empty": true
+ },
+ "ABNB US Equity": {
+  "ticker": "ABNB US Equity",
+  "pulled": "2026-09-24",
+  "empty": true
+ },
+ "NI US Equity": {
+  "ticker": "NI US Equity",
+  "pulled": "2026-09-24",
+  "empty": true
+ },
+ "IR US Equity": {
+  "ticker": "IR US Equity",
+  "pulled": "2026-09-24",
+  "empty": true
+ },
+ "PGR US Equity": {
+  "ticker": "PGR US Equity",
+  "pulled": "2026-09-24",
+  "empty": true
+ },
+ "TPL US Equity": {
+  "ticker": "TPL US Equity",
+  "pulled": "2026-09-24",
+  "empty": true
+ },
+ "ZBRA US Equity": {
+  "ticker": "ZBRA US Equity",
+  "pulled": "2026-09-24",
   "empty": true
  }
 }

@@ -1,10 +1,11 @@
 {
  "date": "2026-09-24",
- "runs": 1,
- "outcome": "compute_failed",
- "phase": "compute",
+ "runs": 2,
+ "outcome": "running",
+ "phase": "backup",
  "mc": "",
- "started": "2026-09-24T06:22:11",
- "when": "2026-09-24T06:32:45",
- "detail": "fetched data is safe on disk \u2014 'Re-run signals' in the app"
+ "started": "2026-09-24T07:47:17",
+ "when": "2026-09-24T07:48:47",
+ "detail": "fetched data is safe on disk \u2014 'Re-run signals' in the app",
+ "mode": "compute"
 }
