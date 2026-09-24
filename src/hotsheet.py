@@ -295,15 +295,21 @@ def export_from_history(min_rows: int = 5) -> int:
             if len(grp) < min_rows:
                 continue
             items = grp.sort_values("heat", ascending=False).to_dict("records")
-            for it in items:
-                it["badge"] = ""
-            top = top_strip(items)
+            try:
+                apply_badges(items, asof=pd.Timestamp(day))
+                apply_heat_delta(items, asof=pd.Timestamp(day))
+            except Exception:
+                for it in items:
+                    it.setdefault("badge", "")
+                    it.setdefault("heat_delta", None)
+            top = split_strip(items)     # same 5 + 5 shape as the live export
             payload = {
                 "collected": float(time.time()),      # written NOW: the thin-guard's 36h
                 "collected_et": f"{pd.Timestamp(day):%Y-%m-%d} (morning stamp)",   # window protects it
                 "rows": [{"tag": it.get("tag", ""), "text": it.get("text", ""),
                           "metric": it.get("metric", ""), "sub": it.get("sub", ""),
-                          "heat": float(it.get("heat", 0) or 0), "badge": "",
+                          "heat": float(it.get("heat", 0) or 0), "badge": it.get("badge", ""),
+                          "group": it.get("group", ""), "heat_delta": it.get("heat_delta"),
                           "page": it.get("page", ""), "provider": it.get("provider", "")}
                          for it in top],
             }
@@ -331,6 +337,33 @@ def _story_key(text: str) -> str:
     return key if any(c.isdigit() for c in key) else ""
 
 
+def _select(items: list, per_tag: int = 2, n: int = 10,
+            seen: dict | None = None, stories: set | None = None,
+            exclude_keys: set | None = None) -> list:
+    """Per-tag-capped, story-deduped pick of the first `n` items IN THE ORDER GIVEN.
+    `seen` / `stories` / `exclude_keys` may be passed in so a SECOND selection (the
+    'new & rising' half) never reuses a module's tag budget, a story already shown, or
+    an item already taken — the cap and the dedup then span both halves."""
+    out = []
+    seen = seen if seen is not None else {}
+    stories = stories if stories is not None else set()
+    for it in items:
+        if exclude_keys and it.get("key") in exclude_keys:
+            continue
+        if seen.get(it["tag"], 0) >= per_tag:
+            continue
+        skey = _story_key(it.get("text"))
+        if skey and skey in stories:
+            continue                       # same claim, different contract on the same curve
+        if skey:
+            stories.add(skey)
+        seen[it["tag"]] = seen.get(it["tag"], 0) + 1
+        out.append(it)
+        if len(out) >= n:
+            break
+    return out
+
+
 def top_strip(items: list, book: str = "ficc", per_tag: int = 2, n: int = 10) -> list:
     """The editorial top strip: `book` only, at most `per_tag` rows per module, first
     `n` by heat (items arrive heat-sorted), and NEVER the same story twice. Pure selection.
@@ -340,21 +373,35 @@ def top_strip(items: list, book: str = "ficc", per_tag: int = 2, n: int = 10) ->
     printed twice, because universe.py maps UXYA to the same yield series as TYA. The same
     morning, SEAS spent three of its five slots on one seasonal window read off three points
     of one curve. A reader takes a repeated line as independent corroboration; it isn't."""
-    top, seen, stories = [], {}, set()
-    for it in items:
-        if it.get("book") != book:
-            continue
-        if seen.get(it["tag"], 0) >= per_tag:
-            continue
-        key = _story_key(it.get("text"))
-        if key and key in stories:
-            continue                       # same claim, different contract on the same curve
-        stories.add(key)
-        seen[it["tag"]] = seen.get(it["tag"], 0) + 1
-        top.append(it)
-        if len(top) >= n:
-            break
-    return top
+    return _select([it for it in items if it.get("book") == book], per_tag=per_tag, n=n)
+
+
+def split_strip(items: list, book: str = "ficc", n_hot: int = 5, n_new: int = 5) -> list:
+    """The Morning-Coffee cut (2026-09-24, replacing the flat top-10 which barely moved
+    day to day): the `n_hot` HOTTEST, then the `n_new` freshest — NEW entrants first, then
+    the biggest heat GAINS vs the last stamp — with nothing shown twice (the per-module cap
+    and story dedup span BOTH halves). Every item is tagged group='hot' or group='new'. The
+    'new' half backfills from the next-hottest remainder so it is never thin on a quiet
+    morning. Run apply_badges + apply_heat_delta first: badge and heat_delta drive the rank."""
+    ficc = [it for it in items if it.get("book") == book]
+    seen, stories = {}, set()
+    hot = _select(sorted(ficc, key=lambda it: -float(it.get("heat", 0) or 0)),
+                  per_tag=2, n=n_hot, seen=seen, stories=stories)
+    for it in hot:
+        it["group"] = "hot"
+
+    def _fresh_rank(it):                            # NEW first, then biggest heat gain, then heat
+        is_new = 1 if it.get("badge") == "NEW" else 0
+        d = it.get("heat_delta")
+        d = float(d) if isinstance(d, (int, float)) else 0.0
+        return (-is_new, -d, -float(it.get("heat", 0) or 0))
+
+    fresh = _select(sorted(ficc, key=_fresh_rank), per_tag=2, n=n_new,
+                    seen=seen, stories=stories,
+                    exclude_keys={it.get("key") for it in hot})
+    for it in fresh:
+        it["group"] = "new"
+    return hot + fresh
 
 
 def write_top10_export(items: list, collected: float | None = None) -> int:
@@ -366,7 +413,12 @@ def write_top10_export(items: list, collected: float | None = None) -> int:
             apply_badges(rows)
         except Exception:
             pass
-        top = top_strip(rows)
+        try:
+            apply_heat_delta(rows)
+        except Exception:
+            for it in rows:
+                it.setdefault("heat_delta", None)
+        top = split_strip(rows)              # 5 hottest + 5 new & rising (each tagged 'group')
         # Never let a thin re-collect clobber a rich export: an off-hours / weekend
         # stamp (providers quiet) produced 0-1 rows and overwrote the morning's ten
         # (2026-08-22). Keep the existing file when it is materially fuller and
@@ -386,6 +438,7 @@ def write_top10_export(items: list, collected: float | None = None) -> int:
             "rows": [{"tag": it.get("tag", ""), "text": it.get("text", ""),
                       "metric": it.get("metric", ""), "sub": it.get("sub", ""),
                       "heat": float(it.get("heat", 0) or 0), "badge": it.get("badge", ""),
+                      "group": it.get("group", ""), "heat_delta": it.get("heat_delta"),
                       "page": it.get("page", ""), "provider": it.get("provider", "")}
                      for it in top],
         }
@@ -463,6 +516,25 @@ def apply_badges(items: list[dict], asof: date | None = None) -> None:
             else:
                 break
         it["badge"] = f"day {streak}" if streak >= 3 else ""
+
+
+def apply_heat_delta(items: list[dict], asof: date | None = None) -> None:
+    """Annotate each item in place with ``heat_delta`` = today's heat minus its most recent
+    PRIOR stamped heat (same per-``key`` match as apply_badges). ``None`` means no prior stamp
+    — a genuinely NEW story — which split_strip's 'new & rising' rank treats as maximally
+    fresh. Safe on day one (no history): everything gets None."""
+    hist = load_history()
+    asof = pd.Timestamp(asof or date.today())
+    past = hist[hist["date"] < asof]
+    if past.empty:
+        for it in items:
+            it["heat_delta"] = None
+        return
+    last = past.sort_values("date").groupby("key")["heat"].last()   # most recent prior heat/key
+    for it in items:
+        prev = last.get(it["key"])
+        it["heat_delta"] = (round(float(it.get("heat", 0) or 0) - float(prev), 1)
+                            if prev is not None and pd.notna(prev) else None)
 
 
 # ---------------------------------------------------------------------------

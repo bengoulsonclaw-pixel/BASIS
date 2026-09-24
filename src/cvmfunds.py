@@ -939,7 +939,10 @@ def monthly_flow(nav: pd.DataFrame, registry: pd.DataFrame) -> pd.DataFrame:
     """
     if nav.empty or registry.empty:
         return pd.DataFrame()
-    keys = ["cvm_class", "is_feeder", "is_exclusive", "is_prev"]
+    # `anbima` rides along so the rotation chart can follow the page's grain toggle. It
+    # multiplies the rows by the number of strategies and the result is still a few
+    # thousand — trivial next to the 6.4m fund-days the alternative would re-read.
+    keys = ["cvm_class", "anbima", "is_feeder", "is_exclusive", "is_prev"]
     d = nav.merge(registry[["cnpj", *keys]].drop_duplicates("cnpj"), on="cnpj", how="left")
     d["month"] = d["date"].dt.to_period("M").dt.to_timestamp()
     out = (d.groupby(["month", *keys], dropna=False)
@@ -1052,7 +1055,8 @@ def history(cnpj: str, subclass: str = "") -> pd.DataFrame:
 
 # ── screening ───────────────────────────────────────────────────────────────────────
 def load_monthly(include_feeders: bool = False, include_exclusive: bool = False,
-                 include_prev: bool = False, cvm_class: str | None = None) -> pd.DataFrame:
+                 include_prev: bool = False, cvm_class: str | None = None,
+                 by: str | None = None) -> pd.DataFrame:
     """The stored monthly aggregate, screened the same way the tables are.
 
     Defaults match `screen()` so the industry chart and the industry table cannot end up
@@ -1077,6 +1081,19 @@ def load_monthly(include_feeders: bool = False, include_exclusive: bool = False,
     for extra in ("launched", "closed"):
         if extra in m:
             agg[extra] = (extra, "sum")
+    if by:
+        # Translated here, not stored: the vocabulary lives in one place and a wording fix
+        # must not need a rebuild (same rule as add_english).
+        if by == "class_en":
+            m = m.assign(sector=m["cvm_class"].map(english_class))
+        elif by == "strategy_en":
+            m = m.assign(sector=m["anbima"].map(english_strategy))
+        else:
+            m = m.assign(sector=m[by])
+        # `english_class(NaN)` comes back as the STRING "nan" — str(term) on a float NaN —
+        # so an unclassified class becomes a sector called "nan" and stacks a bar of its own.
+        m = m[~m["sector"].astype(str).str.strip().isin(("", "nan", "None", "<NA>"))]
+        return m.groupby(["month", "sector"], as_index=False).agg(**agg)
     return m.groupby("month", as_index=False).agg(**agg)
 
 

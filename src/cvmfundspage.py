@@ -1221,6 +1221,70 @@ def _industry_flow(opts: dict, klass: str | None = None) -> None:
           "snapshot date, not at month end."))
 
 
+_ROTATION_TOP = 6          # sectors drawn by name; the rest stack as "Other"
+
+
+def _sector_rotation(opts: dict, by: str, label: str) -> None:
+    """Net flow by sector, month by month — the rotation, stacked around zero.
+
+    WHAT THIS IS NOT: a traced transfer. CVM publishes each fund's subscriptions and
+    redemptions, never a link between them, so nothing in the file says the money that
+    left fixed income is the money that arrived in multi-strategy. What makes the reading
+    fair is that the industry is close to shut: it took R$10.5tn and paid out R$10.4tn
+    over the window, so month by month one sector's outflow is broadly another's inflow.
+    The caption says so rather than letting a stacked chart imply a plumbing diagram.
+    """
+    m = cvmfunds.load_monthly(include_feeders=opts["feeders"],
+                              include_exclusive=opts["exclusive"],
+                              include_prev=opts["prev"], by=by)
+    if m.empty:
+        return
+    m = m.assign(net=(m["subs"] - m["redem"]) / _BN)
+
+    # Only the sectors that actually move the needle get their own colour. At the strategy
+    # grain there are 42 of them, and a 42-colour stack is a mosaic, not a chart.
+    size = m.groupby("sector")["net"].apply(lambda s: s.abs().sum()).sort_values(ascending=False)
+    named = list(size.head(_ROTATION_TOP).index)
+    m["sector"] = np.where(m["sector"].isin(named), m["sector"], "Other")
+    m = m.groupby(["month", "sector"], as_index=False)["net"].sum()
+
+    cc = brand.chart_colors()
+    order = named + (["Other"] if (m["sector"] == "Other").any() else [])
+    palette = [cc["series"], cc["long"], cc["accent"], cc["short"], cc["ink"],
+               "#9B7BD4", cc["muted"]][:len(order)]
+    bars = (alt.Chart(m).mark_bar()
+            .encode(x=alt.X("yearmonth(month):O", title=None),
+                    y=alt.Y("net:Q", title="net flow (R$bn)", stack="zero"),
+                    # labelLimit: an ANBIMA strategy name is long, and the default clips
+                    # it to "Fixed Income — Low Duration Sov…" in the legend.
+                    color=alt.Color("sector:N", title=None,
+                                    scale=alt.Scale(domain=order, range=palette),
+                                    sort=order, legend=alt.Legend(labelLimit=280)),
+                    order=alt.Order("sector:N", sort="ascending"),
+                    tooltip=[alt.Tooltip("yearmonth(month):O", title="Month"),
+                             alt.Tooltip("sector:N", title=label),
+                             alt.Tooltip("net:Q", title="Net R$bn", format="+,.1f")]))
+    zero = (alt.Chart(pd.DataFrame({"z": [0]})).mark_rule(color=cc["muted"], size=1)
+            .encode(y="z:Q"))
+    brand.show_chart((bars + zero).properties(
+        height=300, title=f"Where the money moved — net flow by {label.lower()}, by month"))
+
+    # Name the sharpest month, because the chart's whole point is one bar up and one down.
+    piv = m.pivot_table(index="month", columns="sector", values="net", aggfunc="sum").fillna(0)
+    spread = (piv.max(axis=1) - piv.min(axis=1))
+    when = spread.idxmax()
+    row = piv.loc[when]
+    st.caption(_md(
+        f"Bars above the line took money, below it lost money. The widest month was "
+        f"**{when:%B %Y}** — **{row.idxmax()}** {_brl(row.max() * _BN)} against "
+        f"**{row.idxmin()}** {_brl(row.min() * _BN)}.  \n"
+        "CVM publishes each fund's subscriptions and redemptions but never a link between "
+        "them, so this is **not** a traced transfer — it is each sector's net. What makes "
+        "the rotation reading fair is that the industry is nearly shut: it took R$10.5tn "
+        "and paid out R$10.4tn over the window, so one sector's outflow is broadly "
+        "another's inflow."))
+
+
 def _launch_close(opts: dict) -> None:
     """New share classes against ones that stopped filing."""
     m = cvmfunds.load_monthly(include_feeders=opts["feeders"],
@@ -1303,6 +1367,8 @@ def _tab_overview(met: pd.DataFrame) -> None:
     _flow_vs_perf(sec if grain == _GRAINS_OV[0] else sec.head(20), label)
     st.divider()
     _industry_flow(opts)
+    st.divider()
+    _sector_rotation(opts, by, label)
     st.divider()
     _launch_close(opts)
     st.divider()
