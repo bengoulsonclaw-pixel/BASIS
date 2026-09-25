@@ -73,6 +73,7 @@ STORE = _ROOT / "data" / "signals" / "cvm_funds"
 REGISTRY = STORE / "registry.parquet"
 METRICS = STORE / "metrics.parquet"
 MONTHLY = STORE / "monthly_flow.parquet"   # industry subs/redemptions, small enough to read on open
+SECTORIDX = STORE / "sector_daily.parquet" # asset-weighted daily return per sector
 META = STORE / "meta.json"
 
 _INF_URL = "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{ym}.zip"
@@ -980,6 +981,77 @@ def monthly_flow(nav: pd.DataFrame, registry: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def sector_daily(nav: pd.DataFrame, registry: pd.DataFrame) -> pd.DataFrame:
+    """Asset-weighted daily return per sector, stored as its two PARTS.
+
+    A weighted mean cannot be re-aggregated from weighted means — averaging the averages
+    of two flag groups is not the average of the union — so what is stored is the
+    numerator and denominator separately: `wr` = Σ(prior assets × daily return) and `w` =
+    Σ(prior assets). The page sums whichever groups its toggles select and divides once,
+    which is the only way the chart can honour the same feeder / exclusive / pension
+    switches as the tables and still be arithmetically right.
+
+    Weighted by the PRIOR day's assets, because a fund's return today is earned on the
+    money it held yesterday.
+    """
+    if nav.empty or registry.empty:
+        return pd.DataFrame()
+    keys = ["cvm_class", "anbima", "is_feeder", "is_exclusive", "is_prev"]
+    d = nav.merge(registry[["cnpj", *keys]].drop_duplicates("cnpj"), on="cnpj", how="left")
+    if "fund_id" not in d:
+        d["fund_id"] = d["cnpj"] + "|" + d["subclass"].fillna("")
+    d = d.sort_values(["fund_id", "date"])
+    g = d.groupby("fund_id", sort=False)
+    d["r"] = g["quota"].pct_change(fill_method=None)
+    d["w"] = g["pl"].shift(1)
+    # A restruck quota or an amortisation is not a market move, and one of them inside a
+    # sector index drags the whole sector's line. Same ±50% cut the volatility uses.
+    d.loc[d["r"].abs() > 0.5, "r"] = np.nan
+    d = d.dropna(subset=["r", "w"])
+    d = d[d["w"] > 0]
+    d["wr"] = d["w"] * d["r"]
+    out = (d.groupby(["date", *keys], dropna=False, as_index=False)
+             .agg(wr=("wr", "sum"), w=("w", "sum")))
+    for k in ("is_feeder", "is_exclusive", "is_prev"):
+        out[k] = out[k].fillna(False).astype(bool)
+    return out
+
+
+def load_sector_daily(include_feeders: bool = False, include_exclusive: bool = False,
+                      include_prev: bool = False, by: str = "class_en") -> pd.DataFrame:
+    """[date, sector, ret] — the daily asset-weighted return, screened like the tables."""
+    try:
+        m = pd.read_parquet(SECTORIDX)
+    except Exception:
+        return pd.DataFrame()
+    if m.empty:
+        return m
+    if not include_feeders:
+        m = m[~m["is_feeder"]]
+    if not include_exclusive:
+        m = m[~m["is_exclusive"]]
+    if not include_prev:
+        m = m[~m["is_prev"]]
+    # Trim to the last COMPLETE cross-section. The panel runs one day past it, because
+    # the fastest filers post D+0 — on 2026-09-24 twenty-three classes had filed against
+    # 257 the day before, and multi-strategy's weight fell from R$652bn to under R$1bn.
+    # The index still computes a number from them: -0.92%, which would have been the most
+    # recent point on the chart and read as a sector collapse. It is a filing artefact,
+    # and the newest point is exactly the one a reader trusts most.
+    try:
+        as_of = pd.Timestamp(json.loads(META.read_text(encoding="utf-8"))["as_of"])
+        m = m[m["date"] <= as_of]
+    except Exception:
+        pass
+    src = "cvm_class" if by == "class_en" else "anbima"
+    fn = english_class if by == "class_en" else english_strategy
+    m = m.assign(sector=m[src].map(fn))
+    m = m[~m["sector"].astype(str).str.strip().isin(("", "nan", "None", "<NA>"))]
+    out = m.groupby(["date", "sector"], as_index=False).agg(wr=("wr", "sum"), w=("w", "sum"))
+    out["ret"] = np.where(out["w"] > 0, out["wr"] / out["w"], np.nan)
+    return out.dropna(subset=["ret"]).sort_values(["sector", "date"])
+
+
 # ── build / load ────────────────────────────────────────────────────────────────────
 def build(force: bool = False, months_back: int = MONTHS_BACK,
           min_aum: float = MIN_AUM) -> pd.DataFrame:
@@ -1012,10 +1084,12 @@ def build(force: bool = False, months_back: int = MONTHS_BACK,
     print(f"CVM funds: {len(nav):,} fund-days over {len(have)} months")
     met = compute_metrics(nav, reg, min_aum=min_aum)
     met.to_parquet(METRICS, index=False)
-    try:
-        monthly_flow(nav, reg).to_parquet(MONTHLY, index=False)
-    except Exception as exc:                       # a missing extra must not fail the build
-        print(f"  CVM: monthly flow aggregate skipped ({type(exc).__name__}: {exc})")
+    for name, fn, path in (("monthly flow", monthly_flow, MONTHLY),
+                           ("sector daily", sector_daily, SECTORIDX)):
+        try:
+            fn(nav, reg).to_parquet(path, index=False)
+        except Exception as exc:                   # a missing extra must not fail the build
+            print(f"  CVM: {name} aggregate skipped ({type(exc).__name__}: {exc})")
 
     meta = {
         "built": datetime.now().isoformat(timespec="seconds"),

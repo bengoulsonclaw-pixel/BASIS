@@ -1237,6 +1237,139 @@ def _industry_flow(opts: dict, klass: str | None = None) -> None:
 
 _ROTATION_TOP = 6          # sectors drawn by name; the rest stack as "Other"
 
+_DAILY_SPANS = {"3m": 63, "6m": 126, "YTD": None, "12m": 252, "All": 10_000}
+# What the y-axis means. Rebasing to 100 already makes the START comparable; these make
+# the SHAPE comparable, which is the part rebasing cannot fix.
+_DAILY_SCALES = ["Index", "vs CDI", "Off its own pace"]
+_SCALE_HELP = {
+    "Index": "Each sector's own daily returns compounded and rebased to 100 at the start "
+             "of the window. The line is what a holder actually earned.",
+    "vs CDI": "The same, minus cash. Brazilian sectors all drift upward at 14% a year "
+              "because CDI does; stripping it leaves only what the sector ADDED, so a "
+              "line going sideways means it merely matched the risk-free rate.",
+    "Off its own pace": "Each day's move LESS that sector's own average day, divided "
+                        "by its own volatility, accumulated. Flat means behaving normally; "
+                        "a dip means it has run behind its own pattern and a rise means "
+                        "ahead. This is the view that answers \"has multi-strategy had a "
+                        "bad two days\" for a sector whose ordinary day is +0.04%. The "
+                        "level is a count of standard deviations, not money.",
+}
+
+
+def _daily_cdi(dates: pd.Index) -> pd.Series:
+    """CDI's own daily return on the same dates, for the excess view."""
+    if len(dates) == 0:
+        return pd.Series(dtype=float)
+    cdi = cvmfunds.cdi_index(pd.Timestamp(min(dates)).date() - pd.Timedelta(days=10))
+    if cdi.empty:
+        return pd.Series(dtype=float)
+    return cdi.reindex(pd.DatetimeIndex(dates)).ffill().pct_change()
+
+
+def _sector_daily_chart(opts: dict, by: str, label: str) -> None:
+    """Each sector's asset-weighted daily return, compounded, on a chart you can drive.
+
+    Rebased at the START OF THE VISIBLE WINDOW, not of the data, so switching to 3m
+    answers "how has this done over three months" rather than showing three months of a
+    two-year line. Pan and zoom are on — the question is usually about the last few
+    sessions and 700 points is too many to read at once.
+    """
+    d = cvmfunds.load_sector_daily(include_feeders=opts["feeders"],
+                                   include_exclusive=opts["exclusive"],
+                                   include_prev=opts["prev"], by=by)
+    if d.empty:
+        st.info("No daily sector index in the store yet — it builds with the daily pull.")
+        return
+
+    c1, c2 = st.columns([1.5, 1.4])
+    span = c1.segmented_control("Window", list(_DAILY_SPANS), default="YTD",
+                                key="ov_span", label_visibility="collapsed") or "YTD"
+    scale = c2.segmented_control("Scale", _DAILY_SCALES, default=_DAILY_SCALES[0],
+                                 key="ov_scale", label_visibility="collapsed") \
+        or _DAILY_SCALES[0]
+
+    last = d["date"].max()
+    if span == "YTD":
+        d = d[d["date"] >= pd.Timestamp(year=last.year, month=1, day=1)]
+    else:
+        keep = sorted(d["date"].unique())[-_DAILY_SPANS[span]:]
+        d = d[d["date"].isin(keep)]
+    if d.empty:
+        return
+
+    weight = d.groupby("sector")["w"].mean().sort_values(ascending=False)
+    # "Asset class" + "s" is "Asset classs", and "Strategy" + "s" is "Strategys".
+    plural = {"Asset class": "asset classes", "Strategy": "strategies"}.get(label,
+                                                                            label.lower())
+    picked = st.multiselect(
+        f"Which {plural} to plot", list(weight.index),
+        default=list(weight.head(_ROTATION_TOP).index), key=f"ov_daily_{by}",
+        help="Add or remove lines. With one selected the axis rescales to it, which is "
+             "how you read a single sector's own moves.")
+    if not picked:
+        st.caption(f"Pick at least one {label.lower()} to plot.")
+        return
+    d = d[d["sector"].isin(picked)].sort_values(["sector", "date"]).copy()
+
+    if scale == "vs CDI":
+        cdi_r = _daily_cdi(sorted(d["date"].unique()))
+        if cdi_r.empty:
+            st.caption("CDI unavailable in this build — showing the plain index instead.")
+            scale = "Index"
+        else:
+            d["ret"] = d["ret"] - d["date"].map(cdi_r).fillna(0.0)
+    if scale == "Off its own pace":
+        # DEMEANED, and added rather than compounded. Two earlier attempts failed on
+        # the same asset: scaling returns up and compounding them sent fixed income to an
+        # index of 5,000, and a plain cumulative z-score sent it to 600σ — because a
+        # near-cash sector drifts up almost every day with tiny volatility, so its daily
+        # z-score is ~+3.4 EVERY day and the sum measures drift, not turns. Taking each
+        # sector's own mean day out first leaves only the deviations, which is what
+        # "compare the turns" has to mean when one sector is effectively cash.
+        g = d.groupby("sector")["ret"]
+        vol = g.transform("std").replace(0, np.nan)
+        d["idx"] = ((d["ret"] - g.transform("mean")) / vol).groupby(d["sector"]).cumsum()
+    else:
+        d["idx"] = d.groupby("sector")["ret"].transform(lambda r: (1.0 + r).cumprod() * 100.0)
+
+    cc = brand.chart_colors()
+    order = [s for s in weight.index if s in picked]
+    rng = ([cc["accent"], cc["series"], cc["long"], cc["short"], "#9B7BD4", "#59C2D6",
+            "#E8A33D", "#D46A9B"] * 3)[:len(order)]
+    hover = alt.selection_point(fields=["date"], nearest=True, on="pointerover",
+                                empty=False, clear="pointerout")
+    line = alt.Chart(d).mark_line(strokeWidth=2).encode(
+        x=alt.X("date:T", title=None),
+        y=alt.Y("idx:Q", scale=alt.Scale(zero=False),
+                title=("ahead of / behind its own pace (σ)" if scale == "Off its own pace"
+                       else "rebased to 100" if scale == "Index"
+                       else "rebased to 100, excess over CDI")),
+        color=alt.Color("sector:N", title=None, sort=order,
+                        scale=alt.Scale(domain=order, range=rng),
+                        legend=alt.Legend(labelLimit=280)))
+    dots = (line.mark_point(size=48, filled=True)
+            .encode(opacity=alt.condition(hover, alt.value(1), alt.value(0)),
+                    tooltip=[alt.Tooltip("date:T", title="Date"),
+                             alt.Tooltip("sector:N", title=label),
+                             alt.Tooltip("ret:Q", title="That day", format="+.3%"),
+                             alt.Tooltip("idx:Q", format=",.2f",
+                                         title=("Off pace (σ)" if scale == "Off its own pace"
+                                                else "Index"))])
+            .add_params(hover))
+    brand.show_chart((line + dots).interactive().properties(
+        height=340, title=f"Daily performance by {label.lower()} — drag to pan, scroll to zoom"))
+
+    latest = d[d["date"] == d["date"].max()].set_index("sector")["ret"] * 100.0
+    st.caption(_md(
+        f"{_SCALE_HELP[scale]}  Asset-weighted across each sector's classes and weighted by "
+        f"the PRIOR day's assets. On **{d['date'].max():%d %b %Y}**, the last session every "
+        f"sector had filed: **{latest.idxmax()}** {latest.max():+.2f}%, "
+        f"**{latest.idxmin()}** {latest.min():+.2f}%.  \n"
+        "The stored panel runs a day further, but only the fastest filers are in it — on "
+        "24 Sep twenty-three classes had posted against 257 the day before — so it is cut "
+        "at the last complete cross-section rather than charting a number built from a "
+        "handful of funds."))
+
 
 def _sector_rotation(opts: dict, by: str, label: str) -> None:
     """Net flow by sector, month by month — the rotation, stacked around zero.
@@ -1478,6 +1611,8 @@ def _tab_overview(met: pd.DataFrame) -> None:
     sec = _sector_frame(d[d[by].astype(str).str.strip() != ""], by)
     _sector_table(sec, label)
 
+    st.divider()
+    _sector_daily_chart(opts, by, label)
     st.divider()
     _flow_vs_perf(sec if grain == _GRAINS_OV[0] else sec.head(20), label)
     st.divider()
