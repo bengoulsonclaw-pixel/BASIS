@@ -869,11 +869,23 @@ def _fund_detail(met: pd.DataFrame, row: pd.Series, *, key: str) -> None:
                                       "NAV": (c / base.iloc[0] * 100.0).values,
                                       "series": "CDI"}))
     plot = pd.concat(long, ignore_index=True).dropna(subset=["NAV"])
+    # minExtent pins the y-axis to a fixed width on BOTH charts. Without it the left
+    # margin is whatever the tick labels need — "140" on the NAV, "-4" on the drawdown —
+    # so the two plot areas start at different x positions, Altair then picks its tick
+    # density from those different widths, and the pair reads Feb/Apr/Jun against
+    # Feb/March/April. A drawdown is read straight down from the price line above it, so
+    # the two axes have to line up.
     brand.show_chart(
         alt.Chart(plot).mark_line()
-        .encode(x=alt.X("date:T", title=None),
-                y=alt.Y("NAV:Q", title="rebased to 100", scale=alt.Scale(zero=False)),
+        .encode(x=alt.X("date:T", title=None, axis=alt.Axis(tickCount="month")),
+                y=alt.Y("NAV:Q", title="rebased to 100", scale=alt.Scale(zero=False),
+                        axis=alt.Axis(minExtent=_AXIS_EXTENT)),
+                # Legend on TOP, not to the right. A right-hand legend eats horizontal
+                # space the drawdown below has none of, so the two plot areas end at
+                # different x and the shared time axis drifts apart across the window —
+                # about 60px by the last tick, which is a month.
                 color=alt.Color("series:N", title=None,
+                                legend=alt.Legend(orient="top", direction="horizontal"),
                                 scale=alt.Scale(domain=["Fund", "CDI"],
                                                 range=[cc["accent"], cc["muted"]])),
                 tooltip=[alt.Tooltip("date:T"), alt.Tooltip("series:N"),
@@ -886,8 +898,9 @@ def _fund_detail(met: pd.DataFrame, row: pd.Series, *, key: str) -> None:
     dd = pd.DataFrame({"date": h["date"],
                        "dd": (h["quota"] / h["quota"].cummax() - 1.0) * 100.0})
     brand.show_chart(alt.Chart(dd).mark_area(color=cc["short"], opacity=0.7)
-                     .encode(x=alt.X("date:T", title=None),
-                             y=alt.Y("dd:Q", title="below previous peak (%)"),
+                     .encode(x=alt.X("date:T", title=None, axis=alt.Axis(tickCount="month")),
+                             y=alt.Y("dd:Q", title="below previous peak (%)",
+                                     axis=alt.Axis(minExtent=_AXIS_EXTENT)),
                              tooltip=[alt.Tooltip("date:T"),
                                       alt.Tooltip("dd:Q", title="Drawdown %", format=".2f")])
                      .properties(height=190, title="Drawdown — how far below its own high"))
@@ -1516,6 +1529,10 @@ def _biggest_movers(d: pd.DataFrame) -> None:
     st.caption(_md("Net subscriptions minus redemptions this calendar year, in **R$bn** — "
                    "the five that raised most and the five that lost most."))
 
+
+# A fixed y-axis width, so charts stacked on the same time axis line up under each
+# other instead of each sizing its margin to its own tick labels.
+_AXIS_EXTENT = 58
 
 _COMPARE_MAX = 8          # more lines than this and the overlay stops being readable
 
