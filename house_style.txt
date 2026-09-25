@@ -1,8 +1,13 @@
 HOUSE STYLE — applies to every word of commentary BASIS writes.
 
-Derived from the "humanizer" skill (Wikipedia's "Signs of AI writing", WP:AISIGNS).
-One copy, read by ai_polish.py for every BASIS report and by Morning Coffee.
-Edit this file and every report changes; there is no second copy to keep in step.
+Derived from .claude/skills/humanizer/SKILL.md (Wikipedia's "Signs of AI writing",
+WP:AISIGNS). Read by ai_polish.py for every BASIS report and by Morning Coffee.
+
+TWO FILES, ON PURPOSE, AND THEY CAN DRIFT. The skill is written to an agent that is
+handed text and asked to rewrite it, and it ends by telling that agent to output only
+the rewritten text -- which would fight the "return a JSON array" instruction every
+report prompt carries. This file is the same RULES with that framing removed, phrased
+to sit above a report brief. Change one, change the other.
 
 These rules sit UNDER the per-report instructions that follow them. Where a report
 instruction is about what to say — which numbers to keep, what must stay neutral,
