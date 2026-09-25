@@ -80,7 +80,17 @@ _REG_URL = "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/registro_fundo_classe.zi
 _UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                      "(KHTML, like Gecko) Chrome/124 Safari/537.36"}
 
-MONTHS_BACK = 13          # 13, not 12: a 12-month return needs an anchor BEFORE the window
+# Every month CVM publishes in the CURRENT format. The daily file was re-keyed on
+# CNPJ_FUNDO_CLASSE + ID_SUBCLASSE from 2024-01 — a year BEFORE the registry migration
+# that re-registered the industry — and 2023-12 and earlier carry CNPJ_FUNDO with no
+# subclass concept at all, so a class that now reports as three subclasses was one row
+# back then. Stitching across that is a project, not a bigger constant; this takes all of
+# the side that joins cleanly. CVM keeps yearly archives back to 2000 in HIST/ for the day
+# that project happens.
+#
+# 33 months is 2y9m, so a 24-month return has its anchor inside the window today and a
+# 36-month one becomes possible in January 2027 without another schema decision.
+MONTHS_BACK = 33
 MIN_AUM = 10_000_000.0    # R$10m — below this a class is a shell or a wind-down, not a product
 TRADING_DAYS = 252
 CDI_SGS = 12              # BCB SGS 12 = CDI, annualised daily factor in percent
@@ -540,7 +550,7 @@ def fetch_month(ym: str, universe: set[str] | None = None) -> pd.DataFrame | Non
 def refresh_nav(months: list[str], universe: set[str], force: bool = False) -> list[str]:
     """Cache each month as its own parquet. Only M and M-1 are re-downloaded — the CVM
     revises those two daily and freezes the rest — so a routine refresh moves ~25MB
-    rather than the ~160MB a full rebuild costs.
+    rather than the ~400MB a full 33-month rebuild costs.
 
     Returns the months actually present on disk afterwards.
     """
@@ -819,7 +829,8 @@ def compute_metrics(nav: pd.DataFrame, registry: pd.DataFrame,
     # days of slack on a 1-day return would quietly measure a fortnight.
     _WINDOWS = (("1d", pd.Timedelta(days=1), 4), ("1w", pd.Timedelta(days=7), 5),
                 ("1m", pd.DateOffset(months=1), 12), ("3m", pd.DateOffset(months=3), 12),
-                ("6m", pd.DateOffset(months=6), 12), ("12m", pd.DateOffset(months=12), 12))
+                ("6m", pd.DateOffset(months=6), 12), ("12m", pd.DateOffset(months=12), 12),
+                ("24m", pd.DateOffset(months=24), 16))
     for label, offset, tol in _WINDOWS:
         target = last_date - offset
         base = _anchor(quota, target, tol_days=tol)

@@ -309,10 +309,11 @@ def _explore_funds(d: pd.DataFrame, colset: str) -> tuple[pd.DataFrame, dict, li
                          "1d": d.get("ret_1d"), "1w": d.get("ret_1w"),
                          "1m": d["ret_1m"], "3m": d["ret_3m"], "6m": d.get("ret_6m"),
                          "YTD": d["ret_ytd"], "12m": d["ret_12m"],
+                         "24m": d.get("ret_24m"),
                          "vs CDI 12m": d.get("exc_12m"), "Assets": d["aum"] / _MM})
     spec = {"1d": PCT_2, "1w": PCT, "1m": PCT, "3m": PCT, "6m": PCT, "YTD": PCT,
-            "12m": PCT, "vs CDI 12m": PCT, "Assets": NUM}
-    return disp, spec, ["1d", "1w", "1m", "3m", "6m", "YTD", "12m", "vs CDI 12m"]
+            "12m": PCT, "24m": PCT, "vs CDI 12m": PCT, "Assets": NUM}
+    return disp, spec, ["1d", "1w", "1m", "3m", "6m", "YTD", "12m", "24m", "vs CDI 12m"]
 
 
 def _explore_managers(lt: pd.DataFrame, colset: str) -> tuple[pd.DataFrame, dict, list]:
@@ -935,7 +936,7 @@ def _tab_fund(met: pd.DataFrame) -> None:
 _LADDER = [("1d", "ret_1d", "exc_1d"), ("1w", "ret_1w", "exc_1w"),
            ("1m", "ret_1m", "exc_1m"), ("3m", "ret_3m", "exc_3m"),
            ("6m", "ret_6m", "exc_6m"), ("YTD", "ret_ytd", "exc_ytd"),
-           ("12m", "ret_12m", "exc_12m")]
+           ("12m", "ret_12m", "exc_12m"), ("24m", "ret_24m", "exc_24m")]
 
 
 def _ladder(row: pd.Series) -> None:
@@ -1112,13 +1113,20 @@ def _sector_frame(d: pd.DataFrame, by: str) -> pd.DataFrame:
     out["ret_12m"] = _wavg(d, "ret_12m", by)
     out["exc_12m"] = _wavg(d, "exc_12m", by) if "exc_12m" in d else np.nan
     out["median_12m"] = g["ret_12m"].median()
-    if "exc_12m" in d:
-        rated = d[d["exc_12m"].notna()]
-        beat = rated[rated["exc_12m"] > 0].groupby(by)["cnpj"].nunique()
+    # Both horizons. The 12-month figure is the verdict on a full cycle; the YTD one is
+    # what is happening NOW, and they diverge — a sector can be losing over the year and
+    # winning since January, which is the turn worth catching.
+    for win, src in (("", "exc_12m"), ("_ytd", "exc_ytd")):
+        if src not in d:
+            continue
+        rated = d[d[src].notna()]
+        beat = rated[rated[src] > 0].groupby(by)["cnpj"].nunique()
         have = rated.groupby(by)["cnpj"].nunique()
-        out["beat"] = beat.reindex(out.index).fillna(0)
-        out["rated"] = have.reindex(out.index).fillna(0)
-        out["beat_pct"] = np.where(out["rated"] > 0, out["beat"] / out["rated"] * 100.0, np.nan)
+        out[f"beat{win}"] = beat.reindex(out.index).fillna(0)
+        out[f"rated{win}"] = have.reindex(out.index).fillna(0)
+        out[f"beat_pct{win}"] = np.where(out[f"rated{win}"] > 0,
+                                         out[f"beat{win}"] / out[f"rated{win}"] * 100.0,
+                                         np.nan)
     return out.sort_values("aum", ascending=False)
 
 
@@ -1134,18 +1142,20 @@ def _sector_table(sec: pd.DataFrame, label: str) -> None:
         "Net %": sec["organic"].values,
         "12m": sec["ret_12m"].values,
         "vs CDI": sec.get("exc_12m", pd.Series(np.nan, index=sec.index)).values,
-        "Beat CDI": sec.get("beat_pct", pd.Series(np.nan, index=sec.index)).values,
+        "Beat CDI 12m": sec.get("beat_pct", pd.Series(np.nan, index=sec.index)).values,
+        "Beat CDI YTD": sec.get("beat_pct_ytd", pd.Series(np.nan, index=sec.index)).values,
     })
     spec = {"Funds": NUM, "Assets": NUM_1, "Share": PCT_U, "Subs YTD": NUM_1,
             "Redeem YTD": NUM_1, "Net YTD": NUM_S_1, "Net %": PCT, "12m": PCT,
-            "vs CDI": PCT, "Beat CDI": PCT_U}
+            "vs CDI": PCT, "Beat CDI 12m": PCT_U, "Beat CDI YTD": PCT_U}
     brand.themed_dataframe(_as_text(disp, spec), {}, height=_grid_height(len(disp), 420),
                            colorers=[(["Net YTD", "Net %", "12m", "vs CDI"], _move_colour)])
     st.caption(_md(
         "Assets and flows in **R$bn**, this calendar year. **Net %** is net flow against "
         "the sector's opening assets — R$10bn into a R$3.6tn sector is noise and the rate "
-        "is what says so. Returns are **asset-weighted**; **Beat CDI** is the share of "
-        "classes with a full 12-month history that beat cash."))
+        "is what says so. Returns are **asset-weighted**; the two **Beat CDI** columns are "
+        "the share of classes that beat cash — over a full 12 months, and since January. "
+        "They move apart when a sector turns."))
 
 
 def _flow_vs_perf(sec: pd.DataFrame, label: str) -> None:
