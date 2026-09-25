@@ -70,7 +70,7 @@ PM_STALE_DAYS = 45          # PM monitor is monthly; drop the section if it's go
 def _bullet(tag: str, key: str, text: str, metric: str = "", sub: str = "",
             bar: float | None = None) -> dict:
     """`key` identifies the same story across editions (for the new/repeat badge);
-    `text` may carry **bold** markers. `metric`/`sub` is the flag's headline number,
+    `text` may carry **bold** markers, which are stripped when rendered. `metric`/`sub` is the flag's headline number,
     pulled out of the prose and set in its own right-hand column; `bar` (0-1) draws
     the small gauge under it."""
     return {"tag": tag, "key": f"{tag}:{key}", "text": text, "metric": metric, "sub": sub,
@@ -581,7 +581,7 @@ INTRO_SYSTEM = (
     "are given so it reads like a real person framing the week ahead — flowing, plain-"
     "English, confident but relaxed, three to five sentences.\n"
     "HARD RULES: keep EVERY number and percentage EXACTLY as given, wrapped in the "
-    "same **bold** markers; keep every product and module name; stay neutral and "
+    "figures exact; keep every product and module name; stay neutral and "
     "observational — these are screens the desk's models flagged, never advice: no "
     "buy/sell/recommend language and nothing that implies the reader should act.\n"
     "Return ONLY a JSON array with the single rewritten string.")

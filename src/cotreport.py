@@ -305,7 +305,7 @@ _COT_SYSTEM = (
     "Index is or how the flags are computed — a methodology box below the commentary covers that.\n"
     "HARD RULES — never break these:\n"
     "(1) Keep EVERY number, percentage and product name EXACTLY as given — never invent, drop, "
-    "round or alter a figure — and keep each wrapped in the same **bold** markers. Where a shift "
+    "round or alter a figure. Where a shift "
     "carries a contract change, a % of open interest AND a 'largest in ...' note, keep all three.\n"
     "(2) Neutral and observational only: client-safe commentary, NOT advice. Never say buy, sell, "
     "long/short as an instruction, recommend, 'we like', or imply the reader should act; the "
@@ -361,8 +361,8 @@ def _cached_polish(note: str) -> str:
 
 
 def _md_bold(s: str) -> str:
-    """Escape, then **…** -> <b>…</b>, for safe HTML injection of the polished comment."""
-    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", html.escape(s))
+    """Escape for HTML and REMOVE the markdown bold — see reportkit.md_bold."""
+    return re.sub(r"\*\*(.+?)\*\*", r"\1", html.escape(s))
 
 
 def _rarity_phrase(weeks: int, span: int):
@@ -416,7 +416,7 @@ def _weekly_shifts(detail: pd.DataFrame, hist: pd.DataFrame,
 
 def _commentary_note(detail: pd.DataFrame, hist: pd.DataFrame, hi: float, lo: float) -> str:
     """The deterministic **bold**-marked note — Fable's raw material AND the no-model fallback.
-    Numbers/names carry **bold** markers the rewrite must keep."""
+    Numbers/names carry **bold** markers, which _md_bold strips on the way out."""
     d = detail.dropna(subset=["cot_index"]).copy()
     if d.empty:
         return "No CFTC positioning data is available for the current universe."

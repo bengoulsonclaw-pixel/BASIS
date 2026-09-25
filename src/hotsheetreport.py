@@ -165,7 +165,7 @@ INTRO_SYSTEM = (
     "are given so it reads like a real person opening the morning note — flowing, "
     "plain-English, confident but relaxed, two to four sentences.\n"
     "HARD RULES: keep EVERY number and percentage EXACTLY as given, wrapped in the "
-    "same **bold** markers; keep every product and module name; stay neutral and "
+    "keep every product and module name; stay neutral and "
     "observational — these are screens the desk's models flagged, never advice: no "
     "buy/sell/recommend language and nothing that implies the reader should act.\n"
     "Return ONLY a JSON array with the single rewritten string.")

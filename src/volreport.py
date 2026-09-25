@@ -284,8 +284,8 @@ _COMMENT_SYSTEM = (
     "data read-out; it sits above a tight table, so brevity matters).\n"
     "HARD RULES — never break these:\n"
     "(1) Never invent a product, figure or relationship that is not in the input. Any "
-    "figure you state must be copied EXACTLY as given, wrapped in the same **bold** "
-    "markers. You may compress or summarise the secondary names for flow, but keep the "
+    "figure you state must be copied EXACTLY as given. "
+    "You may compress or summarise the secondary names for flow, but keep the "
     "standout pairing(s) with their numbers.\n"
     "(2) Neutral and observational only — this is client-safe commentary, NOT advice. "
     "Never say buy, sell, long, short, recommend, or imply the reader should act; "
@@ -296,7 +296,7 @@ _COMMENT_SYSTEM = (
 
 def _swaps_template(rv_peers: list) -> str:
     """Deterministic one-note summary of the swaps table — the AI's raw material AND the
-    no-model fallback. Numbers/names carry **bold** markers the rewrite must keep."""
+    no-model fallback. Numbers/names carry **bold** markers, stripped when rendered."""
     side = lambda cls: "rich" if cls == "rich" else "cheap"
     pairs, seen = [], set()
     for row in rv_peers:
@@ -335,8 +335,8 @@ _CAPTION_SYSTEM = (
     "array of terse machine-built notes, one per market, in order; rewrite EACH as a flowing, "
     "conversational but professional caption — a desk analyst pointing out what the chart shows.\n"
     "HARD RULES — never break these:\n"
-    "(1) Every figure, date and product name must be copied EXACTLY as given, wrapped in the same "
-    "**bold** markers. NEVER invent an event, cause, or figure not in the note — you may only "
+    "(1) Every figure, date and product name must be copied EXACTLY as given. "
+    "NEVER invent an event, cause, or figure not in the note — you may only "
     "describe what the note states (levels, when the spread was last here, what price/vol were "
     "doing then and now, a seasonal window). No outside knowledge.\n"
     "(2) Neutral and observational — client-safe, NOT advice: never say buy, sell, long, short, "

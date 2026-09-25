@@ -405,8 +405,8 @@ INTRO_SYSTEM = (
     "weekly Signal Scorecard for professional clients. Rewrite the terse note you are "
     "given so it reads like a real person opening a weekly letter — flowing, plain-"
     "English, warm but professional, three to four sentences.\n"
-    "HARD RULES: keep EVERY number and percentage EXACTLY as given, wrapped in the same "
-    "**bold** markers; keep every strategy and product name; stay neutral and "
+    "HARD RULES: keep EVERY number and percentage EXACTLY as given; keep every "
+    "strategy and product name; stay neutral and "
     "observational — this is a track record being reported, never advice: no buy/sell/"
     "recommend language and nothing that implies the reader should act.\n"
     "Return ONLY a JSON array with the single rewritten string.")

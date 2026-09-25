@@ -278,10 +278,18 @@ def ai_rewrite(texts: list, system: str) -> list:
 
 
 def md_bold(s: str) -> str:
-    """Escape, then **…** -> <b>…</b>, for safe HTML injection of a caption."""
+    """Escape for HTML and REMOVE the markdown bold, rather than rendering it.
+
+    The house style (house_style.txt) has no bold inside prose, including around
+    numbers. The name is kept because every caption in every report calls it, and the job
+    is still the same one — make a model-written caption safe to inject — but the markers
+    now come out instead of turning into <b>. Doing it HERE rather than in each report
+    means the deterministic fallback text loses its bold too, so a report reads the same
+    whether the rewrite ran or the API was unreachable.
+    """
     import html as _html
     import re as _re
-    return _re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", _html.escape(s))
+    return _re.sub(r"\*\*(.+?)\*\*", r"\1", _html.escape(s))
 
 
 def ordinal(n) -> str:

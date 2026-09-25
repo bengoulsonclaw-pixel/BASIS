@@ -427,12 +427,12 @@ PC_SYSTEM = (
     "where it sits versus its own trailing year) and how the underlying's recent price action may be "
     "driving that call or put demand. Vary how each one opens; do not start them all the same way.\n\n"
     "ALL elements: keep EVERY number, percentage, ratio and percentile EXACTLY as given and wrap the key "
-    "figures in **bold**; keep every product name. Neutral and OBSERVATIONAL — client-safe, NOT advice: "
+    "figures exact; keep every product name. Neutral and OBSERVATIONAL — client-safe, NOT advice: "
     "never say buy, sell, long, short, recommend or 'we like', and never tell the reader to act. It is "
     "fine to note heavy put demand is defensive, heavy call demand bullish, and that extremes are often "
     "read contrarian. Invent nothing that is not in the brief.\n\n"
     "Return ONLY a JSON array of strings, the SAME length and order as the input (element 0 = the "
-    "opening; the rest = one note per chart, in order). **bold** allowed; nothing else.")
+    "opening; the rest = one note per chart, in order). Plain prose; nothing else.")
 
 
 def _mc_python() -> str:
@@ -446,13 +446,13 @@ def _mc_python() -> str:
 
 
 def _md2html(md: str, cls: str = "summary outcomes") -> str:
-    """Split a markdown blob into <p class="{cls}"> paragraphs, converting **bold**."""
+    """Split a markdown blob into <p class="{cls}"> paragraphs, stripping **bold**."""
     out = []
     for para in re.split(r"\n\s*\n", md.strip()):
         para = para.strip()
         if not para:
             continue
-        para = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", html.escape(para))
+        para = re.sub(r"\*\*(.+?)\*\*", r"\1", html.escape(para))
         out.append(f'<p class="{cls}">{para}</p>')
     return "\n".join(out)
 

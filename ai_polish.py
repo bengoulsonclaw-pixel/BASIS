@@ -25,6 +25,26 @@ from pathlib import Path
 # this is a writing task), then Sonnet 5, then Haiku 4.5 as the always-there backstop.
 MODELS = ["claude-fable-5", "claude-sonnet-5", "claude-haiku-4-5"]
 
+# The house style. One file, read by every report that polishes prose and by Morning
+# Coffee, so a wording rule is changed in one place rather than in eight prompts that
+# then drift. Missing file is survivable — the per-report prompt still stands on its own.
+HOUSE_STYLE_FILE = Path(__file__).resolve().parent / "house_style.txt"
+
+
+def house_style() -> str:
+    try:
+        return HOUSE_STYLE_FILE.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def strip_bold(text: str) -> str:
+    """Remove markdown bold. Applied to the MODEL'S OUTPUT as well as being told to the
+    model, because an instruction is a request and this is a guarantee — and applied to
+    the deterministic fallback text too, so a report looks the same whether the API call
+    succeeded or not."""
+    return re.sub(r"\*\*(.+?)\*\*", r"\1", text or "", flags=re.S)
+
 _MC_ENV = Path(__file__).resolve().parent.parent / "Futures_Movements" / ".env"
 
 SYSTEM = (
@@ -35,8 +55,7 @@ SYSTEM = (
     "(think a seasoned analyst's morning note): warm and readable, but professional.\n"
     "HARD RULES — never break these:\n"
     "(1) Keep EVERY number, price, level, percentage and ratio EXACTLY as given — never "
-    "invent, drop, round or alter a figure — and keep each wrapped in the same **bold** "
-    "markers; keep every product and indicator name.\n"
+    "invent, drop, round or alter a figure; keep every product and indicator name.\n"
     "(2) Stay neutral and observational: this is client-safe commentary, NOT advice. Never "
     "say buy, sell, long, short, recommend, 'we like', or imply the reader should act. "
     "Describe what the chart is doing and what each level would mean — e.g. 'screens "

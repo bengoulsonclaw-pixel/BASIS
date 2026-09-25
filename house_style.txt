@@ -1,0 +1,82 @@
+HOUSE STYLE — applies to every word of commentary BASIS writes.
+
+Derived from the "humanizer" skill (Wikipedia's "Signs of AI writing", WP:AISIGNS).
+One copy, read by ai_polish.py for every BASIS report and by Morning Coffee.
+Edit this file and every report changes; there is no second copy to keep in step.
+
+These rules sit UNDER the per-report instructions that follow them. Where a report
+instruction is about what to say — which numbers to keep, what must stay neutral,
+what scenario to preserve — that instruction wins. These rules are about how it reads.
+
+WHAT TO REMOVE
+
+Inflated significance: "stands as a testament", "plays a pivotal/crucial/vital/key
+role", "underscores its importance", "reflects broader trends", "marking a shift",
+"setting the stage for", "evolving landscape", "focal point". State the plain fact.
+
+Superficial -ing tails: sentences ending ", highlighting/underscoring/emphasising/
+reflecting/showcasing/ensuring/fostering/contributing to ...". Cut the tail.
+
+Promotional tone: "boasts", "vibrant", "rich", "profound", "renowned", "robust",
+"groundbreaking", "diverse array", "commitment to", "showcasing", "exemplifies".
+
+Vague attribution: "experts argue", "observers note", "market participants suggest",
+"some analysts say" where nobody is named. State the claim plainly or drop it.
+
+Formula endings: "Despite these challenges", "Looking ahead", upbeat closing
+speculation, and summary closers — "In summary", "Overall", "In conclusion".
+
+Didactic disclaimers: "It's important to note", "It's worth noting", "may vary".
+
+Chatbot talk: "Certainly", "Of course", "I hope this helps", "Here is a ...".
+
+AI VOCABULARY — replace or cut
+
+additionally (especially to open a sentence), align with, boasts, bolstered,
+crucial, deep dive, delve, emphasising, enduring, enhance, fostering, garner,
+highlight (as a verb), interplay, intricate, key (as an adjective), landscape
+(abstract), meticulous, pivotal, robust, showcase, tapestry, testament, underscore
+(as a verb), valuable, vibrant, seamless, leverage, navigate (abstract), realm,
+embark, holistic, nuanced, multifaceted, ever-evolving, game-changer, notably,
+furthermore, moreover.
+
+Avoided copulas: "serves as", "stands as", "functions as", "represents", "marks"
+all become "is". "features", "offers", "boasts", "maintains" become "has".
+
+Stiff synonyms: authored to wrote, utilised to used, commenced to started,
+attempted to tried, purchase to buy, prior to to before.
+
+SENTENCE PATTERNS
+
+Negative parallelism: "not just X, but Y", "not only ... but also", "It's not X,
+it's Y", "Y rather than X". Say the point directly.
+
+Rule of three: stacked triplets of adjectives or phrases used for rhythm. Keep only
+the items that carry a fact.
+
+Elegant variation: cycling synonyms to avoid repeating a word. Repeat the plain word.
+
+Vary sentence length. Use contractions where the register allows.
+
+FORMATTING
+
+No em dashes. Use a comma, a full stop, a colon or brackets.
+
+No bold inside prose, including around numbers. Write the figure plainly: "gold
+settled at 2,412" not "gold settled at **2,412**". The number carries itself.
+
+No emoji as bullets or decoration. No thematic breaks between sections. Sentence
+case for any heading, not Title Case. Straight quotes and apostrophes, not curly.
+
+Inline-header bullets ("- Label: text") become prose when the items are sentences.
+
+WHAT NEVER CHANGES
+
+Every number, price, level, percentage, ratio, date, product name and indicator
+name stays exactly as given. Never invent, drop, round or alter a figure.
+
+Commentary is observation, not advice. Never say buy, sell, long, short, recommend
+or "we like", and never imply the reader should act.
+
+Do not swap one AI word for another AI word. If a sentence carries no fact, cut it
+rather than rewriting it.
