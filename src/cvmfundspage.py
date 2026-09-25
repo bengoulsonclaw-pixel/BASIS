@@ -1336,10 +1336,38 @@ def _sector_daily_chart(opts: dict, by: str, label: str) -> None:
     order = [s for s in weight.index if s in picked]
     rng = ([cc["accent"], cc["series"], cc["long"], cc["short"], "#9B7BD4", "#59C2D6",
             "#E8A33D", "#D46A9B"] * 3)[:len(order)]
+
+    # CDI joins as a line only where it is one. On "vs CDI" it has been subtracted out,
+    # so it IS the 100 line and drawing it again would just be that line twice under two
+    # names; on "Off its own pace" it is a different construct entirely — cash has no
+    # meaningful pace to run ahead of. Both of those get a reference rule instead.
+    baseline = None
+    if scale == "Index":
+        cdi_r = _daily_cdi(sorted(d["date"].unique()))
+        if not cdi_r.empty:
+            cdi_line = pd.DataFrame({"date": cdi_r.index,
+                                     "ret": cdi_r.values}).dropna(subset=["ret"])
+            cdi_line["sector"] = "CDI"
+            cdi_line["idx"] = (1.0 + cdi_line["ret"]).cumprod() * 100.0
+            d = pd.concat([d, cdi_line], ignore_index=True)
+            order = order + ["CDI"]
+            rng = rng + [cc["muted"]]
+    elif scale == "vs CDI":
+        baseline = (100.0, "CDI — a line here matched cash")
+    else:
+        baseline = (0.0, "its own normal pace")
     hover = alt.selection_point(fields=["date"], nearest=True, on="pointerover",
                                 empty=False, clear="pointerout")
+    # CDI dashed, everything else solid. It lands almost exactly on top of fixed income
+    # — which is the finding, those funds track cash — and two solid lines in the same
+    # place is just one line you cannot identify.
+    dash = alt.StrokeDash("sector:N", legend=None, sort=order,
+                          scale=alt.Scale(domain=order,
+                                          range=[[6, 3] if s == "CDI" else [1, 0]
+                                                 for s in order]))
     line = alt.Chart(d).mark_line(strokeWidth=2).encode(
         x=alt.X("date:T", title=None),
+        strokeDash=dash,
         y=alt.Y("idx:Q", scale=alt.Scale(zero=False),
                 title=("ahead of / behind its own pace (σ)" if scale == "Off its own pace"
                        else "rebased to 100" if scale == "Index"
@@ -1356,12 +1384,21 @@ def _sector_daily_chart(opts: dict, by: str, label: str) -> None:
                                          title=("Off pace (σ)" if scale == "Off its own pace"
                                                 else "Index"))])
             .add_params(hover))
-    brand.show_chart((line + dots).interactive().properties(
+    layers = line + dots
+    if baseline is not None:
+        level, _note = baseline
+        layers = (alt.Chart(pd.DataFrame({"y": [level]}))
+                  .mark_rule(color=cc["muted"], strokeDash=[5, 4], size=1)
+                  .encode(y="y:Q") + layers)
+    brand.show_chart(layers.interactive().properties(
         height=340, title=f"Daily performance by {label.lower()} — drag to pan, scroll to zoom"))
 
-    latest = d[d["date"] == d["date"].max()].set_index("sector")["ret"] * 100.0
+    # CDI is a benchmark, not a sector — it must not win "best sector on the day".
+    day = d[(d["date"] == d["date"].max()) & (d["sector"] != "CDI")]
+    latest = day.set_index("sector")["ret"] * 100.0
     st.caption(_md(
-        f"{_SCALE_HELP[scale]}  Asset-weighted across each sector's classes and weighted by "
+        (f"The dashed line is {baseline[1]}.  " if baseline else "")
+        + f"{_SCALE_HELP[scale]}  Asset-weighted across each sector's classes and weighted by "
         f"the PRIOR day's assets. On **{d['date'].max():%d %b %Y}**, the last session every "
         f"sector had filed: **{latest.idxmax()}** {latest.max():+.2f}%, "
         f"**{latest.idxmin()}** {latest.min():+.2f}%.  \n"
