@@ -1,5 +1,5 @@
 {
- "asof": "2026-09-25T07:08:20",
+ "asof": "2026-09-27T11:12:43",
  "events": [
   {
    "date": "2025-03-19",
@@ -6420,16 +6420,6 @@
    "bbg": "GCO US Equity",
    "sub": "Genesco Inc \u00b7 Russell 2000 \u00b7 US",
    "tip": "Genesco Inc \u2014 Consumer Discretionary \u00b7 Russell 2000 \u00b7 US \u00b7 370mm"
-  },
-  {
-   "date": "2026-12-03",
-   "icon": "",
-   "label": "DOMO",
-   "color": "#1565C0",
-   "auto": false,
-   "bbg": "DOMO US Equity",
-   "sub": "Domo Inc Class B \u00b7 Russell 2000 \u00b7 US",
-   "tip": "Domo Inc Class B \u2014 Information Technology \u00b7 Russell 2000 \u00b7 US \u00b7 167mm"
   },
   {
    "date": "2026-12-08",
