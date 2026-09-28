@@ -2,9 +2,9 @@
  "date": "2026-09-28",
  "runs": 1,
  "outcome": "running",
- "mc": "running",
+ "mc": "sent",
  "mode": "",
- "phase": "coffee",
+ "phase": "backup",
  "started": "2026-09-28T06:57:08",
- "when": "2026-09-28T07:21:32"
+ "when": "2026-09-28T07:24:30"
 }

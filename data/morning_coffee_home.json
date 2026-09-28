@@ -1,55 +1,55 @@
 {
- "generated_at": "25 Sep 2026 · 07:09 ET",
- "synopsis": "Energy is the morning's story: crude reversed Thursday's tightness-driven rally after reports the US and Iran are exploring a phased deal that would reopen the Strait of Hormuz in exchange for lifting the blockade on Iranian ports. Brent slipped 1.1% to $105.44, WTI dropped 1.8% to $92.88 — with the WTI-Brent discount blowing out to its widest since early May near $12 — and the products led lower, gasoil off 5.2%…",
- "commentary": "Energy is the morning's story: crude reversed Thursday's tightness-driven rally after reports the US and Iran are exploring a phased deal that would reopen the Strait of Hormuz in exchange for lifting the blockade on Iranian ports. Brent slipped 1.1% to $105.44, WTI dropped 1.8% to $92.88 — with the WTI-Brent discount blowing out to its widest since early May near $12 — and the products led lower, gasoil off 5.2% and RBOB down 2.2%, while TTF and Henry Hub gas shed close to 4%. That cooling in oil eased the inflation panic that had driven global yields to multi-decade highs: Treasuries steadied, European bonds caught a bid, and equity index futures extended weekly gains, with the S&P up 0.3%, Nasdaq up 0.5% and Euro Stoxx banks outperforming at +1.5%.\n\nThe macro backdrop remains a hiking regime, not an easing one. The Fed's first hike in three years is being reinforced — Philadelphia's Paulson flagged further \"modest\" moves to tame inflation — while the BoE's Bailey says high energy costs make holding rates harder, and markets increasingly price two more UK hikes. The Trump-Xi summit delivered pomp but little substance beyond AI talks and hints at a trade truce extension, and Trump's stated concern about yen weakness lifted JPY 0.7%, the standout FX move. Gold (+1%) and silver (+2.1%) rallied despite the risk-on tone — a hedge against sticky inflation and heavy sovereign borrowing needs keeping real financing costs elevated.\n\nIn ags, grains sold off hard — CBOT wheat -2.2%, corn -1.8% — while arabica coffee added 1.3% near records amid the US-Colombia tariff back-and-forth, according to reports.",
+ "generated_at": "28 Sep 2026 · 08:24 ET",
+ "synopsis": "The Strait of Hormuz standoff is again the market's organizing principle this morning. Tehran refused to soften its conditions for reopening the waterway after Trump rejected its latest proposal, and crude ripped higher — Brent up 3.6% through $108, WTI near $96, heating oil +4.3% with the prompt Brent spread at its firmest backwardation since April.",
+ "commentary": "The Strait of Hormuz standoff is again the market's organizing principle this morning. Tehran refused to soften its conditions for reopening the waterway after Trump rejected its latest proposal, and crude ripped higher — Brent up 3.6% through $108, WTI near $96, heating oil +4.3% with the prompt Brent spread at its firmest backwardation since April. Saudi Arabia's repaired East-West pipeline resuming exports offered only marginal offset. The knock-on is a classic supply-shock risk tone: Treasuries fell across the curve with the 10-year yield through 5.2%, US equity futures dropped (Nasdaq -0.8%) as oil rekindled inflation worries, and the dollar sits near a two-month high on firming Fed rate-hike bets after last week's first hike in three years.\n\nNote what didn't work: gold fell 3.2% and silver nearly 5% despite the geopolitics — with the Fed back in tightening mode and real yields grinding higher, the precious complex is trading as a rates-and-dollar casualty, not a haven. Copper's 1.9% slide adds a growth-worry signal even as China's cabinet pledged stronger policy support to hit its target. Ags were the other sore spot — soybeans -1.8%, corn and wheat down over 1% — after the Trump-Xi summit's tariff-cut lists conspicuously excluded soybeans and LNG, leaving the trade complex wanting more.\n\nTransmission is straightforward: energy strength feeds sticky inflation, which pressures the long end (heavy issuance and the AI financing wave are already keeping term premia elevated), which caps index futures and supports the dollar.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "OIL BRIEF ASIA: US, Iran Said to Explore Phased Deal for Hormuz",
+   "title": "Treasuries, Futures Fall as US-Iran Standoff Drives Oil Higher",
    "time": "",
+   "tag": "Macro"
+  },
+  {
+   "source": "Al Jazeera",
+   "title": "Oil prices surge after Trump rejects Iran's plan to reopen Strait of Hormuz",
+   "time": "05:17 ET",
+   "tag": "Energy"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "Saudi Arabia's Key Oil Pipeline Starts Exports After Repairs",
+   "time": "07:17 ET",
    "tag": "Energy"
   },
   {
    "source": "Financial Times",
-   "title": "US long-term borrowing costs touch highest level since 2004",
-   "time": "16:32 ET",
+   "title": "Bond sell-off deepens as oil rises above $108",
+   "time": "07:26 ET",
    "tag": "Rates"
   },
   {
-   "source": "Financial Times",
-   "title": "Bank of England to raise rates in November if energy prices remain high",
-   "time": "00:30 ET",
-   "tag": "Rates"
+   "source": "Wall Street Journal",
+   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek",
+   "time": "14:26 ET",
+   "tag": "Equities"
   },
   {
-   "source": "WSJ",
+   "source": "Wall Street Journal",
    "title": "Comex Gold, Silver Settle Lower",
    "time": "14:01 ET",
    "tag": "Metals"
   },
   {
-   "source": "WSJ",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "WSJ",
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
   },
   {
-   "source": "NPR",
-   "title": "American farmers are hurting -- and worried about their futures",
-   "time": "05:00 ET",
+   "source": "Bloomberg",
+   "title": "The Trump-Xi Summit Leaves Agricultural Markets Wanting More",
+   "time": "07:15 ET",
    "tag": "Agriculture"
-  },
-  {
-   "source": "Al Jazeera",
-   "title": "Saudi Arabia allies line up support as Houthi attacks mount",
-   "time": "04:32 ET",
-   "tag": "Geopolitics"
   }
  ]
 }
