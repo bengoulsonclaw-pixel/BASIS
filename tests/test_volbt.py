@@ -88,7 +88,9 @@ def test_fx_usd_rate_quote_divisors():
     assert volbt.fx_usd_rate("BPA Curncy", 134.99) == pytest.approx(1.3499)
     assert volbt.fx_usd_rate("JYA Curncy", 63.65) == pytest.approx(0.006365)
     assert volbt.fx_usd_rate("SFA Curncy", 123.45) == pytest.approx(1.2345)
+    assert volbt.fx_usd_rate("KOA Curncy", 0.07385) == pytest.approx(0.0007385)   # cents per won
     assert volbt.fx_usd_rate("XXX Curncy", 2.5) == pytest.approx(2.5)   # unknown: raw
+    assert volbt.FX_USD["KRW"] == "KOA Curncy"   # KOSPI legs no longer fall back to 1 KRW = 1 USD
 
 
 def test_currency_map():
@@ -96,6 +98,11 @@ def test_currency_map():
     assert volbt.currency("RXA Comdty") == "EUR"
     assert volbt.currency("G A Comdty") == "GBP"
     assert volbt.currency("TKYA Comdty") == "EUR"   # ICE 3M €STR — Tokyo-looking root, EUR contract
+    assert volbt.currency("FJSA Comdty") == "EUR"   # ICE Endex TTF
+    assert volbt.currency("MOA Comdty") == "EUR"    # ICE Endex EUA
+    assert volbt.currency("BRA Curncy") == "USD"    # CME FX futures settle in dollars
+    assert volbt.money_symbol("RXA Comdty") == "€"
+    assert volbt.money_symbol("CLA Comdty") == "$"
 
 
 def test_point_values_quote_units():
@@ -108,6 +115,25 @@ def test_point_values_quote_units():
     for tk, pv in expect.items():
         assert volbt.point_value(tk) == pv, tk
     assert all(v > 0 for v in volbt.POINT_VALUE.values())
+
+
+def test_point_values_imply_real_contract_notionals():
+    """The 2026-09-28 additions: point value × the generic's quote must equal contract size ×
+    the USD rate (ECB reference, 2026-09-28) — a divisor slip shows up as a 100× notional."""
+    cases = {  # ticker: (quote on 2026-09-25, contract size, USD per unit)
+        "BRA Curncy": (19.255, 100_000, 0.192241),
+        "RAA Curncy": (6.0975, 500_000, 0.0610048),
+        "SIRA Curncy": (104.45, 5_000_000, 0.0104185),
+        "SEA Curncy": (10.1425, 2_000_000, 0.100508),
+        "NOA Curncy": (10.5175, 2_000_000, 0.105186),
+        "HEA Curncy": (0.31164, 30_000_000, 0.00309943),
+        "KOA Curncy": (0.07385, 125_000_000, 0.000736416),
+        "CCA Curncy": (0.046846, 4_000_000, 0.0466369),
+        "ISA Curncy": (0.32952, 1_000_000, 0.326447),
+        "PPA Curncy": (0.26084, 500_000, 0.260188),
+    }
+    for tk, (quote, size, usd_per_unit) in cases.items():
+        assert volbt.point_value(tk) * quote == pytest.approx(size * usd_per_unit, rel=0.02), tk
 
 
 def test_point_value_universe_coverage(golden):

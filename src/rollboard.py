@@ -176,7 +176,7 @@ def spreads(tickers: list) -> dict:
             pv, ccy = float(volbt.point_value(t)), volbt.currency(t)
         except Exception:
             pv, ccy = 0.0, ""
-        # point_value() returns 0.0 for the 19 products absent from its table, so a cash
+        # point_value() returns 0.0 for any product absent from its table, so a cash
         # figure computed from it reads "this roll costs you nothing" when it means "we do
         # not know the contract size". Unknown has to stay blank.
         pv = pv if pv else float("nan")

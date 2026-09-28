@@ -376,7 +376,7 @@ def _setup(scope: str, ticker: str, strategies: list, start, end, exit_rule, hol
                             "treating 1 " + ccy + " = 1 USD.")
         elif ccy != "USD":
             warnings.append(f"{ticker} is {ccy}-denominated — P&L converted to USD at the "
-                            f"backtest-start rate {ccy}USD {fx:.4f} (frozen for the run).")
+                            f"backtest-start rate {ccy}USD {fx:.5g} (frozen for the run).")
         size_mult = pv * fx
     sign = -1 if (not eq and universe.is_fixed_income(ticker)) else 1
     return signal_hist, pnl_hist, vol_hist, days, size_mult, ccy, sign, warnings

@@ -90,7 +90,8 @@ def render_html(d: dict) -> str:
         info, dp = c["info"], int(c["dp"])
         dsig = ""
         if info.get("dollar_sigma"):
-            dsig = f" (≈${info['dollar_sigma']:,.0f} per 1-lot spread)"
+            dsig = (f" (≈{info.get('dsig_sym') or '$'}"
+                    f"{info['dollar_sigma']:,.0f} per 1-lot spread)")
         charts.append({
             "name": c["name"], "desc": c["desc"], "img": spread_png(c),
             "stats": (f"{_fmt(info.get('level'), dp)} {c['unit']} · z {info.get('z', 0):+.2f} · "

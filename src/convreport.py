@@ -235,12 +235,13 @@ def _full_levels(gathered: dict, pf, net_dir: int) -> dict:
 
 def _risk(tk, entry, stop) -> dict:
     """Risk to the invalidation level. The **% move** to the stop is scale-invariant and always
-    reported. The **per-contract $** is added ONLY where the volbt point-value reconciles with
-    the live data scale — i.e. `point_value × price` implies a plausible single-contract USD
-    notional. FX, cents-quoted and non-USD contracts (whose live data scale doesn't match the
-    table) and fixed income (levels are yields → need a DV01) fall back to the % alone, so a
-    mis-scaled dollar figure is never shown."""
-    out = {"pct": None, "usd": None}
+    reported. The **per-contract money figure** is added ONLY where the volbt point-value
+    reconciles with the live data scale — i.e. `point_value × price` implies a plausible
+    single-contract notional — and is in the contract's OWN currency (`usd` is a legacy key
+    name: a DAX figure is euros, so `sym` carries € for the template). Fixed income (levels
+    are yields → need a DV01) falls back to the bp distance alone, so a mis-scaled figure
+    is never shown."""
+    out = {"pct": None, "usd": None, "sym": "$"}
     try:
         entry, stop = float(entry), float(stop)
     except (TypeError, ValueError):
@@ -264,8 +265,8 @@ def _risk(tk, entry, stop) -> dict:
         return out
     out["pct"] = abs(entry - stop) / abs(entry) * 100.0
     try:
-        from src.volbt import point_value
-        pv = point_value(tk)
+        from src.volbt import money_symbol, point_value
+        pv, out["sym"] = point_value(tk), money_symbol(tk)
     except Exception:
         pv = 0.0
     if pv and 8_000 <= pv * abs(entry) <= 1_500_000:   # point-value reconciles with the data scale

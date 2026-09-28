@@ -151,12 +151,12 @@
         <b>{{ '%.0f'|format(p.levels.reward.bp) }}bp</b>
         {%- elif p.levels.get('reward') and p.levels.reward.get('pct') %} &nbsp;·&nbsp; reward to objective
         <b>{{ '%.1f'|format(p.levels.reward.pct) }}%</b>{% if p.levels.reward.get('usd') %} (&approx;
-        ${{ '{:,.0f}'.format(p.levels.reward.usd) }}/contract){% endif %}{% endif %}
+        {{ p.levels.reward.get('sym') or '$' }}{{ '{:,.0f}'.format(p.levels.reward.usd) }}/contract){% endif %}{% endif %}
         {%- if p.levels.get('risk') and p.levels.risk.get('bp') %} &nbsp;·&nbsp; risk to stop
         <b>{{ '%.0f'|format(p.levels.risk.bp) }}bp</b>
         {%- elif p.levels.get('risk') and p.levels.risk.get('pct') %} &nbsp;·&nbsp; risk to stop
         <b>{{ '%.1f'|format(p.levels.risk.pct) }}%</b>{% if p.levels.risk.get('usd') %} (&approx;
-        ${{ '{:,.0f}'.format(p.levels.risk.usd) }}/contract){% endif %}{% endif %}
+        {{ p.levels.risk.get('sym') or '$' }}{{ '{:,.0f}'.format(p.levels.risk.usd) }}/contract){% endif %}{% endif %}
         {%- if p.levels.get('rr') %} &nbsp;·&nbsp; <b>R:R {{ '%.1f'|format(p.levels.rr) }}:1</b>
         (reward &divide; risk){% endif %}</p>
       {% if p.img %}<div class="chart"><img src="{{ p.img }}" alt="technical chart"></div>{% endif %}

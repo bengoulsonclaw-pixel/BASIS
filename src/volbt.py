@@ -81,6 +81,23 @@ POINT_VALUE = {
     "ECA Curncy": 125000.0, "BPA Curncy": 625.0, "JYA Curncy": 1250.0,
     "SFA Curncy": 1250.0, "CDA Curncy": 1000.0, "ADA Curncy": 1000.0,
     "NVA Curncy": 1000.0, "PEA Curncy": 5000.0,
+    # NOT yet FUT_VAL_PT-checked (added 2026-09-28): each is the exchange contract size ÷
+    # the quote divisor, the divisor measured as the generic's settle ÷ the ECB reference
+    # rate (the same check reproduces every audited FX_QUOTE_DIV below): BR/RA/SE/NO/HE/KO
+    # quote cents, SIR cents per 100 rupees, CZ/IS/PZ whole dollars. Sizes: BRL 100k,
+    # ZAR 500k, INR 5M, SEK/NOK 2M, HUF 30M, KRW 125M, CZK 4M, ILS 1M, PLN 500k — HUF and
+    # CZK via their rulebook ticks ($6 = 0.0000002/HUF, $8 = 0.000002/CZK).
+    "BRA Curncy": 1000.0, "RAA Curncy": 5000.0, "SIRA Curncy": 500.0,
+    "SEA Curncy": 20000.0, "NOA Curncy": 20000.0, "HEA Curncy": 300000.0,
+    "KOA Curncy": 1250000.0, "CCA Curncy": 4000000.0, "ISA Curncy": 1000000.0,
+    "PPA Curncy": 500000.0,
+    # ICE Endex TTF delivers 1 MW for every hour of the month, so € per €1/MWh is the
+    # month's hour count (672–745); 730 is the average month. EUA = 1,000 t. SGX iron
+    # ore 100 t and Platts ethanol 42,000 gal are desk-confirmed (brazilprod.HEDGE).
+    "FJSA Comdty": 730.0, "MOA Comdty": 1000.0, "SCOA Comdty": 100.0,
+    "CUAA Comdty": 42000.0,
+    # cash-index twins carry their futures' multiplier, as SX5E/DAX/UKX/SX7E do
+    "CAC Index": 10.0, "SMI Index": 10.0, "NKY Index": 1000.0, "KOSPI2 Index": 250000.0,
 }
 
 # ── contract currencies (non-USD only; anything absent = USD) ───────────────
@@ -100,17 +117,24 @@ CCY = {
     # TKYA = ICE 3M ESTR (Tokyo-looking Bloomberg root, but a EUR contract).
     "TKYA Comdty": "EUR",
     "G A Comdty": "GBP", "SFIA Comdty": "GBP",
+    "FJSA Comdty": "EUR", "MOA Comdty": "EUR",           # ICE Endex TTF + EUA
 }
 # USD per 1 unit of ccy — CME FX futures generics (all quoted American terms).
 FX_USD = {"EUR": "ECA Curncy", "GBP": "BPA Curncy", "JPY": "JYA Curncy",
-          "CHF": "SFA Curncy", "AUD": "ADA Curncy", "CAD": "CDA Curncy"}
+          "CHF": "SFA Curncy", "AUD": "ADA Curncy", "CAD": "CDA Curncy",
+          "KRW": "KOA Curncy"}
 # Bloomberg quote convention of each generic: divide its price by this to get USD
 # per 1 unit of the currency. ECA quotes dollars (1.1581); BPA/SFA/ADA/CDA quote
 # CENTS (134.99 = $1.3499/GBP); JYA quotes cents per 100 yen (63.65 = $0.006365/¥).
 # Verified via QUOTE_UNITS live 2026-08-08 — using the raw price as USD-per-unit
-# made every GBP/JPY/CHF leg's USD conversion 100–10,000× too large.
+# made every GBP/JPY/CHF leg's USD conversion 100–10,000× too large. KOA quotes cents
+# per won (0.07385 = $0.0007385/₩) — ECB reference-rate cross-check, 2026-09-28.
 FX_QUOTE_DIV = {"ECA Curncy": 1.0, "BPA Curncy": 100.0, "JYA Curncy": 10000.0,
-                "SFA Curncy": 100.0, "ADA Curncy": 100.0, "CDA Curncy": 100.0}
+                "SFA Curncy": 100.0, "ADA Curncy": 100.0, "CDA Curncy": 100.0,
+                "KOA Curncy": 100.0}
+
+CCY_SYMBOL = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CHF": "CHF ",
+              "AUD": "A$", "CAD": "C$", "KRW": "₩"}
 
 
 def fx_usd_rate(src: str, px: float) -> float:
@@ -120,6 +144,13 @@ def fx_usd_rate(src: str, px: float) -> float:
 
 def currency(ticker: str) -> str:
     return CCY.get(ticker, "USD")
+
+
+def money_symbol(ticker: str) -> str:
+    """Prefix for a money amount in the contract's own currency — a point value times
+    a price move is euros on a Bund, not dollars."""
+    ccy = currency(ticker)
+    return CCY_SYMBOL.get(ccy, f"{ccy} ")
 
 
 WEIGHTINGS = ["rn_gamma", "gamma", "vega", "beta_vega", "premium"]
@@ -462,7 +493,7 @@ def run_backtest(buy: str | None, sell: str | None, entry: date, expiry: date,
             mults[t] = mults[t] * rate
             fx_used[k] = {"ccy": ccy, "rate": rate}
             warnings.append(f"{product_name(t)} is {ccy}-denominated — its point value is "
-                            f"converted at {ccy}USD {rate:.4f} (the entry-date rate, frozen "
+                            f"converted at {ccy}USD {rate:.5g} (the entry-date rate, frozen "
                             f"for the run), so every figure reads as USD")
         else:
             warnings.append(f"{product_name(t)} is {ccy}-denominated but no {ccy}USD rate "

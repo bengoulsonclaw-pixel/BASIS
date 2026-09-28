@@ -37,9 +37,9 @@ import numpy as np
 import pandas as pd
 
 from . import deepstore, universe
-from .volbt import point_value
+from .volbt import currency, money_symbol, point_value
 
-REV = 5               # bump when the book/row schema changes — busts the page's st.cache_data
+REV = 6               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
@@ -234,14 +234,17 @@ def _half_life(spread: pd.Series) -> float:
 
 
 def _dollar_sigma(spec: dict, sigma: float) -> float | None:
-    """1σ of the spread in $ per 1-lot-per-leg, ONLY where the volbt point value
-    reconciles cleanly: same-product calendars and unit-weight diffs whose legs share
-    one point value. Yield-space and ratio spreads return None ($ needs DV01 / lot
-    ratios — we don't fake it)."""
+    """1σ of the spread in money per 1-lot-per-leg — in the legs' own currency (the row's
+    `dsig_sym`) — ONLY where the volbt point value reconciles cleanly: same-product
+    calendars and unit-weight diffs whose legs share one point value and one currency.
+    Yield-space and ratio spreads return None ($ needs DV01 / lot ratios — we don't
+    fake it)."""
     if "pv_unit" in spec:
         return abs(sigma) * spec["pv_unit"]
     if spec.get("kind_of_spread") == "ratio" or spec["unit"] == "bp" and any(
             kind == "yield" for _, kind, _ in spec["legs"]):
+        return None
+    if len({currency(tkr) for _, _, tkr in spec["legs"]}) != 1:
         return None
     pvs = {point_value(tkr) for _, _, tkr in spec["legs"]}
     if len(pvs) != 1 or not pvs or 0.0 in pvs:
@@ -283,6 +286,7 @@ def _row(spec: dict, s: pd.Series, window: int, threshold: float) -> dict | None
         "half_life": _half_life(s.tail(window * 2)),
         "signal": signal, "direction": direction,
         "objective": m, "invalidation": inval, "dollar_sigma": dsig,
+        "dsig_sym": money_symbol(spec["legs"][0][2]),
         "first": s.index.min().date().isoformat(), "days": int(len(s)),
         "asof": s.index.max().date().isoformat(),
     }

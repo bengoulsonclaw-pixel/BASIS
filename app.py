@@ -12076,7 +12076,7 @@ def render_vol_backtester() -> None:
                    "use the cash-index twin, which is listed).")
     _NONE = "— none —"
     def _lab(t): return t if t == _NONE else f"{INSTRUMENTS[t][0]}  ·  {t}"
-    opts = [_NONE] + tickers
+    opts = [_NONE] + sorted(tickers, key=_lab)
     c1, c2 = st.columns(2)
     buy = c1.selectbox("BUY vol (long straddles) — optional", opts,
                        index=opts.index("NQA Index") if "NQA Index" in opts else 1,
@@ -14790,7 +14790,7 @@ def render_curve_monitor() -> None:
     brand.show_chart((z_rules + z_ln).properties(height=120))
 
     dsig = ("" if pd.isna(row["dollar_sigma"]) or row["dollar_sigma"] is None
-            else f" (≈${row['dollar_sigma']:,.0f} per 1-lot spread)")
+            else f" (≈{row.get('dsig_sym') or '$'}{row['dollar_sigma']:,.0f} per 1-lot spread)")
     st.caption(
         f"Mean ({window}d) **{row['mean']:,.{dp}f} {row['unit']}** — the level a reversion "
         f"points back to · invalidation reference **{row['invalidation']:,.{dp}f}** "

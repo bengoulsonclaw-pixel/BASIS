@@ -20,6 +20,13 @@ KNOWN_GROUPS — each a frozenset of the modules that pulled the offending pair:
     stircurve pulls a multi-day settle HISTORY WINDOW for a different contract set than the
     single-day snapshot stirpaths writes, so the two are not interchangeable (2026-09-07
     audit). Left in place deliberately.
+  * {owncurve._bdp_many, stircurve._bdh} on TY PX_SETTLE (3 pairs, first seen in the
+    2026-09-28 pull) — the skew-backfill drip reaching its LAST product, TYA: its settle
+    HISTORY for the Dec/Mar/Jun contracts goes through stircurve's bdh helper, while the
+    own-curve marks fetch takes the same contracts' one-day settle. The detector keys on
+    security x field, not dates, so a history backfill always collides with the live
+    snapshot. TRANSIENT: TYA has one retry left (MAX_SKEW_ATTEMPTS), then the drip no-ops
+    for good — drop this entry once a later pull has regenerated the file without it.
 """
 import json
 from pathlib import Path
@@ -33,6 +40,7 @@ KNOWN_GROUPS = {
                "datafeed._bloomberg_live_quote",
                "deepstore._pull_field"}),
     frozenset({"stircurve._bdh", "stirpaths.refresh_strip_store"}),
+    frozenset({"owncurve._bdp_many", "stircurve._bdh"}),        # transient — see docstring
 }
 
 

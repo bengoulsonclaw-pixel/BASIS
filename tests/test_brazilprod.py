@@ -574,7 +574,9 @@ _QUOTE_DIV = {          # 100 = the contract quotes in CENTS, 1 = quotes in doll
 # Missing from POINT_VALUE, so no arithmetic second source. Anything here must carry
 # a `verified` provenance note in HEDGE instead — except the names still on this
 # pending list, which are genuinely unconfirmed and should shrink over time.
-_NO_SECOND_SOURCE = {"SCOA Comdty", "CUAA Comdty"}
+# SCOA/CUAA entered POINT_VALUE on 2026-09-28 FROM these same desk-confirmed sizes, so
+# their cross-check is a consistency lock, not a second source — HEDGE keeps `verified`.
+_NO_SECOND_SOURCE: set = set()
 _UNVERIFIED_PENDING: set = set()          # both now desk-confirmed
 
 

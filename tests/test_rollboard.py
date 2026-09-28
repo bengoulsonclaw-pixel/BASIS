@@ -125,7 +125,7 @@ def test_every_product_is_struck_on_one_session(legs, monkeypatch):
 
 
 def test_an_unknown_contract_size_is_blank_not_zero(legs, monkeypatch):
-    """volbt.point_value returns 0.0 for the 19 products absent from its table. Multiplying
+    """volbt.point_value returns 0.0 for any product absent from its table. Multiplying
     through gives -0.00, which reads as "this roll costs you nothing" when it means "we do
     not know the contract size"."""
     monkeypatch.setattr(rb, "_is_fi", lambda t: False)
