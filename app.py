@@ -5987,7 +5987,7 @@ def _ta_gallery_data(tk, strset_key, as_of):
     if "Fibonacci Retracement" in strset:
         try:
             _, _ifb = _fbn.fib_chart_data(tk)
-            out["fib_levels"] = [L for L in ((_ifb or {}).get("levels", []) or []) if L.get("key")]
+            out["fib_levels"] = list((_ifb or {}).get("levels", []) or [])   # full ladder; each carries its golden-zone `key` flag
         except Exception:
             pass
     if "Breakout & Retest" in strset:
@@ -6104,7 +6104,7 @@ def _eq_ta_gallery_data(tk, strset_key, as_of):
     if "Fibonacci Retracement" in strset:
         try:
             _, _ifb = _fbn.fib_chart_data(tk, history=hist)
-            out["fib_levels"] = [L for L in ((_ifb or {}).get("levels", []) or []) if L.get("key")]
+            out["fib_levels"] = list((_ifb or {}).get("levels", []) or [])   # full ladder; each carries its golden-zone `key` flag
         except Exception:
             pass
     if "Breakout & Retest" in strset:
@@ -6414,8 +6414,6 @@ def render_ta_overview() -> None:
                     ]
                 for lv in _g["sr_levels"]:
                     rules.append((lv["price"], _cc["long"] if lv["kind"] == "support" else _cc["short"]))
-                for _L in _g["fib_levels"]:
-                    rules.append((_L["price"], _cc["accent"]))
                 if _g["retest_level"] is not None:
                     rules.append((_g["retest_level"], _cc["accent"]))
 
@@ -6437,6 +6435,18 @@ def render_ta_overview() -> None:
                     if np.isfinite(pv):
                         layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
                             color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+                _fib = [L for L in _g["fib_levels"] if L.get("price") is not None and np.isfinite(L["price"])]
+                if _fib:                          # full Fib ladder: golden zone bold, rest faint, all % labelled
+                    _fdf = pd.DataFrame([{"y": L["price"], "lab": f"{L['ratio'] * 100:g}%",
+                                          "key": bool(L.get("key"))} for L in _fib])
+                    for _m, _op, _w, _dash in ((~_fdf["key"], 0.55, 1.1, [2, 3]), (_fdf["key"], 0.95, 2.4, [5, 3])):
+                        _s = _fdf[_m]
+                        if not _s.empty:
+                            layers.append(alt.Chart(_s).mark_rule(color=_cc["accent"], strokeDash=_dash,
+                                                                  opacity=_op, strokeWidth=_w).encode(y="y:Q"))
+                    layers.append(alt.Chart(_fdf.assign(x=win.index[-1])).mark_text(
+                        align="left", dx=4, fontSize=9, color=_cc["accent"]).encode(
+                        x="x:T", y="y:Q", text="lab:N"))
                 if _g.get("donchian") is not None:              # Donchian channel — prior-N high/low bands
                     _dch = _g["donchian"][_g["donchian"]["date"] >= win.index[0]]
                     if not _dch.empty:
@@ -6557,8 +6567,11 @@ def render_ta_overview() -> None:
     })
 
     def _sig_color(col):
-        return ["color:#137333;font-weight:700" if "▲" in str(v)
-                else "color:#c5221f;font-weight:700" if "▼" in str(v) else "color:#888" for v in col]
+        _p = brand.palette()                       # bright, theme-aware green/red (Ben, 2026-09-29):
+        _up = f"color:{_p['green']};font-weight:700"   # the readable palette used elsewhere in the app
+        _dn = f"color:{_p['red']};font-weight:700"     # (dark #46C58A/#EC6A57), not the dim #137333/#c5221f
+        return [_up if "▲" in str(v) else _dn if "▼" in str(v)
+                else f"color:{_p['faint']}" for v in col]
 
     brand.themed_dataframe(show, {"Conviction": "{:.0f}", "Score": "{:.0f}"},
                            colorers=[(["Signal"], _sig_color)], height=520)
@@ -6634,8 +6647,6 @@ def _ta_render_gallery(gallery, gallery_data_fn, as_of) -> None:
             ]
         for lv in _g["sr_levels"]:
             rules.append((lv["price"], _cc["long"] if lv["kind"] == "support" else _cc["short"]))
-        for _L in _g["fib_levels"]:
-            rules.append((_L["price"], _cc["accent"]))
         if _g["retest_level"] is not None:
             rules.append((_g["retest_level"], _cc["accent"]))
 
@@ -6657,6 +6668,18 @@ def _ta_render_gallery(gallery, gallery_data_fn, as_of) -> None:
             if np.isfinite(pv):
                 layers.append(alt.Chart(pd.DataFrame({"y": [pv]})).mark_rule(
                     color=cv, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+        _fib = [L for L in _g["fib_levels"] if L.get("price") is not None and np.isfinite(L["price"])]
+        if _fib:                          # full Fib ladder: golden zone bold, rest faint, all % labelled
+            _fdf = pd.DataFrame([{"y": L["price"], "lab": f"{L['ratio'] * 100:g}%",
+                                  "key": bool(L.get("key"))} for L in _fib])
+            for _m, _op, _w, _dash in ((~_fdf["key"], 0.55, 1.1, [2, 3]), (_fdf["key"], 0.95, 2.4, [5, 3])):
+                _s = _fdf[_m]
+                if not _s.empty:
+                    layers.append(alt.Chart(_s).mark_rule(color=_cc["accent"], strokeDash=_dash,
+                                                          opacity=_op, strokeWidth=_w).encode(y="y:Q"))
+            layers.append(alt.Chart(_fdf.assign(x=win.index[-1])).mark_text(
+                align="left", dx=4, fontSize=9, color=_cc["accent"]).encode(
+                x="x:T", y="y:Q", text="lab:N"))
         if _g.get("donchian") is not None:              # Donchian channel — prior-N high/low bands
             _dch = _g["donchian"][_g["donchian"]["date"] >= win.index[0]]
             if not _dch.empty:
@@ -6886,8 +6909,11 @@ def render_eq_ta_overview() -> None:
     })
 
     def _sig_color(col):
-        return ["color:#137333;font-weight:700" if "▲" in str(v)
-                else "color:#c5221f;font-weight:700" if "▼" in str(v) else "color:#888" for v in col]
+        _p = brand.palette()                       # bright, theme-aware green/red (Ben, 2026-09-29):
+        _up = f"color:{_p['green']};font-weight:700"   # the readable palette used elsewhere in the app
+        _dn = f"color:{_p['red']};font-weight:700"     # (dark #46C58A/#EC6A57), not the dim #137333/#c5221f
+        return [_up if "▲" in str(v) else _dn if "▼" in str(v)
+                else f"color:{_p['faint']}" for v in col]
 
     brand.themed_dataframe(show, {"Conviction": "{:.0f}", "Score": "{:.0f}"},
                            colorers=[(["Signal"], _sig_color)], height=520)
@@ -12863,7 +12889,7 @@ def _tabt_overlays(tk: str, strats: tuple, hist: pd.DataFrame, vol: pd.DataFrame
     if "Fibonacci Retracement" in strset:
         try:
             _, _ifb = _fbn.fib_chart_data(tk, history=hist)
-            out["fib_levels"] = [L for L in ((_ifb or {}).get("levels", []) or []) if L.get("key")]
+            out["fib_levels"] = list((_ifb or {}).get("levels", []) or [])   # full ladder; each carries its golden-zone `key` flag
         except Exception:
             pass
     if "Breakout & Retest" in strset:
@@ -13373,10 +13399,18 @@ def render_ta_backtester(scope: str = "ficc") -> None:
             if np.isfinite(_lv["price"]):
                 layers.append(alt.Chart(pd.DataFrame({"y": [_lv["price"]]})).mark_rule(
                     color=_lc, strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
-        for _L in _ov.get("fib_levels", []):
-            if np.isfinite(_L["price"]):
-                layers.append(alt.Chart(pd.DataFrame({"y": [_L["price"]]})).mark_rule(
-                    color=_cc["accent"], strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
+        _fib = [L for L in _ov.get("fib_levels", []) if L.get("price") is not None and np.isfinite(L["price"])]
+        if _fib:                                  # full Fib ladder — golden zone bold, rest faint, all % labelled
+            _fdf = pd.DataFrame([{"y": L["price"], "lab": f"{L['ratio'] * 100:g}%",
+                                  "key": bool(L.get("key"))} for L in _fib])
+            for _m, _op, _w, _dash in ((~_fdf["key"], 0.55, 1.1, [2, 3]), (_fdf["key"], 0.95, 2.4, [5, 3])):
+                _s = _fdf[_m]
+                if not _s.empty:
+                    layers.append(alt.Chart(_s).mark_rule(color=_cc["accent"], strokeDash=_dash,
+                                                          opacity=_op, strokeWidth=_w).encode(y="y:Q"))
+            layers.append(alt.Chart(_fdf.assign(x=_win_end)).mark_text(
+                align="left", dx=4, fontSize=9, color=_cc["accent"]).encode(
+                x=alt.X("x:T", scale=_xsc), y="y:Q", text="lab:N"))
         if _ov.get("retest_level") is not None and np.isfinite(_ov["retest_level"]):
             layers.append(alt.Chart(pd.DataFrame({"y": [_ov["retest_level"]]})).mark_rule(
                 color=_cc["accent"], strokeDash=[5, 3], opacity=0.85, strokeWidth=1.8).encode(y="y:Q"))
