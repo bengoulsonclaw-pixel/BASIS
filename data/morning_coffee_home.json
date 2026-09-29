@@ -1,55 +1,55 @@
 {
- "generated_at": "28 Sep 2026 · 08:24 ET",
- "synopsis": "The Strait of Hormuz standoff is again the market's organizing principle this morning. Tehran refused to soften its conditions for reopening the waterway after Trump rejected its latest proposal, and crude ripped higher — Brent up 3.6% through $108, WTI near $96, heating oil +4.3% with the prompt Brent spread at its firmest backwardation since April.",
- "commentary": "The Strait of Hormuz standoff is again the market's organizing principle this morning. Tehran refused to soften its conditions for reopening the waterway after Trump rejected its latest proposal, and crude ripped higher — Brent up 3.6% through $108, WTI near $96, heating oil +4.3% with the prompt Brent spread at its firmest backwardation since April. Saudi Arabia's repaired East-West pipeline resuming exports offered only marginal offset. The knock-on is a classic supply-shock risk tone: Treasuries fell across the curve with the 10-year yield through 5.2%, US equity futures dropped (Nasdaq -0.8%) as oil rekindled inflation worries, and the dollar sits near a two-month high on firming Fed rate-hike bets after last week's first hike in three years.\n\nNote what didn't work: gold fell 3.2% and silver nearly 5% despite the geopolitics — with the Fed back in tightening mode and real yields grinding higher, the precious complex is trading as a rates-and-dollar casualty, not a haven. Copper's 1.9% slide adds a growth-worry signal even as China's cabinet pledged stronger policy support to hit its target. Ags were the other sore spot — soybeans -1.8%, corn and wheat down over 1% — after the Trump-Xi summit's tariff-cut lists conspicuously excluded soybeans and LNG, leaving the trade complex wanting more.\n\nTransmission is straightforward: energy strength feeds sticky inflation, which pressures the long end (heavy issuance and the AI financing wave are already keeping term premia elevated), which caps index futures and supports the dollar.",
+ "generated_at": "29 Sep 2026 · 07:04 ET",
+ "synopsis": "Markets are catching their breath this morning after Monday's bond rout, with Treasuries stabilizing — the long bond up 0.15%, Bunds firmer and gilts bouncing 0.5% — as traders weigh whether the Fed keeps tightening to stamp out inflation. That question got no easier overnight: Spain's preliminary September HICP printed hot at 5% y/y, keeping the pressure on the ECB, while short-rate futures sat frozen.",
+ "commentary": "Markets are catching their breath this morning after Monday's bond rout, with Treasuries stabilizing — the long bond up 0.15%, Bunds firmer and gilts bouncing 0.5% — as traders weigh whether the Fed keeps tightening to stamp out inflation. That question got no easier overnight: Spain's preliminary September HICP printed hot at 5% y/y, keeping the pressure on the ECB, while short-rate futures sat frozen. The risk tone is tentative rather than fearful — US index futures are flat, Europe is outperforming (Euro Stoxx +0.7%) — but elevated yields and $105 Brent remain the twin tests for equity indices, and the IPO window is creaking, with a delayed listing from smart-ring maker Oura and OpenAI holding back its Astra model adding a cautious edge to tech sentiment.\n\nEnergy is the day's talking point, and it's the products, not crude, doing the work. Brent steadied near $105 as Saudi Arabia resumed flows through a key pipeline, offsetting Iran pessimism — officials reportedly see no US deal before the midterms — but the refined barrel cracked hard: gasoil -4.4%, heating oil -2.1%, RBOB -1.2%, with the 3-2-1 crack at its weakest since late August. Meanwhile prompt Brent backwardation is the strongest since April and the WTI-Brent spread has blown out past -$12, the widest since May — a supply-tightness story concentrated in the Atlantic basin.\n\nTTF gas slid 3.7%.",
  "headlines": [
   {
-   "source": "Bloomberg",
-   "title": "Treasuries, Futures Fall as US-Iran Standoff Drives Oil Higher",
+   "source": "FT",
+   "title": "Bond sell-off deepens and oil rises as Iran-US deal hopes fade — Brent crude jumps and 10-year Treasury yield surpasses 5.2% as hopes for US-Iran agreement fade",
    "time": "",
-   "tag": "Macro"
-  },
-  {
-   "source": "Al Jazeera",
-   "title": "Oil prices surge after Trump rejects Iran's plan to reopen Strait of Hormuz",
-   "time": "05:17 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Saudi Arabia's Key Oil Pipeline Starts Exports After Repairs",
-   "time": "07:17 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Financial Times",
-   "title": "Bond sell-off deepens as oil rises above $108",
-   "time": "07:26 ET",
    "tag": "Rates"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek",
-   "time": "14:26 ET",
-   "tag": "Equities"
+   "source": "FT",
+   "title": "Australia raises interest rate to highest level in 15 years — RBA governor says Iran war has 'made people poorer' as central bank seeks to tackle persistent inflation",
+   "time": "",
+   "tag": "Rates"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Comex Gold, Silver Settle Lower",
-   "time": "14:01 ET",
+   "source": "Bloomberg",
+   "title": "Latest Oil Market News and Analysis for Sept. 29 — Oil steadied as top exporter Saudi Arabia resumed flows through a key pipeline, while there were no signs of progress in US-Iran talks",
+   "time": "",
+   "tag": "Energy"
+  },
+  {
+   "source": "WSJ",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts — U.S. natural gas futures fell after weekend updates took some of the chill out of early February weather forecasts",
+   "time": "",
+   "tag": "Energy"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "Gold Edges Higher as Treasuries Stabilize After Sharp Selloff — traders looked for clues on whether the Federal Reserve will continue tightening policy to rein in inflation",
+   "time": "",
    "tag": "Metals"
   },
   {
-   "source": "Wall Street Journal",
+   "source": "WSJ",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
   },
   {
-   "source": "Bloomberg",
-   "title": "The Trump-Xi Summit Leaves Agricultural Markets Wanting More",
-   "time": "07:15 ET",
+   "source": "NPR",
+   "title": "American farmers are hurting — soybean, corn and cotton growers face another year of losses as soaring fuel and fertilizer costs offset higher revenues",
+   "time": "",
    "tag": "Agriculture"
+  },
+  {
+   "source": "WSJ",
+   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek — Nasdaq leads declines as AI infrastructure makers suffer steep falls; Nvidia down 16%",
+   "time": "",
+   "tag": "Equities"
   }
  ]
 }
