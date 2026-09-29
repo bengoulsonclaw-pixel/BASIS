@@ -4296,16 +4296,16 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "JPM US Equity",
-      "name": "Jpmorgan Chase + Co",
-      "sector": "Financials",
+      "ticker": "AAPL US Equity",
+      "name": "Apple Inc",
+      "sector": "Information Technology",
       "region": "US",
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "AAPL US Equity",
-      "name": "Apple Inc",
-      "sector": "Information Technology",
+      "ticker": "JPM US Equity",
+      "name": "Jpmorgan Chase + Co",
+      "sector": "Financials",
       "region": "US",
       "index": "Dow Jones 30"
     },
@@ -4352,6 +4352,13 @@
       "index": "Dow Jones 30"
     },
     {
+      "ticker": "NVDA US Equity",
+      "name": "Nvidia Corp",
+      "sector": "Information Technology",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
       "ticker": "CRM US Equity",
       "name": "Salesforce Inc",
       "sector": "Information Technology",
@@ -4361,13 +4368,6 @@
     {
       "ticker": "IBM US Equity",
       "name": "Intl Business Machines Corp",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "Dow Jones 30"
-    },
-    {
-      "ticker": "NVDA US Equity",
-      "name": "Nvidia Corp",
       "sector": "Information Technology",
       "region": "US",
       "index": "Dow Jones 30"
@@ -4401,16 +4401,16 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "MRK US Equity",
-      "name": "Merck + Co. Inc.",
-      "sector": "Health Care",
+      "ticker": "PG US Equity",
+      "name": "Procter + Gamble Co/The",
+      "sector": "Consumer Staples",
       "region": "US",
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "PG US Equity",
-      "name": "Procter + Gamble Co/The",
-      "sector": "Consumer Staples",
+      "ticker": "MRK US Equity",
+      "name": "Merck + Co. Inc.",
+      "sector": "Health Care",
       "region": "US",
       "index": "Dow Jones 30"
     },

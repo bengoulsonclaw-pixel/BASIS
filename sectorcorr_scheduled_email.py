@@ -119,17 +119,20 @@ MAX_INTRO_PAIRS = 10     # a noisy day shouldn't produce a 40-bullet email body
 
 
 def intro_html(asof: date, extremes: pd.DataFrame) -> str:
+    from src.reportkit import ordinal
     shown = extremes.head(MAX_INTRO_PAIRS)
     items = "".join(
-        f"<li><b>{universe.name(a)} &harr; {universe.name(b)}</b> — 1M correlation "
-        f"{m:+.2f} vs {y:+.2f} over the year ({p:.0f}th percentile of its own range, "
-        f"{'co-movement loosened' if k == 'breakdown' else 'unusual lockstep'})</li>"
+        f"<li><b>{universe.name(a)} &harr; {universe.name(b)}</b> — 1M realized-vol "
+        f"correlation {m:+.2f} vs {y:+.2f} over the year ({ordinal(p)} percentile of its own "
+        f"range, {'realized vols decoupling' if k == 'breakdown' else 'realized vols in unusual lockstep'})</li>"
         for a, b, y, m, p, k in zip(shown["a"], shown["b"], shown["corr_1y"],
                                     shown["corr_1m"], shown["pctl"], shown["kind"]))
     more = (f"<p>&hellip; and {len(extremes) - len(shown)} further pairs in the attached "
             f"report's breaks table.</p>" if len(extremes) > len(shown) else "")
-    return (f"<p>As of {asof:%d %b %Y}, the following product pairs are trading at an extreme "
-            f"of their own 1-year correlation range and may be worth a closer look:</p>"
+    return (f"<p>As of {asof:%d %b %Y}, the realized-volatility correlation of the following "
+            f"product pairs sits at an extreme of its own 1-year range — this measures whether "
+            f"the two products turn volatile together (daily changes in 1-month realized vol), "
+            f"not whether their prices move together — and may be worth a closer look:</p>"
             f"<ul>{items}</ul>{more}")
 
 

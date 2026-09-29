@@ -249,6 +249,17 @@ def percentile_extremes(metric: str, asof, *, lo: float = 5.0, hi: float = 95.0,
     return hit.reset_index(drop=True)
 
 
+def realized_break_text(a: str, b: str, r: dict) -> str:
+    """One alert line for a break in the pair's REALIZED-VOL correlation. The alert
+    feed runs on metric 'realized' (do two products turn volatile together?), so the
+    line must say so — read bare, 'Gold × Palladium are breaking down' sounds like a
+    price-correlation break."""
+    kind = "decoupling" if r["kind"] == "breakdown" else "moving in lockstep"
+    return (f"**{a} × {b}** realized vols are {kind} — 1-month correlation of their "
+            f"realized-vol moves **{r['corr_1m']:+.2f}** against {r['corr_1y']:+.2f} over "
+            "the year, an extreme of the pair's own range.")
+
+
 RADAR_PAIRS = 4                       # Hot Sheet cut: the widest breaks, one line per pair
 
 
@@ -273,15 +284,12 @@ def radar_items() -> list:
     rows = sorted(best.values(), key=lambda r: -r["dz"])[:RADAR_PAIRS]
     items = []
     for r in rows:
-        kind = "breaking down" if r["kind"] == "breakdown" else "moving in lockstep"
         a, b = (_uname(r["a"]) or r["a"]), (_uname(r["b"]) or r["b"])
         items.append(hotsheet.item(
             tag="CORR", key=f"{r['a']}|{r['b']}:{r['kind']}",
             section="Correlations",
-            text=(f"**{a} × {b}** are {kind} — 1-month correlation "
-                  f"**{r['corr_1m']:+.2f}** against {r['corr_1y']:+.2f} over the year, "
-                  "an extreme of the pair's own range."),
-            metric=f"Δρ {r['diff']:+.2f}", sub="1M vs 1Y",
+            text=realized_break_text(a, b, r),
+            metric=f"Δρ {r['diff']:+.2f}", sub="realized vol · 1M vs 1Y",
             # heat = the break's Fisher-z size, so losing a tight relationship
             # (0.99→0.60, dz≈1.9) outranks a shallow drift on a marginal base —
             # dz 1.5 (≈ 0.9→0.35) pins the gauge

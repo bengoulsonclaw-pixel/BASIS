@@ -50595,7 +50595,7 @@
  },
  "PRU US Equity": {
   "ticker": "PRU US Equity",
-  "pulled": "2026-08-26",
+  "pulled": "2026-09-29",
   "empty": true
  },
  "DECK US Equity": {
@@ -108506,7 +108506,7 @@
  },
  "BE US Equity": {
   "ticker": "BE US Equity",
-  "pulled": "2026-09-28",
+  "pulled": "2026-09-29",
   "empty": true
  },
  "BDX US Equity": {
@@ -108537,6 +108537,56 @@
  "HAS US Equity": {
   "ticker": "HAS US Equity",
   "pulled": "2026-09-28",
+  "empty": true
+ },
+ "REGN US Equity": {
+  "ticker": "REGN US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "HII US Equity": {
+  "ticker": "HII US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "HLT US Equity": {
+  "ticker": "HLT US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "CSGP US Equity": {
+  "ticker": "CSGP US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "NEM US Equity": {
+  "ticker": "NEM US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "KKR US Equity": {
+  "ticker": "KKR US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "UBER US Equity": {
+  "ticker": "UBER US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "XYZ US Equity": {
+  "ticker": "XYZ US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "CBRE US Equity": {
+  "ticker": "CBRE US Equity",
+  "pulled": "2026-09-29",
+  "empty": true
+ },
+ "MET US Equity": {
+  "ticker": "MET US Equity",
+  "pulled": "2026-09-29",
   "empty": true
  }
 }

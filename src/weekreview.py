@@ -297,13 +297,11 @@ def collect_corr_breaks() -> list:
         _uname = lambda t: t
     out = []
     for r in rows:
-        kind = "breaking down" if r.get("kind") == "breakdown" else "moving in lockstep"
         a, b = (_uname(r["a"]) or r["a"]), (_uname(r["b"]) or r["b"])
         out.append(_bullet("CORR", f"{r['a']}|{r['b']}:{r.get('kind', '')}",
-                           f"**{a} × {b}** are {kind} — 1-month correlation "
-                           f"**{r['corr_1m']:+.2f}** against {r['corr_1y']:+.2f} over the year, "
-                           f"an extreme of the pair's own range.",
-                           metric=f"Δρ {r['diff']:+.2f}", sub="1M vs 1Y",
+                           sectorcorr.realized_break_text(
+                               a, b, {**r, "kind": r.get("kind", "")}),
+                           metric=f"Δρ {r['diff']:+.2f}", sub="realized vol · 1M vs 1Y",
                            bar=abs(r["diff"]) / 1.2))
     return out
 

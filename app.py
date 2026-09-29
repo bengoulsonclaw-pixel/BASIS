@@ -29,7 +29,7 @@ from src.datafeed import (MODE, get_live_quote, get_history, get_history_ta,
                           get_implied_vol_history, get_realized_vol_history,
                           get_term_structure, stale_iv_reasons)
 from src.specs import (SPECS, reflag_rows, trigger_default, save_trigger_default,
-                       ta_report_defaults, save_ta_report_defaults,
+                       load_trigger_defaults, ta_report_defaults, save_ta_report_defaults,
                        tabt_defaults, save_tabt_defaults)
 from src import universe
 from src import brand
@@ -2061,12 +2061,14 @@ def _render_corr_break_banner() -> None:
         return
     if ex is None or ex.empty:
         return
-    tops = [f"**{universe.name(a)} ↔ {universe.name(b)}** ({d:+.2f} vs 1Y, {p:.0f}th pctl)"
+    tops = [f"**{universe.name(a)} ↔ {universe.name(b)}** ({d:+.2f} vs 1Y, {eqfunda.ordinal(p)} pctl)"
             for a, b, d, p in zip(ex["a"].head(3), ex["b"].head(3),
                                   ex["diff"].head(3), ex["pctl"].head(3))]
     more = f" — and {len(ex) - 3} more" if len(ex) > 3 else ""
-    st.warning("🔗 **Correlation breaks** — pairs at an extreme of their 1-year range: "
-               + " · ".join(tops) + more + ". See the correlation maps below.")
+    st.warning("🔗 **Realized-vol correlation breaks** — pairs whose realized vols have moved "
+               "out of (or into) step, at an extreme of their 1-year range: "
+               + " · ".join(tops) + more + ". Set **Correlate** to *Realized vol* below to see "
+               "these on the maps.")
 
 
 def render_weekly_review() -> None:
@@ -15833,10 +15835,20 @@ def render_sector_correlations() -> None:
                            key="sc_sectors",
                            help="One sector shows its internal structure; add more for the "
                                 "cross-sector detail (e.g. Bonds + STIRs).")
-    metric = c1.radio("Correlate", ["Returns", "IV changes", "Realized vol"], index=2, horizontal=True, key="sc_metric",
+    # the saved default is a label string, so read it raw — trigger_default() coerces to float
+    _sc_opts = ["Returns", "IV changes", "Realized vol"]
+    _sc_def = load_trigger_defaults().get("Correlations metric")
+    _sc_def = _sc_def if _sc_def in _sc_opts else "Realized vol"
+    metric = c1.radio("Correlate", _sc_opts, index=_sc_opts.index(_sc_def), horizontal=True, key="sc_metric",
                       help="Returns = settlement-price log returns (price direction). IV changes = daily moves in "
                            "the 1M ATM implied vol (how the vol markets re-mark together). Realized vol = daily "
                            "moves in 1M realized vol (whether they actually turn volatile in sync).")
+    if IS_ADMIN:
+        c1.button("📌 Set default", key="sc_metric_def", disabled=metric == _sc_def,
+                  help=f"Current default: {_sc_def}. Saves the selected measure as the one this page "
+                       "opens on at every launch.",
+                  on_click=lambda m=metric: (save_trigger_default("Correlations metric", m),
+                                             st.toast(f"Correlations now open on {m}.", icon="📌")))
     metric_key = {"IV changes": "iv", "Realized vol": "realized"}.get(metric, "returns")
     asof = c2.date_input("As of", value=date.today(), max_value=date.today(), key="sc_asof",
                          help="Correlations use data up to this date — wind it back to see the "
