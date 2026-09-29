@@ -3303,13 +3303,14 @@ def _equities_overnight_moves(index_keys, snap, show_header: bool = True) -> Non
 
     def _color_move(col):
         out = []
+        _p = brand.palette()                       # bright, theme-aware green/red (Ben, 2026-09-29)
         for v in col:
             if v != v or v == 0:
-                out.append("color:#888")
+                out.append(f"color:{_p['faint']}")
             elif v > 0:
-                out.append("color:#137333;font-weight:700")
+                out.append(f"color:{_p['green']};font-weight:700")
             else:
-                out.append("color:#c5221f;font-weight:700")
+                out.append(f"color:{_p['red']};font-weight:700")
         return out
 
     _fmt = {"% (o/n)": lambda v: f"{v:+.2f}%",
@@ -3378,7 +3379,7 @@ def _eq_rating_actions(index_keys, show_header: bool = True) -> None:
                      "Price target": tgt, "_dir": int(r.get("dir") or 0)})
     tbl = pd.DataFrame(rows)
     dirs = tbl.pop("_dir").tolist()
-    sty = [_EQF_GOOD_CSS if d0 > 0 else _EQF_BAD_CSS if d0 < 0 else "" for d0 in dirs]
+    sty = [_eqf_good_css() if d0 > 0 else _eqf_bad_css() if d0 < 0 else "" for d0 in dirs]
     st.caption(f"Upgrades, downgrades and new coverage published in the last 60 days across "
                f"{scope} — grade changes only (routine target tweaks are left out). Published "
                "third-party analyst views, shown for context. Full consensus, targets and the "
@@ -3770,8 +3771,14 @@ def render_equities_home() -> None:
 
 
 # ── Company Fundamentals (Equities) ───────────────────────────────────────────
-_EQF_GOOD_CSS = "color:#137333;font-weight:700"
-_EQF_BAD_CSS = "color:#c5221f;font-weight:700"
+# Bright, theme-aware good/bad cell CSS (Ben, 2026-09-29): the brand palette green/red computed at
+# RENDER so it follows the theme, not the old dim #137333/#c5221f baked in at import (washed out on dark).
+def _eqf_good_css() -> str:
+    return f"color:{brand.palette()['green']};font-weight:700"
+
+
+def _eqf_bad_css() -> str:
+    return f"color:{brand.palette()['red']};font-weight:700"
 
 # Preset screens — thresholds are SECTOR percentiles (like-for-like within GICS sector),
 # except 'raw<=' which caps the raw value (a payout ratio over ~80% strains the dividend
@@ -3829,7 +3836,7 @@ def _eqf_styles(sub: pd.DataFrame, field: str) -> list:
     out = []
     for _, r in sub.iterrows():
         g = eqfunda.goodness(field, r.get(field + "__pctl"))
-        out.append(_EQF_GOOD_CSS if g > 0 else _EQF_BAD_CSS if g < 0 else "")
+        out.append(_eqf_good_css() if g > 0 else _eqf_bad_css() if g < 0 else "")
     return out
 
 
@@ -4097,7 +4104,7 @@ def _eqa_actions_table(rec: dict, height_rows: int = 8) -> None:
                      "_dir": eqanalyst.action_direction(r["action"])})
     tbl = pd.DataFrame(rows)
     dirs = tbl.pop("_dir").tolist()
-    sty = [_EQF_GOOD_CSS if d0 > 0 else _EQF_BAD_CSS if d0 < 0 else "" for d0 in dirs]
+    sty = [_eqf_good_css() if d0 > 0 else _eqf_bad_css() if d0 < 0 else "" for d0 in dirs]
     brand.themed_dataframe(tbl, {}, colorers=[(["Action"], (lambda s: lambda col: s)(sty))],
                            height=int(40 + 35.2 * min(len(tbl), height_rows)))
 
@@ -4266,7 +4273,7 @@ def _eqf_tech_read(ticker: str, name: str) -> None:
              "_dir": int(r.get("direction") or 0)} for _, r in sig.iterrows()]
     tbl = pd.DataFrame(rows)
     dirs = tbl.pop("_dir").tolist()
-    sty = [_EQF_GOOD_CSS if d0 > 0 else _EQF_BAD_CSS if d0 < 0 else "" for d0 in dirs]
+    sty = [_eqf_good_css() if d0 > 0 else _eqf_bad_css() if d0 < 0 else "" for d0 in dirs]
     brand.themed_dataframe(tbl, {}, colorers=[(["Signal"], (lambda s: lambda col: s)(sty))],
                            height=int(40 + 35.2 * min(len(tbl), 9)))
     st.caption(f"**{len(sig)}** strategy signal(s) live on this name"
@@ -4549,7 +4556,7 @@ def _eqf_peers(df: pd.DataFrame) -> None:
     recs = recs + street
     disp = pd.DataFrame(recs)
     colorers = [([x], (lambda s: lambda col: s)(
-                    [(_EQF_GOOD_CSS if best.get(r["Metric"]) == x else "") for r in recs]))
+                    [(_eqf_good_css() if best.get(r["Metric"]) == x else "") for r in recs]))
                 for x in sel]
     st.caption("**Green = best of the selected group** on that metric, direction-aware; context "
                "metrics with no better/worse end (yield, payout, size) stay unmarked. The "
@@ -4565,8 +4572,8 @@ def _eqf_peers(df: pd.DataFrame) -> None:
         for f in pctl_cols:
             vals = [r.get(f + "__pctl") for r in rows_d]
             grid[labels[f]] = ["—" if (v is None or v != v) else eqfunda.ordinal(v) for v in vals]
-            cell_style[labels[f]] = [_EQF_GOOD_CSS if eqfunda.goodness(f, v) > 0
-                                     else _EQF_BAD_CSS if eqfunda.goodness(f, v) < 0 else ""
+            cell_style[labels[f]] = [_eqf_good_css() if eqfunda.goodness(f, v) > 0
+                                     else _eqf_bad_css() if eqfunda.goodness(f, v) < 0 else ""
                                      for v in vals]
         brand.themed_dataframe(grid, {}, colorers=[([c], (lambda s: lambda col: s)(cell_style[c]))
                                                    for c in cell_style],
@@ -11779,13 +11786,14 @@ def render_stir_bank(bank_key: str) -> None:
 
     def _color_diff(col):
         out = []
+        _p = brand.palette()                       # bright, theme-aware green/red (Ben, 2026-09-29)
         for v in col:
             if abs(v) < 0.05:
-                out.append("color:#888")
+                out.append(f"color:{_p['faint']}")
             elif v > 0:
-                out.append("color:#137333;font-weight:700")
+                out.append(f"color:{_p['green']};font-weight:700")
             else:
-                out.append("color:#c5221f;font-weight:700")
+                out.append(f"color:{_p['red']};font-weight:700")
         return out
     brand.themed_dataframe(tbl, fmt,
                            colorers=[(["Diff (bp)", "Diff (/lot)", "vs fit (bp)"], _color_diff)],
@@ -18671,9 +18679,11 @@ if active == "COT Reports":
                 "Net % OI": "{:+.0f}%", "Δ wk": "{:+,.0f}"}
 
     def _sig_color(col):
-        return ["color:#137333;font-weight:700" if v == "Crowded long"
-                else "color:#c5221f;font-weight:700" if v == "Crowded short"
-                else "color:#888" for v in col]
+        _p = brand.palette()                       # bright, theme-aware green/red (Ben, 2026-09-29)
+        _up = f"color:{_p['green']};font-weight:700"
+        _dn = f"color:{_p['red']};font-weight:700"
+        return [_up if v == "Crowded long" else _dn if v == "Crowded short"
+                else f"color:{_p['faint']}" for v in col]
 
     _q = st.text_input("Find a market", key="cot_search", placeholder=prodsearch.PLACEHOLDER).strip()
     if _q:
@@ -19048,9 +19058,11 @@ if active == "Put/Call Ratios":
                "Δ1d (z)": "{:+.1f}", "Flow−OI": "{:+.0f}"}
 
     def _pc_sig_color(col):
-        return ["color:#c5221f;font-weight:700" if v == "Put-heavy"
-                else "color:#137333;font-weight:700" if v == "Call-heavy"
-                else "color:#888" for v in col]
+        _p = brand.palette()                       # bright, theme-aware green/red (Ben, 2026-09-29)
+        _up = f"color:{_p['green']};font-weight:700"
+        _dn = f"color:{_p['red']};font-weight:700"
+        return [_dn if v == "Put-heavy" else _up if v == "Call-heavy"
+                else f"color:{_p['faint']}" for v in col]
 
     _q = st.text_input("Find a market", key="pc_search", placeholder=prodsearch.PLACEHOLDER).strip()
     if _q:
