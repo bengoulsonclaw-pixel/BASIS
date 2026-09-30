@@ -35,6 +35,8 @@ data/signals/
 # from GitHub every 15 minutes, so a tracked copy would overwrite every
 # colleague's starred funds on each sync.
 data/cvm_watchlist.json
+# Per-user Strategy Builder saved structures: same reason.
+data/optbuilder_library.json
 data/wasde_snapshots/
 
 # ── Generated reports / exports ───────────────────────────────────────────────

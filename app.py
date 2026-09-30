@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 import uuid
+import zlib
 from datetime import datetime, date, timedelta, time as dtime, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -14028,6 +14029,7 @@ def render_strategy_builder() -> None:
         st.session_state["osb_prod"] = _ho["prod"]
         st.session_state["osb_prod_prev"] = _ho["prod"]   # skip the live-quote reseed below
         st.session_state["osb_spot"] = float(_ho["spot"])
+        st.session_state["osb_now"] = float(_ho["spot"])
         st.session_state["osb_pv"] = float(volbt.point_value(_ho["prod"])) or 1.0
         st.session_state.pop("osb_rows", None)
         st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
@@ -14071,8 +14073,69 @@ def render_strategy_builder() -> None:
         return min(_MONTHS, key=lambda L: abs(_MDAYS[L] - days))
 
     _NONE = "— manual —"
+
+    def _live_px(tk: str) -> float:
+        try:
+            return float(get_live_quote([tk]).loc[tk, "last"])
+        except Exception:
+            return float(INSTRUMENTS[tk][1])
+
+    # ---- a library load queued by the Load button: applied BEFORE any widget exists ----
+    _lib_name = st.session_state.pop("osb_lib_pending", None)
+    _lib_note = None
+    if _lib_name:
+        _s = optbuilder.list_saved().get(_lib_name)
+        if _s:
+            _p = _s.get("product") if _s.get("product") in INSTRUMENTS else _NONE
+            _now = _live_px(_p) if _p != _NONE else float(_s.get("entry", 100.0))
+            _pos = bool(_s.get("position"))
+            st.session_state["osb_prod"] = st.session_state["osb_prod_prev"] = _p
+            st.session_state["osb_pv"] = float(_s.get("pv", 1.0))
+            st.session_state["osb_rate"] = float(_s.get("rate", 0.0))
+            st.session_state["osb_now"] = _now
+            st.session_state["osb_spot"] = float(_s.get("entry", _now)) if _pos else _now
+            _rows, _rolled = [], set()
+            for _r in _s.get("rows", []):
+                _m = _r.get("Month")
+                if _m not in (None, _NO_MONTH) and _m not in _MDAYS:
+                    # expired since it was saved: roll to the nearest listed month, and say so
+                    try:
+                        _old = datetime.strptime(_m, "%b %Y").date()
+                        _m2 = min(_MONTHS, key=lambda L: abs(
+                            (datetime.strptime(L, "%b %Y").date() - _old).days))
+                    except Exception:
+                        _m2 = _MONTHS[0]
+                    _rolled.add(f"{_m} → {_m2}")
+                    _r = dict(_r, Month=_m2)
+                _rows.append(_r)
+            st.session_state["osb_rows"] = pd.DataFrame(
+                _rows, columns=["Side", "Qty", "Type", "Strike", "Month", "Vol %", "Price paid"])
+            st.session_state["osb_title"] = _lib_name
+            st.session_state.pop("osb_ho_note", None)
+            st.session_state.pop("osb_ho_nodes", None)
+            st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
+            _lib_note = (f"Loaded **{_lib_name}**"
+                         + (f" as a position: entry futures {st.session_state['osb_spot']:,.4g}, "
+                            f"marked now at {_now:,.4g}." if _pos else
+                            " as a template, priced at today's futures level.")
+                         + (" Expired months rolled: " + ", ".join(sorted(_rolled))
+                            + ". Check the strikes." if _rolled else ""))
+
+    # ---- the two prices: where the future is NOW, and where the structure was ENTERED ----
+    # Before this split one box did both jobs, so moving the future re-priced the trade as
+    # if it had just been put on, and "the future has moved, what's my fly worth?" had no
+    # answer. Entry never follows "now" on its own. It is set equal to now only by a fresh
+    # build (picking a product, loading a preset) or the "Entry = now" button.
+    if "osb_now" not in st.session_state:
+        st.session_state["osb_now"] = float(st.session_state.get("osb_spot", 100.0))
+    if "osb_spot" not in st.session_state:
+        st.session_state["osb_spot"] = st.session_state["osb_now"]
+
+    def _relink() -> None:
+        st.session_state["osb_spot"] = st.session_state["osb_now"]
+
     _opts = [_NONE] + sorted(INSTRUMENTS, key=lambda t: str(INSTRUMENTS[t][0]))
-    c1, c2, c3, c4 = st.columns([1.9, 1, 1, 1])
+    c1, c2, c2b, c3, c4 = st.columns([1.7, 1, 1, 0.9, 0.8])
     prod = c1.selectbox("Product", _opts,
                         format_func=lambda t: t if t == _NONE else f"{INSTRUMENTS[t][0]}  ·  {t}",
                         key="osb_prod",
@@ -14086,10 +14149,8 @@ def render_strategy_builder() -> None:
         _first = "osb_prod_prev" not in st.session_state
         st.session_state["osb_prod_prev"] = prod
         if prod != _NONE:
-            try:
-                _seed = float(get_live_quote([prod]).loc[prod, "last"])
-            except Exception:
-                _seed = float(INSTRUMENTS[prod][1])
+            _seed = _live_px(prod)
+            st.session_state["osb_now"] = _seed
             st.session_state["osb_spot"] = _seed
             st.session_state["osb_pv"] = float(volbt.point_value(prod)) or 1.0
             _cv = _osb_atm_curve(prod, MODE)
@@ -14103,13 +14164,33 @@ def render_strategy_builder() -> None:
                 st.session_state.pop("osb_ho_days", None)
                 st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
                 st.rerun()
-    F0 = c2.number_input("Underlying price", min_value=0.0001, value=100.0,
-                         format="%.4f", key="osb_spot")
-    pv = c3.number_input("Point value", min_value=0.0, value=1.0,
+    F_now = c2.number_input("Futures now", min_value=0.0001, format="%.4f", key="osb_now",
+                            help="Where the future is trading NOW. Moves the 'current' marker, "
+                                 "the greeks and the P&L-now figure. Picking a product seeds it "
+                                 "live. Type a level to ask 'what is the structure worth if the "
+                                 "future is here?'")
+    F0 = c2b.number_input("Entry price", min_value=0.0001, format="%.4f", key="osb_spot",
+                          help="The futures level the structure was put on at: legs with a "
+                               "blank Price paid are priced here. Set equal to Futures now when "
+                               "you pick a product or load a preset; moving Futures now leaves "
+                               "it where it is.")
+    if abs(F_now - F0) > 1e-12:
+        _mv = F_now - F0
+        e_c, e_b = st.columns([4, 1], vertical_alignment="center")
+        e_c.caption(f"Entry fixed at **{F0:,.4f}**. The future has moved **{_mv:+,.4f}** since, "
+                    "and *P&L now* shows what that has done to the structure.")
+        e_b.button("↺ Entry = now", key="osb_relink", on_click=_relink,
+                   use_container_width=True,
+                   help="Re-price the structure at the current futures level.")
+    if _lib_note:
+        st.success(_lib_note)
+    st.session_state.setdefault("osb_pv", 1.0)
+    st.session_state.setdefault("osb_rate", 0.0)
+    pv = c3.number_input("Point value", min_value=0.0,
                          format="%.2f", key="osb_pv",
                          help="Contract currency per 1.00 of price, per lot — scales the "
                               "price-point P&L into money. Leave 1 to stay in price points.")
-    rate = c4.number_input("Rate %", min_value=0.0, value=0.0, step=0.25,
+    rate = c4.number_input("Rate %", min_value=0.0, step=0.25,
                            format="%.2f", key="osb_rate",
                            help="Discount rate. Futures-style margining makes discounting "
                                 "near-noise — 0 matches the Vol Backtester convention.")
@@ -14135,9 +14216,9 @@ def render_strategy_builder() -> None:
         if not curve:
             return fallback
         atm = optbuilder.vol_at(curve, days)
-        if strike and smile and F0:
+        if strike and smile and F_now:
             atm = volbt.smile_vol(atm, smile["put"], smile["call"], smile["atm"],
-                                  float(F0), float(strike), float(days))
+                                  float(F_now), float(strike), float(days))
         return round(atm, 1)
 
     if prod != _NONE and curve:
@@ -14185,12 +14266,40 @@ def render_strategy_builder() -> None:
 
     def _preset_rows() -> pd.DataFrame:
         return pd.DataFrame([_leg_row(l)
-                             for l in optbuilder.PRESETS[preset](F0, dflt_vol, dflt_days)])
+                             for l in optbuilder.PRESETS[preset](F_now, dflt_vol, dflt_days)])
 
-    if p4.button("⤵️ Load preset", use_container_width=True, key="osb_load"):
+    if p4.button("⤵️ Load preset", use_container_width=True, key="osb_load",
+                 on_click=_relink):                 # a fresh build is entered at "now"
         st.session_state["osb_rows"] = _preset_rows()
         st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
         st.rerun()
+
+    # ---- my saved structures -----------------------------------------------------
+    _saved = optbuilder.list_saved()
+    if _saved:
+        def _saved_lbl(n: str) -> str:
+            s = _saved[n]
+            what = INSTRUMENTS[s["product"]][0] if s.get("product") in INSTRUMENTS else "manual"
+            kind = "position" if s.get("position") else "template"
+            return f"{n}  ·  {what}  ·  {kind}  ·  {len(s.get('rows', []))} legs"
+        l1, l2, l3 = st.columns([3.9, 1, 1], vertical_alignment="bottom")
+        # keyed on a fingerprint of the library: a keyed selectbox keeps the option text it
+        # first drew, so re-saving "x" as a position still read "template" until the key moved
+        _ver = zlib.crc32(repr([(n, s.get("saved"), s.get("position"))
+                                for n, s in _saved.items()]).encode())
+        _want = st.session_state.get("osb_lib_want")
+        pick = l1.selectbox("My saved structures", list(_saved), format_func=_saved_lbl,
+                            index=list(_saved).index(_want) if _want in _saved else 0,
+                            key=f"osb_lib_pick_{_ver}")
+        if l2.button("📂 Load", use_container_width=True, key="osb_lib_load"):
+            st.session_state["osb_lib_pending"] = pick
+            st.rerun()
+        with l3.popover("🗑️ Delete", use_container_width=True):
+            st.caption(f"Delete **{pick}** from your library? This can't be undone.")
+            if st.button("Delete it", type="primary", key="osb_lib_del"):
+                optbuilder.delete_structure(pick)
+                st.session_state.pop("osb_lib_want", None)
+                st.rerun()
 
     if "osb_rows" not in st.session_state:
         st.session_state["osb_rows"] = _preset_rows()
@@ -14255,7 +14364,7 @@ def render_strategy_builder() -> None:
             [edited, pd.DataFrame([row])], ignore_index=True)
         st.session_state["osb_nonce"] = st.session_state.get("osb_nonce", 0) + 1
 
-    _atm = optbuilder.atm_strike(F0)
+    _atm = optbuilder.atm_strike(F_now)
     _blank_opt = lambda kind: {"Side": "Buy", "Qty": 1.0, "Type": kind, "Strike": _atm,
                                "Month": dflt_month,
                                "Vol %": _leg_vol(dflt_days, dflt_vol, strike=_atm),
@@ -14270,10 +14379,10 @@ def render_strategy_builder() -> None:
     if a3.button("➕ Add future @ spot", use_container_width=True, key="osb_add_f",
                  help="An outright futures leg entered at the current underlying price — "
                       "flip Side / edit the entry in the table."):
-        _append_leg({"Side": "Buy", "Qty": 1.0, "Type": "Future", "Strike": round(F0, 4),
+        _append_leg({"Side": "Buy", "Qty": 1.0, "Type": "Future", "Strike": round(F_now, 4),
                      "Month": _NO_MONTH, "Vol %": np.nan, "Price paid": np.nan})
         st.rerun()
-    _net_delta = optbuilder.totals_greeks(legs, F0, 0.0, r)["delta"] if legs else 0.0
+    _net_delta = optbuilder.totals_greeks(legs, F_now, 0.0, r)["delta"] if legs else 0.0
     _hlots = int(round(abs(_net_delta)))
     if a4.button(f"⚖️ Delta-hedge  (Δ {_net_delta:+.2f})", use_container_width=True,
                  key="osb_hedge", disabled=_hlots == 0,
@@ -14282,15 +14391,52 @@ def render_strategy_builder() -> None:
                       "rounds to zero lots."):
         _hside = "Sell" if _net_delta > 0 else "Buy"
         _append_leg({"Side": _hside, "Qty": float(_hlots), "Type": "Future",
-                     "Strike": round(F0, 4), "Month": _NO_MONTH,
+                     "Strike": round(F_now, 4), "Month": _NO_MONTH,
                      "Vol %": np.nan, "Price paid": np.nan})
-        st.toast(f"Hedge added: {_hside} {_hlots} future(s) @ {F0:,.4g} — "
+        st.toast(f"Hedge added: {_hside} {_hlots} future(s) @ {F_now:,.4g} — "
                  f"residual Δ {_net_delta - _hlots * (1 if _net_delta > 0 else -1):+.2f}",
                  icon="⚖️")
         st.rerun()
     st.caption("Rows can also be added, edited or deleted directly in the table (the blank "
                "row at the bottom adds; tick a row's left edge and press Delete to remove). "
                "The hedge sizes off **today's** delta — re-hedge after big edits.")
+
+    # ---- save to my library ----------------------------------------------------------
+    s1_, s2_, s3_ = st.columns([2.6, 2.3, 1], vertical_alignment="bottom")
+    if "osb_save_name" not in st.session_state:
+        st.session_state["osb_save_name"] = st.session_state.get("osb_title", "")
+    save_name = s1_.text_input("Save as", key="osb_save_name", max_chars=60,
+                               placeholder="e.g. WTI Dec 60/65/70 call fly",
+                               help="Saving under an existing name replaces it.")
+    as_position = s2_.checkbox(
+        "Save as a position (freeze today's prices)", key="osb_save_pos",
+        help="Ticked: blank Price paid cells are filled with today's model premiums and the "
+             "entry futures level is kept, so reopening it later shows P&L since today. "
+             "Unticked: a template. Reopening it re-prices the same legs at that day's "
+             "futures and vols.")
+    if s3_.button("💾 Save", use_container_width=True, key="osb_save_btn",
+                  disabled=not (legs and save_name.strip())):
+        _rows = []
+        for l, _er in zip(legs, [r_ for r_ in edited.to_dict("records")
+                                 if r_.get("Type") and r_.get("Side")
+                                 and not pd.isna(r_.get("Strike"))]):
+            fut = l["kind"] == "Future"
+            typed_vol = _er.get("Vol %")
+            _rows.append({
+                "Side": l["side"], "Qty": l["qty"], "Type": l["kind"], "Strike": l["strike"],
+                "Month": _NO_MONTH if fut else l["month"],
+                # a template keeps the table's own Vol % cells; a blank one re-seeds on load
+                "Vol %": None if fut else (l["vol"] if as_position else
+                                           (None if pd.isna(typed_vol) else float(typed_vol))),
+                "Price paid": (None if fut else round(optbuilder.entry_premium(l, F0, r), 6))
+                if as_position else l["premium"],
+            })
+        _nm = optbuilder.save_structure(save_name, {
+            "product": prod if prod != _NONE else None, "entry": F0, "pv": pv, "rate": rate,
+            "position": as_position, "rows": _rows})
+        st.session_state["osb_lib_want"] = _nm
+        st.toast(f"Saved “{_nm}” to your library.", icon="💾")
+        st.rerun()
 
     if not legs:
         st.info("Add at least one leg (or load a preset) to see the payoff.")
@@ -14317,11 +14463,11 @@ def render_strategy_builder() -> None:
         return f"{x * pv:,.0f} {ccy}  ({pts} pts)" if in_ccy else f"{pts} pts"
 
     net = optbuilder.net_premium(legs, F0, r)
-    (mp, mp_unb), (ml, ml_unb) = optbuilder.max_profit_loss(legs, F0, r)
-    bes = optbuilder.breakevens(legs, F0, r)
+    (mp, mp_unb), (ml, ml_unb) = optbuilder.max_profit_loss(legs, F_now, r)
+    bes = optbuilder.breakevens(legs, F_now, r)
     _vols = [(l["vol"], l["qty"]) for l in legs if l["kind"] != "Future"]
     ref_vol = (sum(v * q for v, q in _vols) / sum(q for _, q in _vols)) if _vols else None
-    prob = optbuilder.pop(legs, F0, ref_vol, front, r) if ref_vol and front > 0 else None
+    prob = optbuilder.pop(legs, F_now, ref_vol, front, r) if ref_vol and front > 0 else None
 
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Net " + ("debit" if net >= 0 else "credit"), _fmt(abs(net)),
@@ -14338,13 +14484,23 @@ def render_strategy_builder() -> None:
               help="Model estimate: probability the front-expiry P&L ends positive under "
                    "a drift-free lognormal at the legs' average vol — not a market-implied "
                    "probability.")
+    # mark-to-market at "Futures now", on the scenario sliders (T+d, vol shift)
+    pnl_now = optbuilder.strategy_pnl(scn_legs, F_now, F0, float(d_now), r)
+    val_now = pnl_now + net
     _nodes = st.session_state.get("osb_ho_nodes")
+    n1, n2, e1, e2, _ = st.columns([1.2, 1.2, 1.2, 1.2, 0.6])
+    _fnow = f"{F_now:,.4f}".rstrip("0").rstrip(".")
+    n1.metric(f"Structure price @ {_fnow}", ("−" if val_now < 0 else "") + _fmt(abs(val_now)),
+              help="What the structure is worth with the future at 'Futures now', on the "
+                   "scenario sliders' day and vol shift (T+0 = today).")
+    n2.metric("P&L now", ("+" if pnl_now >= 0 else "−") + _fmt(abs(pnl_now)),
+              help="Structure price now minus the premium paid (or plus the credit received). "
+                   "Set 'Futures now' away from the entry price to see what the move has done.")
     if _nodes:
         _epnl = sum(pr * optbuilder.strategy_pnl(legs, float(px), F0, None, r)
                     for px, pr in _nodes)
         _ppos = sum(pr for px, pr in _nodes
                     if optbuilder.strategy_pnl(legs, float(px), F0, None, r) > 0)
-        e1, e2, _ = st.columns([1.2, 1.2, 3])
         e1.metric("Scenario E[P&L]", ("+" if _epnl >= 0 else "−") + _fmt(abs(_epnl)),
                   help="Probability-weighted P&L at the front expiry over your STIR scenario's "
                        "outcome distribution (carried in from the STIR Paths hand-off) — the "
@@ -14355,7 +14511,7 @@ def render_strategy_builder() -> None:
 
     # ---- payoff chart ----------------------------------------------------------
     cc = brand.chart_colors()
-    lo, hi = optbuilder.grid_range(legs, F0)
+    lo, hi = optbuilder.grid_range(legs, F_now)
     xs = np.linspace(lo, hi, 241)
     exp_lbl = f"At front expiry (T+{front:.0f}d)"
     scn_lbl = f"T+{d_now}d, vol {vshift:+.1f}"
@@ -14406,10 +14562,19 @@ def render_strategy_builder() -> None:
     prem_txt = alt.Chart(pd.DataFrame({"y": [0.0], "t": [_prem_lbl]})).mark_text(
         align="left", baseline="bottom", dx=4, dy=-4, fontSize=11, fontWeight="bold",
         color=cc["accent"]).encode(x=alt.value(0), y=alt.Y("y:Q", scale=ysc), text="t:N")
-    spot = alt.Chart(pd.DataFrame({"x": [F0]})).mark_rule(
+    spot = alt.Chart(pd.DataFrame({"x": [F_now]})).mark_rule(
         color=cc["muted"], strokeDash=[3, 3]).encode(
         x="x:Q", tooltip=[alt.Tooltip("x:Q", format=",.2f", title="spot")])
-    chart = shade + zero + prem_txt + spot
+    now_pt = alt.Chart(pd.DataFrame({"x": [F_now], "y": [pnl_now * pv]})).mark_point(
+        filled=True, size=90, color=cc["accent"], stroke=cc["halo"], strokeWidth=1.5).encode(
+        x="x:Q", y=alt.Y("y:Q", scale=ysc),
+        tooltip=[alt.Tooltip("x:Q", format=",.4f", title="futures now"),
+                 alt.Tooltip("y:Q", format=",.2f", title="P&L now")])
+    chart = shade + zero + prem_txt + spot + now_pt
+    if abs(F_now - F0) > 1e-12:
+        chart += alt.Chart(pd.DataFrame({"x": [F0]})).mark_rule(
+            color=cc["muted"], strokeDash=[1, 5], opacity=0.8).encode(
+            x="x:Q", tooltip=[alt.Tooltip("x:Q", format=",.4f", title="entry")])
     if bes:
         chart += alt.Chart(pd.DataFrame({"x": bes})).mark_rule(
             color=cc["series"], strokeDash=[2, 4]).encode(
@@ -14433,13 +14598,16 @@ def render_strategy_builder() -> None:
     brand.show_chart(chart.properties(height=420).interactive(bind_y=False))
     st.caption("Left axis = P&L; right axis = what the structure itself is worth in price "
                "points (P&L + premium), so the zero line sits at the premium. "
-               "Dotted vertical = current underlying; dashed blue verticals = breakevens. "
+               "Dotted vertical = futures now, and the gold dot is the structure's P&L there; "
+               + ("the faint dotted vertical is the entry price; " if abs(F_now - F0) > 1e-12
+                  else "")
+               + "dashed blue verticals = breakevens. "
                + ("Gold dots along the bottom = your STIR scenario's landing outcomes "
                   "(size = probability). " if _nodes else "")
                + "Scroll / drag to zoom the price axis.")
 
     # ---- greeks ----------------------------------------------------------------
-    g = optbuilder.totals_greeks(scn_legs, F0, float(d_now), r)
+    g = optbuilder.totals_greeks(scn_legs, F_now, float(d_now), r)
     _gf = (lambda v: f"{v * pv:+,.0f} {ccy}") if in_ccy else (lambda v: f"{v:+,.4f}")
     g1, g2, g3, g4 = st.columns(4)
     g1.metric("Delta", f"{g['delta']:+,.3f}",
@@ -14448,7 +14616,7 @@ def render_strategy_builder() -> None:
     g2.metric("Gamma", f"{g['gamma']:+,.5f}", help="Delta change per 1.00 move in the underlying.")
     g3.metric("Vega", _gf(g["vega"]), help="P&L per +1 vol point, all legs shifted together.")
     g4.metric("Theta / day", _gf(g["theta"]), help="P&L per calendar day, other things equal.")
-    st.caption(f"Greeks at the scenario mark — spot {F0:,.4g}, T+{d_now}d, vol {vshift:+.1f}. "
+    st.caption(f"Greeks at the scenario mark — futures {F_now:,.4g}, T+{d_now}d, vol {vshift:+.1f}. "
                + ("Vega / theta scaled by the point value; delta and gamma stay in "
                   "underlying units." if in_ccy else
                   "Price-point units — set a point value (or pick a product) for money terms."))
@@ -14456,7 +14624,7 @@ def render_strategy_builder() -> None:
     # ---- leg blotter -------------------------------------------------------------
     rows = []
     for l in legs:
-        m = optbuilder.leg_model(l, F0, 0.0, r)
+        m = optbuilder.leg_model(l, F_now, 0.0, r)
         rows.append({
             "Leg": f"{l['side']} {l['qty']} {l['kind']} "
                    + (f"{l['strike']:,.4g}" if l["kind"] != "Future" else f"@ {l['strike']:,.4g}")
@@ -14486,8 +14654,10 @@ def render_strategy_builder() -> None:
     # ---- PDF ticket ------------------------------------------------------------
     st.divider()
     t1, t2 = st.columns([2.2, 1], vertical_alignment="bottom")
-    ticket_title = t1.text_input("Ticket title", value=preset, key="osb_title",
-                                 help="The strategy name on the PDF — defaults to the preset; "
+    st.session_state.setdefault("osb_title", preset)
+    ticket_title = t1.text_input("Ticket title", key="osb_title",
+                                 help="The strategy name on the PDF — defaults to the preset "
+                                      "(or the saved name when loaded from your library); "
                                       "rename it for a reshaped / custom position.")
     if t2.button("🧾 Build PDF ticket", use_container_width=True, key="osb_pdf_btn"):
         with st.spinner("Building the ticket…"):
@@ -14497,13 +14667,13 @@ def render_strategy_builder() -> None:
                     "title": ticket_title.strip() or preset,
                     "underlying": INSTRUMENTS[prod][0] if prod != _NONE else "Manual underlying",
                     "ticker": prod if prod != _NONE else "",
-                    "spot": F0, "pv": pv, "ccy": ccy, "in_ccy": in_ccy, "rate": rate,
+                    "spot": F_now, "entry": F0, "pv": pv, "ccy": ccy, "in_ccy": in_ccy, "rate": rate,
                     "vol_source": ("live ATM option surface (1M–12M, interpolated to each "
                                    "leg's expiry)") if curve else "manual per-leg vols",
                     "legs": legs, "net": net,
                     "mp": mp, "mp_unb": mp_unb, "ml": ml, "ml_unb": ml_unb,
                     "bes": bes, "pop": prob, "front": front,
-                    "greeks": optbuilder.totals_greeks(legs, F0, 0.0, r),
+                    "greeks": optbuilder.totals_greeks(legs, F_now, 0.0, r),
                     "grid": [float(x) for x in xs],
                     "exp_pnl": dfc[exp_lbl].tolist(), "scn_pnl": dfc[scn_lbl].tolist(),
                     "exp_lbl": exp_lbl, "scn_lbl": scn_lbl,

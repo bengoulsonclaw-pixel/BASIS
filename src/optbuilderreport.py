@@ -102,6 +102,8 @@ def render_html(d: dict) -> str:
         one_page=len(d["legs"]) <= ONE_PAGE_MAX_LEGS,
         asof=_fmt_asof(d["asof"]), title=d["title"],
         underlying=d["underlying"], ticker=d["ticker"], spot=f"{d['spot']:,.4f}",
+        entry=(f"{d['entry']:,.4f}" if d.get("entry") is not None
+               and abs(d["entry"] - d["spot"]) > 1e-12 else None),
         pv=f"{d['pv']:,.2f}", ccy=d["ccy"], in_ccy=d["in_ccy"],
         n_legs=len(d["legs"]), front=f"{d['front']:.0f}",
         rate=f"{d['rate']:.2f}", vol_source=d["vol_source"],

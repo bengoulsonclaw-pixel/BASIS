@@ -51,7 +51,7 @@
     <p class="summary">
       <b>{{ title }}</b> on <b>{{ underlying }}</b>{% if ticker %} ({{ ticker }}){% endif %}
       &mdash; a {{ n_legs }}-leg options position at an underlying reference price of
-      <b>{{ spot }}</b>. Legs are model-priced with <b>Black-76 on the futures price</b>
+      <b>{{ spot }}</b>{% if entry %} (entered with the future at <b>{{ entry }}</b>){% endif %}. Legs are model-priced with <b>Black-76 on the futures price</b>
       (rate {{ rate }}%). Vol marks: {{ vol_source }}. Risk figures are read at the <b>front expiry
       (T+{{ front }}d)</b>{% if in_ccy %}; money values use a point value of {{ pv }} {{ ccy }}
       per 1.00 of price, per lot{% endif %}.

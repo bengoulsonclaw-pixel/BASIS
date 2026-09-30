@@ -18,7 +18,10 @@ the "T + d days" scenario line re-prices each leg with its remaining life.
 """
 from __future__ import annotations
 
+import json
 import math
+from datetime import datetime
+from pathlib import Path
 
 VOL_FLOOR = 0.05          # % — keeps d1 finite on degenerate inputs
 _SQ2 = math.sqrt(2.0)
@@ -282,6 +285,15 @@ PRESETS = {
     "Long Call Butterfly":  lambda F, v, d: [_leg("Buy", 1, "Call", _K(F, -2), d, v),
                                              _leg("Sell", 2, "Call", _K(F, 0), d, v),
                                              _leg("Buy", 1, "Call", _K(F, 2), d, v)],
+    "Long Put Butterfly":   lambda F, v, d: [_leg("Buy", 1, "Put", _K(F, 2), d, v),
+                                             _leg("Sell", 2, "Put", _K(F, 0), d, v),
+                                             _leg("Buy", 1, "Put", _K(F, -2), d, v)],
+    "Short Call Butterfly": lambda F, v, d: [_leg("Sell", 1, "Call", _K(F, -2), d, v),
+                                             _leg("Buy", 2, "Call", _K(F, 0), d, v),
+                                             _leg("Sell", 1, "Call", _K(F, 2), d, v)],
+    "Short Put Butterfly":  lambda F, v, d: [_leg("Sell", 1, "Put", _K(F, 2), d, v),
+                                             _leg("Buy", 2, "Put", _K(F, 0), d, v),
+                                             _leg("Sell", 1, "Put", _K(F, -2), d, v)],
     "Iron Butterfly":       lambda F, v, d: [_leg("Buy", 1, "Put", _K(F, -2), d, v),
                                              _leg("Sell", 1, "Put", _K(F, 0), d, v),
                                              _leg("Sell", 1, "Call", _K(F, 0), d, v),
@@ -290,6 +302,10 @@ PRESETS = {
                                              _leg("Sell", 1, "Call", _K(F, -1), d, v),
                                              _leg("Sell", 1, "Call", _K(F, 1), d, v),
                                              _leg("Buy", 1, "Call", _K(F, 3), d, v)],
+    "Long Put Condor":      lambda F, v, d: [_leg("Buy", 1, "Put", _K(F, 3), d, v),
+                                             _leg("Sell", 1, "Put", _K(F, 1), d, v),
+                                             _leg("Sell", 1, "Put", _K(F, -1), d, v),
+                                             _leg("Buy", 1, "Put", _K(F, -3), d, v)],
     "Iron Condor":          lambda F, v, d: [_leg("Buy", 1, "Put", _K(F, -3), d, v),
                                              _leg("Sell", 1, "Put", _K(F, -1), d, v),
                                              _leg("Sell", 1, "Call", _K(F, 1), d, v),
@@ -303,4 +319,65 @@ PRESETS = {
                                              _leg("Sell", 1, "Call", _K(F, 2), d, v)],
     "Call Calendar Spread": lambda F, v, d: [_leg("Sell", 1, "Call", _K(F, 0), d, v),
                                              _leg("Buy", 1, "Call", _K(F, 0), d * 2, v)],
+    "Put Calendar Spread":  lambda F, v, d: [_leg("Sell", 1, "Put", _K(F, 0), d, v),
+                                             _leg("Buy", 1, "Put", _K(F, 0), d * 2, v)],
+    "Call Ratio Spread (1x2)": lambda F, v, d: [_leg("Buy", 1, "Call", _K(F, 0), d, v),
+                                                _leg("Sell", 2, "Call", _K(F, 2), d, v)],
+    "Put Ratio Spread (1x2)":  lambda F, v, d: [_leg("Buy", 1, "Put", _K(F, 0), d, v),
+                                                _leg("Sell", 2, "Put", _K(F, -2), d, v)],
 }
+
+
+# ── saved-structure library ─────────────────────────────────────────────────
+# Per user, like the Brazil Funds watchlist: on the VPS several colleagues share one
+# deployment, and one desk's saved structures are not another's. Login-free local runs
+# get auth's implicit local user. The file is gitignored, so the VPS's reset --hard sync
+# never wipes what colleagues save there.
+LIBRARY = Path(__file__).resolve().parents[1] / "data" / "optbuilder_library.json"
+_LOCAL = "_local"
+
+
+def _lib_all() -> dict:
+    try:
+        data = json.loads(LIBRARY.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _lib_who() -> str:
+    try:
+        from src import auth
+        return (auth.current_user() or {}).get("email") or _LOCAL
+    except Exception:
+        return _LOCAL
+
+
+def list_saved() -> dict:
+    """{name: structure} of this user's saved structures, most recently saved first."""
+    mine = _lib_all().get(_lib_who(), {})
+    return dict(sorted(mine.items(), key=lambda kv: kv[1].get("saved", ""), reverse=True))
+
+
+def save_structure(name: str, structure: dict) -> str:
+    """Store `structure` under `name` (replacing one of the same name); returns the name
+    actually used, or "" if it was blank. `structure` is the page's own snapshot —
+    product, entry price, point value, rate and the leg-table rows."""
+    name = (name or "").strip()[:60]
+    if not name:
+        return ""
+    everyone = _lib_all()
+    mine = everyone.get(_lib_who(), {})
+    mine[name] = dict(structure, saved=datetime.now().isoformat(timespec="seconds"))
+    everyone[_lib_who()] = mine
+    LIBRARY.parent.mkdir(parents=True, exist_ok=True)
+    LIBRARY.write_text(json.dumps(everyone, indent=1, ensure_ascii=False), encoding="utf-8")
+    return name
+
+
+def delete_structure(name: str) -> None:
+    everyone = _lib_all()
+    mine = everyone.get(_lib_who(), {})
+    if mine.pop(name, None) is not None:
+        everyone[_lib_who()] = mine
+        LIBRARY.write_text(json.dumps(everyone, indent=1, ensure_ascii=False), encoding="utf-8")
