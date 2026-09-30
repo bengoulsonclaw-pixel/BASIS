@@ -14368,15 +14368,27 @@ def render_strategy_builder() -> None:
     y_t = f"P&L ({ccy})" if in_ccy else "P&L (price points)"
     dfc["pos"] = dfc[exp_lbl].clip(lower=0.0)
     dfc["neg"] = dfc[exp_lbl].clip(upper=0.0)
+    # Right axis = what the structure is WORTH in price points (P&L + premium paid).
+    # Both y scales carry explicit, linearly-matched domains (nice=False) so the two
+    # axes stay locked together — P&L 0 sits exactly on the premium level.
+    _pvd = pv or 1.0
+    _yv = pd.concat([dfc[exp_lbl], dfc[scn_lbl]])
+    _ylo, _yhi = min(float(_yv.min()), 0.0), max(float(_yv.max()), 0.0)
+    _pad = 0.06 * (_yhi - _ylo) or 1.0
+    _ylo, _yhi = _ylo - _pad, _yhi + _pad
+    ysc = alt.Scale(domain=[_ylo, _yhi], nice=False, zero=False)
+    vsc = alt.Scale(domain=[_ylo / _pvd + net, _yhi / _pvd + net], nice=False, zero=False)
     base = alt.Chart(dfc)
     shade = base.mark_area(opacity=0.10, color=cc["long"]).encode(
         x=alt.X("F:Q", title="underlying price at expiry", scale=alt.Scale(zero=False)),
-        y=alt.Y("pos:Q", title=y_t)) + \
-        base.mark_area(opacity=0.10, color=cc["short"]).encode(x="F:Q", y="neg:Q")
+        y=alt.Y("pos:Q", title=y_t, scale=ysc)) + \
+        base.mark_area(opacity=0.10, color=cc["short"]).encode(
+            x="F:Q", y=alt.Y("neg:Q", scale=ysc))
     long_df = dfc.melt("F", value_vars=[exp_lbl, scn_lbl], var_name="Series", value_name="pnl")
+    long_df["val"] = long_df["pnl"] / _pvd + net
     lines = alt.Chart(long_df).mark_line(strokeWidth=2.4).encode(
         x=alt.X("F:Q", title="underlying price at expiry", scale=alt.Scale(zero=False)),
-        y=alt.Y("pnl:Q", title=y_t),
+        y=alt.Y("pnl:Q", title=y_t, scale=ysc),
         color=alt.Color("Series:N", legend=alt.Legend(orient="top", title=None),
                         scale=alt.Scale(domain=[exp_lbl, scn_lbl],
                                         range=[cc["ink"], cc["accent"]])),
@@ -14384,13 +14396,20 @@ def render_strategy_builder() -> None:
                                   scale=alt.Scale(domain=[exp_lbl, scn_lbl],
                                                   range=[[1, 0], [6, 4]])),
         tooltip=[alt.Tooltip("F:Q", format=",.2f", title="underlying"),
-                 "Series:N", alt.Tooltip("pnl:Q", format=",.2f", title="P&L")])
+                 "Series:N", alt.Tooltip("pnl:Q", format=",.2f", title="P&L"),
+                 alt.Tooltip("val:Q", format=",.4f", title="structure price (pts)")])
     zero = alt.Chart(pd.DataFrame({"y": [0.0]})).mark_rule(
-        color=cc["muted"], strokeWidth=1).encode(y="y:Q")
+        color=cc["muted"], strokeWidth=1).encode(y=alt.Y("y:Q", scale=ysc))
+    _prem_pts = f"{abs(net):,.4f}".rstrip("0").rstrip(".")
+    _prem_lbl = (f"Premium {'paid' if net >= 0 else 'received'} {_prem_pts} pts"
+                 + (f"  ({abs(net) * pv:,.0f} {ccy})" if in_ccy else ""))
+    prem_txt = alt.Chart(pd.DataFrame({"y": [0.0], "t": [_prem_lbl]})).mark_text(
+        align="left", baseline="bottom", dx=4, dy=-4, fontSize=11, fontWeight="bold",
+        color=cc["accent"]).encode(x=alt.value(0), y=alt.Y("y:Q", scale=ysc), text="t:N")
     spot = alt.Chart(pd.DataFrame({"x": [F0]})).mark_rule(
         color=cc["muted"], strokeDash=[3, 3]).encode(
         x="x:Q", tooltip=[alt.Tooltip("x:Q", format=",.2f", title="spot")])
-    chart = shade + zero + spot
+    chart = shade + zero + prem_txt + spot
     if bes:
         chart += alt.Chart(pd.DataFrame({"x": bes})).mark_rule(
             color=cc["series"], strokeDash=[2, 4]).encode(
@@ -14405,8 +14424,16 @@ def render_strategy_builder() -> None:
             color=alt.value(cc["accent"]),
             tooltip=[alt.Tooltip("x:Q", format=",.4f", title="scenario landing"),
                      alt.Tooltip("p:Q", format=".1f", title="probability %")])
+    # invisible twin of the expiry line, carrying only the right-hand price axis
+    val_axis = alt.Chart(long_df[long_df["Series"] == exp_lbl]).mark_line(opacity=0).encode(
+        x="F:Q",
+        y=alt.Y("val:Q", scale=vsc,
+                axis=alt.Axis(orient="right", title="Structure price (pts)", grid=False)))
+    chart = alt.layer(chart, val_axis).resolve_scale(y="independent")
     brand.show_chart(chart.properties(height=420).interactive(bind_y=False))
-    st.caption("Dotted vertical = current underlying; dashed blue verticals = breakevens. "
+    st.caption("Left axis = P&L; right axis = what the structure itself is worth in price "
+               "points (P&L + premium), so the zero line sits at the premium. "
+               "Dotted vertical = current underlying; dashed blue verticals = breakevens. "
                + ("Gold dots along the bottom = your STIR scenario's landing outcomes "
                   "(size = probability). " if _nodes else "")
                + "Scroll / drag to zoom the price axis.")

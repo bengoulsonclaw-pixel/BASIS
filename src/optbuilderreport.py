@@ -52,8 +52,19 @@ def payoff_png(d: dict) -> str:
     ax.set_axisbelow(True)
     ax.margins(x=0)
     ax.legend(loc="best", fontsize=7.5, frameon=True, framealpha=0.9, edgecolor="#ccc")
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
+    # right axis: the structure's price in points (P&L + premium), locked to the left
+    net, pvd = d["net"], (d["pv"] or 1.0)
+    y0, y1 = ax.get_ylim()
+    ax2 = ax.twinx()
+    ax2.set_ylim(y0 / pvd + net, y1 / pvd + net)
+    ax2.set_ylabel("Structure price (pts)")
+    prem = f"{abs(net):,.4f}".rstrip("0").rstrip(".")
+    ax.annotate(f"Premium {'paid' if net >= 0 else 'received'} {prem} pts",
+                xy=(0.01, 0), xycoords=("axes fraction", "data"), xytext=(0, 3),
+                textcoords="offset points", fontsize=7, fontweight="bold", color=GOLD,
+                va="bottom", ha="left")
+    for a in (ax, ax2):
+        a.spines["top"].set_visible(False)
     return png(fig)
 
 
