@@ -22,6 +22,9 @@ from jinja2 import Environment, FileSystemLoader
 TEMPLATES = Path(__file__).parent.parent / "templates"
 ASSETS = TEMPLATES / "assets"
 GOLD, BLUE = "#C8901A", "#1F5FA8"
+# Most legs that still fit ticket + disclaimer on ONE page (measured by rasterising);
+# longer tickets fall back to the house closing page for the disclaimer.
+ONE_PAGE_MAX_LEGS = 7
 
 
 def _fmt_asof(iso: str) -> str:
@@ -35,7 +38,7 @@ def payoff_png(d: dict) -> str:
     """The builder's payoff picture: solid black front-expiry P&L with green/red
     profit shading, gold dashed scenario line, spot + breakeven verticals."""
     xs, exp, scn = d["grid"], d["exp_pnl"], d["scn_pnl"]
-    fig, ax = plt.subplots(figsize=(6.1, 3.2))
+    fig, ax = plt.subplots(figsize=(6.1, 2.65))
     ax.fill_between(xs, exp, 0, where=[y >= 0 for y in exp],
                     color=CHEAP, alpha=0.12, zorder=1)
     ax.fill_between(xs, exp, 0, where=[y <= 0 for y in exp],
@@ -96,6 +99,7 @@ def render_html(d: dict) -> str:
     g = d["greeks"]
     _g = (lambda v: f"{v * d['pv']:+,.0f} {d['ccy']}") if d["in_ccy"] else (lambda v: f"{v:+,.4f}")
     return env.get_template("optbuilderreport.html").render(
+        one_page=len(d["legs"]) <= ONE_PAGE_MAX_LEGS,
         asof=_fmt_asof(d["asof"]), title=d["title"],
         underlying=d["underlying"], ticker=d["ticker"], spot=f"{d['spot']:,.4f}",
         pv=f"{d['pv']:,.2f}", ccy=d["ccy"], in_ccy=d["in_ccy"],

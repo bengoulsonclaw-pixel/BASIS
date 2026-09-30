@@ -12,6 +12,20 @@
   .kpi .val { font-size: 11pt; font-weight: 700; color: #111; }
   .kpi .note { font-size: 6.5pt; color: #888; }
   .kpi .val.small { font-size: 9pt; }
+  .kpi { padding: 1.5mm 2.5mm; }
+  .kpis.greeks { margin-top: 2mm; }
+  tbody td { padding: 1.9pt 4.5pt; }
+  .banner { margin-top: 3.5mm; }
+  {% if one_page %}
+  /* One-page ticket: the house .report-footer breaks to its own closing page; here the
+     content column is a page-tall flex column and the footer takes margin-top:auto, so the
+     disclaimer pins to the bottom of the SAME page. Only switched on when the leg count
+     fits (ONE_PAGE_MAX_LEGS) — a longer ticket keeps the house closing page. */
+  .content { min-height: calc(100vh - 0.04in); display: flex; flex-direction: column; }
+  .report-footer { break-before: auto; min-height: 0; margin-top: auto; }
+  .foot-disclaimer { break-inside: avoid; }
+  hr.rule { margin: 3mm 0 2mm; }
+  {% endif %}
 </style>
 </head>
 <body>
@@ -28,6 +42,7 @@
   {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
 
   <div class="content">
+    <div class="ticket-body">
     <div class="titleband">
       <h1>Option Strategy Ticket</h1>
       <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro</div>
@@ -37,15 +52,14 @@
       <b>{{ title }}</b> on <b>{{ underlying }}</b>{% if ticker %} ({{ ticker }}){% endif %}
       &mdash; a {{ n_legs }}-leg options position at an underlying reference price of
       <b>{{ spot }}</b>. Legs are model-priced with <b>Black-76 on the futures price</b>
-      (rate {{ rate }}%); premiums marked &ldquo;screen&rdquo; were typed in from live quotes.
-      Vol marks: {{ vol_source }}. Risk figures are read at the <b>front expiry
+      (rate {{ rate }}%). Vol marks: {{ vol_source }}. Risk figures are read at the <b>front expiry
       (T+{{ front }}d)</b>{% if in_ccy %}; money values use a point value of {{ pv }} {{ ccy }}
       per 1.00 of price, per lot{% endif %}.
     </p>
 
     <div class="kpis">
       <div class="kpi"><div class="lab">{{ net_lab }}</div>
-        <div class="val small">{{ net }}</div><div class="note">to put the package on</div></div>
+        <div class="val small">{{ net }}</div><div class="note">to put it on</div></div>
       <div class="kpi"><div class="lab">Max profit</div>
         <div class="val small">{{ max_profit }}</div><div class="note">at front expiry</div></div>
       <div class="kpi"><div class="lab">Max loss</div>
@@ -54,6 +68,16 @@
         <div class="val small">{{ breakevens }}</div><div class="note">P&amp;L crosses zero</div></div>
       <div class="kpi"><div class="lab">P(profit)</div>
         <div class="val small">{{ pop }}</div><div class="note">model estimate</div></div>
+    </div>
+    <div class="kpis greeks">
+      <div class="kpi"><div class="lab">Delta &middot; today</div>
+        <div class="val small">{{ delta }}</div><div class="note">underlying-equivalent units</div></div>
+      <div class="kpi"><div class="lab">Gamma &middot; today</div>
+        <div class="val small">{{ gamma }}</div><div class="note">delta per 1.00 move</div></div>
+      <div class="kpi"><div class="lab">Vega &middot; today</div>
+        <div class="val small">{{ vega }}</div><div class="note">per +1 vol point</div></div>
+      <div class="kpi"><div class="lab">Theta &middot; today</div>
+        <div class="val small">{{ theta }}</div><div class="note">per calendar day</div></div>
     </div>
 
     <div class="section">
@@ -89,16 +113,6 @@
       </tbody>
     </table>
 
-    <div class="banner">Position Greeks &mdash; at today's mark</div>
-    <div class="kpis">
-      <div class="kpi"><div class="lab">Delta</div>
-        <div class="val small">{{ delta }}</div><div class="note">underlying-equivalent units</div></div>
-      <div class="kpi"><div class="lab">Gamma</div>
-        <div class="val small">{{ gamma }}</div><div class="note">delta per 1.00 move</div></div>
-      <div class="kpi"><div class="lab">Vega</div>
-        <div class="val small">{{ vega }}</div><div class="note">per +1 vol point</div></div>
-      <div class="kpi"><div class="lab">Theta</div>
-        <div class="val small">{{ theta }}</div><div class="note">per calendar day</div></div>
     </div>
 
     <div class="report-footer">
