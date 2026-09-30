@@ -2,6 +2,8 @@
   "strategies": [
     "MA Crossover",
     "Fibonacci Retracement",
-    "Elliott Wave"
+    "Momentum (RSI/MACD)",
+    "Elliott Wave",
+    "Money Flow Index"
   ]
 }

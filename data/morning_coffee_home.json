@@ -1,55 +1,55 @@
 {
- "generated_at": "29 Sep 2026 · 07:04 ET",
- "synopsis": "Markets are catching their breath this morning after Monday's bond rout, with Treasuries stabilizing — the long bond up 0.15%, Bunds firmer and gilts bouncing 0.5% — as traders weigh whether the Fed keeps tightening to stamp out inflation. That question got no easier overnight: Spain's preliminary September HICP printed hot at 5% y/y, keeping the pressure on the ECB, while short-rate futures sat frozen.",
- "commentary": "Markets are catching their breath this morning after Monday's bond rout, with Treasuries stabilizing — the long bond up 0.15%, Bunds firmer and gilts bouncing 0.5% — as traders weigh whether the Fed keeps tightening to stamp out inflation. That question got no easier overnight: Spain's preliminary September HICP printed hot at 5% y/y, keeping the pressure on the ECB, while short-rate futures sat frozen. The risk tone is tentative rather than fearful — US index futures are flat, Europe is outperforming (Euro Stoxx +0.7%) — but elevated yields and $105 Brent remain the twin tests for equity indices, and the IPO window is creaking, with a delayed listing from smart-ring maker Oura and OpenAI holding back its Astra model adding a cautious edge to tech sentiment.\n\nEnergy is the day's talking point, and it's the products, not crude, doing the work. Brent steadied near $105 as Saudi Arabia resumed flows through a key pipeline, offsetting Iran pessimism — officials reportedly see no US deal before the midterms — but the refined barrel cracked hard: gasoil -4.4%, heating oil -2.1%, RBOB -1.2%, with the 3-2-1 crack at its weakest since late August. Meanwhile prompt Brent backwardation is the strongest since April and the WTI-Brent spread has blown out past -$12, the widest since May — a supply-tightness story concentrated in the Atlantic basin.\n\nTTF gas slid 3.7%.",
+ "generated_at": "30 Sep 2026 · 07:41 ET",
+ "synopsis": "Energy is the morning's talking point, and it's a distillate story more than a crude one: gasoil is up 4.4%, heating oil 2.1% and TTF gas 3.4% — helped by Berlin instructing state-owned SEFE to inject gas into storage ahead of winter — dragging WTI up 1.5% to $90.69 and Brent through $103 into today's November expiry.",
+ "commentary": "Energy is the morning's talking point, and it's a distillate story more than a crude one: gasoil is up 4.4%, heating oil 2.1% and TTF gas 3.4% — helped by Berlin instructing state-owned SEFE to inject gas into storage ahead of winter — dragging WTI up 1.5% to $90.69 and Brent through $103 into today's November expiry. But look under the hood and the crude complex is telling a softer story: Middle East flows are returning toward pre-war levels according to JPMorgan and Goldman estimates, Iraq is discounting October barrels by as much as $37, API reported a 1M-bbl crude build, and Brent puts have outpaced calls for the longest run since June while prompt spreads sit at multi-week lows.\n\nBackwardation is fading — the products squeeze is doing the heavy lifting, not the geopolitical premium. The macro backdrop is all about inflation. Treasuries and bond futures firmed ahead of today's key US inflation print that could reset Fed pricing, with the long bond +0.3% even as 30-year mortgage rates hit 7.3%, the highest since late 2023. Europe cuts the other way: Italian harmonized CPI surprised at 4.1% versus 3.7% expected, part of a broader eurozone inflation jump that pressures the ECB toward tightening — one to watch for Euribor and Bund shorts.\n\nEquity index futures are flat-to-lower ahead of Micron's results, the next read on the AI trade underpinning the Nasdaq. Elsewhere, softs are on fire — arabica +3.1% near records amid a US-Colombia tariff spat according to reports, robusta +3.7%, OJ +3% — while gold's grind to $4,212 and platinum's 1.7% pop reflect the same inflation-hedge bid supporting bonds' rivals.",
  "headlines": [
   {
-   "source": "FT",
-   "title": "Bond sell-off deepens and oil rises as Iran-US deal hopes fade — Brent crude jumps and 10-year Treasury yield surpasses 5.2% as hopes for US-Iran agreement fade",
+   "source": "Bloomberg",
+   "title": "Treasuries, Futures Rise Before Key US Inflation Report",
    "time": "",
    "tag": "Rates"
   },
   {
-   "source": "FT",
-   "title": "Australia raises interest rate to highest level in 15 years — RBA governor says Iran war has 'made people poorer' as central bank seeks to tackle persistent inflation",
-   "time": "",
+   "source": "Financial Times",
+   "title": "US 30-year Treasury yield hits highest since 2002",
+   "time": "16:13 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Financial Times",
+   "title": "Australia raises interest rate to highest level in 15 years",
+   "time": "03:11 ET",
    "tag": "Rates"
   },
   {
    "source": "Bloomberg",
-   "title": "Latest Oil Market News and Analysis for Sept. 29 — Oil steadied as top exporter Saudi Arabia resumed flows through a key pipeline, while there were no signs of progress in US-Iran talks",
-   "time": "",
+   "title": "JPMorgan and Goldman See Mideast Oil Flows Near Pre-War Levels",
+   "time": "07:01 ET",
    "tag": "Energy"
   },
   {
-   "source": "WSJ",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts — U.S. natural gas futures fell after weekend updates took some of the chill out of early February weather forecasts",
-   "time": "",
+   "source": "Financial Times",
+   "title": "White House holds crunch talks on diesel export ban as midterms near",
+   "time": "00:00 ET",
    "tag": "Energy"
   },
   {
-   "source": "Bloomberg",
-   "title": "Gold Edges Higher as Treasuries Stabilize After Sharp Selloff — traders looked for clues on whether the Federal Reserve will continue tightening policy to rein in inflation",
-   "time": "",
+   "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "09:05 ET",
+   "tag": "Energy"
+  },
+  {
+   "source": "Wall Street Journal",
+   "title": "Comex Gold, Silver Settle Lower",
+   "time": "14:01 ET",
    "tag": "Metals"
   },
   {
-   "source": "WSJ",
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
-  },
-  {
-   "source": "NPR",
-   "title": "American farmers are hurting — soybean, corn and cotton growers face another year of losses as soaring fuel and fertilizer costs offset higher revenues",
-   "time": "",
-   "tag": "Agriculture"
-  },
-  {
-   "source": "WSJ",
-   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek — Nasdaq leads declines as AI infrastructure makers suffer steep falls; Nvidia down 16%",
-   "time": "",
-   "tag": "Equities"
   }
  ]
 }
