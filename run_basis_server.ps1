@@ -28,10 +28,12 @@ Set-Location $PSScriptRoot
 # lock" exits. Holding the object in a script-scope variable stops the GC releasing the lock
 # mid-loop; an abandoned mutex (a prior keeper crashed holding it) is handed straight to us.
 $haveLock = $true
+$script:isMutexHolder = $false            # true ONLY when we actually own the mutex (not via fail-open)
 try {
     $script:keeperMutex = New-Object System.Threading.Mutex($false, "Global\BASIS_Server_Keeper_v1")
     try { $haveLock = $script:keeperMutex.WaitOne(0) }
     catch [System.Threading.AbandonedMutexException] { $haveLock = $true }   # prior keeper died holding it
+    $script:isMutexHolder = $haveLock
 } catch {
     $others = @(Get-CimInstance Win32_Process -Filter 'Name = "powershell.exe" OR Name = "pwsh.exe"' |
                 Where-Object { $_.ProcessId -ne $PID -and
@@ -120,6 +122,39 @@ function Invoke-EqAutoPull {
     } catch { }                                  # never let the trigger disturb the keeper
 }
 
+# ===========================================================================
+#  SINGLE-KEEPER ENFORCEMENT, re-checked EVERY cycle (2026-09-30) — the startup mutex
+#  blocks a NEW keeper, but duplicates still piled up (fail-open under post-sleep load /
+#  wake casualties): three keepers were once found thrashing one morning, which stopped
+#  BASIS opening. So each cycle: if we do NOT own the mutex, re-try it — if another keeper
+#  owns it we are the duplicate → return $true (caller exits); if we DO own it, reap any
+#  OTHER keeper shell. Converges to exactly one keeper within a cycle. SAFE: only the mutex
+#  owner reaps (two keepers can never kill each other), it kills ONLY run_basis_server.ps1
+#  shells (never the pythonw server tree), and any glitch is swallowed — fail-open, so it
+#  never exits or reaps on error and can never leave BASIS keeperless.
+# ===========================================================================
+function Test-DuplicateKeeper {
+    try {
+        if (-not $script:isMutexHolder) {
+            if ($null -eq $script:keeperMutex) {
+                $script:keeperMutex = New-Object System.Threading.Mutex($false, "Global\BASIS_Server_Keeper_v1")
+            }
+            $have = $false
+            try { $have = $script:keeperMutex.WaitOne(0) }
+            catch [System.Threading.AbandonedMutexException] { $have = $true }
+            if ($have) { $script:isMutexHolder = $true }   # we took ownership → now the sole keeper
+            else { return $true }                          # another keeper owns it → we are the duplicate
+        }
+        if ($script:isMutexHolder) {
+            Get-CimInstance Win32_Process -Filter 'Name = "powershell.exe" OR Name = "pwsh.exe"' -ErrorAction SilentlyContinue |
+                Where-Object { $_.ProcessId -ne $PID -and
+                               $_.CommandLine -match '-File\s+\S*run_basis_server\.ps1' } |
+                ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        }
+    } catch { }   # mutex / enumeration glitch — do nothing this cycle (never exit or reap on error)
+    return $false
+}
+
 while ($true) {
     $listening = @(Get-NetTCPConnection -LocalPort 8501 -State Listen `
                        -ErrorAction SilentlyContinue).Count
@@ -154,6 +189,7 @@ while ($true) {
         $hung = $false
         while (-not $server.HasExited) {
             Start-Sleep -Seconds 20
+            if (Test-DuplicateKeeper) { exit 0 }  # duplicate keeper self-exits; the owner reaps others
             try { Invoke-EqAutoPull } catch { }   # keeper-driven equities Auto-pull (defensive; never blocks health)
             $healthy = $false
             try {
@@ -178,6 +214,7 @@ while ($true) {
         Start-Sleep -Seconds 5          # breathe before restarting (crash loops)
     } else {
         Start-Sleep -Seconds 15
+        if (Test-DuplicateKeeper) { exit 0 }       # duplicate keeper self-exits; the owner reaps others
         try { Invoke-EqAutoPull } catch { }       # keeper-driven equities Auto-pull (fires whether or not this keeper spawned the server)
     }
 }
