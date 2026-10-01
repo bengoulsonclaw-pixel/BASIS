@@ -1,11 +1,10 @@
 {
- "date": "2026-09-30",
+ "date": "2026-10-01",
  "runs": 1,
- "outcome": "ok",
+ "outcome": "running",
  "mc": "sent",
  "mode": "",
- "phase": "done",
- "started": "2026-09-30T06:07:35",
- "when": "2026-09-30T06:43:15",
- "detail": "complete in 35.7 min"
+ "phase": "backup",
+ "started": "2026-10-01T05:44:09",
+ "when": "2026-10-01T06:09:28"
 }

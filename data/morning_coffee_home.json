@@ -1,48 +1,48 @@
 {
- "generated_at": "30 Sep 2026 · 07:41 ET",
- "synopsis": "Energy is the morning's talking point, and it's a distillate story more than a crude one: gasoil is up 4.4%, heating oil 2.1% and TTF gas 3.4% — helped by Berlin instructing state-owned SEFE to inject gas into storage ahead of winter — dragging WTI up 1.5% to $90.69 and Brent through $103 into today's November expiry.",
- "commentary": "Energy is the morning's talking point, and it's a distillate story more than a crude one: gasoil is up 4.4%, heating oil 2.1% and TTF gas 3.4% — helped by Berlin instructing state-owned SEFE to inject gas into storage ahead of winter — dragging WTI up 1.5% to $90.69 and Brent through $103 into today's November expiry. But look under the hood and the crude complex is telling a softer story: Middle East flows are returning toward pre-war levels according to JPMorgan and Goldman estimates, Iraq is discounting October barrels by as much as $37, API reported a 1M-bbl crude build, and Brent puts have outpaced calls for the longest run since June while prompt spreads sit at multi-week lows.\n\nBackwardation is fading — the products squeeze is doing the heavy lifting, not the geopolitical premium. The macro backdrop is all about inflation. Treasuries and bond futures firmed ahead of today's key US inflation print that could reset Fed pricing, with the long bond +0.3% even as 30-year mortgage rates hit 7.3%, the highest since late 2023. Europe cuts the other way: Italian harmonized CPI surprised at 4.1% versus 3.7% expected, part of a broader eurozone inflation jump that pressures the ECB toward tightening — one to watch for Euribor and Bund shorts.\n\nEquity index futures are flat-to-lower ahead of Micron's results, the next read on the AI trade underpinning the Nasdaq. Elsewhere, softs are on fire — arabica +3.1% near records amid a US-Colombia tariff spat according to reports, robusta +3.7%, OJ +3% — while gold's grind to $4,212 and platinum's 1.7% pop reflect the same inflation-hedge bid supporting bonds' rivals.",
+ "generated_at": "01 Oct 2026 · 07:09 ET",
+ "synopsis": "The global bond rout is the story this morning, and oil is pouring fuel on it. The US 10-year yield hit 5.33%, its highest since 2002, and the UK 30-year gilt yield broke 6% for the first time since 1998, as stubborn inflation and \"higher for longer\" warnings — reinforced by Kashkari saying inflation is \"still too high\" even after a softer PCE print — reset rate expectations across the complex.",
+ "commentary": "The global bond rout is the story this morning, and oil is pouring fuel on it. The US 10-year yield hit 5.33%, its highest since 2002, and the UK 30-year gilt yield broke 6% for the first time since 1998, as stubborn inflation and \"higher for longer\" warnings — reinforced by Kashkari saying inflation is \"still too high\" even after a softer PCE print — reset rate expectations across the complex. December Brent punched through $100 (+1.8% to $100.47), WTI added 1.1% to above $92, and product cracks jumped, hardening the inflation feedback loop that's driving yields.\n\nTreasury and Bund futures are stabilising modestly this morning, but gilts remain the weak link (Long Gilt -0.06% vs Bund +0.26%), and the FTSE is down over 1% with euro-area banks off 1.5%. Notably, US index futures are shrugging it off — Nasdaq +0.7% on an upbeat semiconductor outlook and fresh mega-scale AI chip deals, including Tencent's reported Oracle lease. The transmission is classic late-cycle: the dollar is bid against everything, with the euro at a 17-month low on the rates-and-inflation cocktail and French fiscal strain, the yen off 0.6%, and EM FX under pressure.\n\nThat dollar-plus-oil combination is squeezing industrial metals — copper -0.7%, iron ore -1.1% — while gold and silver catch an inflation-hedge bid, silver up 1%. In ags, cocoa's 4% slide and robusta weakness lead the softs lower, while KC wheat and sugar firm. Watch jobless claims, Fed speak, and whether Brent holds $100 — a sustained break keeps the pressure on the short end and the curve.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "Treasuries, Futures Rise Before Key US Inflation Report",
+   "title": "*US 10-YEAR YIELD RISES TO 5.33%, HIGHEST SINCE 2002",
    "time": "",
    "tag": "Rates"
   },
   {
    "source": "Financial Times",
-   "title": "US 30-year Treasury yield hits highest since 2002",
-   "time": "16:13 ET",
-   "tag": "Rates"
+   "title": "Bond markets resume sell-off after strong US data — Treasury yields rise further on news that economy grew faster than previously estimated, although personal consumption expenditures inflation falls",
+   "time": "",
+   "tag": "Macro"
   },
   {
    "source": "Financial Times",
-   "title": "Australia raises interest rate to highest level in 15 years",
-   "time": "03:11 ET",
+   "title": "BoJ's summary of opinions points to accelerated pace of rate rises — Most rate-setters saw the case for more interest rate increases and some suggested tightening should proceed faster",
+   "time": "",
    "tag": "Rates"
   },
   {
    "source": "Bloomberg",
-   "title": "JPMorgan and Goldman See Mideast Oil Flows Near Pre-War Levels",
-   "time": "07:01 ET",
+   "title": "Latest Oil Market News and Analysis for Oct. 1 — Oil again touched triple digits, as traders weighed higher Middle East crude flows against uncertainty across fuel markets",
+   "time": "",
    "tag": "Energy"
   },
   {
-   "source": "Financial Times",
-   "title": "White House holds crunch talks on diesel export ban as midterms near",
-   "time": "00:00 ET",
+   "source": "Washington Post",
+   "title": "How the U.S. got oil shipments moving and what it would take to bring prices down — Crude oil shipments through the Strait of Hormuz have begun to approach prewar levels",
+   "time": "",
+   "tag": "Geopolitics"
+  },
+  {
+   "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts — U.S. natural gas futures fell after weekend updates took some of the chill out of early February weather forecasts",
+   "time": "",
    "tag": "Energy"
   },
   {
    "source": "Wall Street Journal",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Wall Street Journal",
-   "title": "Comex Gold, Silver Settle Lower",
-   "time": "14:01 ET",
+   "title": "Comex Gold, Silver Settle Lower — Gold settled 1.4% lower, silver fell 2.5%",
+   "time": "",
    "tag": "Metals"
   },
   {
