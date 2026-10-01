@@ -1,5 +1,5 @@
 {
- "asof": "2026-09-30T07:44:33",
+ "asof": "2026-10-01T07:05:43",
  "events": [
   {
    "date": "2025-03-19",
@@ -4817,11 +4817,11 @@
    "date": "2026-11-04",
    "icon": "",
    "label": "DASH",
-   "color": "#E65100",
+   "color": "#616161",
    "auto": false,
    "bbg": "DASH US Equity",
    "sub": "Doordash Class A \u00b7 S&P 500, Nasdaq 100 \u00b7 US",
-   "tip": "Doordash Class A \u2014 Consumer Discretionary \u00b7 S&P 500, Nasdaq 100 \u00b7 US \u00b7 84bn"
+   "tip": "Doordash Class A \u2014 Other \u00b7 S&P 500, Nasdaq 100 \u00b7 US \u00b7 84bn"
   },
   {
    "date": "2026-11-04",
@@ -5150,10 +5150,10 @@
   {
    "date": "2026-11-09",
    "icon": "",
-   "label": "\u22ef 84 more",
+   "label": "\u22ef 83 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Paramount Skydance Corp Class B, Gea Group Ag, Caretrust Reit, Immunovant, Hims Hers Health Class A, Enact Holdings Inc, Cg Oncology, Crispr Therapeutics Ag, Global Business Travel Group Class, Rum Group Class A, Avient Corp, Genworth Financial Inc, Ideaya Biosciences, Life360, Erock Inc Class A, Bitdeer Technologies Group Class A, Plug Power, Five9, Guardian Pharmacy Services Class A, Celldex Therapeutics, Aurinia Pharmaceuticals, Biohaven, Keel Infrastructure Corp, Sonida Senior Living, Septerna, Quantum Computing, Surgery Partners, Atlanticus Holdings Corp, Dauch Corporation, Harrow, Dole Plc, Ceva, Sable Offshore Class A, Olema Pharmaceuticals, Compass Diversified, Profrac Holding Class A, Alpha And Omega Semiconductor, Viant Technology Inc Class A, Lincoln Educational Services Corp, American Public Education\u2026"
+   "tip": "Paramount Skydance Corp Class B, Gea Group Ag, Caretrust Reit, Immunovant, Hims Hers Health Class A, Enact Holdings Inc, Cg Oncology, Crispr Therapeutics Ag, Rum Group Class A, Avient Corp, Genworth Financial Inc, Ideaya Biosciences, Life360, Erock Inc Class A, Bitdeer Technologies Group Class A, Plug Power, Five9, Guardian Pharmacy Services Class A, Celldex Therapeutics, Aurinia Pharmaceuticals, Biohaven, Keel Infrastructure Corp, Sonida Senior Living, Septerna, Quantum Computing, Surgery Partners, Atlanticus Holdings Corp, Dauch Corporation, Harrow, Dole Plc, Ceva, Sable Offshore Class A, Olema Pharmaceuticals, Compass Diversified, Profrac Holding Class A, Alpha And Omega Semiconductor, Viant Technology Inc Class A, Lincoln Educational Services Corp, American Public Education, Green Dot Class A\u2026"
   },
   {
    "date": "2026-11-10",
@@ -5369,7 +5369,7 @@
    "label": "\u22ef 53 more",
    "color": "#616161",
    "auto": false,
-   "tip": "Accelerant Holdings Class A, Dlocal Class A, Heartflow Inc, Celcuity, Firefly Aerospace, Enliven Therapeutics, Sellas Life Sciences Group Inc, Digi International, Mcgraw Hill, Pagseguro Digital Ltd Class A, Applied Aerospace And Defense Inc, Flowco Holdings Class A, Pelagos Insurance Capital Ltd, Bobs Discount Furniture Inc, Anterix, Ardent Health Inc, Staar Surgical, Savara, Alto Neuroscience Inc, Ibotta Class A, Apnimed Inc, Himalaya Shipping Ltd, Sky Harbour Group Class A, Nexxen International Ltd, Ovid Therapeutics, Frontview Reit, Prelude Therapeutics, Kyverna Therapeutics, Idaho Strategic Resources Inc, Atea Pharmaceuticals, Diamedica Therapeutics Inc, Vox Royalty Corp, Avidia Bancorp Inc, M Tron Industries Inc, Abeona Therapeutics Inc, Sanara Medtech Inc, Immuneering Class A, Aeluma Inc, B And G Foods Inc, Global Water Resources Inc\u2026"
+   "tip": "Accelerant Holdings Class A, Dlocal Class A, Heartflow Inc, Celcuity, Firefly Aerospace, Enliven Therapeutics, Sellas Life Sciences Group Inc, Digi International, Mcgraw Hill, Pagseguro Digital Ltd Class A, Applied Aerospace And Defense Inc, Flowco Holdings Class A, Pelagos Insurance Capital Ltd, Bobs Discount Furniture Inc, Anterix, Ardent Health Inc, Staar Surgical, Savara, Alto Neuroscience Inc, Ibotta Class A, Apnimed Inc, Himalaya Shipping Ltd, Sky Harbour Group Class A, Nexxen International Ltd, Ovid Therapeutics, Frontview Reit, Prelude Therapeutics, Kyverna Therapeutics, Idaho Strategic Resources Inc, Atea Pharmaceuticals, Diamedica Therapeutics Inc, Vox Royalty Corp, Avidia Bancorp Inc, M Tron Industries Inc, Abeona Therapeutics Inc, Sanara Medtech, Immuneering Class A, Aeluma Inc, B And G Foods Inc, Global Water Resources Inc\u2026"
   },
   {
    "date": "2026-11-12",
