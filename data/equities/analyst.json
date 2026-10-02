@@ -2,7 +2,7 @@
  "AAPL US Equity": {
   "ticker": "AAPL US Equity",
   "symbol": "AAPL",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Apple Inc.",
   "consensus": {
    "mean": 2.20455,
@@ -12,12 +12,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 329.4,
-   "mean": 328.22205,
+   "spot": 330.32,
+   "mean": 328.09384,
    "high": 405.0,
    "low": 215.0,
    "median": 340.0,
-   "upside_pct": -0.35760473588341
+   "upside_pct": -0.6739404214095357
   },
   "trend": [
    {
@@ -34,6 +34,16 @@
     "period": "-1m",
     "strongBuy": 6,
     "buy": 19,
+    "hold": 13,
+    "sell": 3,
+    "strongSell": 3,
+    "total": 44,
+    "pos_pct": 56.81818181818182
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 6,
+    "buy": 19,
     "hold": 14,
     "sell": 3,
     "strongSell": 2,
@@ -41,7 +51,7 @@
     "pos_pct": 56.81818181818182
    },
    {
-    "period": "-2m",
+    "period": "-3m",
     "strongBuy": 6,
     "buy": 22,
     "hold": 14,
@@ -49,19 +59,27 @@
     "strongSell": 2,
     "total": 46,
     "pos_pct": 60.869565217391305
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 6,
-    "buy": 22,
-    "hold": 16,
-    "sell": 1,
-    "strongSell": 2,
-    "total": 47,
-    "pos_pct": 59.57446808510638
    }
   ],
   "actions": [
+   {
+    "date": "2026-10-01",
+    "firm": "Morgan Stanley",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 355.0,
+    "prior": 360.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Needham",
+    "from": "Hold",
+    "to": "Hold",
+    "action": "reit",
+    "target": null,
+    "prior": null
+   },
    {
     "date": "2026-09-29",
     "firm": "Morgan Stanley",
@@ -313,24 +331,6 @@
     "action": "up",
     "target": 366.0,
     "prior": 260.0
-   },
-   {
-    "date": "2026-07-15",
-    "firm": "Bernstein",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 350.0,
-    "prior": 350.0
-   },
-   {
-    "date": "2026-07-14",
-    "firm": "Keybanc",
-    "from": "Sector Weight",
-    "to": "Underweight",
-    "action": "down",
-    "target": 250.0,
-    "prior": null
    }
   ]
  },
@@ -2539,7 +2539,7 @@
  "F US Equity": {
   "ticker": "F US Equity",
   "symbol": "F",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Ford Motor Company",
   "consensus": {
    "mean": 2.35,
@@ -2549,12 +2549,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 12.3,
+   "spot": 12.27,
    "mean": 16.03,
    "high": 20.0,
    "low": 12.8,
    "median": 15.5,
-   "upside_pct": 30.325203252032516
+   "upside_pct": 30.643846780766104
   },
   "trend": [
    {
@@ -2586,16 +2586,6 @@
     "strongSell": 0,
     "total": 22,
     "pos_pct": 36.36363636363637
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 3,
-    "hold": 15,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 27.272727272727273
    }
   ],
   "actions": [
@@ -3876,7 +3866,7 @@
  "FOXA US Equity": {
   "ticker": "FOXA US Equity",
   "symbol": "FOXA",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Fox Corporation",
   "consensus": {
    "mean": 2.0,
@@ -3886,12 +3876,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 62.48,
+   "spot": 61.28,
    "mean": 76.42222,
    "high": 112.0,
    "low": 52.6,
    "median": 77.0,
-   "upside_pct": 22.31469270166453
+   "upside_pct": 24.709889033942556
   },
   "trend": [
    {
@@ -3923,295 +3913,14 @@
     "strongSell": 1,
     "total": 19,
     "pos_pct": 47.36842105263158
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 1,
-    "buy": 8,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 17,
-    "pos_pct": 52.94117647058823
    }
   ],
-  "actions": [
-   {
-    "date": "2026-09-23",
-    "firm": "Guggenheim",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 85.0,
-    "prior": 85.0
-   },
-   {
-    "date": "2026-09-14",
-    "firm": "Citizens",
-    "from": "",
-    "to": "Market Outperform",
-    "action": "init",
-    "target": 95.0,
-    "prior": null
-   },
-   {
-    "date": "2026-08-25",
-    "firm": "Guggenheim",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 85.0,
-    "prior": 85.0
-   },
-   {
-    "date": "2026-08-14",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Overweight",
-    "action": "up",
-    "target": 80.0,
-    "prior": 65.0
-   },
-   {
-    "date": "2026-08-14",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Overweight",
-    "action": "up",
-    "target": 82.0,
-    "prior": 70.0
-   },
-   {
-    "date": "2026-08-07",
-    "firm": "Seaport Global",
-    "from": "Buy",
-    "to": "Neutral",
-    "action": "down",
-    "target": null,
-    "prior": null
-   },
-   {
-    "date": "2026-07-06",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 65.0,
-    "prior": 71.0
-   },
-   {
-    "date": "2026-07-01",
-    "firm": "Wolfe Research",
-    "from": "Peer Perform",
-    "to": "Outperform",
-    "action": "up",
-    "target": 71.0,
-    "prior": null
-   },
-   {
-    "date": "2026-06-15",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 60.0,
-    "prior": 67.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 73.0,
-    "prior": 70.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 70.0,
-    "prior": 69.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 67.0,
-    "prior": 63.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 71.0,
-    "prior": 67.0
-   },
-   {
-    "date": "2026-03-27",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 67.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-02-24",
-    "firm": "Seaport Global",
-    "from": "Neutral",
-    "to": "Buy",
-    "action": "up",
-    "target": 64.0,
-    "prior": null
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 78.0,
-    "prior": 77.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 69.0,
-    "prior": 65.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "TD Cowen",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 65.0,
-    "prior": 55.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 63.0,
-    "prior": 64.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 78.0,
-    "prior": 76.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 70.0,
-    "prior": 66.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 77.0,
-    "prior": 74.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Equal-Weight",
-    "action": "down",
-    "target": 75.0,
-    "prior": 80.0
-   },
-   {
-    "date": "2025-12-22",
-    "firm": "Guggenheim",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 85.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2025-12-19",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 87.0,
-    "prior": 79.0
-   },
-   {
-    "date": "2025-12-19",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 80.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2025-12-18",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 74.0,
-    "prior": 70.0
-   },
-   {
-    "date": "2025-11-12",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 77.0,
-    "prior": 68.0
-   },
-   {
-    "date": "2025-10-31",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 80.0,
-    "prior": 70.0
-   },
-   {
-    "date": "2025-10-31",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 64.0,
-    "prior": 58.0
-   }
-  ]
+  "actions": []
  },
  "HAL US Equity": {
   "ticker": "HAL US Equity",
   "symbol": "HAL",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Halliburton Company",
   "consensus": {
    "mean": 1.75,
@@ -4221,12 +3930,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 31.54,
+   "spot": 31.88,
    "mean": 43.44,
    "high": 53.0,
    "low": 29.0,
    "median": 43.0,
-   "upside_pct": 37.72986683576411
+   "upside_pct": 36.26097867001255
   },
   "trend": [
    {
@@ -4261,13 +3970,13 @@
    },
    {
     "period": "-3m",
-    "strongBuy": 5,
+    "strongBuy": 6,
     "buy": 15,
-    "hold": 5,
-    "sell": 1,
+    "hold": 6,
+    "sell": 0,
     "strongSell": 1,
-    "total": 27,
-    "pos_pct": 74.07407407407408
+    "total": 28,
+    "pos_pct": 75.0
    }
   ],
   "actions": [
@@ -5505,7 +5214,7 @@
  "IDXX US Equity": {
   "ticker": "IDXX US Equity",
   "symbol": "IDXX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "IDEXX Laboratories, Inc.",
   "consensus": {
    "mean": 2.15385,
@@ -5515,12 +5224,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 533.44,
+   "spot": 517.75,
    "mean": 701.3333,
    "high": 805.0,
    "low": 470.0,
    "median": 705.0,
-   "upside_pct": 31.47369901019794
+   "upside_pct": 35.45790439401255
   },
   "trend": [
    {
@@ -5545,16 +5254,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 4,
-    "buy": 5,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 15,
-    "pos_pct": 60.0
-   },
-   {
-    "period": "-3m",
     "strongBuy": 4,
     "buy": 5,
     "hold": 5,
@@ -6845,7 +6544,7 @@
  "FTNT US Equity": {
   "ticker": "FTNT US Equity",
   "symbol": "FTNT",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Fortinet, Inc.",
   "consensus": {
    "mean": 2.77273,
@@ -6855,327 +6554,15 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 175.96,
+   "spot": 178.72,
    "mean": 164.31944,
    "high": 220.0,
    "low": 104.0,
    "median": 165.0,
-   "upside_pct": -6.615458058649704
+   "upside_pct": -8.057609668755605
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 1,
-    "buy": 8,
-    "hold": 31,
-    "sell": 3,
-    "strongSell": 1,
-    "total": 44,
-    "pos_pct": 20.454545454545453
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 1,
-    "buy": 10,
-    "hold": 29,
-    "sell": 3,
-    "strongSell": 1,
-    "total": 44,
-    "pos_pct": 25.0
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 1,
-    "buy": 10,
-    "hold": 29,
-    "sell": 3,
-    "strongSell": 1,
-    "total": 44,
-    "pos_pct": 25.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 1,
-    "buy": 10,
-    "hold": 27,
-    "sell": 4,
-    "strongSell": 2,
-    "total": 44,
-    "pos_pct": 25.0
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-17",
-    "firm": "Bernstein",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 145.0,
-    "prior": 102.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Susquehanna",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 160.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Citigroup",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 185.0,
-    "prior": 165.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Piper Sandler",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 175.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "RBC Capital",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 185.0,
-    "prior": 160.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 136.0,
-    "prior": 133.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Stifel",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 175.0,
-    "prior": 102.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Wells Fargo",
-    "from": "Underweight",
-    "to": "Underweight",
-    "action": "main",
-    "target": 135.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 165.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Cantor Fitzgerald",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 185.0,
-    "prior": 165.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Rosenblatt",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 195.0,
-    "prior": 185.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 190.0,
-    "prior": 170.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "BTIG",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 203.0,
-    "prior": 186.0
-   },
-   {
-    "date": "2026-07-28",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 150.0,
-    "prior": 100.0
-   },
-   {
-    "date": "2026-07-23",
-    "firm": "Cantor Fitzgerald",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 165.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-07-22",
-    "firm": "Citigroup",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 165.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-07-21",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 183.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-07-21",
-    "firm": "Morgan Stanley",
-    "from": "Underweight",
-    "to": "Equal-Weight",
-    "action": "up",
-    "target": 133.0,
-    "prior": 80.0
-   },
-   {
-    "date": "2026-07-20",
-    "firm": "Wells Fargo",
-    "from": "Underweight",
-    "to": "Underweight",
-    "action": "main",
-    "target": 120.0,
-    "prior": 70.0
-   },
-   {
-    "date": "2026-07-15",
-    "firm": "Mizuho",
-    "from": "Underperform",
-    "to": "Underperform",
-    "action": "main",
-    "target": 125.0,
-    "prior": 86.0
-   },
-   {
-    "date": "2026-07-13",
-    "firm": "TD Cowen",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 215.0,
-    "prior": 160.0
-   },
-   {
-    "date": "2026-07-13",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 170.0,
-    "prior": 155.0
-   },
-   {
-    "date": "2026-07-10",
-    "firm": "BTIG",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 186.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-06-30",
-    "firm": "HSBC",
-    "from": "Hold",
-    "to": "Reduce",
-    "action": "down",
-    "target": null,
-    "prior": null
-   },
-   {
-    "date": "2026-06-12",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 155.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-06-08",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 180.0,
-    "prior": 130.0
-   },
-   {
-    "date": "2026-06-08",
-    "firm": "TD Cowen",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 160.0,
-    "prior": 125.0
-   },
-   {
-    "date": "2026-05-26",
-    "firm": "BTIG",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 150.0,
-    "prior": 125.0
-   },
-   {
-    "date": "2026-05-08",
-    "firm": "Citigroup",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 115.0,
-    "prior": 90.0
-   },
-   {
-    "date": "2026-05-08",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 115.0,
-    "prior": 88.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "BX US Equity": {
   "ticker": "BX US Equity",
@@ -8185,7 +7572,7 @@
  "FFIV US Equity": {
   "ticker": "FFIV US Equity",
   "symbol": "FFIV",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "F5, Inc.",
   "consensus": {
    "mean": null,
@@ -8195,12 +7582,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 438.07,
+   "spot": 443.68,
    "mean": 436.1,
    "high": 515.0,
    "low": 300.0,
    "median": 438.0,
-   "upside_pct": -0.44969981966351824
+   "upside_pct": -1.7084385142444924
   },
   "trend": [
    {
@@ -8215,16 +7602,6 @@
    },
    {
     "period": "-1m",
-    "strongBuy": 3,
-    "buy": 2,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 13,
-    "pos_pct": 38.46153846153846
-   },
-   {
-    "period": "-2m",
     "strongBuy": 3,
     "buy": 2,
     "hold": 7,
@@ -8510,22 +7887,22 @@
  "DVN US Equity": {
   "ticker": "DVN US Equity",
   "symbol": "DVN",
-  "pulled": "2026-09-30",
-  "name": "Devon Energy Corporation",
+  "pulled": "2026-10-02",
+  "name": null,
   "consensus": {
-   "mean": 1.31034,
-   "score5": 4.68966,
-   "label": "Strong buy",
-   "n": 28
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 46.6,
-   "mean": 60.39286,
-   "high": 68.0,
-   "low": 44.0,
-   "median": 61.5,
-   "upside_pct": 29.598412017167377
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -8541,22 +7918,22 @@
    {
     "period": "-1m",
     "strongBuy": 3,
+    "buy": 23,
+    "hold": 3,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 29,
+    "pos_pct": 89.65517241379311
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 3,
     "buy": 21,
     "hold": 3,
     "sell": 0,
     "strongSell": 0,
     "total": 27,
     "pos_pct": 88.88888888888889
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 4,
-    "buy": 21,
-    "hold": 2,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 27,
-    "pos_pct": 92.5925925925926
    },
    {
     "period": "-3m",
@@ -8845,7 +8222,7 @@
  "FE US Equity": {
   "ticker": "FE US Equity",
   "symbol": "FE",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "FirstEnergy Corp.",
   "consensus": {
    "mean": 2.125,
@@ -8855,12 +8232,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 43.64,
-   "mean": 52.91667,
+   "spot": 43.39,
+   "mean": 52.66667,
    "high": 56.0,
    "low": 48.0,
    "median": 53.0,
-   "upside_pct": 21.257263978001852
+   "upside_pct": 21.379741876008307
   },
   "trend": [
    {
@@ -8885,16 +8262,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 3,
-    "buy": 5,
-    "hold": 9,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 17,
-    "pos_pct": 47.05882352941177
-   },
-   {
-    "period": "-3m",
     "strongBuy": 3,
     "buy": 5,
     "hold": 9,
@@ -9180,7 +8547,7 @@
  "HWM US Equity": {
   "ticker": "HWM US Equity",
   "symbol": "HWM",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Howmet Aerospace Inc.",
   "consensus": {
    "mean": 1.43478,
@@ -9190,12 +8557,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 230.94,
-   "mean": 334.36,
+   "spot": 228.38,
+   "mean": 331.50287,
    "high": 375.0,
    "low": 255.0,
    "median": 340.0,
-   "upside_pct": 44.782194509396376
+   "upside_pct": 45.154072160434346
   },
   "trend": [
    {
@@ -9227,19 +8594,18 @@
     "strongSell": 0,
     "total": 22,
     "pos_pct": 86.36363636363636
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 4,
-    "buy": 15,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 86.36363636363636
    }
   ],
   "actions": [
+   {
+    "date": "2026-09-30",
+    "firm": "Wells Fargo",
+    "from": "Equal-Weight",
+    "to": "Equal-Weight",
+    "action": "main",
+    "target": 255.0,
+    "prior": 315.0
+   },
    {
     "date": "2026-09-15",
     "firm": "Guggenheim",
@@ -9500,15 +8866,6 @@
     "action": "main",
     "target": 255.0,
     "prior": 246.0
-   },
-   {
-    "date": "2025-12-12",
-    "firm": "Citigroup",
-    "from": "",
-    "to": "Buy",
-    "action": "init",
-    "target": 246.0,
-    "prior": null
    }
   ]
  },
@@ -10520,7 +9877,7 @@
  "III LN Equity": {
   "ticker": "III LN Equity",
   "symbol": "III.L",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "3I GROUP PLC ORD 73 19/22P",
   "consensus": {
    "mean": null,
@@ -10530,12 +9887,12 @@
   },
   "targets": {
    "ccy": "GBp",
-   "spot": 2667.0,
+   "spot": 2568.0,
    "mean": 3394.091,
    "high": 4205.0,
    "low": 1900.0,
    "median": 3570.0,
-   "upside_pct": 27.262504686914134
+   "upside_pct": 32.16865264797508
   },
   "trend": [
    {
@@ -10560,16 +9917,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 3,
-    "buy": 6,
-    "hold": 0,
-    "sell": 1,
-    "strongSell": 1,
-    "total": 11,
-    "pos_pct": 81.81818181818181
-   },
-   {
-    "period": "-3m",
     "strongBuy": 3,
     "buy": 6,
     "hold": 0,
@@ -11924,7 +11271,7 @@
  "EQIX US Equity": {
   "ticker": "EQIX US Equity",
   "symbol": "EQIX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Equinix, Inc.",
   "consensus": {
    "mean": 1.5,
@@ -11934,12 +11281,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 1015.27,
-   "mean": 1233.4839,
+   "spot": 1012.33,
+   "mean": 1234.1936,
    "high": 1380.0,
    "low": 1060.0,
    "median": 1240.0,
-   "upside_pct": 21.493189003910285
+   "upside_pct": 21.916134066954452
   },
   "trend": [
    {
@@ -11971,16 +11318,6 @@
     "strongSell": 0,
     "total": 32,
     "pos_pct": 81.25
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 5,
-    "buy": 20,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 31,
-    "pos_pct": 80.64516129032258
    }
   ],
   "actions": [
@@ -12919,7 +12256,7 @@
  "ADYEN NA Equity": {
   "ticker": "ADYEN NA Equity",
   "symbol": "ADYEN.AS",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "ADYEN",
   "consensus": {
    "mean": 1.6,
@@ -12929,12 +12266,12 @@
   },
   "targets": {
    "ccy": "EUR",
-   "spot": 873.9,
+   "spot": 872.4,
    "mean": 1382.4286,
    "high": 1900.0,
    "low": 931.0,
    "median": 1320.0,
-   "upside_pct": 58.19070831902964
+   "upside_pct": 58.46270059605685
   },
   "trend": [
    {
@@ -12966,16 +12303,6 @@
     "strongSell": 0,
     "total": 34,
     "pos_pct": 79.41176470588235
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 5,
-    "buy": 23,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 33,
-    "pos_pct": 84.84848484848484
    }
   ],
   "actions": []
@@ -14052,7 +13379,7 @@
  "ABBV US Equity": {
   "ticker": "ABBV US Equity",
   "symbol": "ABBV",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "AbbVie Inc.",
   "consensus": {
    "mean": 1.7,
@@ -14062,12 +13389,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 263.29,
+   "spot": 259.93,
    "mean": 278.85715,
    "high": 328.0,
    "low": 200.0,
    "median": 285.0,
-   "upside_pct": 5.912548900451964
+   "upside_pct": 7.281633516716024
   },
   "trend": [
    {
@@ -14083,22 +13410,22 @@
    {
     "period": "-1m",
     "strongBuy": 8,
+    "buy": 16,
+    "hold": 5,
+    "sell": 0,
+    "strongSell": 1,
+    "total": 30,
+    "pos_pct": 80.0
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 8,
     "buy": 17,
     "hold": 5,
     "sell": 0,
     "strongSell": 1,
     "total": 31,
     "pos_pct": 80.64516129032258
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 8,
-    "buy": 16,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 31,
-    "pos_pct": 77.41935483870968
    },
    {
     "period": "-3m",
@@ -15057,65 +14384,24 @@
  "GILD US Equity": {
   "ticker": "GILD US Equity",
   "symbol": "GILD",
-  "pulled": "2026-09-30",
-  "name": "Gilead Sciences, Inc.",
+  "pulled": "2026-10-02",
+  "name": null,
   "consensus": {
-   "mean": 1.7037,
-   "score5": 4.2963000000000005,
-   "label": "Buy",
-   "n": 26
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 151.28,
-   "mean": 158.65385,
-   "high": 180.0,
-   "low": 123.0,
-   "median": 163.5,
-   "upside_pct": 4.874305922792166
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 6,
-    "buy": 15,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 27,
-    "pos_pct": 77.77777777777777
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 6,
-    "buy": 15,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 28,
-    "pos_pct": 75.0
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 6,
-    "buy": 16,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 29,
-    "pos_pct": 75.86206896551724
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 6,
-    "buy": 16,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 29,
-    "pos_pct": 75.86206896551724
-   }
-  ],
+  "trend": [],
   "actions": [
    {
     "date": "2026-09-10",
@@ -15727,22 +15013,22 @@
  "IEX US Equity": {
   "ticker": "IEX US Equity",
   "symbol": "IEX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "IDEX Corporation",
   "consensus": {
-   "mean": null,
-   "score5": null,
-   "label": "—",
+   "mean": 1.73333,
+   "score5": 4.2666699999999995,
+   "label": "Buy",
    "n": 14
   },
   "targets": {
    "ccy": "USD",
-   "spot": 230.43,
+   "spot": 229.85,
    "mean": 255.92857,
    "high": 280.0,
    "low": 215.0,
    "median": 259.5,
-   "upside_pct": 11.065646834179589
+   "upside_pct": 11.345908201000654
   },
   "trend": [
    {
@@ -15767,16 +15053,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 1,
-    "buy": 7,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 15,
-    "pos_pct": 53.333333333333336
-   },
-   {
-    "period": "-3m",
     "strongBuy": 1,
     "buy": 7,
     "hold": 7,
@@ -19077,7 +18353,7 @@
  "ABT US Equity": {
   "ticker": "ABT US Equity",
   "symbol": "ABT",
-  "pulled": "2026-10-01",
+  "pulled": "2026-10-02",
   "name": "Abbott Laboratories",
   "consensus": {
    "mean": 1.51852,
@@ -19087,327 +18363,15 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 98.83,
+   "spot": 96.69,
    "mean": 120.2636,
    "high": 135.0,
    "low": 103.0,
    "median": 120.0,
-   "upside_pct": 21.687341900232717
+   "upside_pct": 24.38059778674113
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 4,
-    "buy": 18,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 27,
-    "pos_pct": 81.48148148148148
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 4,
-    "buy": 18,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 27,
-    "pos_pct": 81.48148148148148
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 4,
-    "buy": 17,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 27,
-    "pos_pct": 77.77777777777777
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 4,
-    "buy": 16,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 27,
-    "pos_pct": 74.07407407407408
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-08",
-    "firm": "TD Cowen",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 135.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-08-25",
-    "firm": "TD Cowen",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 135.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-08-21",
-    "firm": "TD Cowen",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 135.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-08-14",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 125.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2026-08-13",
-    "firm": "Wolfe Research",
-    "from": "Peer Perform",
-    "to": "Outperform",
-    "action": "up",
-    "target": 130.0,
-    "prior": null
-   },
-   {
-    "date": "2026-07-28",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 125.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 112.0,
-    "prior": 108.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "Piper Sandler",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "reit",
-    "target": 118.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 120.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 112.0,
-    "prior": 109.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "TD Cowen",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 115.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "Evercore ISI Group",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 120.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "reit",
-    "target": 130.0,
-    "prior": 130.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "BTIG",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 134.0,
-    "prior": 131.0
-   },
-   {
-    "date": "2026-07-06",
-    "firm": "Evercore ISI Group",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 112.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-07-01",
-    "firm": "Baird",
-    "from": "",
-    "to": "Outperform",
-    "action": "init",
-    "target": 121.0,
-    "prior": null
-   },
-   {
-    "date": "2026-06-22",
-    "firm": "Piper Sandler",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "reit",
-    "target": 115.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-05-31",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 113.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2026-04-27",
-    "firm": "BTIG",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 131.0,
-    "prior": 131.0
-   },
-   {
-    "date": "2026-04-20",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 143.0,
-    "prior": 144.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "Piper Sandler",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 115.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "Oppenheimer",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 115.0,
-    "prior": 132.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 130.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "Benchmark",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 120.0,
-    "prior": 145.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "Evercore ISI Group",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 120.0,
-    "prior": 134.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 120.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "Stifel",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 120.0,
-    "prior": 145.0
-   },
-   {
-    "date": "2026-04-17",
-    "firm": "BTIG",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 131.0,
-    "prior": 131.0
-   },
-   {
-    "date": "2026-04-09",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 121.0,
-    "prior": 140.0
-   },
-   {
-    "date": "2026-04-08",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 144.0,
-    "prior": 142.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "CEG US Equity": {
   "ticker": "CEG US Equity",
@@ -20082,7 +19046,7 @@
  "FIX US Equity": {
   "ticker": "FIX US Equity",
   "symbol": "FIX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Comfort Systems USA, Inc.",
   "consensus": {
    "mean": null,
@@ -20092,12 +19056,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 1665.05,
+   "spot": 1685.29,
    "mean": 2197.0,
    "high": 2500.0,
    "low": 1910.0,
    "median": 2165.5,
-   "upside_pct": 31.947989549863376
+   "upside_pct": 30.363320259421233
   },
   "trend": [
    {
@@ -20119,16 +19083,6 @@
     "strongSell": 0,
     "total": 9,
     "pos_pct": 88.88888888888889
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 0,
-    "buy": 7,
-    "hold": 1,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 8,
-    "pos_pct": 87.5
    }
   ],
   "actions": [
@@ -20499,7 +19453,7 @@
  "FLEX US Equity": {
   "ticker": "FLEX US Equity",
   "symbol": "FLEX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Flex Ltd.",
   "consensus": {
    "mean": 1.27273,
@@ -20509,12 +19463,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 113.83,
+   "spot": 112.78,
    "mean": 160.5,
    "high": 180.0,
    "low": 142.0,
    "median": 160.0,
-   "upside_pct": 40.99973644909076
+   "upside_pct": 42.31246674942366
   },
   "trend": [
    {
@@ -20546,290 +19500,9 @@
     "strongSell": 0,
     "total": 11,
     "pos_pct": 100.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 7,
-    "hold": 1,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 11,
-    "pos_pct": 90.9090909090909
    }
   ],
-  "actions": [
-   {
-    "date": "2026-09-28",
-    "firm": "Freedom Capital Markets",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 150.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-09-08",
-    "firm": "Freedom Capital Markets",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 150.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 154.0,
-    "prior": 177.0
-   },
-   {
-    "date": "2026-07-30",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 144.0,
-    "prior": 203.0
-   },
-   {
-    "date": "2026-06-04",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 203.0,
-    "prior": 174.0
-   },
-   {
-    "date": "2026-05-28",
-    "firm": "Freedom Capital Markets",
-    "from": "",
-    "to": "Hold",
-    "action": "init",
-    "target": 144.0,
-    "prior": null
-   },
-   {
-    "date": "2026-05-08",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 177.0,
-    "prior": 84.0
-   },
-   {
-    "date": "2026-05-07",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 174.0,
-    "prior": 72.0
-   },
-   {
-    "date": "2026-05-07",
-    "firm": "Keybanc",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 180.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-04-20",
-    "firm": "Stifel",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 95.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-04-16",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 84.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-03-12",
-    "firm": "Baird",
-    "from": "",
-    "to": "Outperform",
-    "action": "init",
-    "target": 70.0,
-    "prior": null
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 72.0,
-    "prior": 71.0
-   },
-   {
-    "date": "2026-01-14",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 71.0,
-    "prior": 78.0
-   },
-   {
-    "date": "2025-12-09",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 74.0,
-    "prior": 67.0
-   },
-   {
-    "date": "2025-11-12",
-    "firm": "Jefferies",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 23.0,
-    "prior": 23.0
-   },
-   {
-    "date": "2025-10-30",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 75.0,
-    "prior": 60.0
-   },
-   {
-    "date": "2025-10-30",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 78.0,
-    "prior": 60.0
-   },
-   {
-    "date": "2025-10-30",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 73.0,
-    "prior": 66.0
-   },
-   {
-    "date": "2025-10-30",
-    "firm": "Keybanc",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 75.0,
-    "prior": 70.0
-   },
-   {
-    "date": "2025-10-10",
-    "firm": "Keybanc",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 70.0,
-    "prior": 60.0
-   },
-   {
-    "date": "2025-10-08",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 65.0,
-    "prior": 58.0
-   },
-   {
-    "date": "2025-07-25",
-    "firm": "Stifel",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 52.0,
-    "prior": 45.0
-   },
-   {
-    "date": "2025-07-25",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 60.0,
-    "prior": 50.0
-   },
-   {
-    "date": "2025-07-17",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 60.0,
-    "prior": 44.0
-   },
-   {
-    "date": "2025-07-10",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 58.0,
-    "prior": 50.0
-   },
-   {
-    "date": "2025-07-02",
-    "firm": "Keybanc",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 60.0,
-    "prior": 50.0
-   },
-   {
-    "date": "2025-06-09",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 50.0,
-    "prior": 48.0
-   },
-   {
-    "date": "2025-05-09",
-    "firm": "Keybanc",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 44.0,
-    "prior": 35.0
-   },
-   {
-    "date": "2025-05-08",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 50.0,
-    "prior": 49.0
-   }
-  ]
+  "actions": []
  },
  "TXN US Equity": {
   "ticker": "TXN US Equity",
@@ -22509,7 +21182,7 @@
  "HUBB US Equity": {
   "ticker": "HUBB US Equity",
   "symbol": "HUBB",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Hubbell Inc",
   "consensus": {
    "mean": 2.0,
@@ -22519,12 +21192,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 459.09,
-   "mean": 562.8333,
+   "spot": 466.98,
+   "mean": 560.5833,
    "high": 630.0,
    "low": 502.0,
    "median": 562.5,
-   "upside_pct": 22.597595242762857
+   "upside_pct": 20.044391622767566
   },
   "trend": [
    {
@@ -22554,16 +21227,6 @@
     "hold": 6,
     "sell": 0,
     "strongSell": 0,
-    "total": 12,
-    "pos_pct": 50.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 0,
-    "buy": 6,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 1,
     "total": 12,
     "pos_pct": 50.0
    }
@@ -22844,7 +21507,7 @@
  "IBKR US Equity": {
   "ticker": "IBKR US Equity",
   "symbol": "IBKR",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Interactive Brokers Group, Inc.",
   "consensus": {
    "mean": 1.92857,
@@ -22854,12 +21517,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 86.18,
-   "mean": 105.81538,
+   "spot": 85.81,
+   "mean": 105.66154,
    "high": 121.0,
    "low": 70.0,
    "median": 109.0,
-   "upside_pct": 22.784149454629834
+   "upside_pct": 23.134296702016076
   },
   "trend": [
    {
@@ -22876,6 +21539,16 @@
     "period": "-1m",
     "strongBuy": 2,
     "buy": 7,
+    "hold": 4,
+    "sell": 0,
+    "strongSell": 1,
+    "total": 14,
+    "pos_pct": 64.28571428571429
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 2,
+    "buy": 7,
     "hold": 3,
     "sell": 0,
     "strongSell": 1,
@@ -22883,7 +21556,7 @@
     "pos_pct": 69.23076923076923
    },
    {
-    "period": "-2m",
+    "period": "-3m",
     "strongBuy": 2,
     "buy": 7,
     "hold": 2,
@@ -22891,16 +21564,6 @@
     "strongSell": 1,
     "total": 12,
     "pos_pct": 75.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 7,
-    "hold": 1,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 11,
-    "pos_pct": 81.81818181818181
    }
   ],
   "actions": [
@@ -31209,7 +29872,7 @@
  "EW US Equity": {
   "ticker": "EW US Equity",
   "symbol": "EW",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Edwards Lifesciences Corporatio",
   "consensus": {
    "mean": 1.62069,
@@ -31219,12 +29882,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 88.08,
+   "spot": 85.19,
    "mean": 100.96154,
    "high": 110.0,
    "low": 84.0,
    "median": 101.5,
-   "upside_pct": 14.624818346957301
+   "upside_pct": 18.513370113863136
   },
   "trend": [
    {
@@ -31260,12 +29923,12 @@
    {
     "period": "-3m",
     "strongBuy": 4,
-    "buy": 17,
-    "hold": 8,
+    "buy": 18,
+    "hold": 7,
     "sell": 0,
     "strongSell": 0,
     "total": 29,
-    "pos_pct": 72.41379310344827
+    "pos_pct": 75.86206896551724
    }
   ],
   "actions": [
@@ -32549,7 +31212,7 @@
  "HOOD US Equity": {
   "ticker": "HOOD US Equity",
   "symbol": "HOOD",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Robinhood Markets, Inc.",
   "consensus": {
    "mean": 1.65517,
@@ -32559,12 +31222,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 116.22,
-   "mean": 131.07925,
+   "spot": 111.15,
+   "mean": 131.44963,
    "high": 170.0,
    "low": 57.0,
-   "median": 135.0,
-   "upside_pct": 12.785450008604382
+   "median": 136.0,
+   "upside_pct": 18.26327485380117
   },
   "trend": [
    {
@@ -32596,19 +31259,27 @@
     "strongSell": 1,
     "total": 28,
     "pos_pct": 78.57142857142857
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 4,
-    "buy": 17,
-    "hold": 4,
-    "sell": 2,
-    "strongSell": 0,
-    "total": 27,
-    "pos_pct": 77.77777777777777
    }
   ],
   "actions": [
+   {
+    "date": "2026-09-30",
+    "firm": "Morgan Stanley",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "reit",
+    "target": 150.0,
+    "prior": 150.0
+   },
+   {
+    "date": "2026-09-30",
+    "firm": "Deutsche Bank",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "reit",
+    "target": 134.0,
+    "prior": 134.0
+   },
    {
     "date": "2026-09-29",
     "firm": "Deutsche Bank",
@@ -32860,24 +31531,6 @@
     "action": "reit",
     "target": 125.0,
     "prior": 125.0
-   },
-   {
-    "date": "2026-06-30",
-    "firm": "Deutsche Bank",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 113.0,
-    "prior": 105.0
-   },
-   {
-    "date": "2026-06-29",
-    "firm": "Goldman Sachs",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 121.0,
-    "prior": 108.0
    }
   ]
  },
@@ -34224,7 +32877,7 @@
  "EVRG US Equity": {
   "ticker": "EVRG US Equity",
   "symbol": "EVRG",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Evergy, Inc.",
   "consensus": {
    "mean": 1.92308,
@@ -34234,12 +32887,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 78.73,
+   "spot": 78.79,
    "mean": 91.27273,
    "high": 103.0,
    "low": 80.0,
    "median": 91.0,
-   "upside_pct": 15.931322240569013
+   "upside_pct": 15.84303845665691
   },
   "trend": [
    {
@@ -34264,16 +32917,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 2,
-    "buy": 6,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 14,
-    "pos_pct": 57.142857142857146
-   },
-   {
-    "period": "-3m",
     "strongBuy": 2,
     "buy": 6,
     "hold": 5,
@@ -35229,7 +33872,7 @@
  "AEE US Equity": {
   "ticker": "AEE US Equity",
   "symbol": "AEE",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Ameren Corporation",
   "consensus": {
    "mean": 1.82353,
@@ -35239,332 +33882,20 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 100.25,
+   "spot": 99.64,
    "mean": 117.875,
    "high": 136.0,
    "low": 104.0,
    "median": 118.5,
-   "upside_pct": 17.581047381546135
+   "upside_pct": 18.300883179446004
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 2,
-    "buy": 9,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 17,
-    "pos_pct": 64.70588235294117
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 1,
-    "buy": 9,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 16,
-    "pos_pct": 62.5
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 1,
-    "buy": 10,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 17,
-    "pos_pct": 64.70588235294117
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 1,
-    "buy": 9,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 17,
-    "pos_pct": 58.8235294117647
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-29",
-    "firm": "Scotiabank",
-    "from": "",
-    "to": "Sector Perform",
-    "action": "init",
-    "target": 104.0,
-    "prior": null
-   },
-   {
-    "date": "2026-09-25",
-    "firm": "RBC Capital",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 107.0,
-    "prior": 114.0
-   },
-   {
-    "date": "2026-09-18",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 108.0,
-    "prior": 114.0
-   },
-   {
-    "date": "2026-08-21",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 114.0,
-    "prior": 118.0
-   },
-   {
-    "date": "2026-08-17",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 120.0,
-    "prior": 124.0
-   },
-   {
-    "date": "2026-08-03",
-    "firm": "BTIG",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 126.0,
-    "prior": 126.0
-   },
-   {
-    "date": "2026-08-03",
-    "firm": "Mizuho",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 124.0,
-    "prior": 122.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Goldman Sachs",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "reit",
-    "target": 115.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-07-23",
-    "firm": "Keybanc",
-    "from": "Sector Weight",
-    "to": "Overweight",
-    "action": "up",
-    "target": 122.0,
-    "prior": null
-   },
-   {
-    "date": "2026-07-22",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 118.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-07-22",
-    "firm": "BMO Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 119.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2026-07-16",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 137.0,
-    "prior": 126.0
-   },
-   {
-    "date": "2026-07-16",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 124.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2026-07-13",
-    "firm": "B of A Securities",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 113.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-07-09",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 117.0,
-    "prior": 116.0
-   },
-   {
-    "date": "2026-05-21",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Overweight",
-    "action": "up",
-    "target": 126.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-05-18",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 121.0,
-    "prior": 126.0
-   },
-   {
-    "date": "2026-05-14",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 120.0,
-    "prior": 123.0
-   },
-   {
-    "date": "2026-04-21",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 117.0,
-    "prior": 119.0
-   },
-   {
-    "date": "2026-04-21",
-    "firm": "Truist Securities",
-    "from": "",
-    "to": "Buy",
-    "action": "init",
-    "target": 126.0,
-    "prior": null
-   },
-   {
-    "date": "2026-04-15",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 116.0,
-    "prior": 104.0
-   },
-   {
-    "date": "2026-03-23",
-    "firm": "Argus Research",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 115.0,
-    "prior": 108.0
-   },
-   {
-    "date": "2026-02-20",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 127.0,
-    "prior": 125.0
-   },
-   {
-    "date": "2026-02-13",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 113.0,
-    "prior": 111.0
-   },
-   {
-    "date": "2026-02-13",
-    "firm": "BMO Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 120.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2026-01-20",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 111.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2026-01-15",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 111.0,
-    "prior": 108.0
-   },
-   {
-    "date": "2026-01-15",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 104.0,
-    "prior": 111.0
-   },
-   {
-    "date": "2025-12-17",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 115.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2025-12-12",
-    "firm": "Keybanc",
-    "from": "Overweight",
-    "to": "Sector Weight",
-    "action": "down",
-    "target": null,
-    "prior": null
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "EXC US Equity": {
   "ticker": "EXC US Equity",
   "symbol": "EXC",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Exelon Corporation",
   "consensus": {
    "mean": 2.7619,
@@ -35574,12 +33905,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 40.65,
-   "mean": 48.70588,
+   "spot": 40.47,
+   "mean": 48.52941,
    "high": 58.0,
    "low": 41.0,
    "median": 48.0,
-   "upside_pct": 19.81766297662977
+   "upside_pct": 19.914529280948855
   },
   "trend": [
    {
@@ -35594,6 +33925,16 @@
    },
    {
     "period": "-1m",
+    "strongBuy": 1,
+    "buy": 4,
+    "hold": 14,
+    "sell": 2,
+    "strongSell": 0,
+    "total": 21,
+    "pos_pct": 23.80952380952381
+   },
+   {
+    "period": "-2m",
     "strongBuy": 0,
     "buy": 4,
     "hold": 15,
@@ -35601,16 +33942,6 @@
     "strongSell": 0,
     "total": 21,
     "pos_pct": 19.047619047619047
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 0,
-    "buy": 4,
-    "hold": 16,
-    "sell": 2,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 18.181818181818183
    },
    {
     "period": "-3m",
@@ -35899,7 +34230,7 @@
  "FCX US Equity": {
   "ticker": "FCX US Equity",
   "symbol": "FCX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Freeport-McMoRan, Inc.",
   "consensus": {
    "mean": 1.78261,
@@ -35909,12 +34240,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 70.79,
+   "spot": 69.28,
    "mean": 72.77273,
    "high": 85.0,
    "low": 30.0,
    "median": 76.0,
-   "upside_pct": 2.8008617036304306
+   "upside_pct": 5.04146939953809
   },
   "trend": [
    {
@@ -35939,16 +34270,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 6,
-    "buy": 13,
-    "hold": 3,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 82.6086956521739
-   },
-   {
-    "period": "-3m",
     "strongBuy": 6,
     "buy": 13,
     "hold": 3,
@@ -36569,7 +34890,7 @@
  "ES US Equity": {
   "ticker": "ES US Equity",
   "symbol": "ES",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Eversource Energy (D/B/A)",
   "consensus": {
    "mean": 2.6875,
@@ -36579,12 +34900,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 63.9,
-   "mean": 73.58333,
+   "spot": 64.31,
+   "mean": 73.25,
    "high": 85.0,
    "low": 52.0,
    "median": 74.5,
-   "upside_pct": 15.153881064162755
+   "upside_pct": 13.901415020992069
   },
   "trend": [
    {
@@ -36616,16 +34937,6 @@
     "strongSell": 2,
     "total": 17,
     "pos_pct": 23.529411764705884
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 0,
-    "buy": 4,
-    "hold": 9,
-    "sell": 1,
-    "strongSell": 2,
-    "total": 16,
-    "pos_pct": 25.0
    }
   ],
   "actions": [
@@ -36904,7 +35215,7 @@
  "HCA US Equity": {
   "ticker": "HCA US Equity",
   "symbol": "HCA",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "HCA Healthcare, Inc.",
   "consensus": {
    "mean": 1.96154,
@@ -36914,12 +35225,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 431.63,
+   "spot": 423.39,
    "mean": 454.22726,
    "high": 579.0,
    "low": 380.0,
    "median": 450.0,
-   "upside_pct": 5.235331186432823
+   "upside_pct": 7.283417180377438
   },
   "trend": [
    {
@@ -36951,16 +35262,6 @@
     "strongSell": 0,
     "total": 25,
     "pos_pct": 56.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 13,
-    "hold": 9,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 25,
-    "pos_pct": 60.0
    }
   ],
   "actions": [
@@ -40254,65 +38555,24 @@
  "DUK US Equity": {
   "ticker": "DUK US Equity",
   "symbol": "DUK",
-  "pulled": "2026-09-30",
-  "name": "Duke Energy Corporation (Holdin",
+  "pulled": "2026-10-02",
+  "name": null,
   "consensus": {
-   "mean": 2.04545,
-   "score5": 3.95455,
-   "label": "Buy",
-   "n": 18
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 114.21,
-   "mean": 136.94444,
-   "high": 147.0,
-   "low": 127.0,
-   "median": 136.5,
-   "upside_pct": 19.90582260747744
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 3,
-    "buy": 9,
-    "hold": 10,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 54.54545454545455
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 2,
-    "buy": 9,
-    "hold": 11,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 50.0
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 2,
-    "buy": 9,
-    "hold": 12,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 47.82608695652174
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 8,
-    "hold": 13,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 43.47826086956522
-   }
-  ],
+  "trend": [],
   "actions": [
    {
     "date": "2026-09-18",
@@ -40589,33 +38849,33 @@
  "ED US Equity": {
   "ticker": "ED US Equity",
   "symbol": "ED",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Consolidated Edison, Inc.",
   "consensus": {
-   "mean": 3.33333,
-   "score5": 2.66667,
-   "label": "Hold",
-   "n": 16
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
    "ccy": "USD",
-   "spot": 103.33,
-   "mean": 110.03125,
-   "high": 130.0,
-   "low": 94.0,
-   "median": 111.0,
-   "upside_pct": 6.4852898480596055
+   "spot": 103.5,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
     "period": "0m",
     "strongBuy": 0,
-    "buy": 2,
-    "hold": 9,
+    "buy": 3,
+    "hold": 8,
     "sell": 3,
     "strongSell": 4,
     "total": 18,
-    "pos_pct": 11.11111111111111
+    "pos_pct": 16.666666666666668
    },
    {
     "period": "-1m",
@@ -40631,11 +38891,11 @@
     "period": "-2m",
     "strongBuy": 0,
     "buy": 2,
-    "hold": 10,
+    "hold": 9,
     "sell": 3,
     "strongSell": 4,
-    "total": 19,
-    "pos_pct": 10.526315789473685
+    "total": 18,
+    "pos_pct": 11.11111111111111
    },
    {
     "period": "-3m",
@@ -40643,12 +38903,21 @@
     "buy": 2,
     "hold": 10,
     "sell": 3,
-    "strongSell": 3,
-    "total": 18,
-    "pos_pct": 11.11111111111111
+    "strongSell": 4,
+    "total": 19,
+    "pos_pct": 10.526315789473685
    }
   ],
   "actions": [
+   {
+    "date": "2026-10-01",
+    "firm": "Wells Fargo",
+    "from": "Equal-Weight",
+    "to": "Overweight",
+    "action": "up",
+    "target": 118.0,
+    "prior": 108.0
+   },
    {
     "date": "2026-09-18",
     "firm": "Morgan Stanley",
@@ -40909,15 +39178,6 @@
     "action": "main",
     "target": 105.0,
     "prior": 107.0
-   },
-   {
-    "date": "2025-10-15",
-    "firm": "Keybanc",
-    "from": "Underweight",
-    "to": "Underweight",
-    "action": "main",
-    "target": 90.0,
-    "prior": 88.0
    }
   ]
  },
@@ -41342,22 +39602,22 @@
  "GOOGL US Equity": {
   "ticker": "GOOGL US Equity",
   "symbol": "GOOGL",
-  "pulled": "2026-09-30",
-  "name": "Alphabet Inc.",
+  "pulled": "2026-10-02",
+  "name": null,
   "consensus": {
-   "mean": 1.37705,
-   "score5": 4.6229499999999994,
-   "label": "Strong buy",
-   "n": 54
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 340.92,
-   "mean": 429.36295,
-   "high": 515.0,
-   "low": 340.0,
-   "median": 430.0,
-   "upside_pct": 25.94243517540771
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -41373,6 +39633,16 @@
    {
     "period": "-1m",
     "strongBuy": 13,
+    "buy": 43,
+    "hold": 5,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 61,
+    "pos_pct": 91.80327868852459
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 13,
     "buy": 44,
     "hold": 5,
     "sell": 0,
@@ -41381,7 +39651,7 @@
     "pos_pct": 91.93548387096774
    },
    {
-    "period": "-2m",
+    "period": "-3m",
     "strongBuy": 13,
     "buy": 44,
     "hold": 6,
@@ -41389,16 +39659,6 @@
     "strongSell": 0,
     "total": 63,
     "pos_pct": 90.47619047619048
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 14,
-    "buy": 43,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 64,
-    "pos_pct": 89.0625
    }
   ],
   "actions": [
@@ -41677,22 +39937,22 @@
  "GOOG US Equity": {
   "ticker": "GOOG US Equity",
   "symbol": "GOOG",
-  "pulled": "2026-09-30",
-  "name": "Alphabet Inc.",
+  "pulled": "2026-10-02",
+  "name": null,
   "consensus": {
-   "mean": 1.38333,
-   "score5": 4.61667,
-   "label": "Strong buy",
-   "n": 15
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 337.32,
-   "mean": 422.336,
-   "high": 475.0,
-   "low": 340.0,
-   "median": 430.0,
-   "upside_pct": 25.203367722044344
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -41708,6 +39968,16 @@
    {
     "period": "-1m",
     "strongBuy": 13,
+    "buy": 42,
+    "hold": 5,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 60,
+    "pos_pct": 91.66666666666667
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 13,
     "buy": 43,
     "hold": 5,
     "sell": 0,
@@ -41716,7 +39986,7 @@
     "pos_pct": 91.80327868852459
    },
    {
-    "period": "-2m",
+    "period": "-3m",
     "strongBuy": 13,
     "buy": 43,
     "hold": 6,
@@ -41724,16 +39994,6 @@
     "strongSell": 0,
     "total": 62,
     "pos_pct": 90.3225806451613
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 14,
-    "buy": 43,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 64,
-    "pos_pct": 89.0625
    }
   ],
   "actions": [
@@ -43352,7 +41612,7 @@
  "INTC US Equity": {
   "ticker": "INTC US Equity",
   "symbol": "INTC",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Intel Corporation",
   "consensus": {
    "mean": 2.46939,
@@ -43362,327 +41622,15 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 115.93,
+   "spot": 120.0,
    "mean": 116.37209,
    "high": 200.0,
    "low": 75.0,
    "median": 112.0,
-   "upside_pct": 0.3813421892521207
+   "upside_pct": -3.023258333333334
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 1,
-    "buy": 14,
-    "hold": 32,
-    "sell": 1,
-    "strongSell": 1,
-    "total": 49,
-    "pos_pct": 30.612244897959183
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 1,
-    "buy": 13,
-    "hold": 32,
-    "sell": 1,
-    "strongSell": 1,
-    "total": 48,
-    "pos_pct": 29.166666666666668
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 1,
-    "buy": 13,
-    "hold": 31,
-    "sell": 2,
-    "strongSell": 1,
-    "total": 48,
-    "pos_pct": 29.166666666666668
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 11,
-    "hold": 32,
-    "sell": 2,
-    "strongSell": 2,
-    "total": 49,
-    "pos_pct": 26.53061224489796
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-24",
-    "firm": "TD Cowen",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "reit",
-    "target": 115.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-09-15",
-    "firm": "Tigress Financial",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 145.0,
-    "prior": 118.0
-   },
-   {
-    "date": "2026-09-10",
-    "firm": "Piper Sandler",
-    "from": "",
-    "to": "Neutral",
-    "action": "init",
-    "target": 110.0,
-    "prior": null
-   },
-   {
-    "date": "2026-09-08",
-    "firm": "Northland Capital Markets",
-    "from": "Market Perform",
-    "to": "Outperform",
-    "action": "up",
-    "target": 120.0,
-    "prior": null
-   },
-   {
-    "date": "2026-09-04",
-    "firm": "Mizuho",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 92.0,
-    "prior": 109.0
-   },
-   {
-    "date": "2026-08-12",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 145.0,
-    "prior": 160.0
-   },
-   {
-    "date": "2026-08-12",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 112.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2026-07-28",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 160.0,
-    "prior": 160.0
-   },
-   {
-    "date": "2026-07-27",
-    "firm": "Baird",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 125.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-07-25",
-    "firm": "DA Davidson",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 100.0,
-    "prior": 77.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 84.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Truist Securities",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 108.0,
-    "prior": 81.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "JP Morgan",
-    "from": "Underweight",
-    "to": "Underweight",
-    "action": "main",
-    "target": 85.0,
-    "prior": 45.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Roth Capital",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 120.0,
-    "prior": 100.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Stifel",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 110.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Wedbush",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 98.0,
-    "prior": 60.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Cantor Fitzgerald",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 125.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Rosenblatt",
-    "from": "Sell",
-    "to": "Sell",
-    "action": "main",
-    "target": 80.0,
-    "prior": 65.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 120.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Mizuho",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 109.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-07-20",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 75.0,
-    "prior": 73.0
-   },
-   {
-    "date": "2026-07-16",
-    "firm": "Susquehanna",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 115.0,
-    "prior": 80.0
-   },
-   {
-    "date": "2026-07-14",
-    "firm": "Keybanc",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 155.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-07-13",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 121.0,
-    "prior": 83.0
-   },
-   {
-    "date": "2026-07-13",
-    "firm": "TD Cowen",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 115.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-07-10",
-    "firm": "Stifel",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 120.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-06-29",
-    "firm": "Cantor Fitzgerald",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 150.0,
-    "prior": 90.0
-   },
-   {
-    "date": "2026-06-25",
-    "firm": "Goldman Sachs",
-    "from": "Sell",
-    "to": "Neutral",
-    "action": "init",
-    "target": 150.0,
-    "prior": null
-   },
-   {
-    "date": "2026-06-23",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 160.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-06-11",
-    "firm": "B of A Securities",
-    "from": "Underperform",
-    "to": "Buy",
-    "action": "up",
-    "target": 135.0,
-    "prior": 96.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "AMAT US Equity": {
   "ticker": "AMAT US Equity",
@@ -45697,7 +43645,7 @@
  "FDX US Equity": {
   "ticker": "FDX US Equity",
   "symbol": "FDX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "FedEx Corporation",
   "consensus": {
    "mean": 1.78571,
@@ -45707,12 +43655,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 287.47,
-   "mean": 355.14203,
+   "spot": 287.07,
+   "mean": 356.30356,
    "high": 479.0,
    "low": 160.0,
    "median": 359.5,
-   "upside_pct": 23.54055379691793
+   "upside_pct": 24.11730936705334
   },
   "trend": [
    {
@@ -45729,9 +43677,9 @@
     "period": "-1m",
     "strongBuy": 4,
     "buy": 16,
-    "hold": 6,
+    "hold": 7,
     "sell": 1,
-    "strongSell": 1,
+    "strongSell": 0,
     "total": 28,
     "pos_pct": 71.42857142857143
    },
@@ -45747,13 +43695,13 @@
    },
    {
     "period": "-3m",
-    "strongBuy": 3,
-    "buy": 15,
+    "strongBuy": 4,
+    "buy": 16,
     "hold": 6,
     "sell": 1,
     "strongSell": 1,
-    "total": 26,
-    "pos_pct": 69.23076923076923
+    "total": 28,
+    "pos_pct": 71.42857142857143
    }
   ],
   "actions": [
@@ -47037,7 +44985,7 @@
  "A US Equity": {
   "ticker": "A US Equity",
   "symbol": "A",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Agilent Technologies, Inc.",
   "consensus": {
    "mean": 1.81818,
@@ -47047,12 +44995,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 175.03,
+   "spot": 166.68,
    "mean": 175.2,
    "high": 190.0,
    "low": 155.0,
    "median": 177.5,
-   "upside_pct": 0.09712620693593799
+   "upside_pct": 5.111591072714172
   },
   "trend": [
    {
@@ -47084,16 +45032,6 @@
     "strongSell": 0,
     "total": 21,
     "pos_pct": 80.95238095238095
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 5,
-    "buy": 12,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 20,
-    "pos_pct": 85.0
    }
   ],
   "actions": [
@@ -47372,7 +45310,7 @@
  "EXPE US Equity": {
   "ticker": "EXPE US Equity",
   "symbol": "EXPE",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Expedia Group, Inc.",
   "consensus": {
    "mean": 2.17949,
@@ -47382,12 +45320,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 266.33,
-   "mean": 338.83334,
+   "spot": 262.67,
+   "mean": 338.25,
    "high": 430.0,
    "low": 235.0,
    "median": 332.5,
-   "upside_pct": 27.223121691135077
+   "upside_pct": 28.773746526059305
   },
   "trend": [
    {
@@ -47419,19 +45357,18 @@
     "strongSell": 1,
     "total": 38,
     "pos_pct": 44.73684210526316
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 0,
-    "buy": 16,
-    "hold": 21,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 37,
-    "pos_pct": 43.24324324324324
    }
   ],
   "actions": [
+   {
+    "date": "2026-09-30",
+    "firm": "Truist Securities",
+    "from": "Hold",
+    "to": "Hold",
+    "action": "main",
+    "target": 288.0,
+    "prior": 309.0
+   },
    {
     "date": "2026-09-01",
     "firm": "Rosenblatt",
@@ -47692,15 +45629,6 @@
     "action": "main",
     "target": 264.0,
     "prior": 260.0
-   },
-   {
-    "date": "2026-05-08",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 262.0,
-    "prior": 266.0
    }
   ]
  },
@@ -48047,7 +45975,7 @@
  "HIG US Equity": {
   "ticker": "HIG US Equity",
   "symbol": "HIG",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "The Hartford Insurance Group, I",
   "consensus": {
    "mean": 2.3913,
@@ -48057,12 +45985,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 125.85,
-   "mean": 149.4,
+   "spot": 125.74,
+   "mean": 149.15,
    "high": 164.0,
    "low": 135.0,
-   "median": 149.0,
-   "upside_pct": 18.71275327771158
+   "median": 147.0,
+   "upside_pct": 18.617782726260558
   },
   "trend": [
    {
@@ -48078,12 +46006,12 @@
    {
     "period": "-1m",
     "strongBuy": 2,
-    "buy": 7,
-    "hold": 14,
+    "buy": 6,
+    "hold": 15,
     "sell": 0,
     "strongSell": 0,
     "total": 23,
-    "pos_pct": 39.130434782608695
+    "pos_pct": 34.78260869565217
    },
    {
     "period": "-2m",
@@ -48097,13 +46025,13 @@
    },
    {
     "period": "-3m",
-    "strongBuy": 3,
+    "strongBuy": 2,
     "buy": 7,
-    "hold": 13,
+    "hold": 14,
     "sell": 0,
     "strongSell": 0,
     "total": 23,
-    "pos_pct": 43.47826086956522
+    "pos_pct": 39.130434782608695
    }
   ],
   "actions": [
@@ -49377,7 +47305,7 @@
  "FDXF US Equity": {
   "ticker": "FDXF US Equity",
   "symbol": "FDXF",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "FedEx Freight Holding Company,",
   "consensus": {
    "mean": 1.92857,
@@ -49387,12 +47315,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 112.06,
-   "mean": 162.92857,
+   "spot": 110.67,
+   "mean": 161.7143,
    "high": 200.0,
    "low": 108.0,
    "median": 162.5,
-   "upside_pct": 45.39404783151883
+   "upside_pct": 46.12297822354749
   },
   "trend": [
    {
@@ -49424,16 +47352,6 @@
     "strongSell": 1,
     "total": 12,
     "pos_pct": 66.66666666666667
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 1,
-    "buy": 4,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 9,
-    "pos_pct": 55.55555555555556
    }
   ],
   "actions": [
@@ -50726,7 +48644,7 @@
  },
  "CDNS US Equity": {
   "ticker": "CDNS US Equity",
-  "pulled": "2026-08-28",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "COO US Equity": {
@@ -52071,7 +49989,7 @@
  },
  "SNPS US Equity": {
   "ticker": "SNPS US Equity",
-  "pulled": "2026-08-28",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "CASY US Equity": {
@@ -53175,7 +51093,7 @@
  },
  "MCK US Equity": {
   "ticker": "MCK US Equity",
-  "pulled": "2026-08-26",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "ERIE US Equity": {
@@ -53865,12 +51783,12 @@
  },
  "SJM US Equity": {
   "ticker": "SJM US Equity",
-  "pulled": "2026-08-27",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "GWW US Equity": {
   "ticker": "GWW US Equity",
-  "pulled": "2026-09-28",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "ANET US Equity": {
@@ -54954,7 +52872,7 @@
  },
  "CHRW US Equity": {
   "ticker": "CHRW US Equity",
-  "pulled": "2026-08-27",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "HST US Equity": {
@@ -54964,7 +52882,7 @@
  },
  "LVS US Equity": {
   "ticker": "LVS US Equity",
-  "pulled": "2026-08-28",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "ITW US Equity": {
@@ -56335,7 +54253,7 @@
  "IBM US Equity": {
   "ticker": "IBM US Equity",
   "symbol": "IBM",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "International Business Machines",
   "consensus": {
    "mean": 2.25,
@@ -56345,12 +54263,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 219.99,
+   "spot": 225.62,
    "mean": 240.59,
    "high": 297.0,
    "low": 174.0,
    "median": 240.5,
-   "upside_pct": 9.364062002818297
+   "upside_pct": 6.6350500842123905
   },
   "trend": [
    {
@@ -56382,16 +54300,6 @@
     "strongSell": 1,
     "total": 25,
     "pos_pct": 56.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 12,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 23,
-    "pos_pct": 65.21739130434783
    }
   ],
   "actions": [
@@ -56675,7 +54583,7 @@
  "ESS US Equity": {
   "ticker": "ESS US Equity",
   "symbol": "ESS",
-  "pulled": "2026-10-01",
+  "pulled": "2026-10-02",
   "name": "Essex Property Trust, Inc.",
   "consensus": {
    "mean": 2.57692,
@@ -56685,12 +54593,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 269.39,
+   "spot": 269.51,
    "mean": 304.07,
    "high": 352.0,
    "low": 239.0,
    "median": 300.0,
-   "upside_pct": 12.873529084227343
+   "upside_pct": 12.823271863752739
   },
   "trend": [
    {
@@ -57699,7 +55607,7 @@
  },
  "ROP US Equity": {
   "ticker": "ROP US Equity",
-  "pulled": "2026-09-08",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "PYPL US Equity": {
@@ -58375,7 +56283,7 @@
  "IRM US Equity": {
   "ticker": "IRM US Equity",
   "symbol": "IRM",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Iron Mountain Incorporated (Del",
   "consensus": {
    "mean": 1.66667,
@@ -58385,282 +56293,15 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 111.5,
+   "spot": 111.13,
    "mean": 144.90909,
    "high": 155.0,
    "low": 132.0,
    "median": 145.0,
-   "upside_pct": 29.96330941704035
+   "upside_pct": 30.396013677674794
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 4,
-    "buy": 7,
-    "hold": 0,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 12,
-    "pos_pct": 91.66666666666667
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 4,
-    "buy": 6,
-    "hold": 0,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 11,
-    "pos_pct": 90.9090909090909
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 4,
-    "buy": 6,
-    "hold": 0,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 11,
-    "pos_pct": 90.9090909090909
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 4,
-    "buy": 6,
-    "hold": 0,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 11,
-    "pos_pct": 90.9090909090909
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-21",
-    "firm": "Rothschild & Co",
-    "from": "",
-    "to": "Buy",
-    "action": "init",
-    "target": 132.0,
-    "prior": null
-   },
-   {
-    "date": "2026-09-08",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 144.0,
-    "prior": 143.0
-   },
-   {
-    "date": "2026-08-27",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 155.0,
-    "prior": 140.0
-   },
-   {
-    "date": "2026-08-06",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 140.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-07-01",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 143.0,
-    "prior": 127.0
-   },
-   {
-    "date": "2026-05-01",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 138.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2026-04-21",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 135.0,
-    "prior": 125.0
-   },
-   {
-    "date": "2026-03-04",
-    "firm": "Freedom Broker",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 130.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2026-02-23",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 127.0,
-    "prior": 126.0
-   },
-   {
-    "date": "2025-11-12",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 123.0,
-    "prior": 122.0
-   },
-   {
-    "date": "2025-11-07",
-    "firm": "Freedom Broker",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 112.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2025-11-06",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 111.0,
-    "prior": 100.0
-   },
-   {
-    "date": "2025-09-22",
-    "firm": "Jefferies",
-    "from": "",
-    "to": "Buy",
-    "action": "init",
-    "target": 120.0,
-    "prior": null
-   },
-   {
-    "date": "2025-08-20",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 122.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2025-08-07",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 100.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2025-05-27",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 121.0,
-    "prior": 118.0
-   },
-   {
-    "date": "2025-04-08",
-    "firm": "Truist Securities",
-    "from": "",
-    "to": "Buy",
-    "action": "init",
-    "target": 95.0,
-    "prior": null
-   },
-   {
-    "date": "2025-03-20",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 118.0,
-    "prior": 130.0
-   },
-   {
-    "date": "2025-02-18",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 112.0,
-    "prior": 125.0
-   },
-   {
-    "date": "2025-02-04",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 125.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2025-01-28",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 130.0,
-    "prior": 131.0
-   },
-   {
-    "date": "2024-11-27",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 139.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2024-11-18",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 131.0,
-    "prior": 133.0
-   },
-   {
-    "date": "2024-10-17",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 135.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2024-10-09",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 133.0,
-    "prior": 91.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "DPZ US Equity": {
   "ticker": "DPZ US Equity",
@@ -59000,22 +56641,22 @@
  "GNRC US Equity": {
   "ticker": "GNRC US Equity",
   "symbol": "GNRC",
-  "pulled": "2026-09-30",
-  "name": "Generac Holdlings Inc.",
+  "pulled": "2026-10-02",
+  "name": null,
   "consensus": {
-   "mean": 1.7619,
-   "score5": 4.2381,
-   "label": "Buy",
-   "n": 16
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
-   "ccy": "USD",
-   "spot": 212.22,
-   "mean": 289.5625,
-   "high": 375.0,
-   "low": 215.0,
-   "median": 284.0,
-   "upside_pct": 36.4444915653567
+   "ccy": null,
+   "spot": null,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -59047,19 +56688,27 @@
     "strongSell": 0,
     "total": 21,
     "pos_pct": 66.66666666666667
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 11,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 20,
-    "pos_pct": 65.0
    }
   ],
   "actions": [
+   {
+    "date": "2026-09-30",
+    "firm": "Citigroup",
+    "from": "Neutral",
+    "to": "Neutral",
+    "action": "main",
+    "target": 232.0,
+    "prior": 300.0
+   },
+   {
+    "date": "2026-09-30",
+    "firm": "Stifel",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 290.0,
+    "prior": 285.0
+   },
    {
     "date": "2026-09-18",
     "firm": "JP Morgan",
@@ -59311,31 +56960,13 @@
     "action": "main",
     "target": 228.0,
     "prior": 213.0
-   },
-   {
-    "date": "2026-03-26",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 238.0,
-    "prior": 234.0
-   },
-   {
-    "date": "2026-03-26",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 248.0,
-    "prior": 260.0
    }
   ]
  },
  "EIX US Equity": {
   "ticker": "EIX US Equity",
   "symbol": "EIX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Edison International",
   "consensus": {
    "mean": 3.0,
@@ -59345,12 +56976,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 53.56,
+   "spot": 53.8,
    "mean": 66.35714,
    "high": 86.0,
    "low": 50.0,
    "median": 62.5,
-   "upside_pct": 23.893091859596716
+   "upside_pct": 23.340408921933097
   },
   "trend": [
    {
@@ -59382,16 +57013,6 @@
     "strongSell": 0,
     "total": 17,
     "pos_pct": 29.41176470588235
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 1,
-    "buy": 5,
-    "hold": 8,
-    "sell": 3,
-    "strongSell": 0,
-    "total": 17,
-    "pos_pct": 35.294117647058826
    }
   ],
   "actions": [
@@ -60340,7 +57961,7 @@
  "EME US Equity": {
   "ticker": "EME US Equity",
   "symbol": "EME",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "EMCOR Group, Inc.",
   "consensus": {
    "mean": null,
@@ -60350,12 +57971,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 762.03,
+   "spot": 769.03,
    "mean": 1033.2858,
    "high": 1200.0,
    "low": 885.0,
    "median": 1047.0,
-   "upside_pct": 35.596472579819704
+   "upside_pct": 34.36222254008299
   },
   "trend": [
    {
@@ -60370,16 +57991,6 @@
    },
    {
     "period": "-1m",
-    "strongBuy": 0,
-    "buy": 7,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 10,
-    "pos_pct": 70.0
-   },
-   {
-    "period": "-2m",
     "strongBuy": 0,
     "buy": 7,
     "hold": 3,
@@ -62250,7 +59861,7 @@
  "FAST US Equity": {
   "ticker": "FAST US Equity",
   "symbol": "FAST",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Fastenal Company",
   "consensus": {
    "mean": 2.72222,
@@ -62260,12 +59871,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 49.96,
+   "spot": 50.225,
    "mean": 48.83846,
    "high": 59.0,
    "low": 39.9,
    "median": 49.0,
-   "upside_pct": -2.2448759007205776
+   "upside_pct": -2.760657043305137
   },
   "trend": [
    {
@@ -62297,16 +59908,6 @@
     "strongSell": 3,
     "total": 18,
     "pos_pct": 33.333333333333336
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 0,
-    "buy": 5,
-    "hold": 7,
-    "sell": 2,
-    "strongSell": 3,
-    "total": 17,
-    "pos_pct": 29.41176470588235
    }
   ],
   "actions": [
@@ -62920,7 +60521,7 @@
  "ADI US Equity": {
   "ticker": "ADI US Equity",
   "symbol": "ADI",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Analog Devices, Inc.",
   "consensus": {
    "mean": 1.41176,
@@ -62930,12 +60531,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 398.22,
+   "spot": 404.6,
    "mean": 470.71875,
    "high": 675.0,
    "low": 365.0,
    "median": 463.5,
-   "upside_pct": 18.205702877806228
+   "upside_pct": 16.341757291151747
   },
   "trend": [
    {
@@ -62960,16 +60561,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 6,
-    "buy": 21,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 33,
-    "pos_pct": 81.81818181818181
-   },
-   {
-    "period": "-3m",
     "strongBuy": 6,
     "buy": 21,
     "hold": 6,
@@ -63255,7 +60846,7 @@
  "INCY US Equity": {
   "ticker": "INCY US Equity",
   "symbol": "INCY",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Incyte Corporation",
   "consensus": {
    "mean": 2.28571,
@@ -63265,12 +60856,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 123.2,
-   "mean": 127.95652,
+   "spot": 117.14,
+   "mean": 128.47826,
    "high": 155.0,
    "low": 86.0,
    "median": 130.0,
-   "upside_pct": 3.860811688311694
+   "upside_pct": 9.679238518012646
   },
   "trend": [
    {
@@ -63296,296 +60887,25 @@
    {
     "period": "-2m",
     "strongBuy": 2,
+    "buy": 10,
+    "hold": 15,
+    "sell": 1,
+    "strongSell": 0,
+    "total": 28,
+    "pos_pct": 42.857142857142854
+   },
+   {
+    "period": "-3m",
+    "strongBuy": 2,
     "buy": 9,
     "hold": 15,
     "sell": 1,
     "strongSell": 0,
     "total": 27,
     "pos_pct": 40.74074074074074
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 9,
-    "hold": 14,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 26,
-    "pos_pct": 42.30769230769231
    }
   ],
-  "actions": [
-   {
-    "date": "2026-09-28",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 123.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-09-28",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 152.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-09-22",
-    "firm": "RBC Capital",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "reit",
-    "target": 109.0,
-    "prior": 109.0
-   },
-   {
-    "date": "2026-08-20",
-    "firm": "Canaccord Genuity",
-    "from": "",
-    "to": "Buy",
-    "action": "init",
-    "target": 152.0,
-    "prior": null
-   },
-   {
-    "date": "2026-08-20",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 150.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-08-17",
-    "firm": "Piper Sandler",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 130.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-08-04",
-    "firm": "Mizuho",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 137.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2026-08-03",
-    "firm": "Leerink Partners",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 155.0,
-    "prior": 131.0
-   },
-   {
-    "date": "2026-08-03",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 150.0,
-    "prior": 150.0
-   },
-   {
-    "date": "2026-07-29",
-    "firm": "RBC Capital",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 109.0,
-    "prior": 99.0
-   },
-   {
-    "date": "2026-07-29",
-    "firm": "Guggenheim",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 150.0,
-    "prior": 136.0
-   },
-   {
-    "date": "2026-07-29",
-    "firm": "BMO Capital",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 130.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2026-07-29",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 139.0,
-    "prior": 134.0
-   },
-   {
-    "date": "2026-07-29",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 150.0,
-    "prior": 140.0
-   },
-   {
-    "date": "2026-07-23",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 110.0,
-    "prior": 105.0
-   },
-   {
-    "date": "2026-07-23",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 104.0,
-    "prior": 103.0
-   },
-   {
-    "date": "2026-07-21",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 140.0,
-    "prior": 140.0
-   },
-   {
-    "date": "2026-07-14",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 134.0,
-    "prior": 117.0
-   },
-   {
-    "date": "2026-07-13",
-    "firm": "BMO Capital",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 112.0,
-    "prior": 94.0
-   },
-   {
-    "date": "2026-07-07",
-    "firm": "RBC Capital",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 99.0,
-    "prior": 95.0
-   },
-   {
-    "date": "2026-06-29",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 140.0,
-    "prior": 140.0
-   },
-   {
-    "date": "2026-06-26",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 113.0,
-    "prior": 103.0
-   },
-   {
-    "date": "2026-06-24",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 140.0,
-    "prior": 140.0
-   },
-   {
-    "date": "2026-06-22",
-    "firm": "Truist Securities",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 105.0,
-    "prior": 103.0
-   },
-   {
-    "date": "2026-06-22",
-    "firm": "BMO Capital",
-    "from": "Underperform",
-    "to": "Market Perform",
-    "action": "up",
-    "target": 94.0,
-    "prior": 75.0
-   },
-   {
-    "date": "2026-06-09",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 140.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-05-22",
-    "firm": "Bernstein",
-    "from": "",
-    "to": "Market Perform",
-    "action": "init",
-    "target": 99.0,
-    "prior": null
-   },
-   {
-    "date": "2026-05-21",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 135.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "HC Wainwright & Co.",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 135.0,
-    "prior": 135.0
-   },
-   {
-    "date": "2026-04-29",
-    "firm": "Oppenheimer",
-    "from": "Perform",
-    "to": "Perform",
-    "action": "main",
-    "target": 90.0,
-    "prior": 84.0
-   }
-  ]
+  "actions": []
  },
  "VTRS US Equity": {
   "ticker": "VTRS US Equity",
@@ -66813,7 +64133,7 @@
  "IP US Equity": {
   "ticker": "IP US Equity",
   "symbol": "IP",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "International Paper Company",
   "consensus": {
    "mean": 1.58333,
@@ -66823,327 +64143,15 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 33.32,
+   "spot": 32.52,
    "mean": 47.90909,
    "high": 62.0,
    "low": 39.0,
    "median": 47.0,
-   "upside_pct": 43.78478391356542
+   "upside_pct": 47.32192496924967
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 3,
-    "buy": 7,
-    "hold": 2,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 12,
-    "pos_pct": 83.33333333333333
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 3,
-    "buy": 6,
-    "hold": 3,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 12,
-    "pos_pct": 75.0
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 3,
-    "buy": 6,
-    "hold": 2,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 12,
-    "pos_pct": 75.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 6,
-    "hold": 4,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 12,
-    "pos_pct": 66.66666666666667
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-24",
-    "firm": "Argus Research",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 45.0,
-    "prior": 45.0
-   },
-   {
-    "date": "2026-09-23",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 62.0,
-    "prior": 61.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 47.0,
-    "prior": 40.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 48.0,
-    "prior": 43.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 52.0,
-    "prior": 48.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 46.0,
-    "prior": 42.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 49.0,
-    "prior": 46.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Deutsche Bank",
-    "from": "Hold",
-    "to": "Buy",
-    "action": "up",
-    "target": 50.0,
-    "prior": 39.0
-   },
-   {
-    "date": "2026-07-28",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Overweight",
-    "action": "up",
-    "target": 61.0,
-    "prior": 51.0
-   },
-   {
-    "date": "2026-07-17",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 48.0,
-    "prior": 45.0
-   },
-   {
-    "date": "2026-07-15",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 46.0,
-    "prior": 40.0
-   },
-   {
-    "date": "2026-07-09",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 43.0,
-    "prior": 36.0
-   },
-   {
-    "date": "2026-07-09",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 51.0,
-    "prior": 43.0
-   },
-   {
-    "date": "2026-07-09",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 42.0,
-    "prior": 39.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 32.0,
-    "prior": 40.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 36.0,
-    "prior": 44.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Overweight",
-    "action": "up",
-    "target": 39.0,
-    "prior": 38.0
-   },
-   {
-    "date": "2026-05-01",
-    "firm": "Seaport Global",
-    "from": "Neutral",
-    "to": "Buy",
-    "action": "up",
-    "target": 39.0,
-    "prior": null
-   },
-   {
-    "date": "2026-05-01",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 43.0,
-    "prior": 46.0
-   },
-   {
-    "date": "2026-05-01",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 45.0,
-    "prior": 48.0
-   },
-   {
-    "date": "2026-04-15",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 44.0,
-    "prior": 48.0
-   },
-   {
-    "date": "2026-04-14",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 44.0,
-    "prior": 47.0
-   },
-   {
-    "date": "2026-04-10",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 40.0,
-    "prior": 44.0
-   },
-   {
-    "date": "2026-04-01",
-    "firm": "Deutsche Bank",
-    "from": "Sell",
-    "to": "Hold",
-    "action": "init",
-    "target": 38.0,
-    "prior": null
-   },
-   {
-    "date": "2026-03-20",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 38.0,
-    "prior": 40.0
-   },
-   {
-    "date": "2026-02-02",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 47.0,
-    "prior": 46.0
-   },
-   {
-    "date": "2026-02-02",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Neutral",
-    "action": "down",
-    "target": 44.0,
-    "prior": 51.0
-   },
-   {
-    "date": "2026-01-30",
-    "firm": "RBC Capital",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 54.0,
-    "prior": 55.0
-   },
-   {
-    "date": "2026-01-30",
-    "firm": "Wells Fargo",
-    "from": "Underweight",
-    "to": "Equal-Weight",
-    "action": "up",
-    "target": 40.0,
-    "prior": 36.0
-   },
-   {
-    "date": "2026-01-12",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 51.0,
-    "prior": 53.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "WSM US Equity": {
   "ticker": "WSM US Equity",
@@ -68478,7 +65486,7 @@
  "EXR US Equity": {
   "ticker": "EXR US Equity",
   "symbol": "EXR",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Extra Space Storage Inc",
   "consensus": {
    "mean": 2.2381,
@@ -68488,12 +65496,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 133.49,
+   "spot": 133.08,
    "mean": 158.5,
    "high": 178.0,
    "low": 140.0,
    "median": 157.5,
-   "upside_pct": 18.735485804180072
+   "upside_pct": 19.101292455665764
   },
   "trend": [
    {
@@ -68520,16 +65528,6 @@
     "period": "-2m",
     "strongBuy": 4,
     "buy": 5,
-    "hold": 12,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 21,
-    "pos_pct": 42.857142857142854
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 6,
     "hold": 12,
     "sell": 0,
     "strongSell": 0,
@@ -68813,36 +65811,46 @@
  "FICO US Equity": {
   "ticker": "FICO US Equity",
   "symbol": "FICO",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Fair Isaac Corporation",
   "consensus": {
-   "mean": 2.0,
-   "score5": 4.0,
+   "mean": 2.2381,
+   "score5": 3.7619,
    "label": "Buy",
    "n": 19
   },
   "targets": {
    "ccy": "USD",
-   "spot": 617.87,
-   "mean": 1341.1564,
+   "spot": 661.75,
+   "mean": 1256.4194,
    "high": 1750.0,
    "low": 696.0,
-   "median": 1350.0,
-   "upside_pct": 117.06125884085652
+   "median": 1257.0,
+   "upside_pct": 89.86315073668302
   },
   "trend": [
    {
     "period": "0m",
-    "strongBuy": 5,
+    "strongBuy": 4,
     "buy": 8,
-    "hold": 6,
+    "hold": 7,
     "sell": 2,
     "strongSell": 0,
     "total": 21,
-    "pos_pct": 61.904761904761905
+    "pos_pct": 57.142857142857146
    },
    {
     "period": "-1m",
+    "strongBuy": 4,
+    "buy": 8,
+    "hold": 7,
+    "sell": 2,
+    "strongSell": 0,
+    "total": 21,
+    "pos_pct": 57.142857142857146
+   },
+   {
+    "period": "-2m",
     "strongBuy": 5,
     "buy": 9,
     "hold": 6,
@@ -68850,16 +65858,6 @@
     "strongSell": 0,
     "total": 21,
     "pos_pct": 66.66666666666667
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 5,
-    "buy": 11,
-    "hold": 4,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 21,
-    "pos_pct": 76.19047619047619
    },
    {
     "period": "-3m",
@@ -68873,6 +65871,42 @@
    }
   ],
   "actions": [
+   {
+    "date": "2026-09-30",
+    "firm": "B of A Securities",
+    "from": "Buy",
+    "to": "Neutral",
+    "action": "down",
+    "target": 700.0,
+    "prior": 1400.0
+   },
+   {
+    "date": "2026-09-30",
+    "firm": "BMO Capital",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 1150.0,
+    "prior": 1550.0
+   },
+   {
+    "date": "2026-09-30",
+    "firm": "Barclays",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 935.0,
+    "prior": 1700.0
+   },
+   {
+    "date": "2026-09-30",
+    "firm": "Wells Fargo",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 950.0,
+    "prior": 1350.0
+   },
    {
     "date": "2026-09-22",
     "firm": "Wells Fargo",
@@ -69106,42 +66140,6 @@
     "action": "reit",
     "target": 1975.0,
     "prior": 1975.0
-   },
-   {
-    "date": "2026-01-16",
-    "firm": "Jefferies",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 2200.0,
-    "prior": 2100.0
-   },
-   {
-    "date": "2026-01-14",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 2500.0,
-    "prior": 2400.0
-   },
-   {
-    "date": "2025-11-06",
-    "firm": "JP Morgan",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 1825.0,
-    "prior": 1750.0
-   },
-   {
-    "date": "2025-11-06",
-    "firm": "Jefferies",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 2100.0,
-    "prior": 2150.0
    }
   ]
  },
@@ -69493,7 +66491,7 @@
  "EFX US Equity": {
   "ticker": "EFX US Equity",
   "symbol": "EFX",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Equifax, Inc.",
   "consensus": {
    "mean": 1.66667,
@@ -69503,12 +66501,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 140.83,
-   "mean": 213.04762,
+   "spot": 139.73,
+   "mean": 212.14285,
    "high": 245.0,
-   "low": 171.0,
+   "low": 160.0,
    "median": 210.0,
-   "upside_pct": 51.279997159696066
+   "upside_pct": 51.82340943247694
   },
   "trend": [
    {
@@ -69540,19 +66538,18 @@
     "strongSell": 0,
     "total": 24,
     "pos_pct": 66.66666666666667
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 5,
-    "buy": 12,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 24,
-    "pos_pct": 70.83333333333333
    }
   ],
   "actions": [
+   {
+    "date": "2026-09-30",
+    "firm": "BMO Capital",
+    "from": "Market Perform",
+    "to": "Market Perform",
+    "action": "main",
+    "target": 160.0,
+    "prior": 179.0
+   },
    {
     "date": "2026-09-22",
     "firm": "Wells Fargo",
@@ -69813,15 +66810,6 @@
     "action": "main",
     "target": 244.0,
     "prior": 269.0
-   },
-   {
-    "date": "2026-02-05",
-    "firm": "Needham",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 265.0,
-    "prior": 295.0
    }
   ]
  },
@@ -72538,22 +69526,22 @@
  "DXCM US Equity": {
   "ticker": "DXCM US Equity",
   "symbol": "DXCM",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "DexCom, Inc.",
   "consensus": {
-   "mean": 1.32143,
-   "score5": 4.67857,
-   "label": "Strong buy",
-   "n": 25
+   "mean": null,
+   "score5": null,
+   "label": "—",
+   "n": null
   },
   "targets": {
    "ccy": "USD",
-   "spot": 86.64,
-   "mean": 94.48,
-   "high": 115.0,
-   "low": 79.0,
-   "median": 94.0,
-   "upside_pct": 9.048938134810713
+   "spot": 86.23,
+   "mean": null,
+   "high": null,
+   "low": null,
+   "median": null,
+   "upside_pct": null
   },
   "trend": [
    {
@@ -72598,6 +69586,15 @@
    }
   ],
   "actions": [
+   {
+    "date": "2026-10-01",
+    "firm": "RBC Capital",
+    "from": "Outperform",
+    "to": "Outperform",
+    "action": "main",
+    "target": 105.0,
+    "prior": 90.0
+   },
    {
     "date": "2026-09-18",
     "firm": "Truist Securities",
@@ -72858,15 +69855,6 @@
     "action": "main",
     "target": 67.0,
     "prior": 72.0
-   },
-   {
-    "date": "2026-03-11",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 84.0,
-    "prior": 77.0
    }
   ]
  },
@@ -75553,7 +72541,7 @@
  "EG US Equity": {
   "ticker": "EG US Equity",
   "symbol": "EG",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Everest Group, Ltd.",
   "consensus": {
    "mean": 2.41176,
@@ -75563,12 +72551,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 368.81,
-   "mean": 411.375,
+   "spot": 368.72,
+   "mean": 410.875,
    "high": 480.0,
-   "low": 375.0,
+   "low": 368.0,
    "median": 407.0,
-   "upside_pct": 11.541172961687597
+   "upside_pct": 11.43279453243653
   },
   "trend": [
    {
@@ -75583,13 +72571,13 @@
    },
    {
     "period": "-1m",
-    "strongBuy": 3,
+    "strongBuy": 4,
     "buy": 3,
     "hold": 10,
     "sell": 0,
     "strongSell": 0,
-    "total": 16,
-    "pos_pct": 37.5
+    "total": 17,
+    "pos_pct": 41.1764705882353
    },
    {
     "period": "-2m",
@@ -76142,7 +73130,7 @@
  "FIS US Equity": {
   "ticker": "FIS US Equity",
   "symbol": "FIS",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Fidelity National Information S",
   "consensus": {
    "mean": 2.27586,
@@ -76152,12 +73140,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 33.35,
+   "spot": 33.1,
    "mean": 49.66667,
    "high": 77.0,
    "low": 37.0,
    "median": 49.5,
-   "upside_pct": 48.9255472263868
+   "upside_pct": 50.05036253776436
   },
   "trend": [
    {
@@ -76189,16 +73177,6 @@
     "strongSell": 1,
     "total": 27,
     "pos_pct": 55.55555555555556
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 4,
-    "buy": 11,
-    "hold": 9,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 25,
-    "pos_pct": 60.0
    }
   ],
   "actions": [
@@ -79492,7 +76470,7 @@
  "FRT US Equity": {
   "ticker": "FRT US Equity",
   "symbol": "FRT",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Federal Realty Investment Trust",
   "consensus": {
    "mean": 1.89474,
@@ -79502,12 +76480,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 109.39,
+   "spot": 108.03,
    "mean": 132.0,
    "high": 149.0,
    "low": 117.0,
    "median": 134.0,
-   "upside_pct": 20.66916537160617
+   "upside_pct": 22.188281033046376
   },
   "trend": [
    {
@@ -79539,290 +76517,9 @@
     "strongSell": 0,
     "total": 20,
     "pos_pct": 65.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 4,
-    "buy": 8,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 19,
-    "pos_pct": 63.1578947368421
    }
   ],
-  "actions": [
-   {
-    "date": "2026-09-28",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 118.0,
-    "prior": 123.0
-   },
-   {
-    "date": "2026-09-24",
-    "firm": "Mizuho",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 117.0,
-    "prior": 130.0
-   },
-   {
-    "date": "2026-09-21",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 123.0,
-    "prior": 125.0
-   },
-   {
-    "date": "2026-09-17",
-    "firm": "Scotiabank",
-    "from": "Sector Outperform",
-    "to": "Sector Outperform",
-    "action": "main",
-    "target": 126.0,
-    "prior": 128.0
-   },
-   {
-    "date": "2026-09-04",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 129.0,
-    "prior": 124.0
-   },
-   {
-    "date": "2026-08-17",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 123.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-08-05",
-    "firm": "Citigroup",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 130.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-07-23",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 134.0,
-    "prior": 129.0
-   },
-   {
-    "date": "2026-07-21",
-    "firm": "Piper Sandler",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 149.0,
-    "prior": 127.0
-   },
-   {
-    "date": "2026-07-09",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 127.0,
-    "prior": 118.0
-   },
-   {
-    "date": "2026-07-07",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 122.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-06-29",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 131.0,
-    "prior": 128.0
-   },
-   {
-    "date": "2026-06-08",
-    "firm": "Truist Securities",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 118.0,
-    "prior": 112.0
-   },
-   {
-    "date": "2026-06-01",
-    "firm": "Mizuho",
-    "from": "Neutral",
-    "to": "Outperform",
-    "action": "up",
-    "target": 130.0,
-    "prior": 121.0
-   },
-   {
-    "date": "2026-05-29",
-    "firm": "B of A Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 128.0,
-    "prior": 125.0
-   },
-   {
-    "date": "2026-05-27",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 120.0,
-    "prior": 116.0
-   },
-   {
-    "date": "2026-05-26",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 120.0,
-    "prior": 110.0
-   },
-   {
-    "date": "2026-05-26",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 129.0,
-    "prior": 120.0
-   },
-   {
-    "date": "2026-05-19",
-    "firm": "Scotiabank",
-    "from": "Sector Outperform",
-    "to": "Sector Outperform",
-    "action": "main",
-    "target": 128.0,
-    "prior": 118.0
-   },
-   {
-    "date": "2026-05-18",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 118.0,
-    "prior": 103.0
-   },
-   {
-    "date": "2026-05-14",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 124.0,
-    "prior": 115.0
-   },
-   {
-    "date": "2026-05-12",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 116.0,
-    "prior": 107.0
-   },
-   {
-    "date": "2026-05-05",
-    "firm": "Citigroup",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 120.0,
-    "prior": 106.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 110.0,
-    "prior": 107.0
-   },
-   {
-    "date": "2026-04-13",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 107.0,
-    "prior": 109.0
-   },
-   {
-    "date": "2026-03-24",
-    "firm": "Scotiabank",
-    "from": "Sector Outperform",
-    "to": "Sector Outperform",
-    "action": "main",
-    "target": 118.0,
-    "prior": 113.0
-   },
-   {
-    "date": "2026-03-23",
-    "firm": "Truist Securities",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 112.0,
-    "prior": 111.0
-   },
-   {
-    "date": "2026-03-19",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 120.0,
-    "prior": 113.0
-   },
-   {
-    "date": "2026-03-02",
-    "firm": "Barclays",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 109.0,
-    "prior": 107.0
-   },
-   {
-    "date": "2026-02-17",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 107.0,
-    "prior": 105.0
-   }
-  ]
+  "actions": []
  },
  "MTD US Equity": {
   "ticker": "MTD US Equity",
@@ -83167,7 +79864,7 @@
  "FSLR US Equity": {
   "ticker": "FSLR US Equity",
   "symbol": "FSLR",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "First Solar, Inc.",
   "consensus": {
    "mean": 1.86111,
@@ -83177,327 +79874,15 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 176.93,
-   "mean": 276.17133,
+   "spot": 172.11,
+   "mean": 275.87134,
    "high": 402.0,
    "low": 197.0,
    "median": 274.5,
-   "upside_pct": 56.09073079749054
+   "upside_pct": 60.28780431119629
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 10,
-    "buy": 16,
-    "hold": 9,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 36,
-    "pos_pct": 72.22222222222223
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 9,
-    "buy": 16,
-    "hold": 8,
-    "sell": 1,
-    "strongSell": 1,
-    "total": 35,
-    "pos_pct": 71.42857142857143
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 9,
-    "buy": 13,
-    "hold": 12,
-    "sell": 1,
-    "strongSell": 1,
-    "total": 36,
-    "pos_pct": 61.111111111111114
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 9,
-    "buy": 12,
-    "hold": 12,
-    "sell": 1,
-    "strongSell": 1,
-    "total": 35,
-    "pos_pct": 60.0
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-28",
-    "firm": "Keybanc",
-    "from": "Underweight",
-    "to": "Sector Weight",
-    "action": "up",
-    "target": null,
-    "prior": null
-   },
-   {
-    "date": "2026-09-22",
-    "firm": "GLJ Research",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 250.0,
-    "prior": 315.0
-   },
-   {
-    "date": "2026-09-09",
-    "firm": "Piper Sandler",
-    "from": "",
-    "to": "Overweight",
-    "action": "init",
-    "target": 260.0,
-    "prior": null
-   },
-   {
-    "date": "2026-08-27",
-    "firm": "BMO Capital",
-    "from": "Market Perform",
-    "to": "Outperform",
-    "action": "up",
-    "target": 263.0,
-    "prior": 237.0
-   },
-   {
-    "date": "2026-08-26",
-    "firm": "Deutsche Bank",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 299.0,
-    "prior": 272.0
-   },
-   {
-    "date": "2026-08-26",
-    "firm": "Argus Research",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 275.0,
-    "prior": 275.0
-   },
-   {
-    "date": "2026-08-18",
-    "firm": "Morgan Stanley",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 323.0,
-    "prior": 245.0
-   },
-   {
-    "date": "2026-08-17",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 218.0,
-    "prior": 219.0
-   },
-   {
-    "date": "2026-08-07",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 313.0,
-    "prior": 300.0
-   },
-   {
-    "date": "2026-08-03",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 297.0,
-    "prior": 294.0
-   },
-   {
-    "date": "2026-08-03",
-    "firm": "Guggenheim",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 282.0,
-    "prior": 279.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 300.0,
-    "prior": 320.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Truist Securities",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "reit",
-    "target": 229.0,
-    "prior": 249.0
-   },
-   {
-    "date": "2026-07-31",
-    "firm": "Bernstein",
-    "from": "Underperform",
-    "to": "Underperform",
-    "action": "main",
-    "target": 197.0,
-    "prior": 217.0
-   },
-   {
-    "date": "2026-07-24",
-    "firm": "Roth Capital",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "reit",
-    "target": 300.0,
-    "prior": 300.0
-   },
-   {
-    "date": "2026-07-14",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 279.0,
-    "prior": 213.0
-   },
-   {
-    "date": "2026-07-14",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Hold",
-    "action": "init",
-    "target": 249.0,
-    "prior": null
-   },
-   {
-    "date": "2026-07-10",
-    "firm": "Susquehanna",
-    "from": "Positive",
-    "to": "Positive",
-    "action": "main",
-    "target": 270.0,
-    "prior": 250.0
-   },
-   {
-    "date": "2026-07-09",
-    "firm": "Morgan Stanley",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 245.0,
-    "prior": 230.0
-   },
-   {
-    "date": "2026-07-07",
-    "firm": "Deutsche Bank",
-    "from": "Hold",
-    "to": "Buy",
-    "action": "up",
-    "target": 272.0,
-    "prior": 245.0
-   },
-   {
-    "date": "2026-07-06",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 320.0,
-    "prior": 255.0
-   },
-   {
-    "date": "2026-06-17",
-    "firm": "Bernstein",
-    "from": "",
-    "to": "Underperform",
-    "action": "init",
-    "target": 217.0,
-    "prior": null
-   },
-   {
-    "date": "2026-06-15",
-    "firm": "Mizuho",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 300.0,
-    "prior": 243.0
-   },
-   {
-    "date": "2026-06-11",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 330.0,
-    "prior": 290.0
-   },
-   {
-    "date": "2026-05-28",
-    "firm": "GLJ Research",
-    "from": "Hold",
-    "to": "Buy",
-    "action": "up",
-    "target": 315.0,
-    "prior": 207.82
-   },
-   {
-    "date": "2026-05-05",
-    "firm": "Freedom Broker",
-    "from": "Hold",
-    "to": "Buy",
-    "action": "up",
-    "target": 260.0,
-    "prior": 250.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 290.0,
-    "prior": 300.0
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "Evercore ISI Group",
-    "from": "In-Line",
-    "to": "In-Line",
-    "action": "main",
-    "target": 219.0,
-    "prior": 212.0
-   },
-   {
-    "date": "2026-04-21",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 243.0,
-    "prior": 300.0
-   },
-   {
-    "date": "2026-04-21",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 213.0,
-    "prior": 228.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "D US Equity": {
   "ticker": "D US Equity",
@@ -84842,7 +81227,7 @@
  "ELV US Equity": {
   "ticker": "ELV US Equity",
   "symbol": "ELV",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Elevance Health, Inc.",
   "consensus": {
    "mean": 1.81818,
@@ -84852,12 +81237,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 392.73,
+   "spot": 381.67,
    "mean": 451.38095,
    "high": 492.0,
    "low": 393.0,
    "median": 460.0,
-   "upside_pct": 14.934165966440037
+   "upside_pct": 18.26471821206801
   },
   "trend": [
    {
@@ -84889,16 +81274,6 @@
     "strongSell": 0,
     "total": 22,
     "pos_pct": 68.18181818181819
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 2,
-    "buy": 12,
-    "hold": 8,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 63.63636363636363
    }
   ],
   "actions": [
@@ -85512,7 +81887,7 @@
  "INVH US Equity": {
   "ticker": "INVH US Equity",
   "symbol": "INVH",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Invitation Homes Inc.",
   "consensus": {
    "mean": 2.08,
@@ -85522,327 +81897,15 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 26.57,
+   "spot": 26.4,
    "mean": 33.52174,
    "high": 41.0,
    "low": 28.0,
    "median": 34.0,
-   "upside_pct": 26.163869025216414
+   "upside_pct": 26.976287878787897
   },
-  "trend": [
-   {
-    "period": "0m",
-    "strongBuy": 5,
-    "buy": 9,
-    "hold": 11,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 25,
-    "pos_pct": 56.0
-   },
-   {
-    "period": "-1m",
-    "strongBuy": 6,
-    "buy": 7,
-    "hold": 12,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 25,
-    "pos_pct": 52.0
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 6,
-    "buy": 7,
-    "hold": 12,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 25,
-    "pos_pct": 52.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 6,
-    "buy": 7,
-    "hold": 12,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 25,
-    "pos_pct": 52.0
-   }
-  ],
-  "actions": [
-   {
-    "date": "2026-09-21",
-    "firm": "Evercore ISI Group",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 33.0,
-    "prior": 34.0
-   },
-   {
-    "date": "2026-09-21",
-    "firm": "Mizuho",
-    "from": "Neutral",
-    "to": "Outperform",
-    "action": "up",
-    "target": 32.0,
-    "prior": 31.0
-   },
-   {
-    "date": "2026-09-17",
-    "firm": "Scotiabank",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 28.0,
-    "prior": 30.0
-   },
-   {
-    "date": "2026-08-25",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 34.0,
-    "prior": 33.0
-   },
-   {
-    "date": "2026-08-05",
-    "firm": "Keefe, Bruyette & Woods",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 31.0,
-    "prior": 29.0
-   },
-   {
-    "date": "2026-08-03",
-    "firm": "Oppenheimer",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 33.0,
-    "prior": 31.0
-   },
-   {
-    "date": "2026-07-14",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 36.0,
-    "prior": 32.0
-   },
-   {
-    "date": "2026-07-08",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 35.0,
-    "prior": 32.0
-   },
-   {
-    "date": "2026-06-24",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Overweight",
-    "action": "up",
-    "target": 33.0,
-    "prior": 31.0
-   },
-   {
-    "date": "2026-06-18",
-    "firm": "Scotiabank",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 30.0,
-    "prior": 29.0
-   },
-   {
-    "date": "2026-06-17",
-    "firm": "Mizuho",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 31.0,
-    "prior": 26.0
-   },
-   {
-    "date": "2026-06-15",
-    "firm": "BMO Capital",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 35.0,
-    "prior": 32.0
-   },
-   {
-    "date": "2026-06-01",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 31.0,
-    "prior": 28.0
-   },
-   {
-    "date": "2026-05-28",
-    "firm": "CFRA",
-    "from": "Hold",
-    "to": "Sell",
-    "action": "down",
-    "target": 27.0,
-    "prior": 29.0
-   },
-   {
-    "date": "2026-05-21",
-    "firm": "Scotiabank",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 29.0,
-    "prior": 27.0
-   },
-   {
-    "date": "2026-05-19",
-    "firm": "UBS",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 32.0,
-    "prior": 35.0
-   },
-   {
-    "date": "2026-05-18",
-    "firm": "Raymond James",
-    "from": "Market Perform",
-    "to": "Outperform",
-    "action": "up",
-    "target": 32.0,
-    "prior": null
-   },
-   {
-    "date": "2026-05-04",
-    "firm": "Keefe, Bruyette & Woods",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 29.0,
-    "prior": 28.0
-   },
-   {
-    "date": "2026-05-01",
-    "firm": "RBC Capital",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 30.0,
-    "prior": 28.0
-   },
-   {
-    "date": "2026-05-01",
-    "firm": "Evercore ISI Group",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 32.0,
-    "prior": 29.0
-   },
-   {
-    "date": "2026-04-28",
-    "firm": "Compass Point",
-    "from": "",
-    "to": "Neutral",
-    "action": "init",
-    "target": null,
-    "prior": null
-   },
-   {
-    "date": "2026-04-27",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 32.0,
-    "prior": 31.0
-   },
-   {
-    "date": "2026-03-13",
-    "firm": "Mizuho",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 26.0,
-    "prior": 27.0
-   },
-   {
-    "date": "2026-03-09",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 33.0,
-    "prior": 34.0
-   },
-   {
-    "date": "2026-03-06",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 31.0,
-    "prior": 33.0
-   },
-   {
-    "date": "2026-03-05",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 28.0,
-    "prior": 31.0
-   },
-   {
-    "date": "2026-03-04",
-    "firm": "Scotiabank",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "main",
-    "target": 27.0,
-    "prior": 28.0
-   },
-   {
-    "date": "2026-02-27",
-    "firm": "Raymond James",
-    "from": "Outperform",
-    "to": "Market Perform",
-    "action": "down",
-    "target": null,
-    "prior": null
-   },
-   {
-    "date": "2026-02-25",
-    "firm": "Citigroup",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 31.0,
-    "prior": 36.5
-   },
-   {
-    "date": "2026-02-25",
-    "firm": "Keefe, Bruyette & Woods",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 28.0,
-    "prior": 31.0
-   }
-  ]
+  "trend": [],
+  "actions": []
  },
  "SOLV US Equity": {
   "ticker": "SOLV US Equity",
@@ -86182,7 +82245,7 @@
  "FDS US Equity": {
   "ticker": "FDS US Equity",
   "symbol": "FDS",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "FactSet Research Systems Inc.",
   "consensus": {
    "mean": 3.22222,
@@ -86192,12 +82255,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 259.97,
-   "mean": 270.0,
+   "spot": 277.61,
+   "mean": 277.5625,
    "high": 340.0,
-   "low": 210.0,
-   "median": 278.5,
-   "upside_pct": 3.8581374774012245
+   "low": 212.0,
+   "median": 285.0,
+   "upside_pct": -0.017110334642134184
   },
   "trend": [
    {
@@ -86213,12 +82276,12 @@
    {
     "period": "-1m",
     "strongBuy": 0,
-    "buy": 2,
-    "hold": 10,
+    "buy": 3,
+    "hold": 9,
     "sell": 4,
     "strongSell": 2,
     "total": 18,
-    "pos_pct": 11.11111111111111
+    "pos_pct": 16.666666666666668
    },
    {
     "period": "-2m",
@@ -86232,16 +82295,34 @@
    },
    {
     "period": "-3m",
-    "strongBuy": 1,
+    "strongBuy": 0,
     "buy": 2,
-    "hold": 9,
+    "hold": 10,
     "sell": 4,
     "strongSell": 2,
     "total": 18,
-    "pos_pct": 16.666666666666668
+    "pos_pct": 11.11111111111111
    }
   ],
   "actions": [
+   {
+    "date": "2026-10-01",
+    "firm": "Wells Fargo",
+    "from": "Underweight",
+    "to": "Underweight",
+    "action": "main",
+    "target": 250.0,
+    "prior": 210.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Stifel",
+    "from": "Hold",
+    "to": "Hold",
+    "action": "main",
+    "target": 292.0,
+    "prior": 254.0
+   },
    {
     "date": "2026-09-11",
     "firm": "Deutsche Bank",
@@ -86493,24 +82574,6 @@
     "action": "main",
     "target": 253.0,
     "prior": 282.0
-   },
-   {
-    "date": "2025-12-19",
-    "firm": "RBC Capital",
-    "from": "Sector Perform",
-    "to": "Sector Perform",
-    "action": "reit",
-    "target": 320.0,
-    "prior": 320.0
-   },
-   {
-    "date": "2025-12-19",
-    "firm": "Stifel",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 295.0,
-    "prior": 372.0
    }
   ]
  },
@@ -87187,7 +83250,7 @@
  "HPE US Equity": {
   "ticker": "HPE US Equity",
   "symbol": "HPE",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Hewlett Packard Enterprise Comp",
   "consensus": {
    "mean": 2.04348,
@@ -87197,12 +83260,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 61.49,
-   "mean": 68.0795,
-   "high": 88.0,
+   "spot": 64.58,
+   "mean": 71.1295,
+   "high": 92.0,
    "low": 52.59,
-   "median": 66.5,
-   "upside_pct": 10.716376646609206
+   "median": 69.0,
+   "upside_pct": 10.141684732115209
   },
   "trend": [
    {
@@ -87217,6 +83280,16 @@
    },
    {
     "period": "-1m",
+    "strongBuy": 4,
+    "buy": 9,
+    "hold": 10,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 23,
+    "pos_pct": 56.52173913043478
+   },
+   {
+    "period": "-2m",
     "strongBuy": 5,
     "buy": 10,
     "hold": 8,
@@ -87226,7 +83299,7 @@
     "pos_pct": 65.21739130434783
    },
    {
-    "period": "-2m",
+    "period": "-3m",
     "strongBuy": 4,
     "buy": 9,
     "hold": 9,
@@ -87234,19 +83307,81 @@
     "strongSell": 0,
     "total": 22,
     "pos_pct": 59.09090909090909
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 4,
-    "buy": 8,
-    "hold": 10,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 22,
-    "pos_pct": 54.54545454545455
    }
   ],
   "actions": [
+   {
+    "date": "2026-10-02",
+    "firm": "Daiwa Capital",
+    "from": "Neutral",
+    "to": "Outperform",
+    "action": "up",
+    "target": 75.0,
+    "prior": 65.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Citigroup",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "main",
+    "target": 92.0,
+    "prior": 76.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Morgan Stanley",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 72.0,
+    "prior": 67.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Evercore ISI Group",
+    "from": "In-Line",
+    "to": "In-Line",
+    "action": "main",
+    "target": 67.0,
+    "prior": 65.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "UBS",
+    "from": "Neutral",
+    "to": "Neutral",
+    "action": "main",
+    "target": 66.0,
+    "prior": 59.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Truist Securities",
+    "from": "Buy",
+    "to": "Buy",
+    "action": "reit",
+    "target": 75.0,
+    "prior": 70.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Barclays",
+    "from": "Overweight",
+    "to": "Overweight",
+    "action": "main",
+    "target": 83.0,
+    "prior": 79.0
+   },
+   {
+    "date": "2026-10-01",
+    "firm": "Wells Fargo",
+    "from": "Equal-Weight",
+    "to": "Equal-Weight",
+    "action": "main",
+    "target": 63.0,
+    "prior": 54.0
+   },
    {
     "date": "2026-09-14",
     "firm": "Evercore ISI Group",
@@ -87444,78 +83579,6 @@
     "action": "up",
     "target": 75.0,
     "prior": 23.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "Barclays",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 67.0,
-    "prior": 28.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "Morgan Stanley",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 71.0,
-    "prior": 33.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "Bernstein",
-    "from": "Market Perform",
-    "to": "Market Perform",
-    "action": "main",
-    "target": 62.0,
-    "prior": 35.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "Susquehanna",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 65.0,
-    "prior": 21.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "JP Morgan",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 68.0,
-    "prior": 37.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "Raymond James",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 74.0,
-    "prior": 29.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "UBS",
-    "from": "Neutral",
-    "to": "Neutral",
-    "action": "main",
-    "target": 65.0,
-    "prior": 25.0
-   },
-   {
-    "date": "2026-06-02",
-    "firm": "Wells Fargo",
-    "from": "Equal-Weight",
-    "to": "Equal-Weight",
-    "action": "main",
-    "target": 67.0,
-    "prior": 26.0
    }
   ]
  },
@@ -89857,7 +85920,7 @@
  "FISV US Equity": {
   "ticker": "FISV US Equity",
   "symbol": "FISV",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Fiserv, Inc.",
   "consensus": {
    "mean": 2.74286,
@@ -89867,12 +85930,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 45.36,
+   "spot": 45.38,
    "mean": 59.76923,
    "high": 106.0,
    "low": 40.0,
    "median": 57.0,
-   "upside_pct": 31.76638007054673
+   "upside_pct": 31.708307624504183
   },
   "trend": [
    {
@@ -89904,16 +85967,6 @@
     "strongSell": 1,
     "total": 36,
     "pos_pct": 25.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 6,
-    "hold": 24,
-    "sell": 1,
-    "strongSell": 1,
-    "total": 35,
-    "pos_pct": 25.714285714285715
    }
   ],
   "actions": [
@@ -90192,7 +86245,7 @@
  "HPQ US Equity": {
   "ticker": "HPQ US Equity",
   "symbol": "HPQ",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "HP Inc.",
   "consensus": {
    "mean": null,
@@ -90202,12 +86255,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 30.73,
+   "spot": 32.15,
    "mean": 29.66471,
    "high": 72.0,
    "low": 19.0,
    "median": 28.0,
-   "upside_pct": -3.4666124308493362
+   "upside_pct": -7.730295489891137
   },
   "trend": [
    {
@@ -90232,16 +86285,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 0,
-    "buy": 2,
-    "hold": 10,
-    "sell": 3,
-    "strongSell": 2,
-    "total": 17,
-    "pos_pct": 11.764705882352942
-   },
-   {
-    "period": "-3m",
     "strongBuy": 0,
     "buy": 2,
     "hold": 10,
@@ -90862,7 +86905,7 @@
  "GRMN US Equity": {
   "ticker": "GRMN US Equity",
   "symbol": "GRMN",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Garmin Ltd.",
   "consensus": {
    "mean": 2.57143,
@@ -90872,12 +86915,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 290.23,
+   "spot": 282.46,
    "mean": 302.0,
    "high": 370.0,
    "low": 231.0,
    "median": 296.0,
-   "upside_pct": 4.055404334493318
+   "upside_pct": 6.917793669900174
   },
   "trend": [
    {
@@ -92183,33 +88226,33 @@
  "EXPD US Equity": {
   "ticker": "EXPD US Equity",
   "symbol": "EXPD",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Expeditors International of Was",
   "consensus": {
-   "mean": 3.17647,
-   "score5": 2.82353,
+   "mean": 3.16667,
+   "score5": 2.83333,
    "label": "Hold",
-   "n": 14
+   "n": 15
   },
   "targets": {
    "ccy": "USD",
-   "spot": 188.16,
-   "mean": 178.07143,
+   "spot": 187.74,
+   "mean": 178.86667,
    "high": 220.0,
    "low": 100.0,
    "median": 180.0,
-   "upside_pct": -5.361697491496598
+   "upside_pct": -4.726392883775443
   },
   "trend": [
    {
     "period": "0m",
     "strongBuy": 0,
     "buy": 3,
-    "hold": 9,
+    "hold": 10,
     "sell": 4,
     "strongSell": 1,
-    "total": 17,
-    "pos_pct": 17.647058823529413
+    "total": 18,
+    "pos_pct": 16.666666666666668
    },
    {
     "period": "-1m",
@@ -92230,19 +88273,18 @@
     "strongSell": 2,
     "total": 17,
     "pos_pct": 17.647058823529413
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 0,
-    "buy": 2,
-    "hold": 7,
-    "sell": 3,
-    "strongSell": 3,
-    "total": 15,
-    "pos_pct": 13.333333333333334
    }
   ],
   "actions": [
+   {
+    "date": "2026-10-01",
+    "firm": "Baird",
+    "from": "Neutral",
+    "to": "Neutral",
+    "action": "main",
+    "target": 200.0,
+    "prior": 190.0
+   },
    {
     "date": "2026-09-30",
     "firm": "BNP Paribas",
@@ -92503,15 +88545,6 @@
     "action": "main",
     "target": 131.0,
     "prior": 111.0
-   },
-   {
-    "date": "2025-11-05",
-    "firm": "Truist Securities",
-    "from": "Hold",
-    "to": "Hold",
-    "action": "main",
-    "target": 130.0,
-    "prior": 120.0
    }
   ]
  },
@@ -93973,7 +90006,7 @@
  "EXE US Equity": {
   "ticker": "EXE US Equity",
   "symbol": "EXE",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Expand Energy Corporation",
   "consensus": {
    "mean": 1.53571,
@@ -93983,12 +90016,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 84.18,
-   "mean": 125.51852,
+   "spot": 85.96,
+   "mean": 125.40741,
    "high": 160.0,
    "low": 93.0,
    "median": 123.0,
-   "upside_pct": 49.107293894036566
+   "upside_pct": 45.8904257794323
   },
   "trend": [
    {
@@ -94004,22 +90037,22 @@
    {
     "period": "-1m",
     "strongBuy": 5,
+    "buy": 18,
+    "hold": 5,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 28,
+    "pos_pct": 82.14285714285714
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 5,
     "buy": 16,
     "hold": 5,
     "sell": 0,
     "strongSell": 0,
     "total": 26,
     "pos_pct": 80.76923076923077
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 3,
-    "buy": 17,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 26,
-    "pos_pct": 76.92307692307692
    },
    {
     "period": "-3m",
@@ -98373,7 +94406,7 @@
  "EOG US Equity": {
   "ticker": "EOG US Equity",
   "symbol": "EOG",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "EOG Resources, Inc.",
   "consensus": {
    "mean": 2.34375,
@@ -98383,12 +94416,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 139.66,
-   "mean": 162.0,
+   "spot": 141.31,
+   "mean": 162.35715,
    "high": 193.0,
    "low": 134.0,
-   "median": 157.5,
-   "upside_pct": 15.995990262065018
+   "median": 159.0,
+   "upside_pct": 14.894310381430898
   },
   "trend": [
    {
@@ -98405,21 +94438,21 @@
     "period": "-1m",
     "strongBuy": 1,
     "buy": 10,
+    "hold": 21,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 32,
+    "pos_pct": 34.375
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 1,
+    "buy": 10,
     "hold": 19,
     "sell": 0,
     "strongSell": 0,
     "total": 30,
     "pos_pct": 36.666666666666664
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 1,
-    "buy": 12,
-    "hold": 17,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 30,
-    "pos_pct": 43.333333333333336
    },
    {
     "period": "-3m",
@@ -99107,7 +95140,7 @@
  "FERG US Equity": {
   "ticker": "FERG US Equity",
   "symbol": "FERG",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Ferguson Enterprises Inc.",
   "consensus": {
    "mean": 1.86364,
@@ -99117,12 +95150,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 223.87,
+   "spot": 221.49,
    "mean": 287.4762,
    "high": 325.0,
    "low": 235.0,
    "median": 290.0,
-   "upside_pct": 28.412114173404213
+   "upside_pct": 29.791954490044702
   },
   "trend": [
    {
@@ -99148,22 +95181,22 @@
    {
     "period": "-2m",
     "strongBuy": 3,
+    "buy": 11,
+    "hold": 8,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 22,
+    "pos_pct": 63.63636363636363
+   },
+   {
+    "period": "-3m",
+    "strongBuy": 3,
     "buy": 10,
     "hold": 8,
     "sell": 0,
     "strongSell": 0,
     "total": 21,
     "pos_pct": 61.904761904761905
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 13,
-    "hold": 7,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 69.56521739130434
    }
   ],
   "actions": [
@@ -101515,7 +97548,7 @@
  "ICE US Equity": {
   "ticker": "ICE US Equity",
   "symbol": "ICE",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Intercontinental Exchange Inc.",
   "consensus": {
    "mean": 1.46667,
@@ -101525,12 +97558,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 152.19,
+   "spot": 151.47,
    "mean": 187.2857,
    "high": 232.0,
    "low": 163.0,
    "median": 182.0,
-   "upside_pct": 23.060450752349038
+   "upside_pct": 23.645408331682827
   },
   "trend": [
    {
@@ -101562,16 +97595,6 @@
     "strongSell": 0,
     "total": 14,
     "pos_pct": 92.85714285714286
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 5,
-    "buy": 10,
-    "hold": 1,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 16,
-    "pos_pct": 93.75
    }
   ],
   "actions": [
@@ -102515,7 +98538,7 @@
  "EQT US Equity": {
   "ticker": "EQT US Equity",
   "symbol": "EQT",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "EQT Corporation",
   "consensus": {
    "mean": 1.46154,
@@ -102525,12 +98548,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 48.88,
-   "mean": 67.5,
+   "spot": 50.09,
+   "mean": 67.38462,
    "high": 81.0,
    "low": 52.0,
    "median": 67.5,
-   "upside_pct": 38.09328968903436
+   "upside_pct": 34.5270912357756
   },
   "trend": [
    {
@@ -102546,6 +98569,16 @@
    {
     "period": "-1m",
     "strongBuy": 4,
+    "buy": 18,
+    "hold": 4,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 26,
+    "pos_pct": 84.61538461538461
+   },
+   {
+    "period": "-2m",
+    "strongBuy": 4,
     "buy": 17,
     "hold": 4,
     "sell": 0,
@@ -102554,7 +98587,7 @@
     "pos_pct": 84.0
    },
    {
-    "period": "-2m",
+    "period": "-3m",
     "strongBuy": 3,
     "buy": 17,
     "hold": 5,
@@ -102562,16 +98595,6 @@
     "strongSell": 0,
     "total": 25,
     "pos_pct": 80.0
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 16,
-    "hold": 6,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 25,
-    "pos_pct": 76.0
    }
   ],
   "actions": [
@@ -102850,7 +98873,7 @@
  "HBAN US Equity": {
   "ticker": "HBAN US Equity",
   "symbol": "HBAN",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Huntington Bancshares Incorpora",
   "consensus": {
    "mean": 1.75,
@@ -102860,12 +98883,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 15.27,
+   "spot": 15.19,
    "mean": 19.75263,
    "high": 22.5,
    "low": 17.0,
    "median": 20.0,
-   "upside_pct": 29.355795677799602
+   "upside_pct": 30.037063857801183
   },
   "trend": [
    {
@@ -102880,6 +98903,16 @@
    },
    {
     "period": "-1m",
+    "strongBuy": 3,
+    "buy": 11,
+    "hold": 6,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 20,
+    "pos_pct": 70.0
+   },
+   {
+    "period": "-2m",
     "strongBuy": 2,
     "buy": 11,
     "hold": 7,
@@ -102889,7 +98922,7 @@
     "pos_pct": 65.0
    },
    {
-    "period": "-2m",
+    "period": "-3m",
     "strongBuy": 2,
     "buy": 10,
     "hold": 7,
@@ -102897,16 +98930,6 @@
     "strongSell": 0,
     "total": 19,
     "pos_pct": 63.1578947368421
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 12,
-    "hold": 4,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 19,
-    "pos_pct": 78.94736842105263
    }
   ],
   "actions": [
@@ -103520,7 +99543,7 @@
  "FITB US Equity": {
   "ticker": "FITB US Equity",
   "symbol": "FITB",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Fifth Third Bancorp",
   "consensus": {
    "mean": 1.66667,
@@ -103530,12 +99553,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 50.97,
-   "mean": 62.65,
+   "spot": 50.41,
+   "mean": 62.4,
    "high": 67.0,
    "low": 55.0,
    "median": 63.0,
-   "upside_pct": 22.915440455169712
+   "upside_pct": 23.78496330093236
   },
   "trend": [
    {
@@ -103551,12 +99574,12 @@
    {
     "period": "-1m",
     "strongBuy": 4,
-    "buy": 11,
-    "hold": 6,
+    "buy": 12,
+    "hold": 5,
     "sell": 0,
     "strongSell": 0,
     "total": 21,
-    "pos_pct": 71.42857142857143
+    "pos_pct": 76.19047619047619
    },
    {
     "period": "-2m",
@@ -103580,6 +99603,15 @@
    }
   ],
   "actions": [
+   {
+    "date": "2026-10-01",
+    "firm": "Evercore ISI Group",
+    "from": "In-Line",
+    "to": "In-Line",
+    "action": "main",
+    "target": 57.0,
+    "prior": 61.0
+   },
    {
     "date": "2026-09-23",
     "firm": "Truist Securities",
@@ -103840,22 +99872,13 @@
     "action": "reit",
     "target": 60.0,
     "prior": 60.0
-   },
-   {
-    "date": "2026-01-26",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 60.0,
-    "prior": 55.0
    }
   ]
  },
  "FANG US Equity": {
   "ticker": "FANG US Equity",
   "symbol": "FANG",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Diamondback Energy, Inc.",
   "consensus": {
    "mean": 1.48387,
@@ -103865,12 +99888,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 183.95,
-   "mean": 234.51724,
+   "spot": 185.51,
+   "mean": 234.34483,
    "high": 283.0,
    "low": 205.0,
    "median": 233.0,
-   "upside_pct": 27.489665670019026
+   "upside_pct": 26.32463479057734
   },
   "trend": [
    {
@@ -103885,6 +99908,16 @@
    },
    {
     "period": "-1m",
+    "strongBuy": 5,
+    "buy": 21,
+    "hold": 5,
+    "sell": 0,
+    "strongSell": 0,
+    "total": 31,
+    "pos_pct": 83.87096774193549
+   },
+   {
+    "period": "-2m",
     "strongBuy": 4,
     "buy": 20,
     "hold": 5,
@@ -103892,16 +99925,6 @@
     "strongSell": 0,
     "total": 29,
     "pos_pct": 82.75862068965517
-   },
-   {
-    "period": "-2m",
-    "strongBuy": 5,
-    "buy": 20,
-    "hold": 4,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 29,
-    "pos_pct": 86.20689655172414
    },
    {
     "period": "-3m",
@@ -103995,33 +100018,6 @@
     "action": "up",
     "target": 210.0,
     "prior": 216.0
-   },
-   {
-    "date": "2024-10-01",
-    "firm": "Wells Fargo",
-    "from": "Overweight",
-    "to": "Overweight",
-    "action": "main",
-    "target": 219.0,
-    "prior": 230.0
-   },
-   {
-    "date": "2024-09-30",
-    "firm": "Evercore ISI Group",
-    "from": "Outperform",
-    "to": "Outperform",
-    "action": "main",
-    "target": 209.0,
-    "prior": 235.0
-   },
-   {
-    "date": "2024-09-30",
-    "firm": "Truist Securities",
-    "from": "Buy",
-    "to": "Buy",
-    "action": "main",
-    "target": 220.0,
-    "prior": 255.0
    }
   ]
  },
@@ -107358,7 +103354,7 @@
  "IFF US Equity": {
   "ticker": "IFF US Equity",
   "symbol": "IFF",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "International Flavors & Fragran",
   "consensus": {
    "mean": 1.75,
@@ -107368,12 +103364,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 85.25,
+   "spot": 83.12,
    "mean": 96.29412,
    "high": 105.0,
    "low": 76.0,
    "median": 96.0,
-   "upside_pct": 12.95497947214077
+   "upside_pct": 15.849518768046188
   },
   "trend": [
    {
@@ -107398,16 +103394,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 5,
-    "buy": 11,
-    "hold": 4,
-    "sell": 0,
-    "strongSell": 0,
-    "total": 20,
-    "pos_pct": 80.0
-   },
-   {
-    "period": "-3m",
     "strongBuy": 5,
     "buy": 11,
     "hold": 4,
@@ -113457,7 +109443,7 @@
  },
  "HAS US Equity": {
   "ticker": "HAS US Equity",
-  "pulled": "2026-09-28",
+  "pulled": "2026-10-02",
   "empty": true
  },
  "REGN US Equity": {
@@ -113468,7 +109454,7 @@
  "HII US Equity": {
   "ticker": "HII US Equity",
   "symbol": "HII",
-  "pulled": "2026-10-01",
+  "pulled": "2026-10-02",
   "name": "Huntington Ingalls Industries,",
   "consensus": {
    "mean": 2.08333,
@@ -113478,12 +109464,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 267.07,
+   "spot": 274.33,
    "mean": 367.25,
    "high": 439.0,
    "low": 304.0,
    "median": 367.0,
-   "upside_pct": 37.510764967985935
+   "upside_pct": 33.87161447891227
   },
   "trend": [
    {
@@ -114168,7 +110154,7 @@
  "HSY US Equity": {
   "ticker": "HSY US Equity",
   "symbol": "HSY",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "The Hershey Company",
   "consensus": {
    "mean": 2.47826,
@@ -114178,12 +110164,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 161.41,
-   "mean": 204.80952,
+   "spot": 159.3,
+   "mean": 204.09525,
    "high": 250.0,
    "low": 170.0,
    "median": 200.0,
-   "upside_pct": 26.887751688247306
+   "upside_pct": 28.120056497175128
   },
   "trend": [
    {
@@ -114210,16 +110196,6 @@
     "period": "-2m",
     "strongBuy": 2,
     "buy": 6,
-    "hold": 14,
-    "sell": 1,
-    "strongSell": 0,
-    "total": 23,
-    "pos_pct": 34.78260869565217
-   },
-   {
-    "period": "-3m",
-    "strongBuy": 3,
-    "buy": 5,
     "hold": 14,
     "sell": 1,
     "strongSell": 0,
@@ -114503,7 +110479,7 @@
  "ETR US Equity": {
   "ticker": "ETR US Equity",
   "symbol": "ETR",
-  "pulled": "2026-09-30",
+  "pulled": "2026-10-02",
   "name": "Entergy Corporation",
   "consensus": {
    "mean": 1.73913,
@@ -114513,12 +110489,12 @@
   },
   "targets": {
    "ccy": "USD",
-   "spot": 99.76,
-   "mean": 122.675,
+   "spot": 100.4,
+   "mean": 122.275,
    "high": 137.0,
    "low": 91.0,
-   "median": 126.0,
-   "upside_pct": 22.970128307939053
+   "median": 124.5,
+   "upside_pct": 21.787848605577697
   },
   "trend": [
    {
@@ -114543,16 +110519,6 @@
    },
    {
     "period": "-2m",
-    "strongBuy": 4,
-    "buy": 14,
-    "hold": 5,
-    "sell": 0,
-    "strongSell": 1,
-    "total": 24,
-    "pos_pct": 75.0
-   },
-   {
-    "period": "-3m",
     "strongBuy": 4,
     "buy": 14,
     "hold": 5,
@@ -116787,5 +112753,35 @@
     "prior": 45.0
    }
   ]
+ },
+ "CTVA US Equity": {
+  "ticker": "CTVA US Equity",
+  "pulled": "2026-10-02",
+  "empty": true
+ },
+ "ACN US Equity": {
+  "ticker": "ACN US Equity",
+  "pulled": "2026-10-02",
+  "empty": true
+ },
+ "DHR US Equity": {
+  "ticker": "DHR US Equity",
+  "pulled": "2026-10-02",
+  "empty": true
+ },
+ "VRTX US Equity": {
+  "ticker": "VRTX US Equity",
+  "pulled": "2026-10-02",
+  "empty": true
+ },
+ "IQV US Equity": {
+  "ticker": "IQV US Equity",
+  "pulled": "2026-10-02",
+  "empty": true
+ },
+ "TPR US Equity": {
+  "ticker": "TPR US Equity",
+  "pulled": "2026-10-02",
+  "empty": true
  }
 }
