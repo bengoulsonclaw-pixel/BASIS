@@ -2,41 +2,41 @@
  "ok": true,
  "analysis": {
   "rule": "balanced",
-  "n": 186,
+  "n": 188,
   "horizons": {
    "1": {
-    "n": 185,
-    "corr": 0.24386815212100615,
-    "n_moved": 33,
-    "hit_rate": 0.7878787878787878,
-    "mean_move_bp": 1.9,
-    "mean_move_when_wide_bp": 3.2,
-    "n_wide": 148
+    "n": 187,
+    "corr": 0.24512395849740612,
+    "n_moved": 34,
+    "hit_rate": 0.7941176470588235,
+    "mean_move_bp": 2.0,
+    "mean_move_when_wide_bp": 3.3,
+    "n_wide": 150
    },
    "3": {
-    "n": 183,
-    "corr": 0.36036157132614716,
-    "n_moved": 69,
-    "hit_rate": 0.8115942028985508,
+    "n": 185,
+    "corr": 0.36059745363639173,
+    "n_moved": 70,
+    "hit_rate": 0.8142857142857143,
     "mean_move_bp": 5.8,
-    "mean_move_when_wide_bp": 9.8,
-    "n_wide": 146
+    "mean_move_when_wide_bp": 9.9,
+    "n_wide": 148
    },
    "6": {
-    "n": 180,
-    "corr": 0.4270401331779912,
-    "n_moved": 91,
-    "hit_rate": 0.8021978021978022,
+    "n": 182,
+    "corr": 0.42688579330173215,
+    "n_moved": 92,
+    "hit_rate": 0.8043478260869565,
     "mean_move_bp": 11.7,
     "mean_move_when_wide_bp": 20.0,
     "n_wide": 145
    },
    "12": {
-    "n": 174,
-    "corr": 0.4382750216213268,
-    "n_moved": 114,
-    "hit_rate": 0.7368421052631579,
-    "mean_move_bp": 25.3,
+    "n": 176,
+    "corr": 0.4377467094338093,
+    "n_moved": 116,
+    "hit_rate": 0.7327586206896551,
+    "mean_move_bp": 24.5,
     "mean_move_when_wide_bp": 40.7,
     "n_wide": 145
    }
@@ -45,41 +45,41 @@
  "analyses": {
   "balanced": {
    "rule": "balanced",
-   "n": 186,
+   "n": 188,
    "horizons": {
     "1": {
-     "n": 185,
-     "corr": 0.24386815212100615,
-     "n_moved": 33,
-     "hit_rate": 0.7878787878787878,
-     "mean_move_bp": 1.9,
-     "mean_move_when_wide_bp": 3.2,
-     "n_wide": 148
+     "n": 187,
+     "corr": 0.24512395849740612,
+     "n_moved": 34,
+     "hit_rate": 0.7941176470588235,
+     "mean_move_bp": 2.0,
+     "mean_move_when_wide_bp": 3.3,
+     "n_wide": 150
     },
     "3": {
-     "n": 183,
-     "corr": 0.36036157132614716,
-     "n_moved": 69,
-     "hit_rate": 0.8115942028985508,
+     "n": 185,
+     "corr": 0.36059745363639173,
+     "n_moved": 70,
+     "hit_rate": 0.8142857142857143,
      "mean_move_bp": 5.8,
-     "mean_move_when_wide_bp": 9.8,
-     "n_wide": 146
+     "mean_move_when_wide_bp": 9.9,
+     "n_wide": 148
     },
     "6": {
-     "n": 180,
-     "corr": 0.4270401331779912,
-     "n_moved": 91,
-     "hit_rate": 0.8021978021978022,
+     "n": 182,
+     "corr": 0.42688579330173215,
+     "n_moved": 92,
+     "hit_rate": 0.8043478260869565,
      "mean_move_bp": 11.7,
      "mean_move_when_wide_bp": 20.0,
      "n_wide": 145
     },
     "12": {
-     "n": 174,
-     "corr": 0.4382750216213268,
-     "n_moved": 114,
-     "hit_rate": 0.7368421052631579,
-     "mean_move_bp": 25.3,
+     "n": 176,
+     "corr": 0.4377467094338093,
+     "n_moved": 116,
+     "hit_rate": 0.7327586206896551,
+     "mean_move_bp": 24.5,
      "mean_move_when_wide_bp": 40.7,
      "n_wide": 145
     }
@@ -87,41 +87,41 @@
   },
   "taylor93": {
    "rule": "taylor93",
-   "n": 186,
+   "n": 188,
    "horizons": {
     "1": {
-     "n": 185,
-     "corr": 0.33299273111891314,
-     "n_moved": 33,
-     "hit_rate": 0.7878787878787878,
-     "mean_move_bp": 1.9,
-     "mean_move_when_wide_bp": 4.5,
-     "n_wide": 114
+     "n": 187,
+     "corr": 0.3330988342872401,
+     "n_moved": 34,
+     "hit_rate": 0.7941176470588235,
+     "mean_move_bp": 2.0,
+     "mean_move_when_wide_bp": 4.7,
+     "n_wide": 116
     },
     "3": {
-     "n": 183,
-     "corr": 0.502710666315325,
-     "n_moved": 69,
-     "hit_rate": 0.8115942028985508,
+     "n": 185,
+     "corr": 0.5027475776749533,
+     "n_moved": 70,
+     "hit_rate": 0.8142857142857143,
      "mean_move_bp": 5.8,
      "mean_move_when_wide_bp": 14.2,
-     "n_wide": 112
+     "n_wide": 114
     },
     "6": {
-     "n": 180,
-     "corr": 0.6092680896137596,
-     "n_moved": 91,
-     "hit_rate": 0.8131868131868132,
+     "n": 182,
+     "corr": 0.6091466989936474,
+     "n_moved": 92,
+     "hit_rate": 0.8152173913043478,
      "mean_move_bp": 11.7,
      "mean_move_when_wide_bp": 29.4,
      "n_wide": 111
     },
     "12": {
-     "n": 174,
-     "corr": 0.6692083588953374,
-     "n_moved": 114,
-     "hit_rate": 0.8157894736842105,
-     "mean_move_bp": 25.3,
+     "n": 176,
+     "corr": 0.6698582488132578,
+     "n_moved": 116,
+     "hit_rate": 0.8103448275862069,
+     "mean_move_bp": 24.5,
      "mean_move_when_wide_bp": 66.5,
      "n_wide": 111
     }
@@ -129,41 +129,41 @@
   },
   "shortfalls": {
    "rule": "shortfalls",
-   "n": 186,
+   "n": 188,
    "horizons": {
     "1": {
-     "n": 185,
-     "corr": 0.22948544119690611,
-     "n_moved": 33,
-     "hit_rate": 0.8484848484848485,
-     "mean_move_bp": 1.9,
-     "mean_move_when_wide_bp": 4.6,
-     "n_wide": 118
+     "n": 187,
+     "corr": 0.23090995084391075,
+     "n_moved": 34,
+     "hit_rate": 0.8529411764705882,
+     "mean_move_bp": 2.0,
+     "mean_move_when_wide_bp": 4.8,
+     "n_wide": 120
     },
     "3": {
-     "n": 183,
-     "corr": 0.3541908933189377,
-     "n_moved": 69,
-     "hit_rate": 0.8695652173913043,
+     "n": 185,
+     "corr": 0.3545157796077096,
+     "n_moved": 70,
+     "hit_rate": 0.8714285714285714,
      "mean_move_bp": 5.8,
-     "mean_move_when_wide_bp": 13.9,
-     "n_wide": 116
+     "mean_move_when_wide_bp": 13.8,
+     "n_wide": 118
     },
     "6": {
-     "n": 180,
-     "corr": 0.4368321515983574,
-     "n_moved": 91,
-     "hit_rate": 0.8571428571428571,
+     "n": 182,
+     "corr": 0.43656851702596455,
+     "n_moved": 92,
+     "hit_rate": 0.8586956521739131,
      "mean_move_bp": 11.7,
      "mean_move_when_wide_bp": 27.2,
      "n_wide": 116
     },
     "12": {
-     "n": 174,
-     "corr": 0.48883738662531767,
-     "n_moved": 114,
-     "hit_rate": 0.8508771929824561,
-     "mean_move_bp": 25.3,
+     "n": 176,
+     "corr": 0.4874676983061458,
+     "n_moved": 116,
+     "hit_rate": 0.8448275862068966,
+     "mean_move_bp": 24.5,
      "mean_move_when_wide_bp": 58.1,
      "n_wide": 116
     }
@@ -171,41 +171,41 @@
   },
   "inertial": {
    "rule": "inertial",
-   "n": 186,
+   "n": 188,
    "horizons": {
     "1": {
-     "n": 185,
-     "corr": 0.24386815212100613,
-     "n_moved": 33,
-     "hit_rate": 0.7878787878787878,
-     "mean_move_bp": 1.9,
+     "n": 187,
+     "corr": 0.2451239584974061,
+     "n_moved": 34,
+     "hit_rate": 0.7941176470588235,
+     "mean_move_bp": 2.0,
      "mean_move_when_wide_bp": 18.8,
      "n_wide": 12
     },
     "3": {
-     "n": 183,
-     "corr": 0.3603615713261472,
-     "n_moved": 69,
-     "hit_rate": 0.8115942028985508,
+     "n": 185,
+     "corr": 0.3605974536363917,
+     "n_moved": 70,
+     "hit_rate": 0.8142857142857143,
      "mean_move_bp": 5.8,
      "mean_move_when_wide_bp": 62.5,
      "n_wide": 12
     },
     "6": {
-     "n": 180,
-     "corr": 0.4270401331779912,
-     "n_moved": 91,
-     "hit_rate": 0.8021978021978022,
+     "n": 182,
+     "corr": 0.4268857933017321,
+     "n_moved": 92,
+     "hit_rate": 0.8043478260869565,
      "mean_move_bp": 11.7,
      "mean_move_when_wide_bp": 143.3,
      "n_wide": 12
     },
     "12": {
-     "n": 174,
-     "corr": 0.43827502162132687,
-     "n_moved": 114,
-     "hit_rate": 0.7368421052631579,
-     "mean_move_bp": 25.3,
+     "n": 176,
+     "corr": 0.4377467094338092,
+     "n_moved": 116,
+     "hit_rate": 0.7327586206896551,
+     "mean_move_bp": 24.5,
      "mean_move_when_wide_bp": 247.6,
      "n_wide": 12
     }
@@ -213,13 +213,13 @@
   },
   "firstdiff": {
    "rule": "firstdiff",
-   "n": 186,
+   "n": 188,
    "horizons": {}
   }
  },
- "verdict": "The rule gap carries some information: correlation +0.44 with the policy move 12 months out, direction matched 74% of the time when policy moved. That is a tendency, not a trading rule on its own.",
- "n_obs": 186,
+ "verdict": "The rule gap carries some information: correlation +0.44 with the policy move 12 months out, direction matched 73% of the time when policy moved. That is a tendency, not a trading rule on its own.",
+ "n_obs": 188,
  "first": "2011-03-01",
- "last": "2026-08-01",
- "ran": "2026-08-26"
+ "last": "2026-10-01",
+ "ran": "2026-10-03"
 }
