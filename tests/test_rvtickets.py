@@ -108,28 +108,47 @@ def test_single_market_curve_is_dv01_weighted_into_two_futures():
     """A 2s10s ticket must read as two real futures in a DV01 ratio off the editable CTD
     table — buy the long end / sell the short end to fade a steep (rich) curve."""
     spec = curvemon.SPREAD_BY_KEY["us_2s10s"]
-    assert rvtickets._is_single_market_curve(spec) is True
+    assert rvtickets._is_dv01_sizeable(spec) is True
     row = {"level": 58.0, "invalidation": 78.0, "sigma": 10.0, "direction": -1,
            "dollar_sigma": None, "dsig_sym": "$"}
     raw_last = {"TUA Comdty": 104.0, "TYA Comdty": 110.0}
     t = rvtickets.size_ticket(spec, row, risk_budget=10_000.0,
                               raw_last=raw_last, ctd=futyield.load_ctd())
-    assert t["method"] == "curve_dv01"
+    assert t["method"] == "dv01"
     sides = {lg["label"]: lg["side"] for lg in t["structure_legs"]}
     assert sides.get("TY") == "Buy" and sides.get("TU") == "Sell"   # flattener
     assert all(lg["lots"] >= 1 for lg in t["structure_legs"])
     assert t["per_bp"] > 0 and t["risk_money"] > 0
+    assert t["risk_sym"] == "$"                                     # both legs USD
 
 
-def test_boxes_and_ratios_refuse_to_fake_a_contract_count():
-    """A cross-currency box needs an FX ratio and a metal ratio needs a notional split —
-    neither of which we hold — so both come back 'manual', never a made-up lot count (the same
-    discipline as curvemon._dollar_sigma)."""
-    base = {"level": 10.0, "invalidation": 16.0, "sigma": 2.0, "dollar_sigma": None,
+def test_cross_currency_curve_is_fx_dv01_weighted_in_usd():
+    """UST–Bund has a USD leg and a EUR leg; given an FX rate the sizer must put both DV01s on
+    USD and emit a real two-future ticket (buy TY / sell RX to fade a rich spread), sized in $,
+    rather than falling back to 'manual'."""
+    spec = curvemon.SPREAD_BY_KEY["ust_bund"]
+    assert rvtickets._is_dv01_sizeable(spec) is True
+    row = {"level": 180.0, "invalidation": 200.0, "sigma": 10.0, "direction": -1,
+           "dollar_sigma": None, "dsig_sym": "$"}
+    raw_last = {"TYA Comdty": 110.0, "RXA Comdty": 133.0}
+    t = rvtickets.size_ticket(spec, row, risk_budget=10_000.0, raw_last=raw_last,
+                              ctd=futyield.load_ctd(), fx={"EUR": 1.08})
+    assert t["method"] == "dv01" and t["risk_sym"] == "$"
+    sides = {lg["label"]: lg["side"] for lg in t["structure_legs"]}
+    assert sides.get("TY") == "Buy" and sides.get("RX") == "Sell"
+    assert all(lg["lots"] >= 1 for lg in t["structure_legs"])
+    assert t["per_bp"] > 0 and t["risk_money"] > 0
+    # the SAME cross-currency spread with no FX rate on hand must not fake a count
+    nofx = rvtickets.size_ticket(spec, row, 10_000.0, raw_last=raw_last, ctd=futyield.load_ctd())
+    assert nofx["method"] == "manual"
+
+
+def test_a_ratio_is_never_dv01_sized():
+    """A metal ratio carries no CTD yield and needs a notional split we don't hold, so it stays
+    'manual' however much price data is on hand — never a made-up lot count."""
+    base = {"level": 85.0, "invalidation": 95.0, "sigma": 3.0, "dollar_sigma": None,
             "direction": -1, "dsig_sym": "$"}
-    box = rvtickets.size_ticket(curvemon.SPREAD_BY_KEY["box_2s10s"], base, 10_000.0)
-    assert box["method"] == "manual" and box["lots"] is None
-
+    assert rvtickets._is_dv01_sizeable(curvemon.SPREAD_BY_KEY["gc_si"]) is False
     ratio = rvtickets.size_ticket(curvemon.SPREAD_BY_KEY["gc_si"], base, 10_000.0)
     assert ratio["method"] == "manual" and "ratio" in ratio["note"].lower()
 
@@ -162,4 +181,4 @@ def test_tickets_rank_by_edge_and_carry_a_full_ticket():
             assert k in t
         assert t["risk_units"] > 0
         assert t["structure"]
-        assert t["size_method"] in {"calendar", "curve_dv01", "manual", "none"}
+        assert t["size_method"] in {"calendar", "dv01", "manual", "none"}

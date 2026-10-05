@@ -15180,7 +15180,7 @@ def render_rv_tickets() -> None:
          "help": "Forward expected value per trade, in σ — the ranking metric"},
         {"key": "size", "label": "Sized", "help": "How the ticket is sized"},
     ]
-    _size_tag = {"calendar": "lots", "curve_dv01": "DV01", "manual": "manual", "none": "—"}
+    _size_tag = {"calendar": "lots", "dv01": "DV01", "manual": "manual", "none": "—"}
     rows = []
     for i, t in enumerate(book, 1):
         wr = t["bt_win_rate"]
@@ -15255,10 +15255,10 @@ def render_rv_tickets() -> None:
         f"Edge σ = win-rate × (entry→mean, in σ) − miss-rate × (entry→stop, in σ), using today's "
         f"stretch and the backtested hit-rate; timeouts and stops both count as misses, so it is "
         f"deliberately conservative. Sizing: same-product calendars and unit diffs are 1 lot per "
-        f"leg off the reconciled point value; single-market curves are DV01-weighted off the "
-        f"editable CTD table (Market Info → Fut / Yield); boxes, cross-currency spreads and ratios "
-        f"are left to structure by hand rather than fake an FX or notional ratio. Risk is in each "
-        f"ticket's own currency.")
+        f"leg off the reconciled point value; bond-yield spreads (curves, cross-market, boxes) are "
+        f"DV01-weighted off the editable CTD table (Market Info → Fut / Yield), with cross-currency "
+        f"legs put on one money at today's FX and sized in USD; ratios are left to structure by hand. "
+        f"Risk is in each ticket's own currency ($ for cross-currency).")
 
 
 # ---------------------------------------------------------------------------

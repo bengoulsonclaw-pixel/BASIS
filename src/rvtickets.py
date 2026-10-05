@@ -18,15 +18,17 @@ the two questions a desk asks next, for every spread that is live-stretched righ
      (per trade, in σ so it is comparable across a book of different units), and the
      typical number of sessions a winner took to revert.
 
-  2. HOW to put it on, sized to a risk budget.  Three honest regimes, same discipline as
+  2. HOW to put it on, sized to a risk budget.  Honest regimes, same discipline as
      curvemon._dollar_sigma (never fake a DV01 or a lot ratio):
        • same-product calendars and unit-weight diffs — 1 lot per leg, sized off volbt's
          reconciled point value;
-       • single-market bond-curve spreads — DV01-weighted off the desk-editable CTD table
-         (futyield.fut_dv01), so a 2s10s ticket reads "Buy N× TY / Sell M× TU";
-       • everything else (boxes, cross-currency spreads, ratios) — levels and risk only,
-         flagged "structure manually", because an honest contract count there needs an FX
-         or notional ratio we won't fake.
+       • any bond-yield spread — curve, cross-market or box — DV01-weighted off the desk-
+         editable CTD table (futyield.fut_dv01), each leg to an equal per-bp exposure; when
+         the legs span currencies (UST–Bund, Gilt–Bund, US−DE boxes) their DV01s are put on
+         ONE money at today's FX, so a 2s10s reads "Buy N× TY / Sell M× TU" and a UST–Bund
+         reads "Buy N× TY / Sell M× RX" sized in USD;
+       • ratios (gold/silver) and any bond spread missing a leg price / CTD / FX rate — levels
+         and risk only, flagged "structure manually", rather than fake a notional split.
 
 The ranking is a forward expected value in σ: win_rate × (reward in σ) − (1 − win_rate) ×
 (risk in σ), using TODAY's stretch for the reward/stop room and the backtest's hit-rate —
@@ -46,9 +48,9 @@ import pandas as pd
 
 from . import curvemon, deepstore, futyield
 from .curvemon import WINDOW, Z_THRESHOLD
-from .volbt import currency, money_symbol, point_value
+from .volbt import FX_USD, currency, fx_usd_rate, money_symbol, point_value
 
-REV = 2                 # bump when the ticket/backtest schema changes — busts the page cache
+REV = 3                 # bump when the ticket/backtest schema changes — busts the page cache
 
 # A fade's stop sits this many σ FURTHER out than the entry, so it is always beyond the
 # entry (a 2σ fade risks 1σ to make 2; the more stretched the entry, the better that
@@ -220,19 +222,24 @@ def _sized_legs(spec: dict, direction: int, lots: int) -> list[dict]:
     return legs
 
 
-def _is_single_market_curve(spec: dict) -> bool:
-    if spec.get("group") != "Rates — Curve" or spec["key"].startswith("box_"):
+def _is_dv01_sizeable(spec: dict) -> bool:
+    """A bond-yield spread we can DV01-weight: every leg is a benchmark-yield leg whose future
+    is in the editable CTD table, with 2 or 4 legs (single- or cross-market curve, or box).
+    Currency mixing is handled by the sizer via FX; ratios and STIR/price-leg spreads are out
+    (they carry no CTD yield)."""
+    legs = spec["legs"]
+    if len(legs) not in (2, 4) or spec.get("kind_of_spread") == "ratio":
         return False
-    tkrs = [t for _, _, t in spec["legs"]]
+    if any(kind != "yield" for _, kind, _ in legs):
+        return False
     seed = futyield.load_ctd()
-    return (len(tkrs) == 2 and all(t in seed for t in tkrs)
-            and len({currency(t) for t in tkrs}) == 1)
+    return all(t in seed for _, _, t in legs)
 
 
-def size_ticket(spec: dict, row: dict, risk_budget: float,
-                raw_last: dict | None = None, ctd: dict | None = None) -> dict:
+def size_ticket(spec: dict, row: dict, risk_budget: float, raw_last: dict | None = None,
+                ctd: dict | None = None, fx: dict | None = None) -> dict:
     """Translate a spread row into a sized ticket. Returns {method, structure_legs, lots,
-    per_bp, risk_money, risk_sym, note} — method ∈ {calendar, curve_dv01, manual, none}."""
+    per_bp, risk_money, risk_sym, note} — method ∈ {calendar, dv01, manual, none}."""
     level = float(row["level"])
     inval = float(row["invalidation"])
     sigma = float(row["sigma"])
@@ -257,39 +264,53 @@ def size_ticket(spec: dict, row: dict, risk_budget: float,
                     "risk_sym": row.get("dsig_sym") or "$",
                     "note": "1 lot per leg, sized off the reconciled point value."}
 
-    # B — single-market bond curve: DV01-weight each leg to an equal per-bp exposure.
-    if _is_single_market_curve(spec):
+    # B — bond-yield spread (curve / cross-market / box): DV01-weight each leg to an equal
+    #     per-bp exposure, putting the legs on ONE currency (USD) at today's FX when they span
+    #     currencies. A long bond future is long when its yield falls, so a leg is bought when
+    #     direction×weight < 0 (fade a rich spread → direction −1).
+    if _is_dv01_sizeable(spec):
         ctd = ctd or futyield.load_ctd()
-        raw_last = raw_last or {}
-        (w0, _, t0), (w1, _, t1) = spec["legs"]           # leg0 = +weight long-end, leg1 = short-end
-        p0, p1 = raw_last.get(t0), raw_last.get(t1)
-        if p0 and p1 and t0 in ctd and t1 in ctd:
-            def _dv01(tkr, px):
+        raw_last, fx = raw_last or {}, fx or {}
+        legs = spec["legs"]
+        multi = len({currency(t) for _, _, t in legs}) > 1    # mixed currencies → convert to USD
+        conv, ok = {}, True
+        for _, _, t in legs:
+            c = currency(t)
+            if not multi or c == "USD":
+                conv[t] = 1.0
+            elif fx.get(c, 0) > 0:
+                conv[t] = fx[c]                               # USD per 1 unit of c
+            else:
+                ok = False
+                break
+        if ok and all(raw_last.get(t) and t in ctd for _, _, t in legs):
+            def _dv01(tkr):
                 e = ctd[tkr]
-                return futyield.fut_dv01(float(px), e["cf"], e["coupon"], e["years"],
-                                         int(e["freq"]), point_value(tkr))
-            dv0, dv1 = _dv01(t0, p0), _dv01(t1, p1)
-            if dv0 > 0 and dv1 > 0:
-                d_per_bp = risk_budget / stop_dist           # target $/€ per bp of the spread
-                n0 = max(1, round(d_per_bp / dv0))
-                n1 = max(1, round(d_per_bp / dv1))
-                per_bp = 0.5 * (n0 * dv0 + n1 * dv1)         # realised $/bp after rounding
-                # Rich (direction −1) → flatten: buy the long-end future, sell the short-end.
-                s0 = "Buy" if direction < 0 else "Sell"
-                s1 = "Sell" if direction < 0 else "Buy"
-                return {"method": "curve_dv01",
-                        "structure_legs": [{"side": s0, "lots": n0, "label": _leg_name(t0)},
-                                           {"side": s1, "lots": n1, "label": _leg_name(t1)}],
-                        "lots": None, "per_bp": per_bp,
-                        "risk_money": per_bp * stop_dist,
-                        "risk_sym": money_symbol(t0),
-                        "note": "DV01-weighted off the editable CTD table — indicative; "
-                                "fine-tune from the delivery basket."}
-        # curve but no prices / CTD on disk → fall through to manual
+                return futyield.fut_dv01(float(raw_last[tkr]), e["cf"], e["coupon"], e["years"],
+                                         int(e["freq"]), point_value(tkr)) * conv[tkr]
+            dvs = {t: _dv01(t) for _, _, t in legs}
+            if all(v > 0 for v in dvs.values()):
+                d_per_bp = risk_budget / stop_dist           # common-ccy money per bp of the spread
+                out_legs, wsum, realised = [], 0.0, 0.0
+                for w, _, t in legs:
+                    n = max(1, round(d_per_bp * abs(w) / dvs[t]))
+                    out_legs.append({"side": "Buy" if (direction * w) < 0 else "Sell",
+                                     "lots": n, "label": _leg_name(t)})
+                    wsum += abs(w)
+                    realised += n * dvs[t]
+                per_bp = realised / wsum if wsum else float("nan")   # realised common-ccy $/bp
+                return {"method": "dv01", "structure_legs": out_legs, "lots": None,
+                        "per_bp": per_bp, "risk_money": per_bp * stop_dist,
+                        "risk_sym": "$" if multi else money_symbol(legs[0][2]),
+                        "note": "DV01-weighted off the editable CTD table"
+                                + (", legs put on one currency at today's FX" if multi else "")
+                                + " — indicative; fine-tune from the delivery basket."}
+        # sizeable in principle but a price / CTD / FX rate is missing → fall through to manual
 
-    # C — manual (boxes, cross-currency spreads, ratios): honest levels, no faked lots.
+    # C — manual: honest levels, no faked lots (a ratio needs a notional split; a bond spread
+    #     lands here only when a leg's price, CTD entry or FX rate is unavailable).
     why = ("ratio — size by notional" if spec.get("kind_of_spread") == "ratio"
-           else "multi-leg / cross-currency — DV01-weight manually")
+           else "needs a leg price / CTD / FX rate not on hand — DV01-weight manually")
     return {"method": "manual", "structure_legs": [], "lots": None, "per_bp": None,
             "risk_money": None, "risk_sym": money_symbol(spec["legs"][0][2]),
             "note": f"Structure manually ({why})."}
@@ -300,8 +321,7 @@ def _structure_text(action_verb: str, size: dict) -> str:
     legs = size.get("structure_legs")
     if legs:
         body = " / ".join(f"{lg['side']} {lg['lots']}× {lg['label']}" for lg in legs)
-        if size["method"] == "curve_dv01":
-            # action_verb already carries Flatten/Steepen for curves
+        if action_verb in ("Flatten", "Steepen"):        # single-market curve verb reads on its own
             return f"{action_verb} — {body}"
         return f"{action_verb} the spread — {body}"
     return f"{action_verb} the spread — {size.get('note') or 'structure manually'}"
@@ -322,17 +342,22 @@ def tickets(window: int = WINDOW, threshold: float = Z_THRESHOLD,
     if flagged.empty:
         return []
 
-    # One raw-price read for all curve legs that might be DV01-sized.
+    # One raw-price read for every bond leg that might be DV01-sized, plus the FX generics
+    # needed to put cross-currency legs on one money. FX rate = USD per 1 unit of the currency.
     ctd = futyield.load_ctd()
-    curve_tkrs = sorted({t for _, r in flagged.iterrows()
-                         if _is_single_market_curve(curvemon.SPREAD_BY_KEY[r["key"]])
-                         for _, _, t in curvemon.SPREAD_BY_KEY[r["key"]]["legs"]})
-    raw_last: dict = {}
-    if curve_tkrs:
-        raw = deepstore.get_raw(curve_tkrs)
+    sizeable = [curvemon.SPREAD_BY_KEY[r["key"]] for _, r in flagged.iterrows()
+                if _is_dv01_sizeable(curvemon.SPREAD_BY_KEY[r["key"]])]
+    bond_tkrs = {t for sp in sizeable for _, _, t in sp["legs"]}
+    fx_generics = {c: FX_USD[c] for sp in sizeable for _, _, t in sp["legs"]
+                   if (c := currency(t)) != "USD" and c in FX_USD}
+    raw_last, fx = {}, {}
+    read_tkrs = sorted(bond_tkrs | set(fx_generics.values()))
+    if read_tkrs:
+        raw = deepstore.get_raw(read_tkrs)
         if raw is not None and not raw.empty:
             last = raw.ffill().iloc[-1]
             raw_last = {t: float(last[t]) for t in raw.columns if pd.notna(last[t])}
+            fx = {c: fx_usd_rate(g, raw_last[g]) for c, g in fx_generics.items() if g in raw_last}
 
     out = []
     for _, row in flagged.iterrows():
@@ -345,7 +370,7 @@ def tickets(window: int = WINDOW, threshold: float = Z_THRESHOLD,
         # entry), so sizing, risk and the displayed stop are all the SAME level the backtest used.
         r["invalidation"] = _stop_level(r["mean"], r["sigma"], r["z"])
         bt = backtest_spread(s, window, threshold, r["half_life"])
-        size = size_ticket(spec, r, risk_budget, raw_last, ctd)
+        size = size_ticket(spec, r, risk_budget, raw_last, ctd, fx)
 
         sigma = float(r["sigma"]) or float("nan")
         reward_units = abs(r["level"] - r["objective"])
@@ -358,7 +383,9 @@ def tickets(window: int = WINDOW, threshold: float = Z_THRESHOLD,
         conf = _conf_tier(bt["n"])
 
         rich = r["direction"] < 0
-        if spec.get("group") == "Rates — Curve" and size["method"] == "curve_dv01":
+        single_curve = (spec.get("group") == "Rates — Curve"
+                        and not spec["key"].startswith("box_"))
+        if single_curve and size["method"] == "dv01":
             action_verb = "Flatten" if rich else "Steepen"
             action = f"Fade — {'flatten' if rich else 'steepen'} (DV01-weighted)"
         else:
