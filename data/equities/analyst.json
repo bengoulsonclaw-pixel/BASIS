@@ -52286,7 +52286,7 @@
  },
  "PFE US Equity": {
   "ticker": "PFE US Equity",
-  "pulled": "2026-08-26",
+  "pulled": "2026-10-05",
   "empty": true
  },
  "MCK US Equity": {
@@ -70813,7 +70813,7 @@
  },
  "CMI US Equity": {
   "ticker": "CMI US Equity",
-  "pulled": "2026-09-08",
+  "pulled": "2026-10-05",
   "empty": true
  },
  "TRI US Equity": {
@@ -71163,7 +71163,7 @@
  },
  "BR US Equity": {
   "ticker": "BR US Equity",
-  "pulled": "2026-09-08",
+  "pulled": "2026-10-05",
   "empty": true
  },
  "NWS US Equity": {
