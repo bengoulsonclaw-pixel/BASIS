@@ -155,8 +155,33 @@ function Test-DuplicateKeeper {
     return $false
 }
 
+# ===========================================================================
+#  FRONT-DOOR (2026-10-05) — a tiny always-up server on the PUBLIC port (8501) that the
+#  browser / gold PWA actually talks to. Streamlit now runs on an INTERNAL port (8502);
+#  front_door.py forwards to it transparently when it's up and serves a branded
+#  "BASIS starting…" page when it isn't — so a cold boot (or a window Windows restores on
+#  login) never shows Chrome's ERR_CONNECTION_REFUSED. It is dead-simple and stateless, the
+#  keeper restarts it if it ever dies, and the raw app stays directly reachable on :8502.
+# ===========================================================================
+$script:PUB_PORT = 8501      # what the browser hits (front-door)
+$script:APP_PORT = 8502      # Streamlit, internal
+
+function Ensure-FrontDoor {
+    try {
+        if (@(Get-NetTCPConnection -LocalPort $script:PUB_PORT -State Listen -ErrorAction SilentlyContinue).Count -gt 0) { return }
+        $env:BASIS_FRONT_PORT = "$($script:PUB_PORT)"
+        $env:BASIS_APP_PORT   = "$($script:APP_PORT)"
+        Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\pythonw.exe" `
+            -ArgumentList "-u", "front_door.py" `
+            -WorkingDirectory $PSScriptRoot -WindowStyle Hidden `
+            -RedirectStandardOutput "$PSScriptRoot\logs\front_door.log" `
+            -RedirectStandardError  "$PSScriptRoot\logs\front_door_err.log" | Out-Null
+    } catch { }   # never let a front-door hiccup disturb the keeper
+}
+
 while ($true) {
-    $listening = @(Get-NetTCPConnection -LocalPort 8501 -State Listen `
+    Ensure-FrontDoor                                 # public :8501 — binds instantly, always up
+    $listening = @(Get-NetTCPConnection -LocalPort $script:APP_PORT -State Listen `
                        -ErrorAction SilentlyContinue).Count
     if ($listening -eq 0) {
         # fileWatcherType none: the production server must NOT hot-reload — OneDrive
@@ -169,7 +194,7 @@ while ($true) {
         # the GUI-subsystem Python — it allocates NO console at all, so nothing can surface. stdout/
         # stderr are still redirected to the log files below, so we lose no logging.
         $server = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\pythonw.exe" `
-            -ArgumentList "-m", "streamlit", "run", "app.py", "--server.port", "8501", `
+            -ArgumentList "-m", "streamlit", "run", "app.py", "--server.port", "$($script:APP_PORT)", `
                           "--server.headless", "true", "--browser.gatherUsageStats", "false", `
                           "--server.fileWatcherType", "none" `
             -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
@@ -190,10 +215,11 @@ while ($true) {
         while (-not $server.HasExited) {
             Start-Sleep -Seconds 20
             if (Test-DuplicateKeeper) { exit 0 }  # duplicate keeper self-exits; the owner reaps others
+            Ensure-FrontDoor                      # keep the public front-door alive during the long sub-loop
             try { Invoke-EqAutoPull } catch { }   # keeper-driven equities Auto-pull (defensive; never blocks health)
             $healthy = $false
             try {
-                $healthy = (Invoke-WebRequest "http://localhost:8501/_stcore/health" `
+                $healthy = (Invoke-WebRequest "http://localhost:$($script:APP_PORT)/_stcore/health" `
                              -UseBasicParsing -TimeoutSec 20).StatusCode -eq 200
             } catch { $healthy = $false }
             if ($healthy) { $everHealthy = $true; $unhealthySince = $null; continue }
@@ -207,14 +233,15 @@ while ($true) {
         }
         if ($hung) {
             Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
-            Get-CimInstance Win32_Process -Filter "name='python.exe'" -ErrorAction SilentlyContinue |
-                Where-Object { $_.CommandLine -match 'streamlit' -and $_.CommandLine -match '8501' } |
+            Get-CimInstance Win32_Process -Filter "name='python.exe' OR name='pythonw.exe'" -ErrorAction SilentlyContinue |
+                Where-Object { $_.CommandLine -match 'streamlit' -and $_.CommandLine -match "(?<!\d)$($script:APP_PORT)(?!\d)" } |
                 ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         }
         Start-Sleep -Seconds 5          # breathe before restarting (crash loops)
     } else {
         Start-Sleep -Seconds 15
         if (Test-DuplicateKeeper) { exit 0 }       # duplicate keeper self-exits; the owner reaps others
+        Ensure-FrontDoor                           # keep the public front-door alive
         try { Invoke-EqAutoPull } catch { }       # keeper-driven equities Auto-pull (fires whether or not this keeper spawned the server)
     }
 }
