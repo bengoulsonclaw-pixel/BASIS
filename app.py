@@ -14860,10 +14860,10 @@ def _rb_cash_txt(r) -> str:
     return f"{r.cash:+,.0f} {r.ccy}"
 
 
-def render_curve_monitor() -> None:
+def _curve_monitor_tab() -> None:
+    """The spread book monitored on ten years of history (the '📐 Monitor' tab)."""
     import altair as alt
 
-    st.subheader("📐  Curve / RV Monitor — the spread book on ten years of history")
     st.caption(
         "A fixed book of curve and relative-value spreads — rate curves and cross-market "
         "spreads on **benchmark yields** (bp), STIR calendars, energy time-spreads and metal "
@@ -15102,7 +15102,17 @@ def _rv_ticket_book(window: int, threshold: float, risk: float, tp_z: float,
 
 
 def _rv_tickets_tab() -> None:
-    """Today's ranked, sized fade tickets (the '🎫 Today's tickets' tab)."""
+    """Today's ranked, sized fade tickets (the '🎫 Trade Tickets' tab)."""
+    buf = rvtickets.STOP_BUFFER
+    st.caption(
+        "Every spread in this book that is stretched right now, turned into a mechanical fade "
+        f"ticket: entry at today's level, **target** the rolling mean (or a nearer partial "
+        f"take-profit you pick), **stop** a further **{buf:g}σ** beyond entry (so a 2σ fade risks "
+        "1 to make 2, and the more stretched the entry the better that reward:risk), and the trade "
+        "**DV01-weighted or lot-sized** to your risk budget wherever the contract maths reconciles. "
+        "Each ticket carries a **backtest of that exact fade over the full ~10-year store**, and the "
+        "**Track record** tab follows the same rule forward out of sample. Ranked by a forward "
+        "**expected value in σ**. Observations against each spread's own history — not advice.")
     c0, c1, c2, c3 = st.columns([1.15, 0.9, 1.1, 1.5], vertical_alignment="bottom")
     _win_opts = ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"]
     win_lbl = c0.selectbox("Z-score window", _win_opts, index=2, key="rv_window",
@@ -15431,22 +15441,15 @@ def _rv_ledger_tab() -> None:
         "run further than losers. Observations against each spread's own history — not advice.")
 
 
-def render_rv_tickets() -> None:
-    """RV Trade Tickets — today's sized fade tickets, plus the fade rule tracked forward."""
-    buf = rvtickets.STOP_BUFFER
-    st.subheader("🎫  RV Trade Tickets — the spread book, backtested and sized")
-    st.caption(
-        "Every spread in the **Curve / RV** book that is stretched right now, turned into a "
-        f"mechanical fade ticket: entry at today's level, **target** the rolling mean (or a nearer "
-        f"partial take-profit you pick), **stop** a further **{buf:g}σ** beyond entry (so a 2σ fade "
-        "risks 1 to make 2, and the more stretched the entry the better that reward:risk), and the "
-        "trade **DV01-weighted or lot-sized** to your risk budget wherever the contract maths "
-        "reconciles. Each ticket carries a **backtest of that exact fade over the full ~10-year "
-        "store**, and the **Track record** tab follows the same rule forward out of sample. Ranked "
-        "by a forward **expected value in σ**. Observations against each spread's own history, "
-        "mechanical by construction — not advice.")
-    tab_book, tab_rec = st.tabs(["🎫  Today's tickets", "📊  Track record"])
-    with tab_book:
+def render_curve_monitor() -> None:
+    """Curve / RV — the spread book in three views: monitored, ticketed, and tracked forward.
+    (RV Trade Tickets folded in here 2026-10-05 — one module, tabs, per the house pattern.)"""
+    st.subheader("📐  Curve / RV — the spread book, monitored and ticketed")
+    tab_mon, tab_tix, tab_rec = st.tabs(
+        ["📐  Monitor", "🎫  Trade Tickets", "📊  Track record"])
+    with tab_mon:
+        _curve_monitor_tab()
+    with tab_tix:
         _rv_tickets_tab()
     with tab_rec:
         _rv_ledger_tab()
@@ -17678,8 +17681,6 @@ with st.sidebar:
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Curve / RV", "Curve Monitor")
         _n_mod += 1
-        _nav_button(f"{_n_mod:02d} · RV Trade Tickets", "RV Tickets")
-        _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Roll Board", "Roll Board")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Seasonality", "Seasonality")
@@ -18015,10 +18016,8 @@ if active == "Strategy Builder":
     render_strategy_builder(); st.stop()
 if active == "Product Correlations":
     render_sector_correlations(); st.stop()
-if active == "Curve Monitor":
+if active in ("Curve Monitor", "RV Tickets"):   # RV Tickets folded into the Curve / RV tabs
     render_curve_monitor(); st.stop()
-if active == "RV Tickets":
-    render_rv_tickets(); st.stop()
 if active == "Roll Board":
     render_roll_board(); st.stop()
 if active == "Macro Radar":
