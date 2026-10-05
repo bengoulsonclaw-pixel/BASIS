@@ -78,6 +78,19 @@ def test_a_stretch_that_never_resolves_times_out_rather_than_scoring():
     assert bt["n"] == 1 and bt["timeouts"] == 1 and bt["wins"] == 0
 
 
+def test_a_partial_take_profit_wins_a_stretch_the_full_mean_would_miss():
+    """A spread that reverts only part of the way and stalls is a timeout against the full mean,
+    but a win for a nearer take-profit — the whole point of the tp_z option (more, smaller wins)."""
+    window = 20
+    seg = _warm(window) + [3.0, 3.0] + [0.5] * 60              # reverts to ~0.5σ and holds, never 0
+    s = _series(seg)
+    full = rvtickets.backtest_spread(s, window, threshold=2.0, half_life=10.0, tp_z=0.0)
+    partial = rvtickets.backtest_spread(s, window, threshold=2.0, half_life=10.0, tp_z=0.5)
+    assert full["wins"] == 0 and full["timeouts"] == 1         # never reaches the mean
+    assert partial["wins"] == 1                                # but clears the 0.5σ target
+    assert partial["win_rate"] > full["win_rate"]
+
+
 def test_an_unresolved_tail_is_dropped_not_counted():
     """A fresh stretch in the last few sessions can't be followed to target OR stop, so it
     must be excluded — counting it would bias the sample toward whatever the data happens to

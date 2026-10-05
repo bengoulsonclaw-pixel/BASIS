@@ -15092,11 +15092,12 @@ def render_curve_monitor() -> None:
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
-def _rv_ticket_book(window: int, threshold: float, risk: float, mode: str, rev: int = 0):
+def _rv_ticket_book(window: int, threshold: float, risk: float, tp_z: float,
+                    mode: str, rev: int = 0):
     """The ranked RV trade-ticket book, cached off the deep store. `rev` folds in both
     rvtickets.REV and curvemon.REV, so an engine change to either busts the book rather than
     serving a stale one for the rest of the TTL."""
-    return rvtickets.tickets(window=window, threshold=threshold, risk_budget=risk)
+    return rvtickets.tickets(window=window, threshold=threshold, risk_budget=risk, tp_z=tp_z)
 
 
 def render_rv_tickets() -> None:
@@ -15105,16 +15106,16 @@ def render_rv_tickets() -> None:
     st.subheader("🎫  RV Trade Tickets — the spread book, backtested and sized")
     st.caption(
         "Every spread in the **Curve / RV** book that is stretched right now, turned into a "
-        f"mechanical fade ticket: entry at today's level, **target** the rolling mean, **stop** "
-        f"a further **{buf:g}σ** beyond entry (so a 2σ fade risks 1 to make 2, and the more "
-        "stretched the entry the better that reward:risk), and the trade **DV01-weighted or "
-        "lot-sized** to your risk budget wherever the contract maths reconciles. Each ticket carries a "
-        "**backtest of that exact fade over the full ~10-year store** — how often it reached the "
-        "mean before the stop, the average edge per trade and how long a winner took — and the "
-        "book is ranked by a forward **expected value in σ** (hit-rate × reward − miss-rate × "
-        "risk at today's stretch). A spread that is stretched but has historically kept going "
-        "shows a negative edge and sinks. Observations against each spread's own history, "
-        "mechanical by construction — not advice.")
+        f"mechanical fade ticket: entry at today's level, **target** the rolling mean (or a nearer "
+        f"partial take-profit you pick), **stop** a further **{buf:g}σ** beyond entry (so a 2σ fade "
+        "risks 1 to make 2, and the more stretched the entry the better that reward:risk), and the "
+        "trade **DV01-weighted or lot-sized** to your risk budget wherever the contract maths "
+        "reconciles. Each ticket carries a **backtest of that exact fade over the full ~10-year "
+        "store** — how often it reached the target before the stop, the average edge per trade and "
+        "how long a winner took — and the book is ranked by a forward **expected value in σ** "
+        "(hit-rate × reward − miss-rate × risk at today's stretch). A spread that is stretched but "
+        "has historically kept going shows a negative edge and sinks. Observations against each "
+        "spread's own history, mechanical by construction — not advice.")
 
     c0, c1, c2, c3 = st.columns([1.15, 0.9, 1.1, 1.5], vertical_alignment="bottom")
     _win_opts = ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"]
@@ -15132,11 +15133,21 @@ def render_rv_tickets() -> None:
                                       "ticket's OWN currency ($ / € / £)."))
     groups = c3.multiselect("Groups", curvemon.GROUPS, default=curvemon.GROUPS, key="rv_groups")
 
-    pos_only = st.checkbox("Positive edge only", value=False, key="rv_pos",
+    t0, t1 = st.columns([1.5, 2.5], vertical_alignment="center")
+    _tp_opts = {"Full reversion (the mean)": 0.0, "Partial — 0.5σ from the mean": 0.5,
+                "Partial — 1.0σ from the mean": 1.0}
+    tp_lbl = t0.selectbox("Take profit at", list(_tp_opts), index=0, key="rv_tp",
+                          help="Where the trade takes profit. The mean is a full reversion; a "
+                               "nearer target (σ from the mean) is hit more often and held for "
+                               "less time, for a smaller move — the backtest and edge re-score "
+                               "on whichever you pick, so you can see the trade-off.")
+    tp_z = _tp_opts[tp_lbl]
+    pos_only = t1.checkbox("Positive edge only", value=False, key="rv_pos",
                            help="Hide setups whose backtested expected value is negative — "
                                 "stretched, but history says fading them hasn't paid.")
 
-    book = _rv_ticket_book(window, threshold, risk, MODE, rvtickets.REV * 100 + curvemon.REV)
+    book = _rv_ticket_book(window, threshold, risk, tp_z, MODE,
+                           rvtickets.REV * 100 + curvemon.REV)
     if not book:
         st.info("Nothing is stretched beyond the threshold right now — lower the flag "
                 "threshold, or the deep price store hasn't been built on this machine yet "
@@ -15163,7 +15174,9 @@ def render_rv_tickets() -> None:
     )
 
     # ---- ranked scan ----------------------------------------------------------
-    brand.panel_header("Ranked fade book", right=f"window {window}d · fade ±{threshold:g}σ")
+    tp_tag = "mean" if tp_z == 0 else f"{tp_z:g}σ TP"
+    brand.panel_header("Ranked fade book",
+                       right=f"window {window}d · fade ±{threshold:g}σ · target {tp_tag}")
     _cols = [
         {"key": "rank", "label": "#", "align": "right"},
         {"key": "name", "label": "Spread", "help_key": "desc"},
@@ -15171,9 +15184,9 @@ def render_rv_tickets() -> None:
          "once |z| clears the flag threshold"},
         {"key": "pctl", "label": "10y %ile", "align": "right", "fmt": "{:.0f}"},
         {"key": "rr", "label": "R:R", "align": "right", "fmt": "{:.1f}",
-         "help": "Reward (entry→mean) ÷ risk (entry→stop) at today's stretch"},
+         "help": "Reward (entry→target) ÷ risk (entry→stop) at today's stretch"},
         {"key": "win", "label": "Win", "align": "right",
-         "help": "Share of historical fades that reached the mean before the stop "
+         "help": "Share of historical fades that reached the target before the stop "
                  "(timeouts count as misses)"},
         {"key": "n", "label": "N", "align": "right", "help": "Completed fade episodes in the store"},
         {"key": "edge", "label": "Edge σ", "color": True, "fmt": "{:+.2f}",
@@ -15218,7 +15231,7 @@ def render_rv_tickets() -> None:
         if n and wr == wr:
             md = t["bt_median_days"]
             md_txt = f"≈{md:.0f} sessions" if md == md else "no winners yet"
-            edge_txt = (f"10y fade backtest · reached the mean before the stop "
+            edge_txt = (f"10y fade backtest · reached the target before the stop "
                         f"<b style='color:{ink}'>{wr:.0%}</b> of <b style='color:{ink}'>{n}</b> "
                         f"trades · avg <b style='color:{ink}'>{t['bt_expectancy_sigma']:+.2f}σ</b>"
                         f"/trade · typical winner {md_txt} · {t['conf']} sample")
@@ -15252,9 +15265,12 @@ def render_rv_tickets() -> None:
             f'</div>')
     st.markdown("".join(cards), unsafe_allow_html=True)
     st.caption(
-        f"Edge σ = win-rate × (entry→mean, in σ) − miss-rate × (entry→stop, in σ), using today's "
+        f"Edge σ = win-rate × (entry→target, in σ) − miss-rate × (entry→stop, in σ), using today's "
         f"stretch and the backtested hit-rate; timeouts and stops both count as misses, so it is "
-        f"deliberately conservative. Sizing: same-product calendars and unit diffs are 1 lot per "
+        f"deliberately conservative. The target is the mean by default; a nearer take-profit lifts "
+        f"the win-rate but shrinks the reward, and the whole book re-scores on whichever you choose. "
+        f"Sizing (unchanged by the take-profit, since the stop doesn't move): same-product calendars "
+        f"and unit diffs are 1 lot per "
         f"leg off the reconciled point value; bond-yield spreads (curves, cross-market, boxes) are "
         f"DV01-weighted off the editable CTD table (Market Info → Fut / Yield), with cross-currency "
         f"legs put on one money at today's FX and sized in USD; ratios are left to structure by hand. "
