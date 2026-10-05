@@ -97,6 +97,7 @@ FLAGREPORT_CLI = ROOT / "src" / "flagreport.py"
 FLAG_DETAIL_FILE = ROOT / "data" / "signals" / "flag_breakout.parquet"
 CONVREPORT_CLI = ROOT / "src" / "convreport.py"   # the merged "Technical Analysis" report (was the Conviction Screen)
 CURVEREPORT_CLI = ROOT / "src" / "curvereport.py"
+RVTIXREPORT_CLI = ROOT / "src" / "rvtixreport.py"   # RV Trade Tickets desk sheet (internal)
 SEASREPORT_CLI = ROOT / "src" / "seasreport.py"     # Seasonality Monitor client PDF (2026-08-22)
 TRADEIDEA_CLI = ROOT / "src" / "tradeidea.py"       # blank client-facing Trade Idea template
 SNAPSHOT_CLI = ROOT / "snapshot.py"
@@ -15260,6 +15261,82 @@ def _rv_tickets_tab() -> None:
         f"DV01-weighted off the editable CTD table (Market Info → Fut / Yield), with cross-currency "
         f"legs put on one money at today's FX and sized in USD; ratios are left to structure by hand. "
         f"Risk is in each ticket's own currency ($ for cross-currency).")
+
+    # ---- desk-sheet PDF --------------------------------------------------------
+    st.divider()
+    st.caption("A one-piece **desk sheet** of this ranked book — internal tool, not a client send "
+               "(the tickets are prescriptive). Carries the compliance disclaimer.")
+    if st.button("🎫 Generate RV Tickets desk sheet (PDF)", type="primary", key="rvtix_pdf_btn"):
+        with st.spinner("Rendering the desk sheet…"):
+            try:
+                _tix = []
+                for i, t in enumerate(book, 1):
+                    dp = int(t["dp"])
+                    ev = t["ev_sigma"]
+                    rm = t["risk_money"]
+                    if rm:
+                        size = f"{t['risk_sym']}{rm:,.0f} risk" + (
+                            f" · {t['risk_sym']}{t['per_bp']:,.0f}/bp" if t["per_bp"] else "")
+                    else:
+                        size = "size manually"
+                    wr, n = t["bt_win_rate"], t["bt_n"]
+                    if n and wr == wr:
+                        md = t["bt_median_days"]
+                        md_txt = f"≈{md:.0f} sessions" if md == md else "no winners yet"
+                        edgeline = (f"10y backtest · reached the target before the stop {wr:.0%} of "
+                                    f"{n} trades · avg {t['bt_expectancy_sigma']:+.2f}σ/trade · "
+                                    f"typical winner {md_txt} · {t['conf']} sample")
+                    else:
+                        edgeline = "no completed fade episodes in the stored history — levels and size only"
+                    _tix.append({
+                        "rank": i, "name": t["name"], "signal": t["signal"],
+                        "z": f"{t['z']:+.1f}", "pctl": f"{t['pctl']:.0f}",
+                        "direction": int(t["direction"]),
+                        "structure": t["structure"] if t["size_legs"] else t["action"],
+                        "entry": f"{t['level']:,.{dp}f}",
+                        "target": f"{t['objective']:,.{dp}f}",
+                        "tgt_d": f"{t['objective'] - t['level']:+,.{dp}f}",
+                        "stop": f"{t['invalidation']:,.{dp}f}",
+                        "stop_d": f"{t['invalidation'] - t['level']:+,.{dp}f}",
+                        "unit": t["unit"], "rr": f"{t['rr']:.1f}",
+                        "size": size, "edge": f"{ev:+.2f}" if ev == ev else "—",
+                        "edge_pos": bool(ev == ev and ev > 0), "edgeline": edgeline,
+                    })
+                overall = {}
+                try:
+                    _sc = _rv_ledger_scorecard(_rv_deep_store_mtime(),
+                                               rvtickets.REV * 100 + curvemon.REV)
+                    _ov = _sc["overall"]
+                    _bh = _ov["backtest"]["hit_rate"]
+                    overall = {"bt_hit": f"{_bh:.0%}" if _bh == _bh else "—",
+                               "bt_n": _ov["backtest"]["n"], "live_settled": _ov["live"]["n"],
+                               "live_open": _ov["live"]["open"], "since": _sc.get("since")}
+                except Exception:
+                    overall = {}
+                n_pos = sum(1 for t in book if t["ev_sigma"] == t["ev_sigma"] and t["ev_sigma"] > 0)
+                payload = {"asof": date.today().isoformat(), "window": window,
+                           "threshold": threshold,
+                           "tp_label": "the mean" if tp_z == 0 else f"{tp_z:g}σ from the mean",
+                           "risk": f"{risk:,.0f}", "n_tickets": len(book), "n_positive": n_pos,
+                           "tickets": _tix, "overall": overall}
+                with tempfile.TemporaryDirectory() as _t:
+                    _in = Path(_t) / "rvtix.json"
+                    _out = Path(_t) / "RV_Trade_Tickets.pdf"
+                    _in.write_text(json.dumps(payload), encoding="utf-8")
+                    rr = subprocess.run([sys.executable, str(RVTIXREPORT_CLI), str(_in), str(_out)],
+                                        capture_output=True, text=True, timeout=180)
+                    if rr.returncode == 0 and _out.exists():
+                        st.session_state["rvtix_pdf"] = _out.read_bytes()
+                    else:
+                        st.error("Report failed:\n\n" + (rr.stderr or rr.stdout or "unknown")[-2000:])
+            except Exception as e:
+                st.error(f"Report failed: {e}")
+    if st.session_state.get("rvtix_pdf"):
+        st.download_button("⬇️  Download RV Tickets desk sheet", data=st.session_state["rvtix_pdf"],
+                           file_name="RV_Trade_Tickets.pdf", mime="application/pdf", key="rvtix_dl")
+        email_report_ui("rvtix_email", "rvtickets", st.session_state["rvtix_pdf"],
+                        subject="BASIS — RV Trade Tickets (desk sheet)",
+                        attachment_name="RV_Trade_Tickets.pdf")
 
 
 def _rv_deep_store_mtime() -> float:

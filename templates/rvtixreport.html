@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  .kpis { display: flex; gap: 3mm; margin: 3mm 0 1mm; }
+  .kpi { flex: 1; border: 0.75pt solid #ddd; border-left: 3pt solid var(--yellow);
+         padding: 2mm 3mm; background: #FafafA; }
+  .kpi .lab { font-size: 6.5pt; color: #666; text-transform: uppercase; letter-spacing: .3px; }
+  .kpi .val { font-size: 13pt; font-weight: 700; color: #111; }
+  .kpi .note { font-size: 6.5pt; color: #888; }
+
+  .ticket { border: 0.75pt solid #e2e2e2; border-left: 3pt solid var(--dark);
+            border-radius: 2pt; padding: 2mm 3mm; margin: 2mm 0; background: #fff;
+            page-break-inside: avoid; }
+  .ticket.long  { border-left-color: var(--pos-tx); }
+  .ticket.short { border-left-color: var(--neg-tx); }
+  .thead { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; }
+  .tname { font-size: 9.5pt; font-weight: 700; color: #111; }
+  .chip { font-size: 7pt; font-weight: 600; border: 0.75pt solid #bbb; border-radius: 2pt;
+          padding: 0 1.3mm; margin-left: 1.5mm; white-space: nowrap; }
+  .ticket.long  .chip { color: var(--pos-tx); border-color: var(--pos-tx); }
+  .ticket.short .chip { color: var(--neg-tx); border-color: var(--neg-tx); }
+  .tedge { font-size: 8.5pt; font-weight: 700; white-space: nowrap; }
+  .tedge.pos { color: var(--pos-tx); }
+  .tedge.neg { color: var(--neg-tx); }
+  .tstruct { font-size: 8.5pt; font-weight: 600; color: #111; margin: 1mm 0 0.5mm; }
+  .tline { font-size: 8pt; color: #222; }
+  .tline span { margin-right: 4mm; white-space: nowrap; }
+  .tline .lab { color: #888; font-size: 6.8pt; text-transform: uppercase; letter-spacing: .3px; }
+  .tedgeline { font-size: 7pt; color: #666; margin-top: 0.8mm; }
+  .note-internal { font-size: 7.5pt; color: var(--warn-tx); font-weight: 600; margin: 1mm 0 0; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Prepared by</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  {% if watermark %}<div class="watermark"><img src="{{ watermark }}" alt=""></div>{% endif %}
+
+  <div class="content">
+    <div class="titleband">
+      <h1>RV Trade Tickets &mdash; Desk Sheet</h1>
+      <div class="sub">{{ asof }} &nbsp;|&nbsp; XP Inc. Global Macro &nbsp;|&nbsp; Internal desk tool</div>
+    </div>
+
+    <p class="summary">
+      Every spread in the <b>Curve / RV</b> book stretched beyond &plusmn;{{ threshold }}&sigma; today,
+      written up as a <b>mechanical fade ticket</b>: entry at the current level, target {{ tp_label }},
+      a stop a fixed step beyond entry, and the trade DV01-weighted or lot-sized to the desk risk
+      budget{% if risk %} (&asymp;{{ risk }}/trade){% endif %}. Each ticket carries a <b>backtest of that
+      exact fade over roughly a decade</b> of settlement history, and the book is ranked by a forward
+      expected value in &sigma;. These are mechanical observations against each spread's own history
+      &mdash; <b>an internal desk tool, not a recommendation</b>.
+    </p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Setups today</div>
+        <div class="val">{{ n_tickets }}</div><div class="note">beyond &plusmn;{{ threshold }}&sigma;</div></div>
+      <div class="kpi"><div class="lab">Positive edge</div>
+        <div class="val">{{ n_positive }}</div><div class="note">backtested EV &gt; 0</div></div>
+      {% if has_overall %}
+      <div class="kpi"><div class="lab">Backtest hit-rate</div>
+        <div class="val">{{ overall.bt_hit }}</div><div class="note">{{ overall.bt_n }} episodes, ~10y</div></div>
+      <div class="kpi"><div class="lab">Forward track</div>
+        <div class="val">{{ overall.live_settled }}/{{ overall.live_open }}</div>
+        <div class="note">settled/open since {{ overall.since }}</div></div>
+      {% else %}
+      <div class="kpi"><div class="lab">Z-score window</div>
+        <div class="val">{{ window }}d</div><div class="note">rolling sessions</div></div>
+      <div class="kpi"><div class="lab">Target</div>
+        <div class="val">{{ tp_label }}</div><div class="note">take-profit</div></div>
+      {% endif %}
+    </div>
+
+    <p class="note-internal">Internal desk sheet &mdash; prescriptive structures and sizes; not for
+      distribution as investment advice.</p>
+
+    {% for t in tickets %}
+    <div class="ticket {{ 'long' if t.direction > 0 else 'short' }}">
+      <div class="thead">
+        <span class="tname">{{ t.rank }}. {{ t.name }}
+          <span class="chip">{{ t.signal }} {{ t.z }}&sigma; &middot; {{ t.pctl }}th %ile</span></span>
+        <span class="tedge {{ 'pos' if t.edge_pos else 'neg' }}">EDGE {{ t.edge }}&sigma;</span>
+      </div>
+      <div class="tstruct">{{ t.structure }}</div>
+      <div class="tline">
+        <span><span class="lab">Entry</span> {{ t.entry }}</span>
+        <span><span class="lab">Target</span> {{ t.target }} ({{ t.tgt_d }})</span>
+        <span><span class="lab">Stop</span> {{ t.stop }} ({{ t.stop_d }} {{ t.unit }})</span>
+        <span><span class="lab">R:R</span> {{ t.rr }}:1</span>
+        <span><span class="lab">Size</span> {{ t.size }}</span>
+      </div>
+      <div class="tedgeline">{{ t.edgeline }}</div>
+    </div>
+    {% endfor %}
+
+    <div class="report-footer">
+    <div class="foot-disclaimer">
+    <hr class="rule">
+    <div class="fine">
+      Entry is today's spread level; the target is the rolling mean (or the chosen partial
+      take-profit) and the stop a fixed step beyond entry on the stretched side &mdash; both
+      mechanical levels from the spread's own {{ window }}-session statistics, not price objectives.
+      The backtest follows that exact fade on the daily close over the full stored history (win =
+      reached the target before the stop; timeouts and stops count as misses), and the edge is a
+      forward expected value in &sigma;. Sizing is DV01-weighted off the editable CTD table, or one
+      lot per leg off the reconciled point value, with cross-currency legs put on one money at the
+      prevailing FX; it is indicative and to be fine-tuned from the delivery basket. Levels are
+      observations against each spread's own history, not a recommendation.
+    </div>
+    {% include "_disclaimer.html" %}
+  </div>
+    </div>
+  </div>
+</body>
+</html>
