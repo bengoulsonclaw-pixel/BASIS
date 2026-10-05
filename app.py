@@ -15100,23 +15100,8 @@ def _rv_ticket_book(window: int, threshold: float, risk: float, tp_z: float,
     return rvtickets.tickets(window=window, threshold=threshold, risk_budget=risk, tp_z=tp_z)
 
 
-def render_rv_tickets() -> None:
-    """The Curve / RV book as backtested, sized fade tickets — ranked by forward edge."""
-    buf = rvtickets.STOP_BUFFER
-    st.subheader("🎫  RV Trade Tickets — the spread book, backtested and sized")
-    st.caption(
-        "Every spread in the **Curve / RV** book that is stretched right now, turned into a "
-        f"mechanical fade ticket: entry at today's level, **target** the rolling mean (or a nearer "
-        f"partial take-profit you pick), **stop** a further **{buf:g}σ** beyond entry (so a 2σ fade "
-        "risks 1 to make 2, and the more stretched the entry the better that reward:risk), and the "
-        "trade **DV01-weighted or lot-sized** to your risk budget wherever the contract maths "
-        "reconciles. Each ticket carries a **backtest of that exact fade over the full ~10-year "
-        "store** — how often it reached the target before the stop, the average edge per trade and "
-        "how long a winner took — and the book is ranked by a forward **expected value in σ** "
-        "(hit-rate × reward − miss-rate × risk at today's stretch). A spread that is stretched but "
-        "has historically kept going shows a negative edge and sinks. Observations against each "
-        "spread's own history, mechanical by construction — not advice.")
-
+def _rv_tickets_tab() -> None:
+    """Today's ranked, sized fade tickets (the '🎫 Today's tickets' tab)."""
     c0, c1, c2, c3 = st.columns([1.15, 0.9, 1.1, 1.5], vertical_alignment="bottom")
     _win_opts = ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"]
     win_lbl = c0.selectbox("Z-score window", _win_opts, index=2, key="rv_window",
@@ -15275,6 +15260,119 @@ def render_rv_tickets() -> None:
         f"DV01-weighted off the editable CTD table (Market Info → Fut / Yield), with cross-currency "
         f"legs put on one money at today's FX and sized in USD; ratios are left to structure by hand. "
         f"Risk is in each ticket's own currency ($ for cross-currency).")
+
+
+def _rv_deep_store_mtime() -> float:
+    """Newest deep price-store parquet mtime — the ledger refreshes when the data changes."""
+    ps = ROOT / "data" / "price_store"
+    try:
+        return max((p.stat().st_mtime for p in ps.glob("*.parquet")), default=0.0)
+    except OSError:
+        return 0.0
+
+
+@st.cache_data(show_spinner=False, ttl=1800)
+def _rv_ledger_scorecard(mtime: float, rev: int = 0):
+    """Advance the forward ledger (settle opens + append new — persisted, append-only) then
+    aggregate. Keyed on the deep-store mtime so it runs once per data change, not per rerun."""
+    from src import rvledger
+    try:
+        rvledger.update()
+    except Exception:
+        pass
+    return rvledger.scorecard()
+
+
+def _rv_ledger_tab() -> None:
+    """The fade rule tracked forward — an out-of-sample scorecard (the '📊 Track record' tab)."""
+    sc = _rv_ledger_scorecard(_rv_deep_store_mtime(), rvtickets.REV * 100 + curvemon.REV)
+    cfg = sc.get("config") or {}
+    if not sc.get("rows"):
+        st.info("No track record yet — the deep price store hasn't been built on this machine "
+                "(it backfills on the next Bloomberg session).")
+        return
+    tpz = sc.get("tp_z", 0.0)
+    tp_lbl = "the mean" if tpz == 0 else f"{tpz:g}σ from the mean"
+    st.caption(
+        f"The **same fade rule** as the tickets, tracked forward as an append-only record: from "
+        f"**{sc['since']}**, every episode the engine has open (and every one it opens after) is "
+        f"followed to its outcome — a win (reached {tp_lbl}), a loss (hit the stop) or still open. "
+        f"**Settled outcomes are frozen** — never re-measured, so the record can't drift when the "
+        f"store is re-read. The rule is fixed (window {cfg.get('window')}d · fade "
+        f"±{cfg.get('threshold')}σ · target {tp_lbl}); the Today's-tickets sliders don't touch it, "
+        f"because a track record is one unchanging rule. The **backtest** column is the full "
+        f"~10-year in-sample expectation this forward track is judged against. Updated "
+        f"{sc.get('updated')}.")
+
+    bt, lv = sc["overall"]["backtest"], sc["overall"]["live"]
+    m0, m1, m2, m3 = st.columns(4)
+    m0.metric("Backtest hit-rate",
+              f"{bt['hit_rate']:.0%}" if bt['hit_rate'] == bt['hit_rate'] else "—",
+              help=f"{bt['n']:,} fade episodes over the full store reached the target before the stop.")
+    m1.metric("Backtest edge",
+              f"{bt['exp_sigma']:+.2f}σ" if bt['exp_sigma'] == bt['exp_sigma'] else "—",
+              help="Average realised move per trade in σ over the full store — the expectation.")
+    m2.metric("Live hit-rate", f"{lv['hit_rate']:.0%}" if lv['n'] else "—",
+              help=f"Forward track since {sc['since']}: {lv['wins']} of {lv['n']} settled reached "
+                   f"target; {lv['open']} still open.")
+    m3.metric("Live settled / open", f"{lv['n']} / {lv['open']}",
+              help="Scored vs still-pending positions in the forward track.")
+    if lv['n'] == 0:
+        st.caption("No forward positions have settled yet — the live columns fill in as today's "
+                   "open positions resolve and new setups appear. This is the part that compounds.")
+
+    brand.panel_header("By spread", right=f"backtest (expected) · live since {sc['since']}")
+    _cols = [
+        {"key": "name", "label": "Spread", "help_key": "grp"},
+        {"key": "bt_hit", "label": "BT win", "align": "right",
+         "help": "Full-history backtest: share of fades that reached the target before the stop"},
+        {"key": "bt_n", "label": "BT n", "align": "right", "help": "Backtest episodes"},
+        {"key": "bt_exp", "label": "BT edge σ", "color": True, "fmt": "{:+.2f}",
+         "help": "Backtest average move per trade, in σ"},
+        {"key": "live", "label": "Live w/n", "align": "right",
+         "help": "Forward: wins / settled since tracking began"},
+        {"key": "live_open", "label": "Open", "align": "right", "help": "Pending forward positions"},
+        {"key": "live_exp", "label": "Live σ", "color": True, "fmt": "{:+.2f}",
+         "help": "Forward average move per settled trade, in σ"},
+    ]
+    rows = []
+    for r in sc["rows"]:
+        rows.append({
+            "name": r["name"], "grp": r["group"],
+            "bt_hit": f"{r['bt_hit']:.0%}" if r['bt_hit'] == r['bt_hit'] else "—",
+            "bt_n": r["bt_n"] or "—",
+            "bt_exp": float(r["bt_exp"]) if r["bt_exp"] == r["bt_exp"] else None,
+            "live": f"{r['live_wins']}/{r['live_n']}" if r['live_n'] else "—",
+            "live_open": r["live_open"] or "—",
+            "live_exp": float(r["live_exp"]) if r["live_exp"] == r["live_exp"] else None,
+        })
+    brand.terminal_table(rows, _cols)
+    st.caption(
+        "Win = reached the target before the stop; a nearer target would raise the hit-rate (see "
+        "the take-profit control on Today's tickets). The full-mean target is demanding by design, "
+        "so a modest hit-rate with a positive edge is the signature of mean-reversion — winners "
+        "run further than losers. Observations against each spread's own history — not advice.")
+
+
+def render_rv_tickets() -> None:
+    """RV Trade Tickets — today's sized fade tickets, plus the fade rule tracked forward."""
+    buf = rvtickets.STOP_BUFFER
+    st.subheader("🎫  RV Trade Tickets — the spread book, backtested and sized")
+    st.caption(
+        "Every spread in the **Curve / RV** book that is stretched right now, turned into a "
+        f"mechanical fade ticket: entry at today's level, **target** the rolling mean (or a nearer "
+        f"partial take-profit you pick), **stop** a further **{buf:g}σ** beyond entry (so a 2σ fade "
+        "risks 1 to make 2, and the more stretched the entry the better that reward:risk), and the "
+        "trade **DV01-weighted or lot-sized** to your risk budget wherever the contract maths "
+        "reconciles. Each ticket carries a **backtest of that exact fade over the full ~10-year "
+        "store**, and the **Track record** tab follows the same rule forward out of sample. Ranked "
+        "by a forward **expected value in σ**. Observations against each spread's own history, "
+        "mechanical by construction — not advice.")
+    tab_book, tab_rec = st.tabs(["🎫  Today's tickets", "📊  Track record"])
+    with tab_book:
+        _rv_tickets_tab()
+    with tab_rec:
+        _rv_ledger_tab()
 
 
 # ---------------------------------------------------------------------------

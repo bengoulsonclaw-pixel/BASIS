@@ -110,13 +110,15 @@ def _stop_level(mean: float, sigma: float, z: float) -> float:
 
 # ── the backtest (event study of the fade rule) ──────────────────────────────
 def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
-              tp_z: float = 0.0) -> list[dict]:
-    """Every fresh fade episode in one spread series, as a list of outcome dicts. Entry on a
-    FRESH crossing into the ±threshold zone (previous bar inside the band), target = `tp_z` σ
-    from the mean on the stretched side (0 = the mean, full reversion; >0 = a nearer partial
-    take-profit), stop a STOP_BUFFER σ further out, both FROZEN at entry; follow the close
-    until first touch, cap, or the end of the data (unresolved → dropped). One position at a
-    time: scanning resumes only after the trade closes."""
+              tp_z: float = 0.0, keep_open: bool = False) -> list[dict]:
+    """Every fresh fade episode in one spread series, as a list of outcome dicts (each with the
+    entry/exit DATE, so the ledger can track them forward). Entry on a FRESH crossing into the
+    ±threshold zone (previous bar inside the band), target = `tp_z` σ from the mean on the
+    stretched side (0 = the mean, full reversion; >0 = a nearer partial take-profit), stop a
+    STOP_BUFFER σ further out, both FROZEN at entry; follow the close until first touch, cap, or
+    the end of the data. One position at a time: scanning resumes only after the trade closes.
+    The unresolved tail is dropped for the backtest (keep_open=False) or reported as an "open"
+    episode (keep_open=True) for the forward ledger."""
     s = s.dropna()
     n = len(s)
     if n < window + 10:
@@ -165,10 +167,20 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
                 outcome, exitpx, exit_i = "win", tgt, j
                 break
             j += 1
+        entry_date = s.index[i].date().isoformat()
         if outcome is None:
             if i + hold_cap <= n - 1:                     # full window elapsed → timeout
                 outcome, exitpx, exit_i = "timeout", vals[j_end], j_end
-            else:                                         # ran off the end of data → unresolved
+            elif keep_open:                               # unresolved tail → a live open position
+                out.append({
+                    "dir": direction, "entry": float(entry), "target": float(tgt),
+                    "stop": float(stop), "exit": None, "bars": int(j_end - i),
+                    "outcome": "open", "pnl": None, "pnl_sigma": None,
+                    "entry_date": entry_date, "exit_date": None,
+                    "sigma": float(sig), "z": float(zi),
+                })
+                break
+            else:                                         # ran off the end of data → dropped
                 break
 
         pnl = direction * (exitpx - entry)                # +ve = toward the objective
@@ -176,6 +188,8 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
             "dir": direction, "entry": float(entry), "target": float(tgt),
             "stop": float(stop), "exit": float(exitpx), "bars": int(exit_i - i),
             "outcome": outcome, "pnl": float(pnl), "pnl_sigma": float(pnl / sig),
+            "entry_date": entry_date, "exit_date": s.index[exit_i].date().isoformat(),
+            "sigma": float(sig), "z": float(zi),
         })
         i = exit_i + 1
     return out
