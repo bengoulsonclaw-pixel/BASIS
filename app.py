@@ -65,6 +65,7 @@ from src import eqanalyst
 from src import eqcorr
 from src import eqdisp
 from src import curvemon
+from src import rvtickets
 from src import seasmon
 from src import brazilprod
 from src import auth
@@ -15090,6 +15091,176 @@ def render_curve_monitor() -> None:
                         attachment_name="Curve_RV_Monitor.pdf")
 
 
+@st.cache_data(show_spinner=False, ttl=1800)
+def _rv_ticket_book(window: int, threshold: float, risk: float, mode: str, rev: int = 0):
+    """The ranked RV trade-ticket book, cached off the deep store. `rev` folds in both
+    rvtickets.REV and curvemon.REV, so an engine change to either busts the book rather than
+    serving a stale one for the rest of the TTL."""
+    return rvtickets.tickets(window=window, threshold=threshold, risk_budget=risk)
+
+
+def render_rv_tickets() -> None:
+    """The Curve / RV book as backtested, sized fade tickets — ranked by forward edge."""
+    buf = rvtickets.STOP_BUFFER
+    st.subheader("🎫  RV Trade Tickets — the spread book, backtested and sized")
+    st.caption(
+        "Every spread in the **Curve / RV** book that is stretched right now, turned into a "
+        f"mechanical fade ticket: entry at today's level, **target** the rolling mean, **stop** "
+        f"a further **{buf:g}σ** beyond entry (so a 2σ fade risks 1 to make 2, and the more "
+        "stretched the entry the better that reward:risk), and the trade **DV01-weighted or "
+        "lot-sized** to your risk budget wherever the contract maths reconciles. Each ticket carries a "
+        "**backtest of that exact fade over the full ~10-year store** — how often it reached the "
+        "mean before the stop, the average edge per trade and how long a winner took — and the "
+        "book is ranked by a forward **expected value in σ** (hit-rate × reward − miss-rate × "
+        "risk at today's stretch). A spread that is stretched but has historically kept going "
+        "shows a negative edge and sinks. Observations against each spread's own history, "
+        "mechanical by construction — not advice.")
+
+    c0, c1, c2, c3 = st.columns([1.15, 0.9, 1.1, 1.5], vertical_alignment="bottom")
+    _win_opts = ["3 months (63d)", "6 months (126d)", "1 year (252d)", "2 years (504d)"]
+    win_lbl = c0.selectbox("Z-score window", _win_opts, index=2, key="rv_window",
+                           help="Sessions behind the rolling mean/σ the stretch is measured "
+                                "against — and the same window the backtest re-scores on.")
+    window = int(win_lbl.split("(")[1].rstrip("d)"))
+    threshold = float(c1.number_input("Flag threshold (σ)", 0.5, 4.0,
+                                      float(curvemon.Z_THRESHOLD), 0.25, key="rv_thr",
+                                      help="|z| beyond this makes a spread a fade candidate — "
+                                           "and the level the historical fade is entered at."))
+    risk = float(c2.number_input("Risk / trade", 1_000.0, 1_000_000.0, rvtickets.DEFAULT_RISK,
+                                 5_000.0, key="rv_risk",
+                                 help="Per-trade loss-to-stop the size is solved for, in each "
+                                      "ticket's OWN currency ($ / € / £)."))
+    groups = c3.multiselect("Groups", curvemon.GROUPS, default=curvemon.GROUPS, key="rv_groups")
+
+    pos_only = st.checkbox("Positive edge only", value=False, key="rv_pos",
+                           help="Hide setups whose backtested expected value is negative — "
+                                "stretched, but history says fading them hasn't paid.")
+
+    book = _rv_ticket_book(window, threshold, risk, MODE, rvtickets.REV * 100 + curvemon.REV)
+    if not book:
+        st.info("Nothing is stretched beyond the threshold right now — lower the flag "
+                "threshold, or the deep price store hasn't been built on this machine yet "
+                "(it backfills on the next Bloomberg session).")
+        return
+    if groups:
+        book = [t for t in book if t["group"] in groups]
+    if pos_only:
+        book = [t for t in book if t["ev_sigma"] == t["ev_sigma"] and t["ev_sigma"] > 0]
+    if not book:
+        st.info("No setups match the current filters.")
+        return
+
+    pal = brand.palette()
+    up, down, faint, ink, gold = pal["green"], pal["red"], pal["faint"], pal["text"], pal["gold"]
+    bd, surf = pal["border"], pal["surface"]
+
+    pos = sum(1 for t in book if t["ev_sigma"] == t["ev_sigma"] and t["ev_sigma"] > 0)
+    best = book[0]
+    st.markdown(
+        f"**{len(book)} stretched spreads** · **{pos}** with a positive backtested edge. "
+        f"Top of the book: **{best['name']}** ({best['signal'].lower()}, {best['z']:+.1f}σ"
+        + (f", edge {best['ev_sigma']:+.2f}σ)." if best['ev_sigma'] == best['ev_sigma'] else ").")
+    )
+
+    # ---- ranked scan ----------------------------------------------------------
+    brand.panel_header("Ranked fade book", right=f"window {window}d · fade ±{threshold:g}σ")
+    _cols = [
+        {"key": "rank", "label": "#", "align": "right"},
+        {"key": "name", "label": "Spread", "help_key": "desc"},
+        {"key": "sig", "label": "Signal", "help": "Rich → fade short; Cheap → fade long, "
+         "once |z| clears the flag threshold"},
+        {"key": "pctl", "label": "10y %ile", "align": "right", "fmt": "{:.0f}"},
+        {"key": "rr", "label": "R:R", "align": "right", "fmt": "{:.1f}",
+         "help": "Reward (entry→mean) ÷ risk (entry→stop) at today's stretch"},
+        {"key": "win", "label": "Win", "align": "right",
+         "help": "Share of historical fades that reached the mean before the stop "
+                 "(timeouts count as misses)"},
+        {"key": "n", "label": "N", "align": "right", "help": "Completed fade episodes in the store"},
+        {"key": "edge", "label": "Edge σ", "color": True, "fmt": "{:+.2f}",
+         "help": "Forward expected value per trade, in σ — the ranking metric"},
+        {"key": "size", "label": "Sized", "help": "How the ticket is sized"},
+    ]
+    _size_tag = {"calendar": "lots", "curve_dv01": "DV01", "manual": "manual", "none": "—"}
+    rows = []
+    for i, t in enumerate(book, 1):
+        wr = t["bt_win_rate"]
+        rows.append({
+            "rank": i, "name": t["name"], "desc": t["desc"],
+            "sig": f"{t['signal']} {t['z']:+.1f}σ",
+            "pctl": float(t["pctl"]), "rr": float(t["rr"]) if t["rr"] == t["rr"] else None,
+            "win": f"{wr:.0%}" if wr == wr else "—", "n": t["bt_n"],
+            "edge": float(t["ev_sigma"]) if t["ev_sigma"] == t["ev_sigma"] else None,
+            "size": _size_tag.get(t["size_method"], "—"),
+        })
+    brand.terminal_table(rows, _cols)
+
+    # ---- the tickets ----------------------------------------------------------
+    st.divider()
+    brand.panel_header("Trade tickets", right=f"risk {rvtickets.DEFAULT_RISK:,.0f} default · "
+                                              "own-currency sizing")
+    _esc = lambda s: str(s).replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+    cards = []
+    for i, t in enumerate(book, 1):
+        dp, unit = int(t["dp"]), t["unit"]
+        sig_col = down if t["direction"] < 0 else up
+        ev = t["ev_sigma"]
+        ev_txt = f"{ev:+.2f}σ" if ev == ev else "—"
+        ev_col = faint if ev != ev else (up if ev > 0 else down)
+        tgt_d, stp_d = t["objective"] - t["level"], t["invalidation"] - t["level"]
+        struct = t["structure"] if t["size_legs"] else t["action"]
+        if t["risk_money"]:
+            size_txt = f"{t['risk_sym']}{t['risk_money']:,.0f} risk"
+            if t["per_bp"]:
+                size_txt += f" · {t['risk_sym']}{t['per_bp']:,.0f}/bp"
+        else:
+            size_txt = "size manually"
+        wr, n = t["bt_win_rate"], t["bt_n"]
+        if n and wr == wr:
+            md = t["bt_median_days"]
+            md_txt = f"≈{md:.0f} sessions" if md == md else "no winners yet"
+            edge_txt = (f"10y fade backtest · reached the mean before the stop "
+                        f"<b style='color:{ink}'>{wr:.0%}</b> of <b style='color:{ink}'>{n}</b> "
+                        f"trades · avg <b style='color:{ink}'>{t['bt_expectancy_sigma']:+.2f}σ</b>"
+                        f"/trade · typical winner {md_txt} · {t['conf']} sample")
+        else:
+            edge_txt = "no completed fade episodes in the stored history — levels and size only"
+        if t["size_method"] == "manual":
+            edge_txt += f" · {_esc(t['size_note'])}"
+        cards.append(
+            f'<div style="border:1px solid {bd};border-left:3px solid {sig_col};border-radius:10px;'
+            f'padding:11px 14px;margin:9px 0;background:{surf}">'
+            f'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">'
+            f'<div style="font-weight:700;font-size:15px;color:{ink}">{i}. '
+            f'<span title="{_esc(t["desc"])}" style="cursor:help">{_esc(t["name"])}</span>'
+            f'<span style="font-weight:600;color:{sig_col};font-size:11.5px;border:1px solid {sig_col};'
+            f'border-radius:4px;padding:1px 6px;margin-left:8px">{t["signal"]} {t["z"]:+.1f}σ · '
+            f'{t["pctl"]:.0f}th %ile</span></div>'
+            f'<div style="font-weight:700;color:{ev_col};font-size:13.5px;white-space:nowrap">'
+            f'EDGE {ev_txt}</div></div>'
+            f'<div style="margin-top:7px;font-weight:600;color:{ink};font-size:13.5px">{_esc(struct)}</div>'
+            f'<div style="display:flex;gap:20px;margin-top:9px;font-size:13px;flex-wrap:wrap;color:{ink}">'
+            f'<span><span style="color:{faint};font-size:11px">ENTRY </span>{t["level"]:,.{dp}f}</span>'
+            f'<span><span style="color:{faint};font-size:11px">TARGET </span>{t["objective"]:,.{dp}f} '
+            f'<span style="color:{faint}">({tgt_d:+,.{dp}f})</span></span>'
+            f'<span><span style="color:{faint};font-size:11px">STOP </span>{t["invalidation"]:,.{dp}f} '
+            f'<span style="color:{faint}">({stp_d:+,.{dp}f} {unit})</span></span>'
+            f'<span><span style="color:{faint};font-size:11px">R:R </span>'
+            f'{t["rr"]:.1f}:1</span>'
+            f'<span><span style="color:{faint};font-size:11px">SIZE </span>{_esc(size_txt)}</span>'
+            f'</div>'
+            f'<div style="margin-top:8px;font-size:11.5px;color:{faint}">{edge_txt}</div>'
+            f'</div>')
+    st.markdown("".join(cards), unsafe_allow_html=True)
+    st.caption(
+        f"Edge σ = win-rate × (entry→mean, in σ) − miss-rate × (entry→stop, in σ), using today's "
+        f"stretch and the backtested hit-rate; timeouts and stops both count as misses, so it is "
+        f"deliberately conservative. Sizing: same-product calendars and unit diffs are 1 lot per "
+        f"leg off the reconciled point value; single-market curves are DV01-weighted off the "
+        f"editable CTD table (Market Info → Fut / Yield); boxes, cross-currency spreads and ratios "
+        f"are left to structure by hand rather than fake an FX or notional ratio. Risk is in each "
+        f"ticket's own currency.")
+
+
 # ---------------------------------------------------------------------------
 # Seasonality — calendar patterns on the deep store
 # ---------------------------------------------------------------------------
@@ -17316,6 +17487,8 @@ with st.sidebar:
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Curve / RV", "Curve Monitor")
         _n_mod += 1
+        _nav_button(f"{_n_mod:02d} · RV Trade Tickets", "RV Tickets")
+        _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Roll Board", "Roll Board")
         _n_mod += 1
         _nav_button(f"{_n_mod:02d} · Seasonality", "Seasonality")
@@ -17653,6 +17826,8 @@ if active == "Product Correlations":
     render_sector_correlations(); st.stop()
 if active == "Curve Monitor":
     render_curve_monitor(); st.stop()
+if active == "RV Tickets":
+    render_rv_tickets(); st.stop()
 if active == "Roll Board":
     render_roll_board(); st.stop()
 if active == "Macro Radar":
