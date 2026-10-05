@@ -1,55 +1,55 @@
 {
- "generated_at": "02 Oct 2026 · 07:13 ET",
- "synopsis": "Energy is the morning's story: crude is getting hit hard, with WTI down 3.7% to $89.40 and Brent off 2.4% to just under $100, after reports the EU is weighing the release of 50mn barrels of diesel stockpiles under pressure from Washington — President Trump has threatened to ban US fuel exports if Europe doesn't unlock reserves.",
- "commentary": "Energy is the morning's story: crude is getting hit hard, with WTI down 3.7% to $89.40 and Brent off 2.4% to just under $100, after reports the EU is weighing the release of 50mn barrels of diesel stockpiles under pressure from Washington — President Trump has threatened to ban US fuel exports if Europe doesn't unlock reserves. Distillates are bearing the brunt: gasoil is down 4.4%, heating oil 3%, and diesel cracks are slumping, while WTI's prompt spread has fallen sharply as backwardation eases.\n\nThe selloff is overpowering supportive headlines — Ukraine struck one of Russia's biggest refineries and a key pipeline hub, and the US is adding a carrier and 10,000 troops to the Mideast — so watch whether supply risk reasserts itself once the stockpile headline is digested. The macro backdrop remains one of sticky inflation colliding with fiscal stress. Euro-area September CPI printed 3.8% y/y, Kashkari says US inflation is \"still too high,\" and this week's global bond rout pushed 10-year Treasury yields to their highest since 2002 before steadying.\n\nFrance is the pressure point: the OAT risk premium hit 150bps over bunds for the first time since 2012, driving a flight-to-quality bid into Buxl (+2.1%) and gilts (+1.1%), hammering euro-zone bank shares and reviving the Swiss franc and yen as havens — note CHF +0.4% this morning. Equity-index futures are nonetheless firmer ahead of September payrolls — S&P +0.5%, Nasdaq +0.7%, DAX +1% — helped by cheaper oil and AI-driven fund inflows.",
+ "generated_at": "05 Oct 2026 · 06:05 ET",
+ "synopsis": "Risk tone is soft but not panicked this morning: US and European equity futures drift lower (S&P -0.2%, Euro Stoxx -0.3%) as Europe's political and fiscal woes dominate — Spain's premier called a snap election after failed housing votes, France's finances remain under scrutiny, and the euro has slumped to a 17-month low at 1.1245.",
+ "commentary": "Risk tone is soft but not panicked this morning: US and European equity futures drift lower (S&P -0.2%, Euro Stoxx -0.3%) as Europe's political and fiscal woes dominate — Spain's premier called a snap election after failed housing votes, France's finances remain under scrutiny, and the euro has slumped to a 17-month low at 1.1245. OAT and Gilt futures are underperforming Bunds, confirming the fiscal-premium story is in the periphery of the curve, not the front end. The other big overnight print is Brazil, where Flávio Bolsonaro's surprise first-round lead over Lula sent the real surging 4.6% as markets price a right-ward, market-friendly shift ahead of the runoff.\n\nFed pricing is steady with traders leaning toward a pause after the soft jobs report, even as Treasury's Bessent walks back comments after long-end yields kept rising; Takaichi's \"rest assured\" message on Japanese issuance hasn't stopped JGB long yields hitting fresh highs — the global long end remains the pressure point. In commodities, energy is the talking point: Brent holds above $102 after Aramco's chief warned global oil stockpiles are \"scarily thin\" and could take two years to rebuild, with Yemen fighting intensifying — though Saudi price cuts to Asia capped crude, leaving WTI softer while distillates ripped (gasoil +2.9%, heating oil +1.5%) on tight product supply.\n\nPrecious metals keep grinding higher — gold at $4,189, silver +2.5%, platinum +2.7% — the classic hedge against fiscal stress and a debased-currency narrative even with the dollar firm.",
  "headlines": [
   {
-   "source": "FT",
-   "title": "Eurozone inflation hits three-year high of 3.8%",
-   "time": "06:43 ET",
-   "tag": "Macro"
+   "source": "The Guardian",
+   "title": "G7 to release up to 100m barrels of emergency oil and diesel reserves",
+   "time": "14:52 ET",
+   "tag": "Energy"
   },
   {
-   "source": "FT",
-   "title": "Top Fed official signals central bank will keep rates on hold in October",
-   "time": "16:49 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "FT",
-   "title": "BoJ's summary of opinions points to accelerated pace of rate rises",
-   "time": "05:29 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "FT",
-   "title": "Diesel falls sharply as EU considers releasing 50mn barrels under pressure from Trump",
-   "time": "06:59 ET",
+   "source": "Financial Times",
+   "title": "Saudi Aramco chief warns world's oil stockpiles are 'scarily thin'",
+   "time": "04:21 ET",
    "tag": "Energy"
   },
   {
    "source": "Bloomberg",
-   "title": "Ukraine Attacks Key Russian Refinery and Oil Pipeline Hub",
-   "time": "06:38 ET",
-   "tag": "Energy"
+   "title": "Key Saudi Oil Pipeline Flows Normal Despite Report of Halt",
+   "time": "04:52 ET",
+   "tag": "Geopolitics"
   },
   {
-   "source": "WSJ",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts",
-   "time": "09:05 ET",
-   "tag": "Energy"
+   "source": "NPR",
+   "title": "The U.S. added only 29,000 jobs in September as job market lacks spark",
+   "time": "09:54 ET",
+   "tag": "Macro"
   },
   {
-   "source": "WSJ",
+   "source": "The Guardian",
+   "title": "US borrowing costs hit 24-year high as global bond sell-off intensifies",
+   "time": "13:56 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "The Guardian",
+   "title": "Good news in US inflation report boosts chances Fed won't hike rates",
+   "time": "11:34 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
   },
   {
-   "source": "WSJ",
-   "title": "Comex Gold, Silver Settle Lower",
-   "time": "14:01 ET",
-   "tag": "Metals"
+   "source": "Financial Times",
+   "title": "US to receive potash shipment from Belarus as relations thaw",
+   "time": "05:00 ET",
+   "tag": "Agriculture"
   }
  ]
 }
