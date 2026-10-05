@@ -6,12 +6,6 @@
       "strat": "N/A \u2014 nearest-quarterly only, no roll blocks (7+ leg option strategies: 1 lot/leg)",
       "note": "ASX block (BTF): nearest quarterly only, not within 5 business days of expiry; options all months."
     },
-    "CAA Index": {
-      "fut": "600",
-      "opt": "200",
-      "strat": "Each leg (liquid 2-leg packages); one leg suffices for illiquid/multi-leg",
-      "note": "Euronext LIS (pre-trade) thresholds from 03-Jun-2026; post-trade deferral tiers 3,400 fut / 720 opt."
-    },
     "GXA Index": {
       "fut": "250",
       "opt": "350",

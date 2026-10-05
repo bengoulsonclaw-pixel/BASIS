@@ -7367,8 +7367,8 @@ def render_block_sizes() -> None:
     c1, c2 = st.columns([0.55, 0.45])
     apply_filter = c1.checkbox("Show only the sectors enabled on Home", value=False, key="bs_filter")
 
-    # The book, ordered like Market Hours (sector order, FX last); cash indices are
-    # vol sources, not tradable lines, so they don't get a block-size row.
+    # The book, A–Z by product name; cash indices are vol sources, not tradable
+    # lines, so they don't get a block-size row.
     tickers = [t for t in INSTRUMENTS if t not in universe.PRICE_FIELD_OVERRIDE]
     if apply_filter and universe.filter_active():
         en = universe.enabled_tickers()
@@ -7377,15 +7377,13 @@ def render_block_sizes() -> None:
     if _q and not tickers:
         st.info(prodsearch.NO_MATCH.format(q=_q))
         return
-    _aorder = [a for a in universe.ASSET_CLASSES if a != "FX"] + ["FX"]
-    order = {a: i for i, a in enumerate(_aorder)}
-    tickers.sort(key=lambda t: (order.get(INSTRUMENTS[t][2], 99), INSTRUMENTS[t][0]))
     if not tickers:
         st.info("No products selected — turn some sectors back on, or untick the filter above.")
         return
 
     bmap = blocksizes.load_map()
     label_of = _sf_labeler(tickers)
+    tickers.sort(key=lambda t: (label_of(t).casefold(), t))
     rows = []
     for t in tickers:
         e = bmap.get(t, {})
