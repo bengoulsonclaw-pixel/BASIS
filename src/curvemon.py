@@ -286,7 +286,9 @@ def _next_gap(runs: pd.DataFrame) -> list:
     product's observed chain. The live run's successor isn't observed yet, so it comes from
     the cycle of front months seen over the last ~3 years (HG: H/K/N/U/Z → 2- or 3-month
     gaps; CL monthly → 1; STIRs quarterly → 3)."""
-    months = list(runs["month"])
+    # a blanked run's month is NaT in the frame, not None — and NaT.month is a NaN whose hash
+    # is its id, so letting it into `recent` made sorted() pick NaN as the live gap at random
+    months = [None if pd.isna(m) else m for m in runs["month"]]
     gaps: list = []
     recent = {m.month for m in months[-36:] if m is not None}
     for k, m in enumerate(months):
@@ -363,7 +365,7 @@ def _carry_series(spec: dict, history: pd.DataFrame, legs: pd.DataFrame) -> pd.S
     if runs is None or legs.empty:
         return None
     runs["gap"] = _next_gap(runs)
-    runs["mon"] = [m.month if m is not None else None for m in runs["month"]]
+    runs["mon"] = [None if pd.isna(m) else m.month for m in runs["month"]]
     pos = _run_pos(runs, legs.index)
     known = (pos >= 0) & runs["contract"].notna().to_numpy()[pos] & runs["gap"].notna().to_numpy()[pos]
     inst = pd.Series(np.where(known, pos, -1), index=legs.index)

@@ -98,6 +98,20 @@ def test_an_implausible_front_contract_is_unknown_and_dropped():
     assert curvemon._build_spread(plain, h).index.min() > h.index[149]
 
 
+def test_a_blanked_run_never_feeds_the_live_gap():
+    """A blanked run's month is NaT in the runs frame, not None. Read as a month it put a NaN
+    into the chain's cycle, and a NaN's hash is its id, so sorted() handed it back as the LIVE
+    gap on some runs and not others — the spread above came back None (the pre-push flake of
+    2026-10-06). The blanked run gets no gap; every known run gets the chain's own."""
+    h = _history("HGA Comdty", "HG", _MON, lambda m: -0.04)
+    h.iloc[:150, h.columns.get_loc("contract:HGA Comdty")] = "HGZ30"
+    runs = curvemon._runs_for(h, "HGA Comdty")
+    gaps = curvemon._next_gap(runs)
+    assert pd.isna(runs["month"].iloc[0]) and gaps[0] is None
+    assert all(g in (2, 3) for g in gaps[1:]), gaps          # H/K/N/U/Z: 2- and 3-month pairs
+    assert runs["month"].iloc[-1].month == 12 and gaps[-1] == 3   # live Z → next H
+
+
 def test_seasonal_norm_uses_prior_years_only():
     """A gas calendar whose carry is a pure function of the front month is ALL season: after two
     prior years of each month the de-seasonalised series is flat, and nothing before that point
