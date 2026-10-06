@@ -15441,18 +15441,28 @@ def _rv_ledger_tab() -> None:
         "run further than losers. Observations against each spread's own history — not advice.")
 
 
+_CURVE_VIEWS = ["📐  Monitor", "🎫  Trade Tickets", "📊  Track record"]
+
+
 def render_curve_monitor() -> None:
     """Curve / RV — the spread book in three views: monitored, ticketed, and tracked forward.
-    (RV Trade Tickets folded in here 2026-10-05 — one module, tabs, per the house pattern.)"""
+    (RV Trade Tickets folded in here 2026-10-05 — one module, per the house pattern.)
+
+    A segmented control, not st.tabs — the house in-page section switcher (the reasoning is
+    written up at cvmfundspage._render: a tab's thin underline reads as decoration rather than
+    as "you are here"). It also costs less: st.tabs EXECUTES every tab's body on every run and
+    only hides the inactive ones with CSS, so all three views — the 19-spread book, the ticket
+    sizing and the forward ledger — were being built each time to show one.
+    """
     brand.page_bar("📐  Curve / RV", "the spread book, monitored and ticketed")
-    tab_mon, tab_tix, tab_rec = st.tabs(
-        ["📐  Monitor", "🎫  Trade Tickets", "📊  Track record"])
-    with tab_mon:
-        _curve_monitor_tab()
-    with tab_tix:
+    view = st.segmented_control("Section", _CURVE_VIEWS, default=_CURVE_VIEWS[0],
+                                key="curve_view", label_visibility="collapsed")
+    if view == _CURVE_VIEWS[1]:
         _rv_tickets_tab()
-    with tab_rec:
+    elif view == _CURVE_VIEWS[2]:
         _rv_ledger_tab()
+    else:                      # clicking the active segment deselects it — stay put
+        _curve_monitor_tab()
 
 
 # ---------------------------------------------------------------------------
@@ -19928,9 +19938,14 @@ if active == "AG Fundamentals":
     _wasof = (_wpast["date"].max().strftime("%d %b %Y") + " WASDE") if not _wpast.empty else ""
     st.divider()
     st.markdown("##### Generate the ag reports")
-    _t_wasde, _t_rx = st.tabs(["🌍 WASDE — Supply & Demand", "📊 USDA Reaction — Acreage & Grain Stocks"])
+    # Segmented control, not st.tabs — the house in-page section switcher (reasoning at
+    # cvmfundspage._render). Here it also keeps the two report builders from both drawing
+    # their blurb and button on every run just to show one.
+    _AG_VIEWS = ["🌍 WASDE — Supply & Demand", "📊 USDA Reaction — Acreage & Grain Stocks"]
+    _agv = st.segmented_control("Report", _AG_VIEWS, default=_AG_VIEWS[0],
+                                key="ag_report_view", label_visibility="collapsed")
 
-    with _t_wasde:
+    if _agv != _AG_VIEWS[1]:
         st.markdown("**Monthly WASDE balance-sheet note** — US & world supply/demand and stocks-to-use, plus "
                     "month-over-month ending-stocks revisions and the trade-consensus surprise (when estimates "
                     "are loaded). Auto-emails on each release when switched on in Alert Settings.")
@@ -19956,7 +19971,7 @@ if active == "AG Fundamentals":
             email_report_ui("wasde_pdf", "wasde", st.session_state.get("wasde_pdf"),
                             subject="USDA WASDE — Supply & Demand", attachment_name="WASDE_Report.pdf")
 
-    with _t_rx:
+    else:
         st.markdown("**USDA Reaction note — quarterly Grain Stocks (+ June Acreage).** Stocks total with the "
                     "on-farm/off-farm split and implied quarterly use; the June release also adds planted area "
                     "vs the March intentions, wheat by class, and the acreage surprise. It **auto-detects the "

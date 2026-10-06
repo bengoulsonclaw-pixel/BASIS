@@ -731,13 +731,20 @@ def test_caveat_states_it_is_contemporaneous():
     assert "contemporaneous" in c and "not forecast" in c
 
 
-def test_macro_compass_page_renders_all_three_tabs(tmp_path):
+def test_macro_compass_page_renders_every_section(tmp_path):
     """The page must actually render, not just import.
 
-    Three tabs, each hitting a different engine (crossmove, macrochain,
-    metalevents). An import-only check would pass while a tab raised on first draw.
+    Three sections, each hitting a different engine (crossmove, macrochain, metalevents).
+    An import-only check would pass while a section raised on first draw.
+
+    The page moved from st.tabs to the house segmented control (2026-10-06), so only the
+    ACTIVE section draws on a given run. Counting controls would now be vacuously true of a
+    page that renders nothing, so each section is selected in turn and asserted on its own
+    run — stricter than the tab version, which could not tell a section that drew from one
+    that merely existed.
     """
     from streamlit.testing.v1 import AppTest
+    from src.crossmovepage import _XM_VIEWS
     repo = Path(__file__).resolve().parents[1]
     script = tmp_path / "render_compass.py"
     script.write_text(
@@ -746,12 +753,16 @@ def test_macro_compass_page_renders_all_three_tabs(tmp_path):
         f"sys.path.insert(0, r'{repo / 'src'}')\n"
         "from src import crossmovepage\n"
         "crossmovepage.render()\n", encoding="utf-8")
-    at = AppTest.from_file(str(script), default_timeout=400)
-    at.run()
-    assert not at.exception, f"page raised: {at.exception}"
-    assert [s.value for s in at.subheader] == ["🧭 Macro Compass"]
-    assert len(at.tabs) == 3
-    assert len(at.dataframe) >= 3
+    assert len(_XM_VIEWS) == 3
+    drawn = 0
+    for view in _XM_VIEWS:
+        at = AppTest.from_file(str(script), default_timeout=400)
+        at.session_state["xmove_view"] = view
+        at.run()
+        assert not at.exception, f"section {view!r} raised: {at.exception}"
+        assert [s.value for s in at.subheader] == ["🧭 Macro Compass"]
+        drawn += len(at.dataframe)
+    assert drawn >= 3, f"the three sections drew only {drawn} table(s) between them"
 
 
 def test_fed_tab_refuses_to_imply_a_move_from_a_priced_view():

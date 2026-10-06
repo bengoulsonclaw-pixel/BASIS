@@ -247,6 +247,9 @@ def _tab_releases() -> None:
 
 
 # ---------------------------------------------------------------------------
+_XM_VIEWS = ["📊 Instruments", "🏛️ Fed repricing", "📅 Releases"]
+
+
 def render() -> None:
     st.subheader("🧭 Macro Compass")
     st.caption(
@@ -255,10 +258,14 @@ def render() -> None:
         "**contemporaneous**: it orients you against what has happened and does not "
         "forecast what will."
     )
-    t1, t2, t3 = st.tabs(["📊 Instruments", "🏛️ Fed repricing", "📅 Releases"])
-    with t1:
-        _tab_instruments()
-    with t2:
+    # A segmented control, not st.tabs — the house in-page section switcher (reasoning at
+    # cvmfundspage._render). st.tabs EXECUTES every tab body on every run and hides the
+    # inactive ones with CSS, so all three views were built to show one.
+    _v = st.segmented_control("Section", _XM_VIEWS, default=_XM_VIEWS[0],
+                              key="xmove_view", label_visibility="collapsed")
+    if _v == _XM_VIEWS[1]:
         _tab_fed()
-    with t3:
+    elif _v == _XM_VIEWS[2]:
         _tab_releases()
+    else:                      # clicking the active segment deselects it — stay put
+        _tab_instruments()

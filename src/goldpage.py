@@ -367,17 +367,24 @@ def _tab_health() -> None:
 
 
 # ---------------------------------------------------------------------------
+_GOLD_VIEWS = ["📅 Week Ahead", "🎚️ Drivers", "🔍 Evidence", "🩺 Health"]
+
+
 def render() -> None:
     st.subheader("🥇 Gold Engine")
     st.caption("Driver sensitivities, release-day behaviour and the weekly client "
                "report — built on a point-in-time store in which no value is visible "
                "before the day it was published.")
-    t1, t2, t3, t4 = st.tabs(["📅 Week Ahead", "🎚️ Drivers", "🔍 Evidence", "🩺 Health"])
-    with t1:
-        _tab_week_ahead()
-    with t2:
+    # A segmented control, not st.tabs — the house in-page section switcher (reasoning at
+    # cvmfundspage._render). st.tabs EXECUTES every tab body on every run and hides the
+    # inactive ones with CSS, so all four views were built to show one.
+    _v = st.segmented_control("Section", _GOLD_VIEWS, default=_GOLD_VIEWS[0],
+                              key="gold_view", label_visibility="collapsed")
+    if _v == _GOLD_VIEWS[1]:
         _tab_drivers()
-    with t3:
+    elif _v == _GOLD_VIEWS[2]:
         _tab_evidence()
-    with t4:
+    elif _v == _GOLD_VIEWS[3]:
         _tab_health()
+    else:                      # clicking the active segment deselects it — stay put
+        _tab_week_ahead()
