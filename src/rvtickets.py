@@ -38,11 +38,12 @@ the two questions a desk asks next, for every spread that is live-stretched righ
        • ratios (gold/silver) and any bond spread missing a leg price / CTD / FX rate — levels
          and risk only, flagged "structure manually", rather than fake a notional split.
 
-The ranking is a forward expected value in σ: win_rate × (reward in σ) − (1 − win_rate) ×
-(risk in σ), using TODAY's stretch for the reward/stop room and the backtest's hit-rate —
-so a spread that is stretched but has historically kept going shows a NEGATIVE edge and
-sinks, which is exactly the read the desk needs. Timeouts and stops both count as
-non-wins, so the number is deliberately conservative.
+The ranking is a forward expected value in σ (forward_ev): win_rate × (reward in σ) −
+loss_rate × (risk in σ) + (timeout + notice rate) × their average realised move, using
+TODAY's stretch for the reward/stop room and the backtest's outcome mix — so a spread that
+is stretched but has historically kept going shows a NEGATIVE edge and sinks, which is
+exactly the read the desk needs. (Until 2026-10-06 every non-win was charged the full stop;
+that sank the calendars once most of their trades became small notice exits.)
 
 Nothing here is advice: a ticket is the mechanical consequence of the spread's own history.
 Client prose stays neutral; this is a desk tool.
@@ -58,8 +59,9 @@ from . import curvemon, deepstore, futyield
 from .curvemon import WINDOW, Z_THRESHOLD
 from .volbt import FX_USD, currency, fx_usd_rate, money_symbol, point_value
 
-REV = 6                 # bump when the ticket/backtest schema changes — busts the page cache
-                        # (6: calendars flat by first notice / last trade — outcome "notice")
+REV = 7                 # bump when the ticket/backtest schema changes — busts the page cache
+                        # (6: calendars flat by first notice / last trade — outcome "notice";
+                        #  7: edge scores timeouts/notices at their realised move, not the stop)
 
 # A fade's stop sits this many σ FURTHER out than the entry, so it is always beyond the
 # entry (a 2σ fade risks 1σ to make 2; the more stretched the entry, the better that
@@ -374,7 +376,8 @@ def backtest_spread(s: pd.Series, window: int, threshold: float,
     eps = _episodes(s, window, threshold, hold_cap, tp_z, breaks=breaks, exit_by=exit_by)
     n = len(eps)
     base = {"n": n, "wins": 0, "losses": 0, "timeouts": 0, "notices": 0,
-            "win_rate": float("nan"),
+            "win_rate": float("nan"), "loss_rate": float("nan"), "other_rate": float("nan"),
+            "other_avg_sigma": float("nan"),
             "expectancy_sigma": float("nan"), "avg_loss_sigma": float("nan"),
             "median_days_win": float("nan"), "avg_days": float("nan"), "hold_cap": hold_cap}
     if n == 0:
@@ -387,12 +390,31 @@ def backtest_spread(s: pd.Series, window: int, threshold: float,
         "wins": len(wins), "losses": len(losses), "timeouts": len(tos),
         "notices": sum(1 for e in eps if e["outcome"] == "notice"),
         "win_rate": len(wins) / n,
+        "loss_rate": len(losses) / n,
+        # timeouts + notice exits: neither the target nor the stop — marked out at the market
+        "other_rate": (n - len(wins) - len(losses)) / n,
+        "other_avg_sigma": (float(np.mean(others)) if (others := [
+            e["pnl_sigma"] for e in eps if e["outcome"] in ("timeout", "notice")]) else 0.0),
         "expectancy_sigma": float(np.mean([e["pnl_sigma"] for e in eps])),
         "avg_loss_sigma": float(np.mean([e["pnl_sigma"] for e in losses])) if losses else float("nan"),
         "median_days_win": float(np.median(win_days)) if win_days else float("nan"),
         "avg_days": float(np.mean([e["bars"] for e in eps])),
     })
     return base
+
+
+def forward_ev(bt: dict, reward_sigma: float, risk_sigma: float) -> float:
+    """Forward expected value per trade in σ: win-rate × today's reward to the target − loss-
+    rate × today's risk to the stop + the rate of trades that reached NEITHER (timeouts, forced
+    notice exits) × their average realised move in the backtest. Until 2026-10-06 every non-win
+    was charged the full stop; once calendars were made flat by first notice, 50–70% of their
+    trades ended as small, mostly positive notice exits, and that charge sank spreads whose
+    average trade was positive (SOFR cal: +0.19σ/trade, ranked −0.82σ)."""
+    wr, lr = bt.get("win_rate", float("nan")), bt.get("loss_rate", float("nan"))
+    if not (wr == wr and lr == lr and reward_sigma == reward_sigma and risk_sigma == risk_sigma):
+        return float("nan")
+    orate, oavg = bt.get("other_rate", 0.0), bt.get("other_avg_sigma", 0.0)
+    return wr * reward_sigma - lr * risk_sigma + (orate * oavg if orate and oavg == oavg else 0.0)
 
 
 # ── sizing ───────────────────────────────────────────────────────────────────
@@ -576,8 +598,7 @@ def tickets(window: int = WINDOW, threshold: float = Z_THRESHOLD,
         reward_sigma = reward_units / sigma if sigma else float("nan")
         risk_sigma = risk_units / sigma if sigma else float("nan")
         wr = bt["win_rate"]
-        ev_sigma = (wr * reward_sigma - (1 - wr) * risk_sigma
-                    if wr == wr and reward_sigma == reward_sigma else float("nan"))
+        ev_sigma = forward_ev(bt, reward_sigma, risk_sigma)
         conf = _conf_tier(bt["n"])
 
         rich = r["direction"] < 0

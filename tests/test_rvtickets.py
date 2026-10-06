@@ -264,6 +264,36 @@ def test_observed_rolls_anchor_the_last_trade_rules():
         assert len(bad) <= 0.05 * len(runs), (key, bad[:5])
 
 
+# ── the ranking: forward EV scores each outcome at what it actually does ──────
+def test_edge_charges_the_stop_only_to_trades_that_hit_it():
+    """A notice exit or timeout that made money must not be charged the full stop. 10 trades:
+    2 wins, 2 stops, 6 notice exits averaging +0.5σ, at a 2σ entry (reward 2σ, risk 1σ):
+    EV = 0.2×2 − 0.2×1 + 0.6×0.5 = +0.5σ — the old 'every non-win is a stop' formula said
+    0.2×2 − 0.8×1 = −0.4σ and sank exactly the calendars the notice rule produced."""
+    bt = {"win_rate": 0.2, "loss_rate": 0.2, "other_rate": 0.6, "other_avg_sigma": 0.5}
+    assert rvtickets.forward_ev(bt, 2.0, 1.0) == pytest.approx(0.5)
+
+
+def test_edge_with_only_wins_and_stops_is_the_classic_formula():
+    """No timeouts/notices (a curve spread that always resolves) → win×reward − loss×risk, so
+    the change cannot move a spread whose trades all reach the target or the stop."""
+    bt = {"win_rate": 0.3, "loss_rate": 0.7, "other_rate": 0.0, "other_avg_sigma": 0.0}
+    assert rvtickets.forward_ev(bt, 2.5, 1.0) == pytest.approx(0.3 * 2.5 - 0.7)
+
+
+def test_backtest_reports_the_outcome_mix_the_edge_needs():
+    window = 20
+    seg = _warm(window) + [3.0, 3.0, 2.5, 2.5, 2.5] + [0.0] * 10
+    s = _series(seg)
+    bt = rvtickets.backtest_spread(s, window, 2.0, half_life=10.0,
+                                   exit_by=_exit_at(s, 2 * window + 3))
+    assert bt["other_rate"] == 1.0 and bt["loss_rate"] == 0.0
+    assert bt["other_avg_sigma"] > 0                           # the notice exit made money
+    assert rvtickets.forward_ev(bt, 2.0, 1.0) == pytest.approx(bt["other_avg_sigma"])
+    empty = rvtickets.backtest_spread(_series(_warm(window)), window, 2.0, half_life=10.0)
+    assert rvtickets.forward_ev(empty, 2.0, 1.0) != rvtickets.forward_ev(empty, 2.0, 1.0)  # NaN
+
+
 # ── sizing: the three honest regimes ──────────────────────────────────────────
 def test_calendar_sizes_one_lot_per_leg_off_the_reconciled_point_value():
     """Same-product calendars reconcile to a single $/unit, so they get a real lot count —

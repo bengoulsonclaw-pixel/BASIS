@@ -112,11 +112,12 @@
       take-profit) and the stop a fixed step beyond entry on the stretched side &mdash; both
       mechanical levels from the spread's own {{ window }}-session statistics, not price objectives.
       The backtest follows that exact fade on the daily close over the full stored history (win =
-      reached the target before the stop; timeouts and stops count as misses), and the edge is a
-      forward expected value in &sigma;. Calendar spreads are never held into delivery: they are
-      closed at the market three business days before the front contract's first notice (energy,
-      copper) or at its last trade (cash-settled STIRs) &mdash; also a miss &mdash; and never
-      opened inside that window; "Exit by" is today's front contract's date. Sizing is DV01-weighted off the editable CTD table, or one
+      reached the target before the stop), and the edge is a forward expected value in &sigma;:
+      wins at today's reward, stops at today's risk, and trades that reached neither (timeouts,
+      notice exits) at their average realised move. Calendar spreads are never held into
+      delivery: they are closed at the market three business days before the front contract's
+      first notice (energy, copper) or at its last trade (cash-settled STIRs) and never opened
+      inside that window; "Exit by" is today's front contract's date. Sizing is DV01-weighted off the editable CTD table, or one
       lot per leg off the reconciled point value, with cross-currency legs put on one money at the
       prevailing FX; it is indicative and to be fine-tuned from the delivery basket. Levels are
       observations against each spread's own history, not a recommendation.

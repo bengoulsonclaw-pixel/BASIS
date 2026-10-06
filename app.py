@@ -15183,7 +15183,7 @@ def _rv_tickets_tab() -> None:
          "help": "Reward (entry→target) ÷ risk (entry→stop) at today's stretch"},
         {"key": "win", "label": "Win", "align": "right",
          "help": "Share of historical fades that reached the target before the stop "
-                 "(timeouts count as misses)"},
+                 "(timeouts and notice exits are not wins)"},
         {"key": "n", "label": "N", "align": "right", "help": "Completed fade episodes in the store"},
         {"key": "edge", "label": "Edge σ", "color": True, "fmt": "{:+.2f}",
          "help": "Forward expected value per trade, in σ — the ranking metric"},
@@ -15286,13 +15286,14 @@ def _rv_tickets_tab() -> None:
             f'</div>')
     st.markdown("".join(cards), unsafe_allow_html=True)
     st.caption(
-        f"Edge σ = win-rate × (entry→target, in σ) − miss-rate × (entry→stop, in σ), using today's "
-        f"stretch and the backtested hit-rate; timeouts and stops both count as misses, so it is "
-        f"deliberately conservative. Calendar spreads are never held into delivery: the backtest "
-        f"closes them at the market {rvtickets.FLAT_BUFFER_BD} business days before the front's "
-        f"first notice (energy, copper) or at its last trade (cash-settled STIRs) — a miss too — "
-        f"and never opens one inside that window; **Exit by** on each calendar ticket is today's "
-        f"front's date. The target is the mean by default; a nearer take-profit lifts "
+        f"Edge σ = win-rate × (entry→target, in σ) − stop-rate × (entry→stop, in σ) + the rate of "
+        f"trades that reached neither (timeouts and notice exits) × their average realised move, "
+        f"using today's stretch and the backtest's outcome mix. Calendar spreads are never held "
+        f"into delivery: the backtest closes them at the market {rvtickets.FLAT_BUFFER_BD} "
+        f"business days before the front's first notice (energy, copper) or at its last trade "
+        f"(cash-settled STIRs) — not a win, scored at what it made — and never opens one inside "
+        f"that window; **Exit by** on each calendar ticket is today's front's date. The target "
+        f"is the mean by default; a nearer take-profit lifts "
         f"the win-rate but shrinks the reward, and the whole book re-scores on whichever you choose. "
         f"Sizing (unchanged by the take-profit, since the stop doesn't move): same-product calendars "
         f"and unit diffs are 1 lot per "
