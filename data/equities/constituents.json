@@ -4352,13 +4352,6 @@
       "index": "Dow Jones 30"
     },
     {
-      "ticker": "CRM US Equity",
-      "name": "Salesforce Inc",
-      "sector": "Information Technology",
-      "region": "US",
-      "index": "Dow Jones 30"
-    },
-    {
       "ticker": "NVDA US Equity",
       "name": "Nvidia Corp",
       "sector": "Information Technology",
@@ -4369,6 +4362,13 @@
       "ticker": "MCD US Equity",
       "name": "Mcdonald S Corp",
       "sector": "Consumer Discretionary",
+      "region": "US",
+      "index": "Dow Jones 30"
+    },
+    {
+      "ticker": "CRM US Equity",
+      "name": "Salesforce Inc",
+      "sector": "Information Technology",
       "region": "US",
       "index": "Dow Jones 30"
     },

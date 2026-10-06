@@ -52976,7 +52976,7 @@
  },
  "FER US Equity": {
   "ticker": "FER US Equity",
-  "pulled": "2026-08-27",
+  "pulled": "2026-10-06",
   "empty": true
  },
  "SJM US Equity": {
@@ -57090,7 +57090,7 @@
  },
  "PTC US Equity": {
   "ticker": "PTC US Equity",
-  "pulled": "2026-09-08",
+  "pulled": "2026-10-06",
   "empty": true
  },
  "ROP US Equity": {
@@ -109165,7 +109165,7 @@
  },
  "IR US Equity": {
   "ticker": "IR US Equity",
-  "pulled": "2026-09-24",
+  "pulled": "2026-10-06",
   "empty": true
  },
  "PGR US Equity": {
@@ -112184,7 +112184,7 @@
  },
  "HAS US Equity": {
   "ticker": "HAS US Equity",
-  "pulled": "2026-10-02",
+  "pulled": "2026-10-06",
   "empty": true
  },
  "REGN US Equity": {
@@ -112554,7 +112554,7 @@
  },
  "MET US Equity": {
   "ticker": "MET US Equity",
-  "pulled": "2026-09-29",
+  "pulled": "2026-10-06",
   "empty": true
  },
  "MDT US Equity": {
@@ -114214,7 +114214,7 @@
  },
  "VTR US Equity": {
   "ticker": "VTR US Equity",
-  "pulled": "2026-10-01",
+  "pulled": "2026-10-06",
   "empty": true
  },
  "KHC US Equity": {
@@ -117967,5 +117967,30 @@
     "prior": 245.0
    }
   ]
+ },
+ "MELI US Equity": {
+  "ticker": "MELI US Equity",
+  "pulled": "2026-10-06",
+  "empty": true
+ },
+ "GPN US Equity": {
+  "ticker": "GPN US Equity",
+  "pulled": "2026-10-06",
+  "empty": true
+ },
+ "CL US Equity": {
+  "ticker": "CL US Equity",
+  "pulled": "2026-10-06",
+  "empty": true
+ },
+ "PDD US Equity": {
+  "ticker": "PDD US Equity",
+  "pulled": "2026-10-06",
+  "empty": true
+ },
+ "ILMN US Equity": {
+  "ticker": "ILMN US Equity",
+  "pulled": "2026-10-06",
+  "empty": true
  }
 }
