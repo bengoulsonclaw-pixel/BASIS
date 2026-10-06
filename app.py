@@ -15384,7 +15384,8 @@ def _rv_ledger_tab() -> None:
             f"re-measured, so the old track can't be carried forward under the new rule; "
             f"restarting archives it beside the ledger (nothing is deleted) and starts a fresh "
             f"forward track from the latest data.")
-        if st.button("Restart the forward track under the current rule", key="rv_ledger_restart"):
+        if IS_ADMIN and st.button("Restart the forward track under the current rule",
+                                  key="rv_ledger_restart"):
             arch = rvledger.restart()
             _rv_ledger_scorecard.clear()
             st.toast(f"Archived to {arch.name if arch else '—'}; forward track restarted.")
