@@ -15179,7 +15179,7 @@ def _rv_tickets_tab() -> None:
         {"key": "sig", "label": "Signal", "help": "Rich → fade short; Cheap → fade long, "
          "once |z| clears the flag threshold"},
         {"key": "pctl", "label": "10y %ile", "align": "right", "fmt": "{:.0f}"},
-        {"key": "rr", "label": "R:R", "align": "right", "fmt": "{:.1f}",
+        {"key": "rr", "label": "R:R", "align": "right", "fmt": "{:.2f}",
          "help": "Reward (entry→target) ÷ risk (entry→stop) at today's stretch"},
         {"key": "win", "label": "Win", "align": "right",
          "help": "Share of historical fades that reached the target before the stop "
@@ -15254,7 +15254,7 @@ def _rv_tickets_tab() -> None:
             f'<span><span style="color:{faint};font-size:11px">STOP </span>{t["invalidation"]:,.{dp}f} '
             f'<span style="color:{faint}">({stp_d:+,.{dp}f} {unit})</span></span>'
             f'<span><span style="color:{faint};font-size:11px">R:R </span>'
-            f'{t["rr"]:.1f}:1</span>'
+            f'{t["rr"]:.2f}:1</span>'
             f'<span><span style="color:{faint};font-size:11px">SIZE </span>{_esc(size_txt)}</span>'
             f'</div>'
             f'<div style="margin-top:8px;font-size:11.5px;color:{faint}">{edge_txt}</div>'
@@ -15308,7 +15308,7 @@ def _rv_tickets_tab() -> None:
                         "tgt_d": f"{t['objective'] - t['level']:+,.{dp}f}",
                         "stop": f"{t['invalidation']:,.{dp}f}",
                         "stop_d": f"{t['invalidation'] - t['level']:+,.{dp}f}",
-                        "unit": t["unit"], "rr": f"{t['rr']:.1f}",
+                        "unit": t["unit"], "rr": f"{t['rr']:.2f}",
                         "size": size, "edge": f"{ev:+.2f}" if ev == ev else "—",
                         "edge_pos": bool(ev == ev and ev > 0), "edgeline": edgeline,
                     })
