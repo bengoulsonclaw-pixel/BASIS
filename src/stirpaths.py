@@ -353,8 +353,9 @@ def expiry_rows(prod: Product, start: date, months_ahead: int = 15) -> list[Expi
     for delta in range(-3, months_ahead + 4):
         y, m = _add_months(start.year, start.month, delta)
         lbl = f"{_MONTHS[m - 1]}-{y % 100:02d}"
-        if m in spec["cycle"]:
-            d = _exp._eval(spec["fut"], y, m, hol)
+        if m in spec["cycle"]:            # in-arrears: the named contract dies at window end
+            fy, fm = _add_months(y, m, 3) if prod.family in _ARREARS_FAMILIES else (y, m)
+            d = _exp._eval(spec["fut"], fy, fm, hol)
             if start <= d < horizon_end:
                 out.append(ExpiryRow(prod.ticker, "Future", lbl, y, m, d))
         if prod.has_options and "opt" in spec and m in spec.get("opt_cycle", []):

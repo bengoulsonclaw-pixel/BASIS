@@ -58,8 +58,11 @@ def test_sr3_expiries_golden():
     rows = sp.expiry_rows(sp.PRODUCTS["SFRA Comdty"], ASOF, 3)
     futs = {r.month: r.expiry for r in rows if r.kind == "Future"}
     opts = {r.month: r.expiry for r in rows if r.kind == "Option"}
-    assert futs["Sep-26"] == date(2026, 9, 15)      # bday before 3rd Wed (16 Sep)
-    assert opts["Sep-26"] == date(2026, 9, 11)      # Friday before 3rd Wed
+    # SR3 settles in arrears: the JUNE contract (window 17 Jun → 16 Sep) dies 15 Sep; Sep-26
+    # trades on to 15 Dec, past this 3-month horizon. Observed in deep_contract (SFRM6 → 15 Sep).
+    assert futs["Jun-26"] == date(2026, 9, 15)      # bday before window-end 3rd Wed (16 Sep)
+    assert "Sep-26" not in futs
+    assert opts["Sep-26"] == date(2026, 9, 11)      # Friday before 3rd Wed — options unshifted
     assert "Aug-26" in opts and "Aug-26" not in futs  # serial option, no serial future
 
 

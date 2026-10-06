@@ -213,7 +213,14 @@ SPECS: dict[str, dict] = {
     # ── STIRs ────────────────────────────────────────────────────────────────────────────
     "sofr1m":  {"cycle": _all(), "fut": ("last_bday",), "opt": ("last_bday",),
                 "opt_cycle": _all(), "time": ("14:00", "CT")},
+    # SOFR / SONIA 3M settle IN ARREARS: named for the START of their reference quarter, they
+    # last-trade at its END — SFRM6 trades to 15 Sep 2026, not 16 Jun. `fut_shift` = months
+    # from the named month to the month the futures rule is evaluated in (expiry_for honours
+    # it). VERIFIED against the observed end of every front run in deep_contract.parquet
+    # (2026-10-06: +3 matched 33/33 for each, +0 matched 0/33). Options DO expire in their
+    # named month, so the opt rule is unshifted; Euribor (fixed in advance) is unshifted too.
     "sofr3m":  {"cycle": _q(), "fut": ("bdays_before_nth_wd", 1, 3, WED),   # bd before 3rd Wed
+                "fut_shift": 3,
                 "opt": ("kth_wd_before_nth_wd", FRI, 1, 3, WED), "opt_cycle": _all(), "time": ("14:00", "CT")},
     "fedfunds": {"cycle": _all(), "fut": ("last_bday",), "opt": ("last_bday",),
                  "opt_cycle": _all(), "time": ("14:00", "CT")},
@@ -229,6 +236,7 @@ SPECS: dict[str, dict] = {
     "estr":    {"cycle": _q(), "fut": ("bdays_before_nth_wd", 1, 3, WED),   # backward-looking, futures-only
                 "time": ("18:00", "Brussels")},
     "sonia":   {"cycle": _q(), "fut": ("bdays_before_nth_wd", 1, 3, WED),   # backward-looking
+                "fut_shift": 3,                                             # in arrears — see sofr3m
                 "opt": ("kth_wd_before_nth_wd", FRI, 1, 3, WED), "opt_cycle": _all(), "time": ("18:00", "London")},
     "sonia1m": {"cycle": _all(), "fut": ("last_bday",),                     # ICE 1M SONIA: calendar-month avg,
                 "time": ("18:00", "London")},                               # futures-only, no listed options
@@ -382,6 +390,7 @@ def describe(ticker: str, asset: str, ref_date: date) -> dict:
     hol = _holidays_for(ticker, asset)
     tlabel = f"{spec['time'][0]} {spec['time'][1]}" if spec.get("time") else None
     if not out["cash"] and spec.get("fut"):
+        # dates only — `fut_shift` relabels WHICH contract dies on a date, not the date set
         d = _next(spec["fut"], spec["cycle"], ref_date, hol)
         if d:
             out["fut"], out["fut_time"] = _fmt_date(d), tlabel
@@ -433,7 +442,10 @@ def expiry_for(ticker: str, asset: str, year: int, month: int,
     if kind == "fut" and ticker in CASH_TICKERS:
         return None
     try:
-        return _eval(rule, int(year), int(month), _holidays_for(ticker, asset))
+        y, m = int(year), int(month)
+        if kind == "fut":                       # in-arrears STIRs: rule at reference-quarter end
+            y, m = _shift_month(y, m, spec.get("fut_shift", 0))
+        return _eval(rule, y, m, _holidays_for(ticker, asset))
     except Exception:
         return None
 

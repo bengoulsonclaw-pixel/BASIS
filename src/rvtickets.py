@@ -95,17 +95,17 @@ MIN_TRADES = 8           # sample floor for a "trustworthy" edge (fewer is shown
 # rule's last trade, or a day early, for all 8 products).
 FLAT_BUFFER_BD = 3
 _FLAT_RULES = {
-    # ticker: (settlement, first-notice rule or None = bd after last trade, LTD month shift)
-    "HGA Comdty": ("physical", ("last_bday_prior", 1), 0),   # COMEX FND: last bd of prior month
-    "CLA Comdty": ("physical", None, 0),
-    "COA Comdty": ("physical", None, 0),
-    "NGA Comdty": ("physical", None, 0),
-    "FJSA Comdty": ("physical", None, 0),
-    # SOFR / SONIA 3M are named for the START of their reference quarter and last-trade at its
-    # END (SFRM6 trades to 15 Sep 2026) — the expiries rule evaluated 3 months on (33/33 exact).
-    "SFRA Comdty": ("cash", None, 3),
-    "ERA Comdty": ("cash", None, 0),
-    "SFIA Comdty": ("cash", None, 3),
+    # ticker: (settlement, first-notice rule or None = bd after last trade)
+    "HGA Comdty": ("physical", ("last_bday_prior", 1)),   # COMEX FND: last bd of prior month
+    "CLA Comdty": ("physical", None),
+    "COA Comdty": ("physical", None),
+    "NGA Comdty": ("physical", None),
+    "FJSA Comdty": ("physical", None),
+    # SOFR / SONIA 3M last-trade at the END of their reference quarter (SFRM6 → 15 Sep 2026);
+    # expiry_for carries that month shift itself (expiries.SPECS `fut_shift`).
+    "SFRA Comdty": ("cash", None),
+    "ERA Comdty": ("cash", None),
+    "SFIA Comdty": ("cash", None),
 }
 
 # Short per-leg labels for the structure string (fallback = ticker root).
@@ -151,14 +151,14 @@ def _flat_dates(tkr: str, month) -> dict | None:
     """{'flat_by', 'exit_by', 'kind'} for ONE front contract month: flat_by = first notice
     (physical) or last trade (cash); exit_by = the last close the fade may hold."""
     from . import expiries
-    settle, fnd_rule, shift = _FLAT_RULES[tkr]
-    spec = expiries.spec_for(tkr)
-    if spec is None or month is None or pd.isna(month):
+    settle, fnd_rule = _FLAT_RULES[tkr]
+    if month is None or pd.isna(month):
+        return None
+    ltd = expiries.expiry_for(tkr, "", month.year, month.month, "fut")
+    if ltd is None:
         return None
     hol = expiries._holidays_for(tkr, "")
-    y, m = expiries._shift_month(month.year, month.month, shift)
     try:
-        ltd = expiries._eval(spec["fut"], y, m, hol)
         if settle == "cash":
             return {"flat_by": ltd, "exit_by": ltd, "kind": "last trade"}
         fnd = (expiries._eval(fnd_rule, month.year, month.month, hol) if fnd_rule

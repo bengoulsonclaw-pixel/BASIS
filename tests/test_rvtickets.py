@@ -249,14 +249,12 @@ def test_observed_rolls_anchor_the_last_trade_rules():
         sched = rvtickets.flat_schedule(spec, hist)
         assert sched is not None and len(sched) > 5, key
         runs = curvemon._runs_for(hist, tkr)
-        settle, _, shift = rvtickets._FLAT_RULES[tkr]
         hol = expiries._holidays_for(tkr, "")
         bad = []
         for r, (_, sc) in zip(runs.iloc[:-1].itertuples(index=False), sched.iloc[:-1].iterrows()):
             if r.month is None or pd.isna(r.month):
                 continue
-            y, m = expiries._shift_month(r.month.year, r.month.month, shift)
-            ltd = expiries._eval(expiries.spec_for(tkr)["fut"], y, m, hol)
+            ltd = expiries.expiry_for(tkr, "", r.month.year, r.month.month, "fut")
             end = pd.Timestamp(r.end).date()
             if not (end == ltd or end == expiries._prev_bday(ltd, hol)):
                 bad.append((r.contract, end.isoformat(), ltd.isoformat()))
