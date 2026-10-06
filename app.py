@@ -6188,7 +6188,7 @@ def render_ta_overview() -> None:
     from src.strategies import (support_resistance as _sr, flag_breakout as _fb,
                                 breakout_retest as _br, momentum as _mom, fibonacci as _fbn)
 
-    st.subheader("\U0001F52C Technical Analysis")
+    brand.page_bar("\U0001F52C Technical Analysis", "conviction across every method")
     st.caption("Every product flagged across the technical strategies — chart patterns, tested levels, "
                "momentum and volatility bands — ranked by a cross-strategy **conviction score** (how many "
                "strategies agree × how strong each is, longs netted against shorts). Open a strategy to "
@@ -6940,7 +6940,7 @@ def render_eq_strategy(strat: str) -> None:
     control, chart and full table) run on the equity universe off yfinance data. Reached from the TA
     quick-nav (active = "eq:<strategy>"). Trigger defaults persist independently of the FICC ones."""
     from src import eqta
-    st.header(strat)
+    brand.page_bar(strat)                      # house page-title row (see the FICC twin)
     st.caption(STRATEGY_BLURB.get(strat, ""))
     _ta_quicknav(strat, eq=True)
     st.caption("💡 Equities run on **price** (free yfinance data) — no fixed-income yield inversion here; "
@@ -15444,7 +15444,7 @@ def _rv_ledger_tab() -> None:
 def render_curve_monitor() -> None:
     """Curve / RV — the spread book in three views: monitored, ticketed, and tracked forward.
     (RV Trade Tickets folded in here 2026-10-05 — one module, tabs, per the house pattern.)"""
-    st.subheader("📐  Curve / RV — the spread book, monitored and ticketed")
+    brand.page_bar("📐  Curve / RV", "the spread book, monitored and ticketed")
     tab_mon, tab_tix, tab_rec = st.tabs(
         ["📐  Monitor", "🎫  Trade Tickets", "📊  Track record"])
     with tab_mon:
@@ -18069,7 +18069,12 @@ if active == "User Activity":
     auth.render_activity(); st.stop()
 
 # ----- a strategy page is active ------------------------------------------
-st.header(active)
+# brand.page_bar, not st.header/st.subheader: the two Streamlit headings land on different
+# CSS (h2 is sentence-case 1.07rem, h3 is the .86rem UPPERCASE micro-title meant for section
+# strips), so pages drifted into two different looks depending on which one they happened to
+# call. page_bar is the designed page-title row — same weight everywhere, with a rule under
+# it separating header from content.
+brand.page_bar(active)
 st.caption(STRATEGY_BLURB.get(active, ""))
 
 # Quick-switch nav between the technical strategies (same buttons as the TA hub) so the user

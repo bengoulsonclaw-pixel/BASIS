@@ -1682,7 +1682,7 @@ def _tab_overview(met: pd.DataFrame) -> None:
 
 # ── page ────────────────────────────────────────────────────────────────────────────
 def render() -> None:
-    st.subheader("🇧🇷 Brazil Funds")
+    brand.page_bar("🇧🇷 Brazil Funds", "CVM daily filings")
     st.caption("Every regulated Brazilian fund files a **daily** report with the CVM — NAV "
                "per share, net assets, subscriptions, redemptions, holders — and the CVM "
                "republishes it as free bulk data. No vendor, no size threshold, no "
