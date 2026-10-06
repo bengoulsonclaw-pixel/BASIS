@@ -1,43 +1,37 @@
 {
- "generated_at": "05 Oct 2026 · 06:05 ET",
- "synopsis": "Risk tone is soft but not panicked this morning: US and European equity futures drift lower (S&P -0.2%, Euro Stoxx -0.3%) as Europe's political and fiscal woes dominate — Spain's premier called a snap election after failed housing votes, France's finances remain under scrutiny, and the euro has slumped to a 17-month low at 1.1245.",
- "commentary": "Risk tone is soft but not panicked this morning: US and European equity futures drift lower (S&P -0.2%, Euro Stoxx -0.3%) as Europe's political and fiscal woes dominate — Spain's premier called a snap election after failed housing votes, France's finances remain under scrutiny, and the euro has slumped to a 17-month low at 1.1245. OAT and Gilt futures are underperforming Bunds, confirming the fiscal-premium story is in the periphery of the curve, not the front end. The other big overnight print is Brazil, where Flávio Bolsonaro's surprise first-round lead over Lula sent the real surging 4.6% as markets price a right-ward, market-friendly shift ahead of the runoff.\n\nFed pricing is steady with traders leaning toward a pause after the soft jobs report, even as Treasury's Bessent walks back comments after long-end yields kept rising; Takaichi's \"rest assured\" message on Japanese issuance hasn't stopped JGB long yields hitting fresh highs — the global long end remains the pressure point. In commodities, energy is the talking point: Brent holds above $102 after Aramco's chief warned global oil stockpiles are \"scarily thin\" and could take two years to rebuild, with Yemen fighting intensifying — though Saudi price cuts to Asia capped crude, leaving WTI softer while distillates ripped (gasoil +2.9%, heating oil +1.5%) on tight product supply.\n\nPrecious metals keep grinding higher — gold at $4,189, silver +2.5%, platinum +2.7% — the classic hedge against fiscal stress and a debased-currency narrative even with the dollar firm.",
+ "generated_at": "06 Oct 2026 · 07:19 ET",
+ "synopsis": "Energy is the morning's story, and it's doing the heavy lifting for the whole risk tone. Brent and WTI dropped more than 2% — Brent back below $98 — after Shell's CEO said Middle East oil flows have recovered to roughly 80% of pre-war levels, and the curve is confirming the supply-normalisation narrative: Brent's prompt spread has slumped to its weakest backwardation in over a month, puts dominate the options tape…",
+ "commentary": "Energy is the morning's story, and it's doing the heavy lifting for the whole risk tone. Brent and WTI dropped more than 2% — Brent back below $98 — after Shell's CEO said Middle East oil flows have recovered to roughly 80% of pre-war levels, and the curve is confirming the supply-normalisation narrative: Brent's prompt spread has slumped to its weakest backwardation in over a month, puts dominate the options tape, and open interest sits at its lowest since March 2025. The products complex is unwinding even harder, with heating oil off 3.4% and gasoil down 4.2% despite the structural tight-refining story keeping diesel cracks elevated into 2027, according to reports.\n\nThat oil slide is easing inflation nerves and feeding straight into rates and risk. Treasuries rallied across the curve with the long end leading (Ultras +0.55%), gold reversed early losses to trade near $4,190 as rate-trajectory fears cooled, and equity index futures pushed higher globally — S&P eyeing its first record since August, Euro Stoxx up 0.7%. Note the French angle: OAT futures jumped nearly 1% and euro bank shares rallied 1.6% after Le Pen pledged to court bond investors with deficit cuts toward 3%. The dollar's recent resilience remains a rate-differential story, and if markets pare back the hikes currently priced, that gap narrows — watch this week's Fed minutes and Treasury auctions as the test.\n\nIn ags, the wheat complex firmed (KC +1%), soybean meal rose 1.3%, and OJ spiked nearly 7%, while cocoa pulled back from its El Niño-driven run as West African supply risk gets repriced.",
  "headlines": [
   {
-   "source": "The Guardian",
-   "title": "G7 to release up to 100m barrels of emergency oil and diesel reserves",
-   "time": "14:52 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Financial Times",
-   "title": "Saudi Aramco chief warns world's oil stockpiles are 'scarily thin'",
-   "time": "04:21 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Key Saudi Oil Pipeline Flows Normal Despite Report of Halt",
-   "time": "04:52 ET",
-   "tag": "Geopolitics"
-  },
-  {
    "source": "NPR",
-   "title": "The U.S. added only 29,000 jobs in September as job market lacks spark",
-   "time": "09:54 ET",
+   "title": "The U.S. added only 29,000 jobs in September as job market lacks spark; unemployment rate inched up to 4.2%",
+   "time": "",
    "tag": "Macro"
   },
   {
-   "source": "The Guardian",
-   "title": "US borrowing costs hit 24-year high as global bond sell-off intensifies",
-   "time": "13:56 ET",
+   "source": "Bloomberg",
+   "title": "US Yields Fall From 2002 High as Oil Dips, Bessent Vows On Debt",
+   "time": "06:20 ET",
    "tag": "Rates"
   },
   {
-   "source": "The Guardian",
-   "title": "Good news in US inflation report boosts chances Fed won't hike rates",
-   "time": "11:34 ET",
-   "tag": "Rates"
+   "source": "Bloomberg",
+   "title": "Latest Oil Market News and Analysis for Oct. 6 — Oil declines as rising Middle East exports and Saudi price cut point to a looser market",
+   "time": "",
+   "tag": "Energy"
+  },
+  {
+   "source": "NPR",
+   "title": "G7 countries reluctantly agree to tap their fuel reserves to help the U.S.; large diesel releases planned",
+   "time": "",
+   "tag": "Energy"
+  },
+  {
+   "source": "Wall Street Journal",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts as February cold outlook moderates",
+   "time": "",
+   "tag": "Energy"
   },
   {
    "source": "Wall Street Journal",
@@ -46,10 +40,16 @@
    "tag": "Agriculture"
   },
   {
-   "source": "Financial Times",
-   "title": "US to receive potash shipment from Belarus as relations thaw",
-   "time": "05:00 ET",
-   "tag": "Agriculture"
+   "source": "Wall Street Journal",
+   "title": "Comex Gold, Silver Settle Lower — gold down 1.4%, silver falls 2.5%",
+   "time": "",
+   "tag": "Metals"
+  },
+  {
+   "source": "Wall Street Journal",
+   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek; Nasdaq leads declines, Nvidia down 16%",
+   "time": "",
+   "tag": "Equities"
   }
  ]
 }
