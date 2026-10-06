@@ -107,6 +107,23 @@ def test_a_track_kept_under_an_older_rule_is_paused_not_mixed(ledger_env):
     assert rvledger.scorecard(history=pd.DataFrame())["rule_mismatch"] is True
 
 
+def test_a_rule2_track_is_paused_under_the_notice_rule(ledger_env):
+    """RULE_REV 3 (2026-10-06, later) stopped calendars riding a front into delivery — a store
+    stamped rule 2 is a different measure and must be left untouched, not advanced."""
+    assert rvledger.RULE_REV >= 3 and rvledger.RULE_NOTES.get(rvledger.RULE_REV)
+    ledger_env(_series(_warm(20) + [3.0, 3.0, 3.0]))
+    old = {"config": {"since": "2026-10-02", "window": 20, "threshold": 2.0, "tp_z": 0.0,
+                      "rule_rev": 2},
+           "updated": "2026-10-06",
+           "episodes": [{"key": "xx", "entry_date": "2016-01-29", "outcome": "win",
+                         "exit_date": "2016-02-01", "pnl_sigma": 2.0, "bars": 1}]}
+    rvledger._save(old)
+    before = rvledger.STORE.read_text(encoding="utf-8")
+    st = rvledger.update(history=pd.DataFrame(), today="2026-10-07")
+    assert st["rule_mismatch"] is True
+    assert rvledger.STORE.read_text(encoding="utf-8") == before
+
+
 def test_restart_archives_the_old_track_and_starts_fresh(ledger_env):
     """The one deliberate reset: the old store is archived beside the ledger (never deleted) and
     the next update() opens a new forward track stamped with the current rule."""

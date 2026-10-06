@@ -149,6 +149,121 @@ def test_no_breaks_is_the_plain_level_path():
     assert a == b and len(a) >= 2
 
 
+# ── flat by first notice / last trade: never ride a front into delivery ───────
+def _exit_at(s: pd.Series, i: int) -> pd.Series:
+    """Every date's front must be flat by the close of bar i (one contract, one exit-by)."""
+    return pd.Series(s.index[i], index=s.index)
+
+
+def test_a_fade_is_force_exited_at_the_fronts_exit_by_as_a_notice():
+    """The 2026-10-06 copper finding: the old backtest held calendars through the delivery
+    window, where contango compresses. A stretch still open at the front's exit-by is closed at
+    that close — outcome 'notice', marked at the market, a non-win — even though, left alone, it
+    would have reverted to the mean a few sessions later."""
+    window = 20
+    seg = _warm(window) + [3.0, 3.0, 2.5, 2.5, 2.5] + [0.0] * 10
+    s = _series(seg)
+    entry_i = 2 * window
+    free = rvtickets.backtest_spread(s, window, 2.0, half_life=10.0)
+    flat = rvtickets.backtest_spread(s, window, 2.0, half_life=10.0,
+                                     exit_by=_exit_at(s, entry_i + 3))
+    assert free["wins"] == 1                                   # held on, it reverted
+    assert flat["n"] == 1 and flat["notices"] == 1 and flat["wins"] == 0
+    e = rvtickets._episodes(s, window, 2.0, 50, exit_by=_exit_at(s, entry_i + 3))[0]
+    assert e["outcome"] == "notice" and e["bars"] == 3
+    assert e["exit"] == pytest.approx(2.5) and e["pnl"] == pytest.approx(0.5)   # short 3.0 → 2.5
+
+
+def test_no_entry_inside_the_exit_window():
+    """A fresh crossing on or after the front's exit-by is not a trade a non-delivery desk can
+    put on (it would be closed the same day) — skipped, not entered."""
+    window = 20
+    seg = _warm(window) + [3.0, 3.0] + [0.0] * 10
+    s = _series(seg)
+    entry_i = 2 * window
+    for ex_i in (entry_i, entry_i - 5):                        # exit-by ON / BEFORE the crossing
+        assert rvtickets._episodes(s, window, 2.0, 50, exit_by=_exit_at(s, ex_i)) == []
+
+
+def test_an_exit_by_beyond_the_data_leaves_the_position_open_not_noticed():
+    """Today's front has weeks to run: an unresolved fade is an OPEN ledger position (and an
+    unscored backtest tail), never pre-emptively closed as a notice."""
+    window = 20
+    seg = _warm(window) + [3.0, 3.0, 3.0]
+    s = _series(seg)
+    later = pd.Series(s.index[-1] + pd.Timedelta(days=30), index=s.index)
+    eps = rvtickets._episodes(s, window, 2.0, 50, keep_open=True, exit_by=later)
+    assert [e["outcome"] for e in eps] == ["open"]
+    assert rvtickets._episodes(s, window, 2.0, 50, exit_by=later) == []
+
+
+def test_no_exit_rule_is_the_unconstrained_path():
+    """Spreads with no flat rule (curves, ratios — exit_by None or all-NaT) are untouched."""
+    window = 20
+    seg = _warm(window)
+    for _ in range(3):
+        seg += [3.0] * 6 + [1.0, 0.0, 0.0] + _warm(window, 1)
+    s = _series(seg)
+    a = rvtickets._episodes(s, window, 2.0, 50)
+    b = rvtickets._episodes(s, window, 2.0, 50,
+                            exit_by=pd.Series(pd.NaT, index=s.index, dtype="datetime64[ns]"))
+    assert a == b and len(a) >= 2
+
+
+@pytest.mark.parametrize("tkr, month, flat_by, exit_by, kind", [
+    # COMEX copper: FND = last bd of the prior month; out 3 bd before (Thanksgiving skipped)
+    ("HGA Comdty", "2026-12-01", "2026-11-30", "2026-11-24", "first notice"),
+    # NYMEX WTI: FND = bd after last trade (LTD 3 bd before the 25th of the prior month)
+    ("CLA Comdty", "2026-11-01", "2026-10-22", "2026-10-19", "first notice"),
+    # SOFR 3M is named for the START of its reference quarter: SFRU6 trades to mid-Dec
+    ("SFRA Comdty", "2026-09-01", "2026-12-15", "2026-12-15", "last trade"),
+    ("ERA Comdty", "2026-12-01", "2026-12-14", "2026-12-14", "last trade"),
+])
+def test_flat_dates_per_contract(tkr, month, flat_by, exit_by, kind):
+    d = rvtickets._flat_dates(tkr, pd.Timestamp(month))
+    assert d["flat_by"].isoformat() == flat_by
+    assert d["exit_by"].isoformat() == exit_by
+    assert d["kind"] == kind
+
+
+def test_every_calendar_has_a_flat_rule_and_curves_do_not():
+    cals = ["hg_cal", "cl_cal", "co_cal", "ng_cal", "ttf_cal", "sfr_cal", "er_cal", "sfi_cal"]
+    for k in cals:
+        assert rvtickets._flat_ticker(curvemon.SPREAD_BY_KEY[k]) is not None, k
+    for k in ("us_2s10s", "wti_brent", "gc_si"):
+        assert rvtickets._flat_ticker(curvemon.SPREAD_BY_KEY[k]) is None, k
+
+
+def test_observed_rolls_anchor_the_last_trade_rules():
+    """Observed anchor (the expiries.py discipline): every completed front run in the deep store
+    must end ON the rule's last trade or one business day before it — so the exit-by derived
+    from it is real, and a fade is always flat before the pair switches. Caught the SOFR/SONIA
+    3M naming (reference-quarter START) on the way in; never rebaseline this to make it pass."""
+    from src import expiries
+    hist = curvemon.load_history()
+    if hist is None or hist.empty:
+        pytest.skip("no deep store on this machine")
+    for key in ["hg_cal", "cl_cal", "co_cal", "ng_cal", "ttf_cal", "sfr_cal", "er_cal", "sfi_cal"]:
+        spec = curvemon.SPREAD_BY_KEY[key]
+        tkr = rvtickets._flat_ticker(spec)
+        sched = rvtickets.flat_schedule(spec, hist)
+        assert sched is not None and len(sched) > 5, key
+        runs = curvemon._runs_for(hist, tkr)
+        settle, _, shift = rvtickets._FLAT_RULES[tkr]
+        hol = expiries._holidays_for(tkr, "")
+        bad = []
+        for r, (_, sc) in zip(runs.iloc[:-1].itertuples(index=False), sched.iloc[:-1].iterrows()):
+            if r.month is None or pd.isna(r.month):
+                continue
+            y, m = expiries._shift_month(r.month.year, r.month.month, shift)
+            ltd = expiries._eval(expiries.spec_for(tkr)["fut"], y, m, hol)
+            end = pd.Timestamp(r.end).date()
+            if not (end == ltd or end == expiries._prev_bday(ltd, hol)):
+                bad.append((r.contract, end.isoformat(), ltd.isoformat()))
+            assert pd.Timestamp(sc["exit_by"]) <= pd.Timestamp(r.end), (key, r.contract)
+        assert len(bad) <= 0.05 * len(runs), (key, bad[:5])
+
+
 # ── sizing: the three honest regimes ──────────────────────────────────────────
 def test_calendar_sizes_one_lot_per_leg_off_the_reconciled_point_value():
     """Same-product calendars reconcile to a single $/unit, so they get a real lot count —

@@ -15233,8 +15233,32 @@ def _rv_tickets_tab() -> None:
                         f"/trade · typical winner {md_txt} · {t['conf']} sample")
         else:
             edge_txt = "no completed fade episodes in the stored history — levels and size only"
+        if t.get("bt_notices"):
+            edge_txt += f" · {t['bt_notices']} closed flat before notice/expiry"
         if t["size_method"] == "manual":
             edge_txt += f" · {_esc(t['size_note'])}"
+        flat_html, flat_warn = "", ""
+        fl = t.get("flat")
+        if fl:
+            ex = date.fromisoformat(fl["exit_by"])
+            tip = (f"Front {fl['contract']}: {fl['kind']} {date.fromisoformat(fl['flat_by']):%a %d %b %Y}"
+                   + (f" — out at the close {rvtickets.FLAT_BUFFER_BD} business days before it"
+                      if fl["kind"] == "first notice" else " — cash-settled, out at the close")
+                   + ". The backtest force-exits here and never enters inside the window.")
+            left = ("today" if fl["sessions_left"] == 0
+                    else f"{fl['sessions_left']} sess" if fl["sessions_left"] > 0 else "passed")
+            flat_html = (f'<span title="{_esc(tip)}" style="cursor:help"><span style="color:{faint};'
+                         f'font-size:11px">EXIT BY </span>{ex:%a %d %b} '
+                         f'<span style="color:{faint}">({left})</span></span>')
+            if fl["in_window"]:
+                flat_warn = (f'<div style="margin-top:6px;font-size:12px;color:{down}">Front '
+                             f'{_esc(fl["contract"])} is inside its exit window — the backtest would '
+                             f'not enter now; the setup applies to the next pair after the roll.</div>')
+            elif (t["bt_median_days"] == t["bt_median_days"]
+                  and 0 <= fl["sessions_left"] < t["bt_median_days"]):
+                flat_warn = (f'<div style="margin-top:6px;font-size:12px;color:{gold}">Only '
+                             f'{fl["sessions_left"]} sessions to the exit-by — fewer than the typical '
+                             f'winner took (≈{t["bt_median_days"]:.0f}).</div>')
         cards.append(
             f'<div style="border:1px solid {bd};border-left:3px solid {sig_col};border-radius:10px;'
             f'padding:11px 14px;margin:9px 0;background:{surf}">'
@@ -15256,14 +15280,19 @@ def _rv_tickets_tab() -> None:
             f'<span><span style="color:{faint};font-size:11px">R:R </span>'
             f'{t["rr"]:.2f}:1</span>'
             f'<span><span style="color:{faint};font-size:11px">SIZE </span>{_esc(size_txt)}</span>'
-            f'</div>'
+            f'{flat_html}'
+            f'</div>{flat_warn}'
             f'<div style="margin-top:8px;font-size:11.5px;color:{faint}">{edge_txt}</div>'
             f'</div>')
     st.markdown("".join(cards), unsafe_allow_html=True)
     st.caption(
         f"Edge σ = win-rate × (entry→target, in σ) − miss-rate × (entry→stop, in σ), using today's "
         f"stretch and the backtested hit-rate; timeouts and stops both count as misses, so it is "
-        f"deliberately conservative. The target is the mean by default; a nearer take-profit lifts "
+        f"deliberately conservative. Calendar spreads are never held into delivery: the backtest "
+        f"closes them at the market {rvtickets.FLAT_BUFFER_BD} business days before the front's "
+        f"first notice (energy, copper) or at its last trade (cash-settled STIRs) — a miss too — "
+        f"and never opens one inside that window; **Exit by** on each calendar ticket is today's "
+        f"front's date. The target is the mean by default; a nearer take-profit lifts "
         f"the win-rate but shrinks the reward, and the whole book re-scores on whichever you choose. "
         f"Sizing (unchanged by the take-profit, since the stop doesn't move): same-product calendars "
         f"and unit diffs are 1 lot per "
@@ -15298,6 +15327,12 @@ def _rv_tickets_tab() -> None:
                                     f"typical winner {md_txt} · {t['conf']} sample")
                     else:
                         edgeline = "no completed fade episodes in the stored history — levels and size only"
+                    if t.get("bt_notices"):
+                        edgeline += f" · {t['bt_notices']} closed flat before notice/expiry"
+                    fl = t.get("flat")
+                    exit_by = (f"{date.fromisoformat(fl['exit_by']):%a %d %b}"
+                               + (" (inside window — next pair)" if fl["in_window"] else "")
+                               if fl else "")
                     _tix.append({
                         "rank": i, "name": t["name"], "signal": t["signal"],
                         "z": f"{t['z']:+.1f}", "pctl": f"{t['pctl']:.0f}",
@@ -15311,6 +15346,8 @@ def _rv_tickets_tab() -> None:
                         "unit": t["unit"], "rr": f"{t['rr']:.2f}",
                         "size": size, "edge": f"{ev:+.2f}" if ev == ev else "—",
                         "edge_pos": bool(ev == ev and ev > 0), "edgeline": edgeline,
+                        "exit_by": exit_by,
+                        "exit_kind": fl["kind"] if fl else "",
                     })
                 overall = {}
                 try:
@@ -15378,9 +15415,8 @@ def _rv_ledger_tab() -> None:
         from src import rvledger
         st.warning(
             f"**This track record was kept under an older rule (rule {sc.get('stored_rule_rev')}) "
-            f"and is paused.** Rule {sc.get('rule_rev')} ranks calendar spreads on a like-for-like "
-            f"basis and follows positions roll-neutral — under the old rule a calendar's switch to "
-            f"a new contract pair was scored as a market move. Settled outcomes are never "
+            f"and is paused.** Rule {sc.get('rule_rev')} {sc.get('rule_note') or 'changed the measure'}. "
+            f"Settled outcomes are never "
             f"re-measured, so the old track can't be carried forward under the new rule; "
             f"restarting archives it beside the ledger (nothing is deleted) and starts a fresh "
             f"forward track from the latest data.")

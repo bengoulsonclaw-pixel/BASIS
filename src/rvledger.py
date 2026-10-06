@@ -15,7 +15,8 @@ is restart(), which archives the store and starts the forward track afresh from 
 
 RULE VERSION. The store records the RULE_REV it was tracked under. When the engine's measure
 changes (RULE_REV 2, 2026-10-06: calendar spreads ranked on a like-for-like basis and followed on
-a roll-neutral path — under rule 1 a roll's pair switch was scored as a market move), a store
+a roll-neutral path — under rule 1 a roll's pair switch was scored as a market move; RULE_REV 3,
+same day: calendars force-exited before first notice / at last trade, outcome "notice"), a store
 from the old rule is NOT advanced: its settled rows are facts about THAT rule and mixing them
 with the new one would make one number out of two rules. update() leaves it untouched and flags
 `rule_mismatch` until someone decides — restart() (archive + fresh track) is a deliberate call,
@@ -46,7 +47,17 @@ STORE = Path(__file__).resolve().parents[1] / "data" / "signals" / "rv_ledger.js
 WINDOW = rvtickets.WINDOW            # 252
 THRESHOLD = rvtickets.Z_THRESHOLD    # 2.0σ flag
 TP_Z = 0.0                           # full reversion to the mean
-RULE_REV = 2                         # 1 = raw '1'−'2' calendars (roll jumps scored); 2 = roll-neutral
+RULE_REV = 3                         # 1 = raw '1'−'2' calendars (roll jumps scored); 2 = roll-neutral;
+                                     # 3 = calendars flat by first notice / last trade ("notice")
+# What each rule changed, for the page's paused-track note (the CURRENT rule's line is shown).
+RULE_NOTES = {
+    2: "ranks calendar spreads on a like-for-like basis and follows positions roll-neutral — "
+       "under rule 1 a calendar's switch to a new contract pair was scored as a market move",
+    3: "never holds a calendar spread into its front contract's delivery: positions are closed "
+       "before first notice (physical energy and copper) or at last trade (STIRs), and none is "
+       "opened inside that window — under rule 2 a fade could bank the contango that compresses "
+       "in the delivery window, which a non-delivery desk never holds",
+}
 
 
 def _hold_cap(half_life: float) -> int:
@@ -63,7 +74,7 @@ def _spread_episodes(spec: dict, history: pd.DataFrame, window: int, threshold: 
         return []
     hl = curvemon._half_life(s.dropna().tail(window * 2), brk)
     eps = rvtickets._episodes(s, window, threshold, _hold_cap(hl), tp_z, keep_open=True,
-                              breaks=brk)
+                              breaks=brk, exit_by=rvtickets.exit_by_series(spec, history, s.index))
     for e in eps:
         e.update({"key": spec["key"], "name": spec["name"], "group": spec["group"],
                   "unit": spec["unit"], "dp": spec["dp"],
@@ -188,6 +199,7 @@ def _agg(eps: list[dict]) -> dict:
         "n": n, "wins": len(wins),
         "losses": sum(1 for e in settled if e["outcome"] == "loss"),
         "timeouts": sum(1 for e in settled if e["outcome"] == "timeout"),
+        "notices": sum(1 for e in settled if e["outcome"] == "notice"),
         "open": sum(1 for e in eps if e["outcome"] == "open"),
         "hit_rate": (len(wins) / n) if n else float("nan"),
         "exp_sigma": float(np.mean(ps)) if ps else float("nan"),
@@ -234,6 +246,7 @@ def scorecard(store: dict | None = None, history: pd.DataFrame | None = None) ->
     }
     return {"rows": rows, "overall": overall, "config": cfg,
             "rule_mismatch": rule_mismatch(store), "rule_rev": RULE_REV,
+            "rule_note": RULE_NOTES.get(RULE_REV, ""),
             "stored_rule_rev": _stored_rule(store),
             "since": cfg.get("since"), "updated": store.get("updated"),
             "window": window, "threshold": threshold, "tp_z": tp_z}
