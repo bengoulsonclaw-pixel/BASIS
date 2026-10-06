@@ -15374,6 +15374,21 @@ def _rv_ledger_tab() -> None:
     """The fade rule tracked forward — an out-of-sample scorecard (the '📊 Track record' tab)."""
     sc = _rv_ledger_scorecard(_rv_deep_store_mtime(), rvtickets.REV * 100 + curvemon.REV)
     cfg = sc.get("config") or {}
+    if sc.get("rule_mismatch"):
+        from src import rvledger
+        st.warning(
+            f"**This track record was kept under an older rule (rule {sc.get('stored_rule_rev')}) "
+            f"and is paused.** Rule {sc.get('rule_rev')} ranks calendar spreads on a like-for-like "
+            f"basis and follows positions roll-neutral — under the old rule a calendar's switch to "
+            f"a new contract pair was scored as a market move. Settled outcomes are never "
+            f"re-measured, so the old track can't be carried forward under the new rule; "
+            f"restarting archives it beside the ledger (nothing is deleted) and starts a fresh "
+            f"forward track from the latest data.")
+        if st.button("Restart the forward track under the current rule", key="rv_ledger_restart"):
+            arch = rvledger.restart()
+            _rv_ledger_scorecard.clear()
+            st.toast(f"Archived to {arch.name if arch else '—'}; forward track restarted.")
+            st.rerun()
     if not sc.get("rows"):
         st.info("No track record yet — the deep price store hasn't been built on this machine "
                 "(it backfills on the next Bloomberg session).")

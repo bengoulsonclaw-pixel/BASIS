@@ -13,12 +13,31 @@ SERIES CONVENTIONS (each chosen so the level is a real market observable):
     gaps, directly comparable across a decade.
   • STIR calendars are front − second PRICE spread × 100 = bp (price convention:
     positive = front priced above next = tightening priced OUT the front… falls out
-    of 100 − rate). Energy/metal calendars are front − second in native points —
-    backwardation positive, contango negative.
+    of 100 − rate). Every pair is two consecutive quarterlies, so the level is like-
+    for-like across rolls and is ranked as is.
+  • Energy/metal calendars are front − second in native points — backwardation
+    positive, contango negative — but their HISTORY is ranked on annualised carry
+    ((F1 − F2) / F1 × 12 / gap-months), rescaled to TODAY's pair: each past day reads
+    "what that day's carry would make today's spread". The raw '1'−'2' series is not
+    comparable across rolls — HG's active chain (H/K/N/U/Z) alternates 2- and 3-month
+    gaps, so its level stepped at every roll and the z / percentile compared different
+    pairs (2026-10-06: −2.2σ / 0th pctl raw, −1.05σ / 3rd on carry). Today's value IS
+    the live spread; z and percentile are scale-free, so they are the carry's own.
+    NG and TTF also subtract a point-in-time seasonal norm (median carry of the same
+    front month in PRIOR years — 52% / 25% of their carry variance is the front month).
   • Cross-product diffs and ratios use RAW front levels (actual traded prices, not
     panama-adjusted — an adjusted level is continuation fiction and would distort a
     ratio). The legs each jump at their own rolls; the spread of two fronts is the
     standard curve-shape observable and is what a 10-year percentile should rank.
+
+ROLLS. Any spread with a rolling raw/'2' leg also carries `roll_breaks` — True on each
+session where a leg's contract (deep_contract.parquet) differs from the session before.
+The LEVEL above is what z-scores and percentiles rank; a position, though, only earns
+the move WITHIN a contract pair, so the fade backtest (rvtickets) chains daily changes
+and zeroes them across a break — the panama rule applied to the spread itself, both
+legs raw (never an adjusted leg against a raw one). A front contract whose month sits
+implausibly far from the date (TTF's generic carries 'FJSU20' back to 2016) is unknown,
+and a rolling spread drops those days rather than guess where its rolls were.
 
 Entry/objective/invalidation are mechanical, not advice: objective = the rolling
 mean the z-score reverts to; invalidation = the level at ±INVAL_SIGMA σ on the
@@ -39,7 +58,7 @@ import pandas as pd
 from . import deepstore, universe
 from .volbt import currency, money_symbol, point_value
 
-REV = 6               # bump when the book/row schema changes — busts the page's st.cache_data
+REV = 7               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
@@ -103,6 +122,13 @@ def _curve_specs() -> list:
     return out
 
 
+# Energy/metal calendars rank their history on annualised carry rescaled to today's pair
+# (see SERIES CONVENTIONS); the seasonal gas pair also nets out its front month's norm.
+_CARRY_NOTE = (" History is ranked on annualised carry, shown in today's-pair terms, so a "
+               "roll to a pair with a different month gap doesn't read as a move.")
+_SEAS_NOTE = (" History is ranked on annualised carry net of this front month's seasonal "
+              "norm (prior years), shown in today's-pair terms.")
+
 SPREADS = _curve_specs() + [
     # Rates — cross-market 10Y spreads, in bp
     {"key": "ust_bund",  "name": "10Y Treasury − Bund", "group": "Rates — Cross-market", "unit": "bp", "dp": 1,
@@ -130,16 +156,20 @@ SPREADS = _curve_specs() + [
     # Energy — time spreads (backwardation positive) + the flagship product spread
     {"key": "cl_cal", "name": "WTI M1−M2", "group": "Energy", "unit": "$/bbl", "dp": 2,
      "legs": [(1, "raw", "CLA Comdty"), (-1, "front2", "CLA Comdty")], "scale": 1.0,
-     "desc": "WTI prompt spread — positive = backwardation (tight prompt barrels)."},
+     "basis": "carry",
+     "desc": "WTI prompt spread — positive = backwardation (tight prompt barrels)." + _CARRY_NOTE},
     {"key": "co_cal", "name": "Brent M1−M2", "group": "Energy", "unit": "$/bbl", "dp": 2,
      "legs": [(1, "raw", "COA Comdty"), (-1, "front2", "COA Comdty")], "scale": 1.0,
-     "desc": "Brent prompt spread — positive = backwardation."},
+     "basis": "carry",
+     "desc": "Brent prompt spread — positive = backwardation." + _CARRY_NOTE},
     {"key": "ng_cal", "name": "Henry Hub M1−M2", "group": "Energy", "unit": "$/MMBtu", "dp": 3,
      "legs": [(1, "raw", "NGA Comdty"), (-1, "front2", "NGA Comdty")], "scale": 1.0,
-     "desc": "US nat-gas prompt spread — seasonal storage economics at the front."},
+     "basis": "carry_seasonal",
+     "desc": "US nat-gas prompt spread — seasonal storage economics at the front." + _SEAS_NOTE},
     {"key": "ttf_cal", "name": "TTF M1−M2", "group": "Energy", "unit": "€/MWh", "dp": 2,
      "legs": [(1, "raw", "FJSA Comdty"), (-1, "front2", "FJSA Comdty")], "scale": 1.0,
-     "desc": "European gas prompt spread — the storage-injection signal."},
+     "basis": "carry_seasonal",
+     "desc": "European gas prompt spread — the storage-injection signal." + _SEAS_NOTE},
     {"key": "wti_brent", "name": "WTI − Brent", "group": "Energy", "unit": "$/bbl", "dp": 2,
      "legs": [(1, "raw", "CLA Comdty"), (-1, "raw", "COA Comdty")], "scale": 1.0,
      "desc": "Front WTI minus front Brent — the Atlantic-basin arb, actual traded levels."},
@@ -156,7 +186,8 @@ SPREADS = _curve_specs() + [
     # HG quotes in ¢/lb (659.10, not 6.59) — volbt's point value is per ¢-point ($250).
     {"key": "hg_cal", "name": "Copper M1−M2", "group": "Metals", "unit": "¢/lb", "dp": 2,
      "legs": [(1, "raw", "HGA Comdty"), (-1, "front2", "HGA Comdty")], "scale": 1.0,
-     "desc": "COMEX copper prompt spread — positive = backwardation (tight metal)."},
+     "basis": "carry",
+     "desc": "COMEX copper prompt spread — positive = backwardation (tight metal)." + _CARRY_NOTE},
 ]
 
 SPREAD_BY_KEY = {s["key"]: s for s in SPREADS}
@@ -200,6 +231,12 @@ def load_history(specs=None) -> pd.DataFrame:
             _add(get_history(missing, raw=True), "raw")
     if "front2" in need:
         _add(deepstore.get_front2(need["front2"]), "front2")
+    # the contract behind every rolling leg — which PAIR a calendar's level belongs to, and
+    # where each roll falls (object-dtype columns; spreads only ever read their own legs)
+    rolling = sorted({t for k in ("raw", "front2") for t in need.get(k, [])
+                      if deepstore._has_chain(t)})
+    if rolling:
+        _add(deepstore.get_contracts(rolling), "contract")
 
     if not frames:
         return pd.DataFrame()
@@ -207,13 +244,171 @@ def load_history(specs=None) -> pd.DataFrame:
     return out.loc[:, ~out.columns.duplicated()].sort_index()
 
 
+# ── contracts, rolls and the carry basis ─────────────────────────────────────
+# A front contract's month sits within this window of the date it is front on (Euribor
+# is front ~3 months before its month; SOFR/SONIA 3M are named for the START of their
+# reference quarter and stay front through it — SFRM6 is front 17 Jun → 15 Sep 2026).
+# Outside it the string is not a real front — TTF's generic carries 'FJSU20' on every
+# day from 2016 to Aug 2020 — and the day's contract is unknown.
+_FRONT_MONTH_WINDOW = (-120, 200)       # days from the date to the contract month's 1st
+SEAS_MIN_YEARS = 2                      # prior same-month instances a seasonal norm needs
+
+
+def _rolling_tickers(spec: dict) -> list:
+    """Tickers of the spread's legs that roll (raw '1' / '2' generics on a chain)."""
+    return sorted({t for _, kind, t in spec["legs"]
+                   if kind in ("raw", "front2") and deepstore._has_chain(t)})
+
+
+def _front_runs(ct: pd.Series) -> pd.DataFrame:
+    """Consecutive runs of one front contract: [start, end, contract, month] per run, with
+    implausible strings (month outside _FRONT_MONTH_WINDOW of the run's dates) blanked."""
+    from .rollboard import decode_contract
+    c = ct.dropna().astype(str)
+    if c.empty:
+        return pd.DataFrame(columns=["start", "end", "contract", "month"])
+    starts = c.index[c != c.shift()]
+    rows = []
+    for k, d0 in enumerate(starts):
+        d1 = starts[k + 1] if k + 1 < len(starts) else c.index[-1] + pd.Timedelta(days=1)
+        sym = c.loc[d0]
+        month = decode_contract(sym, d0)
+        last = c.index[(c.index >= d0) & (c.index < d1)][-1]
+        lo, hi = _FRONT_MONTH_WINDOW
+        ok = (month is not None and (month - d0).days <= hi and (month - last).days >= lo)
+        rows.append({"start": d0, "end": last, "contract": sym if ok else None,
+                     "month": month if ok else None})
+    return pd.DataFrame(rows)
+
+
+def _next_gap(runs: pd.DataFrame) -> list:
+    """Months from each run's front contract to the '2' contract — the NEXT contract in the
+    product's observed chain. The live run's successor isn't observed yet, so it comes from
+    the cycle of front months seen over the last ~3 years (HG: H/K/N/U/Z → 2- or 3-month
+    gaps; CL monthly → 1; STIRs quarterly → 3)."""
+    months = list(runs["month"])
+    gaps: list = []
+    recent = {m.month for m in months[-36:] if m is not None}
+    for k, m in enumerate(months):
+        if m is None:
+            gaps.append(None)
+            continue
+        nxt = months[k + 1] if k + 1 < len(months) else None
+        g = (nxt.year - m.year) * 12 + nxt.month - m.month if nxt is not None else None
+        if g is None or not 0 < g <= 6:            # live run, or a hole in the chain
+            ahead = sorted(((mm - m.month) % 12) or 12 for mm in recent)
+            g = ahead[0] if ahead else None
+        gaps.append(g)
+    return gaps
+
+
+def _leg_contracts(history: pd.DataFrame, tkr: str, index) -> pd.Series | None:
+    """The validated front contract for `tkr` on each date of `index` (None = unknown), or
+    None when the history carries no contract column for it (fresh clone / feed fallback)."""
+    runs = _runs_for(history, tkr)
+    if runs is None:
+        return None
+    pos = _run_pos(runs, index)
+    vals = runs["contract"].to_numpy(dtype=object)
+    return pd.Series([vals[p] if p >= 0 else None for p in pos], index=index, dtype=object)
+
+
+def _runs_for(history: pd.DataFrame, tkr: str) -> pd.DataFrame | None:
+    col = f"contract:{tkr}"
+    if col not in history.columns or history[col].dropna().empty:
+        return None
+    return _front_runs(history[col])
+
+
+def _run_pos(runs: pd.DataFrame, index) -> np.ndarray:
+    """Position in `runs` of the run each date falls in (−1 = before the first run, or more
+    than a week past the last stamp of its run — a hole long enough to hide a roll)."""
+    idx = pd.DatetimeIndex(index)
+    pos = runs["start"].searchsorted(idx, side="right") - 1
+    pos = np.asarray(pos, dtype=int)
+    ends = pd.DatetimeIndex(runs["end"])
+    ok = pos >= 0
+    stale = np.zeros(len(idx), dtype=bool)
+    stale[ok] = (idx[ok] - ends[pos[ok]]).days > 7
+    pos[stale] = -1
+    return pos
+
+
+def roll_breaks(spec: dict, history: pd.DataFrame, index) -> pd.Series | None:
+    """True on each date of `index` where any rolling leg's contract differs from the
+    previous date's — the level there changed PAIR, so the day's change is not a market
+    move. None for spreads with no rolling legs (yield curves) or no contract history."""
+    tkrs = _rolling_tickers(spec)
+    if not tkrs or len(index) == 0:
+        return None
+    cts = [_leg_contracts(history, t, index) for t in tkrs]
+    if any(c is None for c in cts):
+        return None
+    key = pd.Series(list(zip(*[c.to_numpy() for c in cts])), index=index)
+    out = key.ne(key.shift())
+    out.iloc[0] = False
+    return out.astype(bool)
+
+
+def _carry_series(spec: dict, history: pd.DataFrame, legs: pd.DataFrame) -> pd.Series | None:
+    """Energy/metal calendar on the annualised-carry basis, in TODAY's pair terms:
+    carry(t) = (F1 − F2) / F1 × 12 / gap(t); level(t) = carry(t) × F1_today × gap_today / 12,
+    so the last value is exactly today's F1 − F2 and every past day reads what its carry
+    would make today's spread. "carry_seasonal" first subtracts the median carry of the
+    same front month in PRIOR years (point-in-time: no instance sees its own or later data)
+    and adds today's norm back. Days with an unknown contract or a non-positive front
+    (CL, 20 Apr 2020) are dropped."""
+    tkr = spec["legs"][0][2]
+    runs = _runs_for(history, tkr)
+    if runs is None or legs.empty:
+        return None
+    runs["gap"] = _next_gap(runs)
+    runs["mon"] = [m.month if m is not None else None for m in runs["month"]]
+    pos = _run_pos(runs, legs.index)
+    known = (pos >= 0) & runs["contract"].notna().to_numpy()[pos] & runs["gap"].notna().to_numpy()[pos]
+    inst = pd.Series(np.where(known, pos, -1), index=legs.index)
+    gap = pd.Series(np.where(known, runs["gap"].to_numpy(dtype=object)[pos], np.nan),
+                    index=legs.index, dtype=float)
+    f1, f2 = legs[f"raw:{tkr}"], legs[f"front2:{tkr}"]
+    carry = ((f1 - f2) / f1 * 12.0 / gap).where(f1 > 0)
+    norm_now = 0.0
+    if spec.get("basis") == "carry_seasonal":
+        # one value per contract instance (its mean carry while front), then for each
+        # instance the median over PRIOR instances of the same front month — prior years
+        per = pd.DataFrame({"c": carry, "i": inst})
+        per = per[(per["i"] >= 0) & per["c"].notna()]
+        inst_c = per.groupby("i")["c"].mean()
+        norm = {}
+        for i in inst_c.index:
+            same = [j for j in inst_c.index if j < i and runs["mon"].iloc[j] == runs["mon"].iloc[i]]
+            norm[i] = float(inst_c.loc[same].median()) if len(same) >= SEAS_MIN_YEARS else np.nan
+        nrm = inst.map(norm).astype(float)
+        carry = carry - nrm
+        norm_now = float(nrm.iloc[-1])
+    if pd.isna(carry.iloc[-1]) or not np.isfinite(norm_now):
+        return None                                   # today's pair can't be measured
+    carry = carry.dropna()
+    if len(carry) < MIN_OVERLAP:
+        return None
+    k_today = float(f1.iloc[-1]) * float(gap.iloc[-1]) / 12.0
+    return ((carry + norm_now) * k_today * spec.get("scale", 1.0)).rename(spec["key"])
+
+
 def _build_spread(spec: dict, history: pd.DataFrame) -> pd.Series | None:
     cols = [f"{kind}:{tkr}" for _, kind, tkr in spec["legs"]]
     if any(c not in history.columns for c in cols):
         return None
     legs = history[cols].dropna()
+    # a rolling spread keeps only days whose contracts are known: a roll we can't place
+    # is a jump we can't neutralise (contract-less history — feed fallback — passes as is)
+    for t in _rolling_tickers(spec):
+        ct = _leg_contracts(history, t, legs.index)
+        if ct is not None:
+            legs = legs[ct.notna().to_numpy()]
     if len(legs) < MIN_OVERLAP:
         return None
+    if spec.get("basis") in ("carry", "carry_seasonal"):
+        return _carry_series(spec, history, legs)
     if spec.get("kind_of_spread") == "ratio":
         s = legs.iloc[:, 0] / legs.iloc[:, 1]
     else:
@@ -221,12 +416,24 @@ def _build_spread(spec: dict, history: pd.DataFrame) -> pd.Series | None:
     return (s * spec.get("scale", 1.0)).rename(spec["key"])
 
 
-def _half_life(spread: pd.Series) -> float:
-    """Ornstein-Uhlenbeck half-life (same estimator as the Mean Reversion book)."""
+def spread_with_breaks(spec: dict, history: pd.DataFrame):
+    """(level series, roll_breaks aligned to it or None) — what a backtest needs."""
+    s = _build_spread(spec, history)
+    if s is None:
+        return None, None
+    return s, roll_breaks(spec, history, s.index)
+
+
+def _half_life(spread: pd.Series, breaks: pd.Series | None = None) -> float:
+    """Ornstein-Uhlenbeck half-life (same estimator as the Mean Reversion book). Roll-day
+    changes (`breaks`) are left out of the regression — a pair switch is not reversion."""
     s = spread.dropna()
     if len(s) < 30:
         return float("nan")
-    d = pd.concat([s.diff(), s.shift(1)], axis=1).dropna()
+    d = pd.concat([s.diff(), s.shift(1)], axis=1)
+    if breaks is not None:
+        d = d[~breaks.reindex(d.index, fill_value=False).to_numpy(dtype=bool)]
+    d = d.dropna()
     if d.empty:
         return float("nan")
     b = np.polyfit(d.iloc[:, 1], d.iloc[:, 0], 1)[0]
@@ -253,7 +460,8 @@ def _dollar_sigma(spec: dict, sigma: float) -> float | None:
     return abs(sigma) * pv
 
 
-def _row(spec: dict, s: pd.Series, window: int, threshold: float) -> dict | None:
+def _row(spec: dict, s: pd.Series, window: int, threshold: float,
+         breaks: pd.Series | None = None) -> dict | None:
     mean = s.rolling(window).mean()
     std = s.rolling(window).std()
     z = (s - mean) / std
@@ -276,17 +484,21 @@ def _row(spec: dict, s: pd.Series, window: int, threshold: float) -> dict | None
         signal, direction = "—", 0
     inval = m + INVAL_SIGMA * sd * (1 if zi >= 0 else -1)
     dsig = _dollar_sigma(spec, sd)
+    # a roll day's change is the switch to a new contract pair, not a move on the day
+    rolled = breaks is not None and len(breaks) and bool(breaks.iloc[-1])
+    chg1d = (float(s.iloc[-1] - s.iloc[-2]) if len(s) > 1 and not rolled else float("nan"))
     return {
         "key": spec["key"], "name": spec["name"], "group": spec["group"],
         "unit": spec["unit"], "dp": spec["dp"], "desc": spec["desc"],
         "bench": bool(spec.get("bench", False)), "mkt": spec.get("mkt", ""),
-        "level": level, "chg1d": float(s.iloc[-1] - s.iloc[-2]) if len(s) > 1 else float("nan"),
+        "level": level, "chg1d": chg1d, "rolled_today": bool(rolled),
         "z": zi, "pctl": pctl, "mean": m, "sigma": sd,
         "hi": float(s.max()), "lo": float(s.min()),
-        "half_life": _half_life(s.tail(window * 2)),
+        "half_life": _half_life(s.tail(window * 2), breaks),
         "signal": signal, "direction": direction,
         "objective": m, "invalidation": inval, "dollar_sigma": dsig,
         "dsig_sym": money_symbol(spec["legs"][0][2]),
+        "basis": spec.get("basis", "level"),
         "first": s.index.min().date().isoformat(), "days": int(len(s)),
         "asof": s.index.max().date().isoformat(),
     }
@@ -299,10 +511,10 @@ def monitor(window: int = WINDOW, threshold: float = Z_THRESHOLD,
         history = load_history()
     rows = []
     for spec in SPREADS:
-        s = _build_spread(spec, history)
+        s, brk = spread_with_breaks(spec, history)
         if s is None:
             continue
-        r = _row(spec, s, window, threshold)
+        r = _row(spec, s, window, threshold, brk)
         if r is not None:
             rows.append(r)
     if not rows:
@@ -325,7 +537,7 @@ def spread_chart_data(key: str, window: int = WINDOW, threshold: float = Z_THRES
     spec = SPREAD_BY_KEY[key]
     if history is None:
         history = load_history([spec])
-    s = _build_spread(spec, history)
+    s, brk = spread_with_breaks(spec, history)
     if s is None:
         return pd.DataFrame(), {}
     mean = s.rolling(window).mean()
@@ -336,7 +548,7 @@ def spread_chart_data(key: str, window: int = WINDOW, threshold: float = Z_THRES
         "upper": (mean + threshold * std).to_numpy(),
         "lower": (mean - threshold * std).to_numpy(), "z": z.to_numpy(),
     })
-    info = _row(spec, s, window, threshold) or {}
+    info = _row(spec, s, window, threshold, brk) or {}
     info["threshold"] = threshold
     info["window"] = window
     if years:

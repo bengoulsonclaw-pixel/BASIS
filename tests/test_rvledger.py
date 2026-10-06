@@ -87,3 +87,39 @@ def test_scorecard_reports_the_backtest_baseline_beside_the_live_track(ledger_en
     assert sc["overall"]["backtest"]["hit_rate"] == sc["overall"]["backtest"]["hit_rate"]  # finite
     assert len(sc["rows"]) == 1 and sc["rows"][0]["key"] == "xx"
     assert sc["since"]
+
+
+def test_a_track_kept_under_an_older_rule_is_paused_not_mixed(ledger_env):
+    """RULE_REV 2 (2026-10-06) changed what a calendar episode IS (roll-neutral). A store kept
+    under rule 1 must not be advanced under rule 2 — its settled rows are facts about the old
+    rule — so update() leaves it byte-for-byte untouched and flags it until restart()."""
+    ledger_env(_series(_warm(20) + [3.0, 3.0, 3.0] + [0.0] * 12))
+    old = {"config": {"since": "2016-01-01", "window": 20, "threshold": 2.0, "tp_z": 0.0},
+           "updated": "2026-10-05",
+           "episodes": [{"key": "xx", "entry_date": "2016-01-29", "outcome": "loss",
+                         "exit_date": "2016-02-01", "pnl_sigma": -1.0, "bars": 1}]}
+    rvledger._save(old)
+    before = rvledger.STORE.read_text(encoding="utf-8")
+
+    st = rvledger.update(history=pd.DataFrame(), today="2026-10-06")
+    assert st["rule_mismatch"] is True
+    assert rvledger.STORE.read_text(encoding="utf-8") == before        # nothing rewritten
+    assert rvledger.scorecard(history=pd.DataFrame())["rule_mismatch"] is True
+
+
+def test_restart_archives_the_old_track_and_starts_fresh(ledger_env):
+    """The one deliberate reset: the old store is archived beside the ledger (never deleted) and
+    the next update() opens a new forward track stamped with the current rule."""
+    ledger_env(_series(_warm(20) + [3.0, 3.0, 3.0]))
+    old = {"config": {"since": "2016-01-01"}, "episodes": [
+        {"key": "xx", "entry_date": "2016-01-29", "outcome": "win", "exit_date": "2016-02-01",
+         "pnl_sigma": 2.0, "bars": 1}]}
+    rvledger._save(old)
+
+    arch = rvledger.restart(today="2026-10-06")
+    assert arch is not None and arch.exists() and "rule1" in arch.name
+    assert rvledger.load()["episodes"] == []                          # store cleared
+    st = rvledger.update(history=pd.DataFrame(), today="2026-10-06")
+    assert st["config"]["rule_rev"] == rvledger.RULE_REV
+    assert not st.get("rule_mismatch")
+    assert [e["outcome"] for e in st["episodes"]] == ["open"]          # today's book taken on

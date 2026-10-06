@@ -11,7 +11,15 @@ DISCIPLINE (the Signal Ledger's hard-won rule, src/sigledger.py). A SETTLED epis
 fact: once win / loss / timeout is written it is NEVER re-measured or rebaselined. Each update only
 (a) settles episodes that were still open and (b) appends episodes that have newly opened — the
 point is a frozen log, not a number that drifts when the store is re-read. The only deliberate reset
-is deleting the store (which restarts the forward track from that day).
+is restart(), which archives the store and starts the forward track afresh from that day.
+
+RULE VERSION. The store records the RULE_REV it was tracked under. When the engine's measure
+changes (RULE_REV 2, 2026-10-06: calendar spreads ranked on a like-for-like basis and followed on
+a roll-neutral path — under rule 1 a roll's pair switch was scored as a market move), a store
+from the old rule is NOT advanced: its settled rows are facts about THAT rule and mixing them
+with the new one would make one number out of two rules. update() leaves it untouched and flags
+`rule_mismatch` until someone decides — restart() (archive + fresh track) is a deliberate call,
+never automatic.
 
 The rule is FIXED at the tracker's config (window / threshold / tp_z — default 252 / 2.0σ / full
 mean). A track record means ONE unchanging rule; the RV Tickets page's sliders are for exploration,
@@ -38,6 +46,7 @@ STORE = Path(__file__).resolve().parents[1] / "data" / "signals" / "rv_ledger.js
 WINDOW = rvtickets.WINDOW            # 252
 THRESHOLD = rvtickets.Z_THRESHOLD    # 2.0σ flag
 TP_Z = 0.0                           # full reversion to the mean
+RULE_REV = 2                         # 1 = raw '1'−'2' calendars (roll jumps scored); 2 = roll-neutral
 
 
 def _hold_cap(half_life: float) -> int:
@@ -49,11 +58,12 @@ def _hold_cap(half_life: float) -> int:
 def _spread_episodes(spec: dict, history: pd.DataFrame, window: int, threshold: float,
                      tp_z: float) -> list[dict]:
     """Every episode for one spread (open tail kept), with the spread's meta attached."""
-    s = curvemon._build_spread(spec, history)
+    s, brk = curvemon.spread_with_breaks(spec, history)
     if s is None or s.dropna().shape[0] < window + 10:
         return []
-    hl = curvemon._half_life(s.dropna().tail(window * 2))
-    eps = rvtickets._episodes(s, window, threshold, _hold_cap(hl), tp_z, keep_open=True)
+    hl = curvemon._half_life(s.dropna().tail(window * 2), brk)
+    eps = rvtickets._episodes(s, window, threshold, _hold_cap(hl), tp_z, keep_open=True,
+                              breaks=brk)
     for e in eps:
         e.update({"key": spec["key"], "name": spec["name"], "group": spec["group"],
                   "unit": spec["unit"], "dp": spec["dp"],
@@ -84,14 +94,46 @@ def _save(d: dict) -> None:
     STORE.write_text(json.dumps(d, indent=1), encoding="utf-8")
 
 
+def _stored_rule(store: dict) -> int:
+    """The rule a store was tracked under (stores that predate the stamp are rule 1)."""
+    return int((store.get("config") or {}).get("rule_rev", 1))
+
+
+def rule_mismatch(store: dict | None = None) -> bool:
+    """True when the store holds episodes tracked under a different rule than the engine's."""
+    store = store if store is not None else load()
+    return bool(store.get("episodes")) and _stored_rule(store) != RULE_REV
+
+
+def restart(today: str | None = None) -> Path | None:
+    """Archive the current store beside it (rv_ledger.rule<N>.<date>.json — nothing is deleted)
+    and clear it, so the next update() starts a fresh forward track under RULE_REV. The one
+    deliberate reset; returns the archive path (None when there was no store)."""
+    if not STORE.exists():
+        return None
+    old = load()
+    stamp = (today or date.today().isoformat())
+    arch = STORE.with_name(f"{STORE.stem}.rule{_stored_rule(old)}.{stamp}.json")
+    n = 2
+    while arch.exists():
+        arch = STORE.with_name(f"{STORE.stem}.rule{_stored_rule(old)}.{stamp}.{n}.json")
+        n += 1
+    arch.write_text(STORE.read_text(encoding="utf-8"), encoding="utf-8")
+    STORE.unlink()
+    return arch
+
+
 def update(history: pd.DataFrame | None = None, today: str | None = None,
            persist: bool = True) -> dict:
     """Settle open episodes, append newly-opened ones, FREEZE everything already settled. On the
     first run the forward track starts at `since` = the latest data date, and the currently-open
     positions (today's stretched book) are taken on and followed from there."""
+    store = load()
+    if rule_mismatch(store):
+        # tracked under another rule — leave every row exactly as it is until restart()
+        return {**store, "rule_mismatch": True}
     if history is None:
         history = curvemon.load_history()
-    store = load()
     cfg = dict(store.get("config") or {})
     window = int(cfg.get("window", WINDOW))
     threshold = float(cfg.get("threshold", THRESHOLD))
@@ -106,9 +148,10 @@ def update(history: pd.DataFrame | None = None, today: str | None = None,
             latest = d if latest is None or d > latest else latest
 
     since = cfg.get("since")
-    if not since:                                     # first run — start the forward track now
+    if not since or _stored_rule(store) != RULE_REV:  # first run — start the forward track now
         since = latest or (today or date.today().isoformat())
-        cfg = {"since": since, "window": window, "threshold": threshold, "tp_z": tp_z}
+        cfg = {"since": since, "window": window, "threshold": threshold, "tp_z": tp_z,
+               "rule_rev": RULE_REV}
 
     def _tracked(e: dict) -> bool:
         # in scope going forward: open now, opened on/after `since`, or RESOLVED on/after `since`
@@ -190,5 +233,7 @@ def scorecard(store: dict | None = None, history: pd.DataFrame | None = None) ->
         "live": _agg([e for eps in live_by_key.values() for e in eps]),
     }
     return {"rows": rows, "overall": overall, "config": cfg,
+            "rule_mismatch": rule_mismatch(store), "rule_rev": RULE_REV,
+            "stored_rule_rev": _stored_rule(store),
             "since": cfg.get("since"), "updated": store.get("updated"),
             "window": window, "threshold": threshold, "tp_z": tp_z}

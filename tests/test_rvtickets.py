@@ -101,6 +101,54 @@ def test_an_unresolved_tail_is_dropped_not_counted():
     assert bt["n"] == 0
 
 
+# ── rolls: a contract-pair switch is not a market move ────────────────────────
+def _roll_at(s: pd.Series, i: int) -> pd.Series:
+    b = pd.Series(False, index=s.index)
+    b.iloc[i] = True
+    return b
+
+
+def test_a_roll_that_resets_the_level_is_not_a_win():
+    """The 2026-10-06 bug: HG 1−2 jumped 2–5.6¢ on every roll, so a fade held across one was
+    'won' by the switch to a new contract pair. Roll-neutral, the position only earns the moves
+    within a pair — a reset that happens AT the roll leaves it where it was (here: timeout)."""
+    window = 20
+    seg = _warm(window) + [3.0, 3.0, 3.0] + [0.0] * 60         # level resets on the roll bar
+    s = _series(seg)
+    roll = _roll_at(s, 2 * window + 3)
+    naive = rvtickets.backtest_spread(s, window, threshold=2.0, half_life=10.0)
+    fixed = rvtickets.backtest_spread(s, window, threshold=2.0, half_life=10.0, breaks=roll)
+    assert naive["wins"] == 1                                  # the old, flattering read
+    assert fixed["wins"] == 0 and fixed["n"] == 1 and fixed["timeouts"] == 1
+
+
+def test_a_roll_jump_against_the_fade_is_not_a_stop():
+    """The mirror image: a roll that jumps the level AWAY from the mean must not stop a fade
+    out; the within-pair reversion that follows is what the position actually earns."""
+    window = 20
+    seg = _warm(window) + [3.0, 3.0] + [10.0, 0.0] + [0.0] * 10   # jump on the roll, then −10
+    s = _series(seg)
+    roll = _roll_at(s, 2 * window + 2)
+    naive = rvtickets.backtest_spread(s, window, threshold=2.0, half_life=10.0)
+    fixed = rvtickets.backtest_spread(s, window, threshold=2.0, half_life=10.0, breaks=roll)
+    assert naive["losses"] == 1
+    assert fixed["wins"] == 1 and fixed["losses"] == 0
+    assert fixed["expectancy_sigma"] > 0
+
+
+def test_no_breaks_is_the_plain_level_path():
+    """Spreads with no rolling legs (yield curves) pass breaks=None or all-False — identical
+    results either way, so the fix cannot move a curve spread's backtest."""
+    window = 20
+    seg = _warm(window)
+    for _ in range(3):
+        seg += [3.0] * 6 + [1.0, 0.0, 0.0] + _warm(window, 1)
+    s = _series(seg)
+    a = rvtickets._episodes(s, window, 2.0, 50)
+    b = rvtickets._episodes(s, window, 2.0, 50, breaks=pd.Series(False, index=s.index))
+    assert a == b and len(a) >= 2
+
+
 # ── sizing: the three honest regimes ──────────────────────────────────────────
 def test_calendar_sizes_one_lot_per_leg_off_the_reconciled_point_value():
     """Same-product calendars reconcile to a single $/unit, so they get a real lot count —

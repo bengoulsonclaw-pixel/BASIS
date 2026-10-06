@@ -12,7 +12,9 @@ the two questions a desk asks next, for every spread that is live-stretched righ
      when the spread is already past the monitor's ±INVAL_SIGMA band; at the default 2σ flag
      the 1σ buffer lands exactly on that 3σ band) — and follow the spread's daily CLOSE
      forward until it reaches the target (win), the stop (loss), or a cap of ~5 half-lives
-     elapses (timeout, marked out at the market). One position at a time per spread, so a
+     elapses (timeout, marked out at the market). The position is followed on a ROLL-NEUTRAL
+     path: daily changes chained within each contract pair and zeroed on a roll day
+     (curvemon.roll_breaks), so a calendar's switch to a new pair can't fake a win or a stop. One position at a time per spread, so a
      single stretched episode is counted once, and a day that gaps through both levels is
      scored the pessimistic way (stop first). Closes only — we never invent an intraday
      high/low the store doesn't hold. Out of that: the hit-rate, the realised expectancy
@@ -51,7 +53,7 @@ from . import curvemon, deepstore, futyield
 from .curvemon import WINDOW, Z_THRESHOLD
 from .volbt import FX_USD, currency, fx_usd_rate, money_symbol, point_value
 
-REV = 4                 # bump when the ticket/backtest schema changes — busts the page cache
+REV = 5                 # bump when the ticket/backtest schema changes — busts the page cache
 
 # A fade's stop sits this many σ FURTHER out than the entry, so it is always beyond the
 # entry (a 2σ fade risks 1σ to make 2; the more stretched the entry, the better that
@@ -110,7 +112,8 @@ def _stop_level(mean: float, sigma: float, z: float) -> float:
 
 # ── the backtest (event study of the fade rule) ──────────────────────────────
 def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
-              tp_z: float = 0.0, keep_open: bool = False) -> list[dict]:
+              tp_z: float = 0.0, keep_open: bool = False,
+              breaks: pd.Series | None = None) -> list[dict]:
     """Every fresh fade episode in one spread series, as a list of outcome dicts (each with the
     entry/exit DATE, so the ledger can track them forward). Entry on a FRESH crossing into the
     ±threshold zone (previous bar inside the band), target = `tp_z` σ from the mean on the
@@ -118,7 +121,15 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
     STOP_BUFFER σ further out, both FROZEN at entry; follow the close until first touch, cap, or
     the end of the data. One position at a time: scanning resumes only after the trade closes.
     The unresolved tail is dropped for the backtest (keep_open=False) or reported as an "open"
-    episode (keep_open=True) for the forward ledger."""
+    episode (keep_open=True) for the forward ledger.
+
+    `breaks` (curvemon.roll_breaks — True where the spread switched contract pair) makes the
+    position ROLL-NEUTRAL: entry, z and the frozen levels still come off the spread itself, but
+    what the position earns from there is the chain of within-pair daily changes, with each
+    roll day's change set to zero — a held calendar is rolled into the new pair at no P&L,
+    exactly as the panama store treats an outright. Without it the raw level jumps at every
+    roll (HG 1−2: 2–5.6¢ against a ~0.35¢ daily σ) and a fade spanning one is scored on the
+    jump."""
     s = s.dropna()
     n = len(s)
     if n < window + 10:
@@ -127,6 +138,12 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
     std = s.rolling(window).std()
     z = (s - mean) / std
     vals = s.to_numpy(dtype=float)
+    path = vals                                          # what a held position marks against
+    if breaks is not None:
+        br = breaks.reindex(s.index, fill_value=False).to_numpy(dtype=bool)
+        step = np.diff(vals, prepend=vals[0])
+        step[br] = 0.0
+        path = vals[0] + np.cumsum(step)
     zv = z.to_numpy(dtype=float)
     mv = mean.to_numpy(dtype=float)
     sv = std.to_numpy(dtype=float)
@@ -146,6 +163,7 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
         direction = -1 if zi > 0 else 1                   # fade: short a rich spread
         side = 1.0 if zi > 0 else -1.0
         entry = vals[i]
+        off = entry - path[i]                             # marks the roll-neutral path at entry
         tgt = mv[i] + tp_z * sig * side                   # tp_z=0 → the mean (full reversion)
         stop = _stop_level(mv[i], sig, zi)
 
@@ -153,7 +171,7 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
         outcome = exitpx = exit_i = None
         j = i + 1
         while j <= j_end:
-            px = vals[j]
+            px = path[j] + off
             if direction == -1:                           # short: win below target, stop above
                 hit_tgt, hit_stop = px <= tgt, px >= stop
             else:                                         # long: win above target, stop below
@@ -170,7 +188,7 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
         entry_date = s.index[i].date().isoformat()
         if outcome is None:
             if i + hold_cap <= n - 1:                     # full window elapsed → timeout
-                outcome, exitpx, exit_i = "timeout", vals[j_end], j_end
+                outcome, exitpx, exit_i = "timeout", path[j_end] + off, j_end
             elif keep_open:                               # unresolved tail → a live open position
                 out.append({
                     "dir": direction, "entry": float(entry), "target": float(tgt),
@@ -196,14 +214,15 @@ def _episodes(s: pd.Series, window: int, threshold: float, hold_cap: int,
 
 
 def backtest_spread(s: pd.Series, window: int, threshold: float,
-                    half_life: float, tp_z: float = 0.0) -> dict:
+                    half_life: float, tp_z: float = 0.0,
+                    breaks: pd.Series | None = None) -> dict:
     """Aggregate fade-rule stats for one spread: sample size, hit-rate (reach the `tp_z`
     take-profit before the stop; timeouts count as non-wins), realised expectancy and average
     loss in σ, and the median sessions a winner took. A nearer target (tp_z > 0) lifts the
     hit-rate and shortens the hold at the cost of a smaller per-trade move."""
     hold_cap = (int(np.clip(round(HOLD_LIVES * half_life), HOLD_MIN, HOLD_MAX))
                 if half_life == half_life and half_life > 0 else HOLD_FALLBACK)
-    eps = _episodes(s, window, threshold, hold_cap, tp_z)
+    eps = _episodes(s, window, threshold, hold_cap, tp_z, breaks=breaks)
     n = len(eps)
     base = {"n": n, "wins": 0, "losses": 0, "timeouts": 0, "win_rate": float("nan"),
             "expectancy_sigma": float("nan"), "avg_loss_sigma": float("nan"),
@@ -384,7 +403,7 @@ def tickets(window: int = WINDOW, threshold: float = Z_THRESHOLD,
     out = []
     for _, row in flagged.iterrows():
         spec = curvemon.SPREAD_BY_KEY[row["key"]]
-        s = curvemon._build_spread(spec, history)
+        s, brk = curvemon.spread_with_breaks(spec, history)
         if s is None:
             continue
         r = row.to_dict()
@@ -397,7 +416,7 @@ def tickets(window: int = WINDOW, threshold: float = Z_THRESHOLD,
         reward_units = abs(r["level"] - r["objective"])
         if not np.isfinite(reward_units) or reward_units <= 0:   # TP at/beyond the entry — no trade
             continue
-        bt = backtest_spread(s, window, threshold, r["half_life"], tp_z)
+        bt = backtest_spread(s, window, threshold, r["half_life"], tp_z, breaks=brk)
         size = size_ticket(spec, r, risk_budget, raw_last, ctd, fx)
 
         risk_units = abs(r["invalidation"] - r["level"])

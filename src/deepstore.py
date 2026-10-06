@@ -439,6 +439,15 @@ def get_front2(tickers, start=None, end=None) -> pd.DataFrame:
     return _slice(p2[cols].dropna(how="all"), start, end) if cols else pd.DataFrame()
 
 
+def get_contracts(tickers, start=None, end=None) -> pd.DataFrame:
+    """FUT_CUR_GEN_TICKER strings per date — the actual contract behind the '1' generic.
+    The '2' generic is the next contract in the same chain and rolls on the same day, so
+    this also tells a front1 − front2 spread which contract PAIR each day belongs to."""
+    ct = _read("contract")
+    cols = [t for t in tickers if t in ct.columns]
+    return _slice(ct[cols].dropna(how="all"), start, end) if cols else pd.DataFrame()
+
+
 def get_yields(tickers, start=None, end=None) -> pd.DataFrame:
     """Deep benchmark yields (%) for BOND futures, keyed by the future's own ticker
     (universe.BOND_YIELD_SOURCE series) — the yield-space legs for curve spreads."""

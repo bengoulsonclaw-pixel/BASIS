@@ -75,7 +75,7 @@ def render_html(d: dict) -> str:
             rows.append({
                 "name": ("★ " if r.get("bench") else "") + r["name"],
                 "level": f"{_fmt(r['level'], dp)} {r['unit']}",
-                "chg": "—" if r["chg1d"] is None else f"{r['chg1d']:+,.{dp}f}",
+                "chg": "—" if r["chg1d"] is None or r["chg1d"] != r["chg1d"] else f"{r['chg1d']:+,.{dp}f}",
                 "z": f"{r['z']:+.2f}",
                 "pctl": f"{r['pctl']:.0f}",
                 "hl": "—" if r["half_life"] is None else f"{r['half_life']:.0f}d",
