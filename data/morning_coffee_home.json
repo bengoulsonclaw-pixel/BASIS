@@ -1,36 +1,30 @@
 {
- "generated_at": "06 Oct 2026 · 07:19 ET",
- "synopsis": "Energy is the morning's story, and it's doing the heavy lifting for the whole risk tone. Brent and WTI dropped more than 2% — Brent back below $98 — after Shell's CEO said Middle East oil flows have recovered to roughly 80% of pre-war levels, and the curve is confirming the supply-normalisation narrative: Brent's prompt spread has slumped to its weakest backwardation in over a month, puts dominate the options tape…",
- "commentary": "Energy is the morning's story, and it's doing the heavy lifting for the whole risk tone. Brent and WTI dropped more than 2% — Brent back below $98 — after Shell's CEO said Middle East oil flows have recovered to roughly 80% of pre-war levels, and the curve is confirming the supply-normalisation narrative: Brent's prompt spread has slumped to its weakest backwardation in over a month, puts dominate the options tape, and open interest sits at its lowest since March 2025. The products complex is unwinding even harder, with heating oil off 3.4% and gasoil down 4.2% despite the structural tight-refining story keeping diesel cracks elevated into 2027, according to reports.\n\nThat oil slide is easing inflation nerves and feeding straight into rates and risk. Treasuries rallied across the curve with the long end leading (Ultras +0.55%), gold reversed early losses to trade near $4,190 as rate-trajectory fears cooled, and equity index futures pushed higher globally — S&P eyeing its first record since August, Euro Stoxx up 0.7%. Note the French angle: OAT futures jumped nearly 1% and euro bank shares rallied 1.6% after Le Pen pledged to court bond investors with deficit cuts toward 3%. The dollar's recent resilience remains a rate-differential story, and if markets pare back the hikes currently priced, that gap narrows — watch this week's Fed minutes and Treasury auctions as the test.\n\nIn ags, the wheat complex firmed (KC +1%), soybean meal rose 1.3%, and OJ spiked nearly 7%, while cocoa pulled back from its El Niño-driven run as West African supply risk gets repriced.",
+ "generated_at": "07 Oct 2026 · 07:15 ET",
+ "synopsis": "Energy is the story this morning. Iranian attacks on tankers in the Strait of Hormuz are escalating — with Houthi strikes on Saudi Arabia adding to the mix — and the products complex is doing the heavy lifting: gasoil surged 6.1%, heating oil 3.5% and RBOB 2.75%, with Brent up 1.25% through $101 and Henry Hub and TTF both firmer.",
+ "commentary": "Energy is the story this morning. Iranian attacks on tankers in the Strait of Hormuz are escalating — with Houthi strikes on Saudi Arabia adding to the mix — and the products complex is doing the heavy lifting: gasoil surged 6.1%, heating oil 3.5% and RBOB 2.75%, with Brent up 1.25% through $101 and Henry Hub and TTF both firmer. Diesel is the pressure point — tight refinery capacity is seen keeping distillate prices elevated through 2027, cracks jumped again, and the first Atlantic hurricane of 2026 is threatening the US Gulf Coast.\n\nNotably, Brent puts have outpaced calls for 14 straight sessions, so positioning was leaning the wrong way into this flare-up. The transmission is classic war-driven inflation: bonds sold off globally, with the US long bond -0.8%, Ultras -1%, and the curve bear-steepening as 2s barely moved. Fed minutes today are in focus with markets still debating hikes rather than cuts, US mortgage rates just hit 7.49% — a near three-year high — and the IMF is warning AI investment is lifting both growth and inflation just as debt loads swell. Europe looks worse: OATs fell over 1% on fiscal and political risk, the euro slid against all G10 peers as traders rotate bearish bets away from the dollar, and Euro Stoxx futures dropped 1.5% with banks off 2.7%.\n\nHigher real yields and a firm dollar hit precious metals — gold -1.1%, silver -1.9%, platinum -3.6% — overwhelming any haven bid. Equity index futures are modestly lower, with AI-bubble warnings (Dalio) and a reported $40bn SpaceX debt raise for Nvidia chips keeping the capex-sustainability debate alive for the Nasdaq.",
  "headlines": [
   {
+   "source": "Bloomberg",
+   "title": "Gold Falls as Latest Hormuz Flareup Pushes Energy Prices Higher",
+   "time": "19:52 ET",
+   "tag": "Geopolitics"
+  },
+  {
    "source": "NPR",
-   "title": "The U.S. added only 29,000 jobs in September as job market lacks spark; unemployment rate inched up to 4.2%",
-   "time": "",
-   "tag": "Macro"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "US Yields Fall From 2002 High as Oil Dips, Bessent Vows On Debt",
-   "time": "06:20 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "Bloomberg",
-   "title": "Latest Oil Market News and Analysis for Oct. 6 — Oil declines as rising Middle East exports and Saudi price cut point to a looser market",
-   "time": "",
+   "title": "G7 countries reluctantly agree to tap their fuel reserves to help the U.S.",
+   "time": "08:29 ET",
    "tag": "Energy"
   },
   {
-   "source": "NPR",
-   "title": "G7 countries reluctantly agree to tap their fuel reserves to help the U.S.; large diesel releases planned",
-   "time": "",
+   "source": "Financial Times",
+   "title": "How much longer can the world absorb the Iran shock?",
+   "time": "00:00 ET",
    "tag": "Energy"
   },
   {
    "source": "Wall Street Journal",
-   "title": "Natural Gas Falls on Shifting Weather Forecasts as February cold outlook moderates",
-   "time": "",
+   "title": "Natural Gas Falls on Shifting Weather Forecasts",
+   "time": "09:05 ET",
    "tag": "Energy"
   },
   {
@@ -40,16 +34,22 @@
    "tag": "Agriculture"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Comex Gold, Silver Settle Lower — gold down 1.4%, silver falls 2.5%",
-   "time": "",
-   "tag": "Metals"
+   "source": "BBC News",
+   "title": "Half the harvest, twice the bills: how drought hit farms",
+   "time": "01:22 ET",
+   "tag": "Agriculture"
   },
   {
-   "source": "Wall Street Journal",
-   "title": "Stocks Sink in Broad AI Rout Sparked by China's DeepSeek; Nasdaq leads declines, Nvidia down 16%",
-   "time": "",
-   "tag": "Equities"
+   "source": "Financial Times",
+   "title": "India raises interest rates for first time in 3 years",
+   "time": "03:04 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Financial Times",
+   "title": "August wage growth poses no obstacle to more BoJ tightening",
+   "time": "04:01 ET",
+   "tag": "Rates"
   }
  ]
 }

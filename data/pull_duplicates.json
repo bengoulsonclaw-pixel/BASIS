@@ -1,7 +1,7 @@
 {
- "asof": "2026-10-06 05:53:30",
- "est_hits": 9292,
- "n_duplicate_pairs": 18,
+ "asof": "2026-10-07 05:46:45",
+ "est_hits": 6056,
+ "n_duplicate_pairs": 15,
  "duplicates": {
   "SFRU6 Comdty | PX_SETTLE": [
    "stircurve._bdh",
@@ -62,18 +62,6 @@
   "ERU7 Comdty | PX_SETTLE": [
    "stircurve._bdh",
    "stirpaths.refresh_strip_store"
-  ],
-  "FVZ6 Comdty | PX_SETTLE": [
-   "owncurve._bdp_many",
-   "stircurve._bdh"
-  ],
-  "FVH7 Comdty | PX_SETTLE": [
-   "owncurve._bdp_many",
-   "stircurve._bdh"
-  ],
-  "FVM7 Comdty | PX_SETTLE": [
-   "owncurve._bdp_many",
-   "stircurve._bdh"
   ]
  },
  "accepted_overlaps": {
