@@ -1,24 +1,18 @@
 {
- "generated_at": "07 Oct 2026 · 07:15 ET",
- "synopsis": "Energy is the story this morning. Iranian attacks on tankers in the Strait of Hormuz are escalating — with Houthi strikes on Saudi Arabia adding to the mix — and the products complex is doing the heavy lifting: gasoil surged 6.1%, heating oil 3.5% and RBOB 2.75%, with Brent up 1.25% through $101 and Henry Hub and TTF both firmer.",
- "commentary": "Energy is the story this morning. Iranian attacks on tankers in the Strait of Hormuz are escalating — with Houthi strikes on Saudi Arabia adding to the mix — and the products complex is doing the heavy lifting: gasoil surged 6.1%, heating oil 3.5% and RBOB 2.75%, with Brent up 1.25% through $101 and Henry Hub and TTF both firmer. Diesel is the pressure point — tight refinery capacity is seen keeping distillate prices elevated through 2027, cracks jumped again, and the first Atlantic hurricane of 2026 is threatening the US Gulf Coast.\n\nNotably, Brent puts have outpaced calls for 14 straight sessions, so positioning was leaning the wrong way into this flare-up. The transmission is classic war-driven inflation: bonds sold off globally, with the US long bond -0.8%, Ultras -1%, and the curve bear-steepening as 2s barely moved. Fed minutes today are in focus with markets still debating hikes rather than cuts, US mortgage rates just hit 7.49% — a near three-year high — and the IMF is warning AI investment is lifting both growth and inflation just as debt loads swell. Europe looks worse: OATs fell over 1% on fiscal and political risk, the euro slid against all G10 peers as traders rotate bearish bets away from the dollar, and Euro Stoxx futures dropped 1.5% with banks off 2.7%.\n\nHigher real yields and a firm dollar hit precious metals — gold -1.1%, silver -1.9%, platinum -3.6% — overwhelming any haven bid. Equity index futures are modestly lower, with AI-bubble warnings (Dalio) and a reported $40bn SpaceX debt raise for Nvidia chips keeping the capex-sustainability debate alive for the Nasdaq.",
+ "generated_at": "08 Oct 2026 · 07:13 ET",
+ "synopsis": "Energy is the story this morning: Brent surged 5% to $105 and WTI through $92 after reports the White House asked the Pentagon to draw up Iran strike options that could be executed before the midterms, with a tanker attacked deep in the Persian Gulf and Hurricane Isaias forcing US producers to shut in output adding to the supply bid.",
+ "commentary": "Energy is the story this morning: Brent surged 5% to $105 and WTI through $92 after reports the White House asked the Pentagon to draw up Iran strike options that could be executed before the midterms, with a tanker attacked deep in the Persian Gulf and Hurricane Isaias forcing US producers to shut in output adding to the supply bid. The products are leading — heating oil +4.8%, gasoil +5% as diesel cracks leapt to their strongest this month — and prompt timespreads snapped back into steeper backwardation, a classic physical-tightness signal.\n\nThat crude impulse landed on a market already nervy about rates: it's a stagflationary cocktail, and equities and bonds both fell. The rates leg is doing real damage. Fed minutes showed officials see another hike coming, jobless claims sit at their lowest since mid-May, a Reuters poll has the ECB hiking again in December with inflation nearly double target, and fiscal worry — France trading riskier than much of corporate credit, per reports — is punishing the long end: Ultra Bonds -1%, OATs and Gilts off ~0.85%, steepener pressure everywhere.\n\nEquity futures followed yields and oil lower, with Euro Stoxx banks -2.4% and the Russell underperforming; the dollar is firm across the board on rate differentials, consistent with the view that debasement calls are overdone. Rising real yields are capping gold near $4,140 while silver slid 2.3%. Watch Iran strike-option headlines, French spreads, and whether crude's backwardation keeps steepening — that's the tell on how real this supply scare is.",
  "headlines": [
   {
    "source": "Bloomberg",
-   "title": "Gold Falls as Latest Hormuz Flareup Pushes Energy Prices Higher",
-   "time": "19:52 ET",
-   "tag": "Geopolitics"
+   "title": "Oil Climbs on Iran Escalation Fears, Hitting Stocks and Bonds",
+   "time": "",
+   "tag": "Energy"
   },
   {
    "source": "NPR",
    "title": "G7 countries reluctantly agree to tap their fuel reserves to help the U.S.",
    "time": "08:29 ET",
-   "tag": "Energy"
-  },
-  {
-   "source": "Financial Times",
-   "title": "How much longer can the world absorb the Iran shock?",
-   "time": "00:00 ET",
    "tag": "Energy"
   },
   {
@@ -29,27 +23,33 @@
   },
   {
    "source": "Wall Street Journal",
+   "title": "Comex Gold, Silver Settle Lower",
+   "time": "14:01 ET",
+   "tag": "Metals"
+  },
+  {
+   "source": "Financial Times",
+   "title": "Fed minutes indicate broad agreement for another rate rise this year",
+   "time": "16:18 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Bloomberg",
+   "title": "Fed's Waller Sees Some Flexibility on Rate-Hike Timing",
+   "time": "06:13 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Wall Street Journal",
    "title": "Arabica Coffee Prices Hit Record on U.S., Colombia Tariff Spat",
    "time": "12:20 ET",
    "tag": "Agriculture"
   },
   {
-   "source": "BBC News",
-   "title": "Half the harvest, twice the bills: how drought hit farms",
-   "time": "01:22 ET",
+   "source": "Bloomberg",
+   "title": "India Urea Offers Fall in Sign of Easing Global Fertilizer Costs",
+   "time": "06:28 ET",
    "tag": "Agriculture"
-  },
-  {
-   "source": "Financial Times",
-   "title": "India raises interest rates for first time in 3 years",
-   "time": "03:04 ET",
-   "tag": "Rates"
-  },
-  {
-   "source": "Financial Times",
-   "title": "August wage growth poses no obstacle to more BoJ tightening",
-   "time": "04:01 ET",
-   "tag": "Rates"
   }
  ]
 }
