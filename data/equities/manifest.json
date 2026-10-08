@@ -1,9 +1,9 @@
 {
-  "created": "2026-10-07 07:08:34",
+  "created": "2026-10-08 07:09:11",
   "source": "yfinance",
-  "as_of": "2026-10-07",
+  "as_of": "2026-10-08",
   "indices": {
-    "S&P 500": 505,
+    "S&P 500": 504,
     "Nasdaq 100": 100,
     "Dow Jones 30": 30,
     "Euro Stoxx 50": 50,
@@ -12,6 +12,6 @@
     "CAC 40": 32,
     "Russell 2000": 1976
   },
-  "n_memberships": 2833,
-  "n_unique": 2686
+  "n_memberships": 2832,
+  "n_unique": 2685
 }

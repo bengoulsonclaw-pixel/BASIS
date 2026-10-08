@@ -8,7 +8,7 @@
   "live_as_of": "2026-10-08T10:47:41+00:00",
   "live_n": 88,
   "equities": {
-    "S&P 500": 505,
+    "S&P 500": 504,
     "Nasdaq 100": 100,
     "Dow Jones 30": 30,
     "Euro Stoxx 50": 50,
@@ -17,5 +17,5 @@
     "CAC 40": 32,
     "Russell 2000": 1976
   },
-  "equities_pulled": "2026-10-07 07:47:00"
+  "equities_pulled": "2026-10-08 07:39:18"
 }
