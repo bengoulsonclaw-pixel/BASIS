@@ -2,9 +2,9 @@
  "date": "2026-10-09",
  "runs": 1,
  "outcome": "running",
- "mc": "",
+ "mc": "sent",
  "mode": "",
- "phase": "fetch",
+ "phase": "backup",
  "started": "2026-10-09T05:48:31",
- "when": "2026-10-09T05:48:41"
+ "when": "2026-10-09T06:23:54"
 }

@@ -1,18 +1,12 @@
 {
- "generated_at": "08 Oct 2026 · 07:13 ET",
- "synopsis": "Energy is the story this morning: Brent surged 5% to $105 and WTI through $92 after reports the White House asked the Pentagon to draw up Iran strike options that could be executed before the midterms, with a tanker attacked deep in the Persian Gulf and Hurricane Isaias forcing US producers to shut in output adding to the supply bid.",
- "commentary": "Energy is the story this morning: Brent surged 5% to $105 and WTI through $92 after reports the White House asked the Pentagon to draw up Iran strike options that could be executed before the midterms, with a tanker attacked deep in the Persian Gulf and Hurricane Isaias forcing US producers to shut in output adding to the supply bid. The products are leading — heating oil +4.8%, gasoil +5% as diesel cracks leapt to their strongest this month — and prompt timespreads snapped back into steeper backwardation, a classic physical-tightness signal.\n\nThat crude impulse landed on a market already nervy about rates: it's a stagflationary cocktail, and equities and bonds both fell. The rates leg is doing real damage. Fed minutes showed officials see another hike coming, jobless claims sit at their lowest since mid-May, a Reuters poll has the ECB hiking again in December with inflation nearly double target, and fiscal worry — France trading riskier than much of corporate credit, per reports — is punishing the long end: Ultra Bonds -1%, OATs and Gilts off ~0.85%, steepener pressure everywhere.\n\nEquity futures followed yields and oil lower, with Euro Stoxx banks -2.4% and the Russell underperforming; the dollar is firm across the board on rate differentials, consistent with the view that debasement calls are overdone. Rising real yields are capping gold near $4,140 while silver slid 2.3%. Watch Iran strike-option headlines, French spreads, and whether crude's backwardation keeps steepening — that's the tell on how real this supply scare is.",
+ "generated_at": "09 Oct 2026 · 07:23 ET",
+ "synopsis": "Risk tone is firmer this morning as oil backs off and the week's AI anxiety fades: S&P and Nasdaq futures are bouncing after two down sessions, Europe is green across the board, though Asia lagged with the KOSPI off 1.8% on the tech wobble. The trigger for Thursday's stumble — reports that OpenAI's annualized revenue, while headed to $70bn, fell short of what had been signaled, plus a shelved AI data-center IPO no…",
+ "commentary": "Risk tone is firmer this morning as oil backs off and the week's AI anxiety fades: S&P and Nasdaq futures are bouncing after two down sessions, Europe is green across the board, though Asia lagged with the KOSPI off 1.8% on the tech wobble. The trigger for Thursday's stumble — reports that OpenAI's annualized revenue, while headed to $70bn, fell short of what had been signaled, plus a shelved AI data-center IPO now seeking private money — is receding, and crude's retreat is doing the heavy lifting. Brent is down 1.3% to $103 and WTI below $91 as Middle East escalation fears ease, though the curve tells a tighter story: timespreads jumped Thursday, deferred Dec-Dec spreads are the strongest since 2022, and Hurricane Isaias is cutting Gulf output.\n\nTreat the spot pullback as respite, not reversal. The macro backdrop remains a hawkish Fed: minutes show officials see another hike coming, markets are pricing as many as four over twelve months (likely overdone), and warnings that 10-year yields could reach 6% are circulating. Treasury futures are lower across the curve with the long bond underperforming, while Bunds and Gilts catch a bid — a widening transatlantic divergence that keeps the dollar's rate-differential support intact, even if there's little room for a sustained rally from here.\n\nThat mix is rocket fuel for precious metals: gold at a record ~$4,205 (+1.1%), silver +1.8%, platinum +2.8% as inflation-hedging demand builds. Copper's 1.5% pop on returning post-holiday Chinese buying and Beijing's stepped-up fiscal push adds a genuine growth signal.",
  "headlines": [
   {
-   "source": "Bloomberg",
-   "title": "Oil Climbs on Iran Escalation Fears, Hitting Stocks and Bonds",
-   "time": "",
-   "tag": "Energy"
-  },
-  {
-   "source": "NPR",
-   "title": "G7 countries reluctantly agree to tap their fuel reserves to help the U.S.",
-   "time": "08:29 ET",
+   "source": "Financial Times",
+   "title": "Oil prices jump on tanker attacks and slowing flows through Strait of Hormuz",
+   "time": "14:51 ET",
    "tag": "Energy"
   },
   {
@@ -22,22 +16,22 @@
    "tag": "Energy"
   },
   {
+   "source": "Bloomberg",
+   "title": "Latest Oil Market News and Analysis for Oct. 9 — Oil retreated after President Donald Trump said the US wouldn't attack Iran before the November midterm elections",
+   "time": "",
+   "tag": "Geopolitics"
+  },
+  {
    "source": "Wall Street Journal",
    "title": "Comex Gold, Silver Settle Lower",
    "time": "14:01 ET",
    "tag": "Metals"
   },
   {
-   "source": "Financial Times",
-   "title": "Fed minutes indicate broad agreement for another rate rise this year",
-   "time": "16:18 ET",
-   "tag": "Rates"
-  },
-  {
    "source": "Bloomberg",
-   "title": "Fed's Waller Sees Some Flexibility on Rate-Hike Timing",
-   "time": "06:13 ET",
-   "tag": "Rates"
+   "title": "Copper Rebounds as Stocks Rally and Chinese Demand Strengthens",
+   "time": "22:37 ET",
+   "tag": "Metals"
   },
   {
    "source": "Wall Street Journal",
@@ -46,10 +40,16 @@
    "tag": "Agriculture"
   },
   {
-   "source": "Bloomberg",
-   "title": "India Urea Offers Fall in Sign of Easing Global Fertilizer Costs",
-   "time": "06:28 ET",
-   "tag": "Agriculture"
+   "source": "Financial Times",
+   "title": "US 10-year Treasury yields risk hitting 6% for first time since 2000, Pimco says",
+   "time": "00:00 ET",
+   "tag": "Rates"
+  },
+  {
+   "source": "Financial Times",
+   "title": "ECB minutes reflect cooler appetite for additional rate rises in September",
+   "time": "09:20 ET",
+   "tag": "Rates"
   }
  ]
 }
