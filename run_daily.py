@@ -268,15 +268,30 @@ def refresh_heavy_stores() -> None:
               f"{met['gestor'].nunique():,} gestores")
     except Exception as e:
         print(f"  (CVM fund store skipped: {e})")
-    # B3 arabica (ICF) settlements — free from B3's daily Price Report archive, the
-    # Brazil leg of the KC-vs-Brazil coffee basis. A ten-day window re-tries any session
-    # B3 published late; ~8s per new session, already-stored days cost nothing.
+    # B3 ag settlements (coffee ICF, corn CCM, cattle BGI, ethanol ETH) — free from B3's
+    # daily Price Report archive, the Brazil legs of the Brazil-vs-US basis. A ten-day
+    # window re-tries any session B3 published late; ~8s per new session, already-stored
+    # days cost nothing.
     try:
-        from src import b3coffee
-        n = b3coffee.update()
-        print(f"  B3 coffee (ICF): {n} new contract-days, {b3coffee.coverage()}")
+        from src import b3ag
+        n = b3ag.update()
+        print(f"  B3 ag: {n} new contract-days, {b3ag.coverage()}")
     except Exception as e:
-        print(f"  (B3 coffee store skipped: {e})")
+        print(f"  (B3 ag store skipped: {e})")
+    # CEPEA physical indicators — the Paranaguá soy price, the Brazil soy leg B3 lacks
+    # (its SJC future just mirrors CME). One ~0.5 MB spreadsheet, full history each time.
+    try:
+        from src import cepea
+        print(f"  CEPEA: {cepea.update()}")
+    except Exception as e:
+        print(f"  (CEPEA store skipped: {e})")
+    # Brazil basis book (Curve/RV → 🇧🇷 Brazil basis) — built off the two stores above
+    # so the page opens from disk.
+    try:
+        from src import brbasis
+        print(f"  Brazil basis: {brbasis.build()}")
+    except Exception as e:
+        print(f"  (Brazil basis skipped: {e})")
 
 
 if __name__ == "__main__":

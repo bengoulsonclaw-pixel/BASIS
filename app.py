@@ -15508,7 +15508,7 @@ def _rv_ledger_tab() -> None:
         "run further than losers. Observations against each spread's own history — not advice.")
 
 
-_CURVE_VIEWS = ["📐  Monitor", "🎫  Trade Tickets", "📊  Track record"]
+_CURVE_VIEWS = ["📐  Monitor", "🎫  Trade Tickets", "📊  Track record", "🇧🇷  Brazil basis"]
 
 
 def render_curve_monitor() -> None:
@@ -15528,6 +15528,9 @@ def render_curve_monitor() -> None:
         _rv_tickets_tab()
     elif view == _CURVE_VIEWS[2]:
         _rv_ledger_tab()
+    elif view == _CURVE_VIEWS[3]:
+        from src import brbasispage
+        brbasispage.render()
     else:                      # clicking the active segment deselects it — stay put
         _curve_monitor_tab()
 

@@ -58,13 +58,14 @@ import pandas as pd
 from . import deepstore, universe
 from .volbt import currency, money_symbol, point_value
 
-REV = 7               # bump when the book/row schema changes — busts the page's st.cache_data
+REV = 8               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
 MIN_OVERLAP = 60      # a spread needs at least this many joint sessions
 
-GROUPS = ["Rates — Curve", "Rates — Cross-market", "STIR Calendars", "Energy", "Metals"]
+GROUPS = ["Rates — Curve", "Rates — Cross-market", "STIR Calendars", "Energy", "Metals",
+          "Softs"]
 
 # ── the spread book ─────────────────────────────────────────────────────────
 # legs: [(weight, kind, ticker)] summed after each series is built, except
@@ -173,6 +174,16 @@ SPREADS = _curve_specs() + [
     {"key": "wti_brent", "name": "WTI − Brent", "group": "Energy", "unit": "$/bbl", "dp": 2,
      "legs": [(1, "raw", "CLA Comdty"), (-1, "raw", "COA Comdty")], "scale": 1.0,
      "desc": "Front WTI minus front Brent — the Atlantic-basin arb, actual traded levels."},
+
+    # Softs — the coffee "arb": NY arabica (¢/lb) minus London robusta (US$/t) put on the
+    # same ¢/lb axis (1 t = 2,204.62 lb, so US$/t ÷ 22.0462 = ¢/lb). Point values differ
+    # ($375/¢ vs $10/t), so _dollar_sigma correctly declines to quote a 1-lot $σ.
+    {"key": "kc_rc", "name": "Arabica − Robusta arb", "group": "Softs", "unit": "¢/lb", "dp": 1,
+     "legs": [(1, "raw", "KCA Comdty"), (-1 / 22.0462, "raw", "DFA Comdty")], "scale": 1.0,
+     "desc": "ICE NY arabica front minus ICE London robusta front, both in US cents/lb — "
+             "the coffee trade's \"arb\". Roasters switch blends on it, which is what "
+             "pulls it back. Front months differ (KC H/K/N/U/Z, RC F/H/K/N/U/X), so roll "
+             "days are excluded from the half-life."},
 
     # Metals — ratios on actual levels + the copper time spread
     {"key": "gc_si", "name": "Gold / Silver ratio", "group": "Metals", "unit": "×", "dp": 1,
