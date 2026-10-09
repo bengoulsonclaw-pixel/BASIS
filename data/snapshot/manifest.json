@@ -9,13 +9,13 @@
   "live_n": 88,
   "equities": {
     "S&P 500": 504,
-    "Nasdaq 100": 100,
+    "Nasdaq 100": 101,
     "Dow Jones 30": 30,
     "Euro Stoxx 50": 50,
     "FTSE 100": 100,
     "DAX 40": 40,
     "CAC 40": 32,
-    "Russell 2000": 1976
+    "Russell 2000": 1975
   },
-  "equities_pulled": "2026-10-08 07:39:18"
+  "equities_pulled": "2026-10-09 07:41:41"
 }

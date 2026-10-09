@@ -6335,9 +6335,16 @@ def render_ta_overview() -> None:
             # A palette-styled, single-row-selectable grid (mirrors brand.themed_dataframe's theming
             # but returns the selection event so a click can drive the charts below).
             _pal = brand.palette()
+            # Highlight each row by net side — long a faint green wash, short a faint red — so the book
+            # scans at a glance. rgba overlays the surface, so it reads on both the dark and light themes.
+            _LONG_BG, _SHORT_BG = "rgba(70,197,138,0.22)", "rgba(236,106,87,0.20)"
+            def _net_tint(_row):
+                _n = str(_row["Net"])
+                _bg = _LONG_BG if "long" in _n else _SHORT_BG if "short" in _n else _pal["surface"]
+                return [f"background-color: {_bg}; color: {_pal['text']}"] * len(_row)
             _sty = (pd.DataFrame(rows).style
                     .format({"Conviction": "{:.0f}", "Score": "{:.0f}"})
-                    .set_properties(**{"background-color": _pal["surface"], "color": _pal["text"]}))
+                    .apply(_net_tint, axis=1))
             _evt = st.dataframe(_sty, use_container_width=True, hide_index=True,
                                 on_select="rerun", selection_mode="single-row", key="ta_stack_table")
             try:
@@ -6864,9 +6871,16 @@ def render_eq_ta_overview() -> None:
                 rows.append({"Market": r.market, "Sector": _sector(r.instruments), "# Str": int(r.n),
                              "Net": net, "Conviction": r.conviction, "Score": abs(r.score), "Flagged by": tags})
             _pal = brand.palette()
+            # Highlight each row by net side — long a faint green wash, short a faint red — so the book
+            # scans at a glance. rgba overlays the surface, so it reads on both the dark and light themes.
+            _LONG_BG, _SHORT_BG = "rgba(70,197,138,0.22)", "rgba(236,106,87,0.20)"
+            def _net_tint(_row):
+                _n = str(_row["Net"])
+                _bg = _LONG_BG if "long" in _n else _SHORT_BG if "short" in _n else _pal["surface"]
+                return [f"background-color: {_bg}; color: {_pal['text']}"] * len(_row)
             _sty = (pd.DataFrame(rows).style
                     .format({"Conviction": "{:.0f}", "Score": "{:.0f}"})
-                    .set_properties(**{"background-color": _pal["surface"], "color": _pal["text"]}))
+                    .apply(_net_tint, axis=1))
             _evt = st.dataframe(_sty, use_container_width=True, hide_index=True,
                                 on_select="rerun", selection_mode="single-row", key="eqta_stack_table")
             try:
