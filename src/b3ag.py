@@ -83,7 +83,9 @@ from pathlib import Path
 import pandas as pd
 
 _ROOT = Path(__file__).resolve().parents[1]
-STORE = _ROOT / "data" / "signals" / "b3_ag"
+# Under data/brazil/, NOT the gitignored data/signals/: the laptop's post-pull auto-push
+# carries it to basisterminal.com, whose sync only runs run_daily.run() (no heavy stores).
+STORE = _ROOT / "data" / "brazil" / "b3_ag"
 SETTLES = STORE / "settles.parquet"
 META = STORE / "meta.json"
 

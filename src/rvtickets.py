@@ -423,6 +423,7 @@ def _sized_legs(spec: dict, direction: int, lots: int) -> list[dict]:
     short the spread (direction −1) sells the +weight leg; same-ticker calendars label the
     legs front / 2nd rather than repeating the product."""
     same_ticker = len({t for _, _, t in spec["legs"]}) == 1
+    ratio = spec.get("hedge_ratio", {})       # e.g. KC−RC: 1.701 RC lots per KC lot (equal lb)
     legs = []
     for w, kind, tkr in spec["legs"]:
         side = "Buy" if (w * direction) > 0 else "Sell"
@@ -430,7 +431,8 @@ def _sized_legs(spec: dict, direction: int, lots: int) -> list[dict]:
             label = "front" if kind == "raw" else "2nd"
         else:
             label = _leg_name(tkr)
-        legs.append({"side": side, "lots": lots, "label": label})
+        n = max(1, round(lots * ratio[tkr])) if tkr in ratio else lots
+        legs.append({"side": side, "lots": n, "label": label})
     return legs
 
 
@@ -474,7 +476,12 @@ def size_ticket(spec: dict, row: dict, risk_budget: float, raw_last: dict | None
                     "lots": lots, "per_bp": None,
                     "risk_money": lots * risk_per_lot,
                     "risk_sym": row.get("dsig_sym") or "$",
-                    "note": "1 lot per leg, sized off the reconciled point value."}
+                    "note": ("Legs matched pound-for-pound ("
+                             + ", ".join(f"{r:.3g}× {_leg_name(t)}"
+                                         for t, r in spec["hedge_ratio"].items())
+                             + " per lot), sized off the reconciled point value."
+                             if spec.get("hedge_ratio")
+                             else "1 lot per leg, sized off the reconciled point value.")}
 
     # B — bond-yield spread (curve / cross-market / box): DV01-weight each leg to an equal
     #     per-bp exposure, putting the legs on ONE currency (USD) at today's FX when they span

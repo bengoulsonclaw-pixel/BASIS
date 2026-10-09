@@ -45,7 +45,7 @@
 
     <div class="kpis">
       <div class="kpi"><div class="lab">Spreads tracked</div>
-        <div class="val">{{ n_spreads }}</div><div class="note">across five groups</div></div>
+        <div class="val">{{ n_spreads }}</div><div class="note">across {{ n_groups }} groups</div></div>
       <div class="kpi"><div class="lab">Stretched now</div>
         <div class="val">{{ n_stretched }}</div><div class="note">beyond &plusmn;{{ threshold }}&sigma;</div></div>
       <div class="kpi"><div class="lab">Z-score window</div>
@@ -91,6 +91,53 @@
     </div>
     {% endfor %}
 
+    {% if brazil %}
+    <div class="section">
+      <div class="banner">Brazil &amp; Argentina vs US &mdash; agricultural basis</div>
+      <p class="summary">
+        Brazilian and Argentine prices set against their US benchmarks, each converted to the US contract's
+        own unit (Brazilian real legs at the day's PTAX): B3 arabica coffee, Campinas corn and
+        the boi gordo cattle contract, CEPEA/ESALQ's Paranagu&aacute; soybean indicator, A3 Mercados' Rosario soybean and corn
+        futures (Argentina, quoted in US dollars), and the
+        sugar price at which a Brazilian mill earns the same from sugar as from hydrous ethanol.
+        Each week's move is split into the part from the US leg, the local price in its own
+        currency, and the Brazilian real (Argentine legs are dollar-quoted).
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Basis</th><th class="center">Level</th><th class="center">1w &Delta;</th>
+            <th class="center">1w drivers</th><th class="center">Z</th>
+            <th class="center">Hist %ile</th><th class="center">Seas %ile</th>
+            <th class="center">Signal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in brazil.rows %}
+          <tr class="{% if r.dir > 0 %}long{% elif r.dir < 0 %}short{% endif %}">
+            <td class="market">{{ r.name }}</td>
+            <td class="center">{{ r.level }}</td>
+            <td class="center">{{ r.chg }}</td>
+            <td class="center">{{ r.drivers }}</td>
+            <td class="center sig">{{ r.z }}</td>
+            <td class="center">{{ r.pctl }}</td>
+            <td class="center">{{ r.spctl }}</td>
+            <td class="center">{{ r.signal }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% for c in brazil.charts %}
+    <div class="section">
+      <div class="banner">{{ c.name }}</div>
+      <div class="chartdesc">{{ c.desc }}</div>
+      <div class="chart"><img src="{{ c.img }}" alt="{{ c.name }}"></div>
+      <div class="chartstats">{{ c.stats }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
     <div class="report-footer">
     <div class="foot-disclaimer">
     <hr class="rule">
@@ -102,6 +149,12 @@
       z-score measures today's level against the rolling {{ window }}-session mean and standard
       deviation; the percentile ranks it inside the full stored history. The rolling mean and
       &plusmn;3&sigma; levels quoted are statistical references of each spread's own history.
+      {% if brazil %}Brazil &amp; Argentina basis: B3 settlement prices (b3.com.br price report), A3 Mercados
+      Rosario settlements (net of Argentine export duties), CEPEA/ESALQ
+      indicators (Paranagu&aacute; soybeans; S&atilde;o Paulo hydrous ethanol, net of ICMS and
+      PIS/Cofins) and BCB PTAX; ethanol parity uses CONSECANA cane-sugar (ATR) conversion factors
+      and is an ex-mill equivalent, excluding freight to port. The seasonal percentile ranks
+      today against the same two weeks of the calendar in prior years.{% endif %}
     </div>
     {% include "_disclaimer.html" %}
   </div>

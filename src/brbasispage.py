@@ -22,12 +22,23 @@ def _load() -> pd.DataFrame:
     return _hist(mt)
 
 
+def _drivers_txt(att, dp: int) -> str:
+    """'US +0.8 · BR −21.2 · BRL +22.1' — the 1w attribution, compact, biggest first."""
+    if not att:
+        return "—"
+    parts = [("US", att["us"]), ("Local", att["local"]), ("BRL", att["fx"])]
+    parts = [(k, v) for k, v in parts if abs(v) >= 0.5 * 10 ** -dp]
+    parts.sort(key=lambda kv: -abs(kv[1]))
+    return " · ".join(f"{k} {v:+,.{dp}f}" for k, v in parts) or "flat"
+
+
 def render() -> None:
     st.caption(
         "Brazilian prices against their US benchmarks, converted to the **US contract's own "
         "unit** (BRL legs at the day's PTAX) — the Brazil-vs-US basis. Sources are free and "
         "official: B3's daily price report for coffee, corn and cattle; CEPEA/ESALQ's "
-        "Paranaguá indicator for soy (B3's soy future just mirrors CME); CEPEA's mill-net "
+        "Paranaguá indicator for soy (B3's soy future just mirrors CME); A3 Mercados' Rosario "
+        "soy and corn futures (US$/t) for **Argentina**; CEPEA's mill-net "
         "hydrous ethanol for **sugar–ethanol parity** (the price at which a Brazilian mill "
         "earns the same from sugar as from ethanol). US legs are actual "
         "front settles, never back-adjusted. Scored like the Curve/RV Monitor: a rolling "
@@ -61,6 +72,10 @@ def render() -> None:
          "help": "Brazil minus US (cattle: Brazil ÷ US), in the US contract's unit"},
         {"key": "chg5d", "label": "1w Δ", "color": True, "fmt": "{:+,.2f}",
          "help": "Change over five sessions — blank when either leg rolled inside the week"},
+        {"key": "drivers", "label": "1w drivers", "align": "right",
+         "help": "What moved it this week, summing exactly to the 1w Δ: the US leg, the "
+                 "local price in its own currency, and the real (BRL). Coffee is "
+                 "USD-quoted on B3, so it has no BRL part."},
         {"key": "z", "label": "Z", "align": "right", "fmt": "{:+.2f}",
          "help": "Standard deviations from the rolling mean over the chosen window"},
         {"key": "zpic", "label": "±2σ", "zbar": True, "keep_case": True,
@@ -90,11 +105,12 @@ def render() -> None:
             "level_txt": f"{r['level']:+,.{dp}f} {r['unit']}" if r["unit"] != "×"
                          else f"{r['level']:.{dp}f}×",
             "chg5d": None if pd.isna(r["chg5d"]) else float(r["chg5d"]),
+            "drivers": _drivers_txt(r["att5"], dp),
             "z": float(r["z"]), "zpic": float(r["z"]), "pctl": float(r["pctl"]),
             "hl": "—" if pd.isna(r["half_life"]) else f"{r['half_life']:.0f}d",
             "signal": r["signal"] if r["signal"] == "—" else f"{r['signal']} {r['z']:+.1f}σ",
         })
-    brand.panel_header("Brazil vs US", right=f"as of {mon['asof'].max()}")
+    brand.panel_header("South America vs US", right=f"as of {mon['asof'].max()}")
     brand.terminal_table(rows, cols)
     st.caption("◔ = harvest-seasonal basis (safrinha corn lands Jun–Aug, soy Feb–Apr). For "
                "these, read **Seas %ile** — today against the same weeks in prior years — "
@@ -124,6 +140,13 @@ def render() -> None:
     if row["seasonal"] and not pd.isna(row["spctl"]):
         st.caption(f"Seasonal percentile **{row['spctl']:.0f}th** — against the same ±2 weeks "
                    f"of the calendar in {row['seas_years']} prior seasons.")
+    att = row["att5"]
+    if att:
+        u = row["unit"] if row["unit"] != "×" else "×"
+        st.caption(
+            f"**This week ({att['total']:+,.{dp}f} {u}):** US leg {att['us']:+,.{dp}f} · "
+            f"local price in its own currency {att['local']:+,.{dp}f} · "
+            f"BRL {att['fx']:+,.{dp}f}. The three sum exactly to the move.")
 
     cc = brand.chart_colors()
     x = alt.X("date:T", title=None)

@@ -65,6 +65,47 @@ def spread_png(c: dict) -> str:
     return png(fig)
 
 
+def _brazil_section(b: dict | None) -> dict | None:
+    """The Brazil vs US ag-basis block (payload from brbasis.report_payload). Neutral by
+    construction: levels, moves, what drove the move, and where it sits in its own history."""
+    if not b or not b.get("rows"):
+        return None
+    rows = []
+    for r in b["rows"]:
+        dp, unit = int(r["dp"]), r["unit"]
+        lvl = f"{r['level']:.{dp}f}×" if unit == "×" else f"{r['level']:+,.{dp}f} {unit}"
+        att = r.get("att5") or None
+        if att:
+            parts = sorted([("US", att["us"]), ("Local price", att["local"]), ("BRL", att["fx"])],
+                           key=lambda kv: -abs(kv[1]))
+            drv = " · ".join(f"{k} {v:+,.{dp}f}" for k, v in parts if abs(v) >= 0.5 * 10 ** -dp)
+        else:
+            drv = "—"
+        rows.append({
+            "name": r["name"], "level": lvl,
+            "chg": "—" if r.get("chg5d") is None else f"{r['chg5d']:+,.{dp}f}",
+            "drivers": drv or "flat",
+            "z": "—" if r.get("z") is None else f"{r['z']:+.2f}",
+            "pctl": f"{r['pctl']:.0f}",
+            "spctl": "—" if r.get("spctl") is None else f"{r['spctl']:.0f}",
+            "signal": r["signal"],
+            "dir": 0 if r["signal"] == "—" else (1 if (r.get("z") or 0) > 0 else -1),
+        })
+    charts = []
+    for c in b.get("charts", []):
+        info, dp = c["info"], int(c["dp"])
+        seas = ("" if info.get("spctl") is None
+                else f" · {info['spctl']:.0f}th for the time of year")
+        charts.append({
+            "name": c["name"], "desc": c["desc"], "img": spread_png(c),
+            "stats": (f"{_fmt(info.get('level'), dp)} {c['unit']} · z {info.get('z') or 0:+.2f} · "
+                      f"{info.get('pctl', 0):.0f}th percentile since {str(info.get('first'))[:4]}"
+                      f"{seas} · mean {_fmt(info.get('mean'), dp)} · "
+                      f"1σ = {_fmt(info.get('sigma'), dp)} {c['unit']}"),
+        })
+    return {"rows": rows, "charts": charts, "asof": _fmt_asof(b["asof"])}
+
+
 def render_html(d: dict) -> str:
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=True)
     groups = []
@@ -101,6 +142,8 @@ def render_html(d: dict) -> str:
                       f"1σ = {_fmt(info.get('sigma'), dp)} {c['unit']}{dsig}"),
         })
 
+    brazil = _brazil_section(d.get("brazil"))
+
     n = len(d["rows"])
     stretched = [r for r in d["rows"] if r["signal"] != "—"]
     first = min((r["first"] for r in d["rows"]), default="")
@@ -108,7 +151,8 @@ def render_html(d: dict) -> str:
         asof=_fmt_asof(d["asof"]), window=d["window"], threshold=f"{d['threshold']:g}",
         n_spreads=n, n_stretched=len(stretched),
         stretched_names=", ".join(r["name"] for r in stretched) or "none at the threshold",
-        since=first[:4], groups=groups, charts=charts,
+        since=first[:4], groups=groups, charts=charts, brazil=brazil,
+        n_groups=len(groups),
         logo=data_uri(ASSETS / "logo.png"), watermark=data_uri(ASSETS / "building.jpg"),
     )
 

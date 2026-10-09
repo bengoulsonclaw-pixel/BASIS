@@ -58,7 +58,7 @@ import pandas as pd
 from . import deepstore, universe
 from .volbt import currency, money_symbol, point_value
 
-REV = 8               # bump when the book/row schema changes — busts the page's st.cache_data
+REV = 9               # bump when the book/row schema changes — busts the page's st.cache_data
 WINDOW = 252          # default rolling window (sessions) for the z-score
 Z_THRESHOLD = 2.0     # |z| beyond this flags the spread as stretched
 INVAL_SIGMA = 3.0     # invalidation level: mean ± this many rolling σ
@@ -176,10 +176,13 @@ SPREADS = _curve_specs() + [
      "desc": "Front WTI minus front Brent — the Atlantic-basin arb, actual traded levels."},
 
     # Softs — the coffee "arb": NY arabica (¢/lb) minus London robusta (US$/t) put on the
-    # same ¢/lb axis (1 t = 2,204.62 lb, so US$/t ÷ 22.0462 = ¢/lb). Point values differ
-    # ($375/¢ vs $10/t), so _dollar_sigma correctly declines to quote a 1-lot $σ.
+    # same ¢/lb axis (1 t = 2,204.62 lb, so US$/t ÷ 22.0462 = ¢/lb). Traded POUND-FOR-POUND:
+    # one KC lot (37,500 lb) against 1.701 RC lots (10 t = 22,046 lb each), so 1¢/lb of
+    # spread = $375 per KC lot ($10/t x 22.0462 x 1.701 = $375 on the RC side too).
+    # `hedge_ratio` makes rvtickets size RC at that multiple of the KC lots.
     {"key": "kc_rc", "name": "Arabica − Robusta arb", "group": "Softs", "unit": "¢/lb", "dp": 1,
      "legs": [(1, "raw", "KCA Comdty"), (-1 / 22.0462, "raw", "DFA Comdty")], "scale": 1.0,
+     "pv_unit": 375.0, "hedge_ratio": {"DFA Comdty": 37500 / 22046.2262},
      "desc": "ICE NY arabica front minus ICE London robusta front, both in US cents/lb — "
              "the coffee trade's \"arb\". Roasters switch blends on it, which is what "
              "pulls it back. Front months differ (KC H/K/N/U/Z, RC F/H/K/N/U/X), so roll "

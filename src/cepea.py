@@ -39,7 +39,9 @@ from pathlib import Path
 import pandas as pd
 
 _ROOT = Path(__file__).resolve().parents[1]
-STORE = _ROOT / "data" / "signals" / "cepea"
+# Under data/brazil/, NOT the gitignored data/signals/: the laptop's post-pull auto-push
+# carries it to basisterminal.com, whose sync only runs run_daily.run() (no heavy stores).
+STORE = _ROOT / "data" / "brazil" / "cepea"
 
 _URL = "https://www.cepea.esalq.usp.br/br/indicador/series/{product}.aspx?id={id}"
 _UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

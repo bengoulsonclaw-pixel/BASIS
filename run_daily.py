@@ -285,6 +285,13 @@ def refresh_heavy_stores() -> None:
         print(f"  CEPEA: {cepea.update()}")
     except Exception as e:
         print(f"  (CEPEA store skipped: {e})")
+    # A3 Mercados (Argentina) Rosario soy/corn settlements, US$/t — free public API; the
+    # current year is one call per product, past years are frozen after their first fetch.
+    try:
+        from src import a3ag
+        print(f"  A3 Rosario: {a3ag.update()} rows refreshed")
+    except Exception as e:
+        print(f"  (A3 Rosario store skipped: {e})")
     # Brazil basis book (Curve/RV → 🇧🇷 Brazil basis) — built off the two stores above
     # so the page opens from disk.
     try:

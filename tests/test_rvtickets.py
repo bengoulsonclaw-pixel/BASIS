@@ -388,3 +388,19 @@ def test_tickets_rank_by_edge_and_carry_a_full_ticket():
         assert t["risk_units"] > 0
         assert t["structure"]
         assert t["size_method"] in {"calendar", "dv01", "manual", "none"}
+
+
+def test_coffee_arb_is_sized_pound_for_pound():
+    """KC−RC arb: 1 KC lot (37,500 lb) against 1.701 RC lots (10 t = 22,046 lb), so
+    1¢/lb of spread is $375 per KC lot on both legs — never 1 lot per leg."""
+    from src import curvemon
+    spec = curvemon.SPREAD_BY_KEY["kc_rc"]
+    assert spec["hedge_ratio"]["DFA Comdty"] == pytest.approx(1.701, abs=1e-3)
+    # the RC leg's $ per ¢/lb at that ratio matches KC's $375
+    assert 10.0 * 22.0462 * spec["hedge_ratio"]["DFA Comdty"] == pytest.approx(375.0, rel=1e-3)
+    row = dict(level=133.8, invalidation=102.3, sigma=31.46, direction=1,
+               dollar_sigma=31.46 * 375.0, dsig_sym="$")
+    t = rvtickets.size_ticket(spec, row, 100_000)
+    kc, rc = t["structure_legs"]
+    assert (kc["side"], kc["lots"]) == ("Buy", 8)
+    assert (rc["side"], rc["lots"]) == ("Sell", 14)

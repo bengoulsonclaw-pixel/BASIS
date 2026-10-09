@@ -15084,6 +15084,11 @@ def _curve_monitor_tab() -> None:
                               for k, v in r.items()} for r in mon.to_dict("records")],
                     "charts": charts,
                 }
+                try:                    # Brazil vs US basis section — optional, never blocks
+                    from src import brbasis
+                    payload["brazil"] = brbasis.report_payload()
+                except Exception:
+                    payload["brazil"] = None
                 with tempfile.TemporaryDirectory() as _t:
                     _in = Path(_t) / "curve.json"
                     _out = Path(_t) / "Curve_RV_Monitor.pdf"

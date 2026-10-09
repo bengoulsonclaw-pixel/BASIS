@@ -38,8 +38,10 @@ import pandas as pd
 from .curvemon import _half_life
 
 _ROOT = Path(__file__).resolve().parents[1]
-HIST = _ROOT / "data" / "signals" / "brazil_basis.parquet"
-META = _ROOT / "data" / "signals" / "brazil_basis_meta.json"
+# Under data/brazil/, NOT the gitignored data/signals/: the laptop's post-pull auto-push
+# carries it to basisterminal.com, whose sync only runs run_daily.run() (no heavy stores).
+HIST = _ROOT / "data" / "brazil" / "brazil_basis.parquet"
+META = _ROOT / "data" / "brazil" / "brazil_basis_meta.json"
 
 WINDOW = 252
 Z_THRESHOLD = 2.0
@@ -93,6 +95,7 @@ BOOK.append(dict(
     col="basis", unit="c/lb", dp=2, seasonal=True,
     b3_label="Ethanol parity", us_label="ICE SB",
     sig_hi="Sugar rich vs ethanol", sig_lo="Sugar cheap vs ethanol",
+    sign=-1,                    # value = US - Brazil leg (every other line is Brazil - US)
     desc="ICE raw sugar No.11 front minus hydrous-ethanol parity: the sugar price that would "
          "pay a Brazilian mill the same per kg of cane sugar (ATR) as selling hydrous "
          "ethanol at CEPEA's São Paulo mill price (net of ICMS and PIS/Cofins), at PTAX. "
@@ -100,6 +103,26 @@ BOOK.append(dict(
          "negative = ethanol pays more. Parity is ex-mill (no freight to Santos), so the "
          "level runs above the true switching point by a roughly constant logistics cost — "
          "read the z-score and percentile."))
+
+# ── Argentina (A3 Mercados Rosario futures, USD/t — free; see a3ag.py) ─────────
+_AR_DUTY_NOTE = (" Rosario is an interior price NET of Argentina's export duties, so the "
+                 "basis sits structurally below Chicago and steps when the duty rate changes — "
+                 "a z-score flag can be a policy change rather than a market dislocation.")
+BOOK += [
+    dict(key="ar_soy", name="Soy — Rosario vs CBOT", src="a3", root="SOJ",
+         col="basis", unit="c/bu", dp=1, seasonal=True,
+         sig_hi="Argentina rich", sig_lo="Argentina cheap",
+         b3_label="A3 Rosario", us_label="CBOT S",
+         desc="A3 Mercados (ex-Matba-Rofex) Rosario soybean future, US$/t converted to US "
+              "cents/bushel, minus CBOT soybean front. Rosario's most-active month vs the "
+              "CBOT front." + _AR_DUTY_NOTE),
+    dict(key="ar_corn", name="Corn — Rosario vs CBOT", src="a3", root="MAI",
+         col="basis", unit="c/bu", dp=1, seasonal=True,
+         sig_hi="Argentina rich", sig_lo="Argentina cheap",
+         b3_label="A3 Rosario", us_label="CBOT C",
+         desc="A3 Mercados Rosario corn future, US$/t converted to US cents/bushel, minus CBOT "
+              "corn front. Rosario's most-active month vs the CBOT front." + _AR_DUTY_NOTE),
+]
 
 BOOK_BY_KEY = {b["key"]: b for b in BOOK}
 
@@ -111,24 +134,39 @@ def _legs(spec: dict) -> pd.DataFrame:
         df = b3ag.basis(spec["root"])
         if df.empty:
             return df
-        df = df.rename(columns={"b3_px": "br_px", "b3_contract": "br_contract"})
+        df = df.rename(columns={"b3_px": "br_px", "b3_contract": "br_contract",
+                                "b3_native": "br_native"})
+        # USD-quoted B3 contracts (ICF) carry no BRL leg: FX is NaN, never PTAX
+        df["fx"] = df["ptax"] if b3ag.PRODUCTS[spec["root"]]["ccy"] == "BRL" else np.nan
+    elif spec["src"] == "a3":
+        from . import a3ag
+        df = a3ag.basis(spec["root"])
+        if df.empty:
+            return df
+        df = df.rename(columns={"a3_px": "br_px", "a3_contract": "br_contract",
+                                "a3_usd_t": "br_native"})
+        df["fx"] = np.nan                  # USD-quoted: no peso leg to attribute
     elif spec["src"] == "parity":
         df = _parity_frame()
         if df.empty:
             return df
+        df["br_native"], df["fx"] = df["brl"], df["ptax"]
     else:
         from . import cepea
         df = cepea.basis(spec["root"])
         if df.empty:
             return df
         df["br_contract"] = "spot"
+        # CEPEA quotes R$ and US$ side by side; their ratio IS the rate CEPEA used
+        df["br_native"], df["fx"] = df["brl"], df["brl"] / df["usd"]
     df["value"] = df[spec["col"]]
     df = df.dropna(subset=["value"]).sort_values("date").reset_index(drop=True)
     sw = (df["br_contract"] != df["br_contract"].shift()) | \
          (df["us_contract"] != df["us_contract"].shift())
     sw.iloc[0] = False
     df["brk"] = sw.to_numpy()
-    return df[["date", "value", "br_px", "us_px", "br_contract", "us_contract", "brk"]]
+    return df[["date", "value", "br_px", "us_px", "br_contract", "us_contract", "brk",
+               "br_native", "fx"]]
 
 
 def _parity_frame() -> pd.DataFrame:
@@ -201,6 +239,42 @@ def seasonal_pctl(s: pd.Series, asof: pd.Timestamp | None = None) -> tuple[float
     return float((same <= level).mean() * 100), int(yrs)
 
 
+def attribution(spec: dict, d: pd.DataFrame, n: int = 5) -> dict | None:
+    """Split the last `n` sessions' move in the line into what drove it, in the line's
+    own unit, summing EXACTLY to the move:
+
+        us     the US benchmark leg
+        local  the Brazilian price in its own quote (R$ for BRL legs)
+        fx     the real (PTAX, or CEPEA's own rate for soy) — NaN-free zero for
+               USD-quoted legs like B3 arabica, which have no BRL exposure
+
+    Brazil leg in US units = c·N/F (N native price, F BRL per USD), so its change splits
+    exactly into c·ΔN/F0 (local) and c·N1·(1/F1 − 1/F0) (fx). Ratio lines split the log
+    change the same way, then scale the parts to the actual ratio change. None when a
+    leg rolled inside the window — a contract switch is not a driver."""
+    if len(d) <= n or d["brk"].iloc[-n:].any():
+        return None
+    a, b = d.iloc[-1 - n], d.iloc[-1]
+    if any(pd.isna(x) for x in (a.br_px, b.br_px, a.us_px, b.us_px, a.br_native, b.br_native)):
+        return None
+    has_fx = not (pd.isna(a.fx) or pd.isna(b.fx))
+    if spec["col"] == "ratio":
+        l_us = -np.log(b.us_px / a.us_px)
+        l_loc = np.log(b.br_native / a.br_native)
+        l_fx = -np.log(b.fx / a.fx) if has_fx else 0.0
+        tot = float(b.value - a.value)
+        k = tot / (l_us + l_loc + l_fx) if (l_us + l_loc + l_fx) else 0.0
+        return {"n": n, "total": tot, "us": l_us * k, "local": l_loc * k, "fx": l_fx * k}
+    local = a.br_px * (b.br_native / a.br_native - 1.0)
+    fx = (b.br_px - a.br_px - local) if has_fx else 0.0
+    if not has_fx:
+        local = b.br_px - a.br_px
+    sign = spec.get("sign", 1)          # +1: Brazil − US; −1: US − Brazil
+    return {"n": n, "total": float(b.value - a.value),
+            "us": float(-sign * (b.us_px - a.us_px)),
+            "local": float(sign * local), "fx": float(sign * fx)}
+
+
 def _row(spec: dict, d: pd.DataFrame, window: int, threshold: float) -> dict:
     s = d.set_index("date")["value"]
     brk = d.set_index("date")["brk"]
@@ -234,6 +308,7 @@ def _row(spec: dict, d: pd.DataFrame, window: int, threshold: float) -> dict:
         "b3_label": spec["b3_label"], "us_label": spec["us_label"],
         "asof": str(pd.Timestamp(last["date"]).date()),
         "first": str(pd.Timestamp(d["date"].iloc[0]).date()), "days": len(d),
+        "att5": attribution(spec, d, 5) if {"br_native", "fx"} <= set(d.columns) else None,
     }
 
 
@@ -338,3 +413,42 @@ def radar_items() -> list:
             value=float(r.level), spark=spark.tolist(), ticker="",
             page="Curve Monitor", book="ficc"))
     return out
+
+
+def report_payload(window: int = WINDOW, threshold: float = Z_THRESHOLD,
+                   n_charts: int = 2) -> dict | None:
+    """The Brazil section of the Curve / RV client PDF (curvereport.py): every line's row
+    plus chart series for the `n_charts` most stretched by |z|. JSON-safe (NaN -> None)."""
+    hist = load()
+    m = monitor(hist, window, threshold)
+    if m.empty:
+        return None
+
+    def _clean(v):
+        if isinstance(v, (float, np.floating)):
+            return None if np.isnan(v) else float(v)
+        if isinstance(v, np.integer):
+            return int(v)
+        if isinstance(v, dict):
+            return {k: _clean(x) for k, x in v.items()}
+        return v
+
+    rows = [{k: _clean(v) for k, v in r.items()} for r in m.to_dict("records")]
+    charts = []
+    for r in m.reindex(m["z"].abs().sort_values(ascending=False).index).head(n_charts).itertuples():
+        cd = chart_data(r.key, hist, window)
+        if cd.empty:
+            continue
+        charts.append({
+            "key": r.key, "name": r.name, "unit": r.unit, "dp": int(r.dp), "desc": r.desc,
+            "dates": [d.strftime("%Y-%m-%d") for d in cd["date"]],
+            "spread": [_clean(v) for v in cd["value"]],
+            "mean": [_clean(v) for v in cd["mean"]],
+            "upper": [_clean(v) for v in cd["upper"]],
+            "lower": [_clean(v) for v in cd["lower"]],
+            "info": {"level": float(r.level), "z": _clean(r.z), "pctl": float(r.pctl),
+                     "spctl": _clean(r.spctl), "mean": _clean(r.mean),
+                     "sigma": _clean(r.sigma), "first": r.first},
+        })
+    return {"asof": str(m["asof"].max()), "window": window, "threshold": threshold,
+            "rows": rows, "charts": charts}

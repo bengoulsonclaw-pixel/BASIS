@@ -134,3 +134,35 @@ def test_sugar_line_is_us_minus_parity_with_its_own_signal_words():
     from src import brbasis
     spec = brbasis.BOOK_BY_KEY["sugar"]
     assert spec["sig_hi"].startswith("Sugar rich") and spec["sig_lo"].startswith("Sugar cheap")
+
+
+# ── brbasis: weekly move attribution ─────────────────────────────────────────
+def _att_frame(native, fx, us, c=1.0, sign=1):
+    d = pd.DataFrame({"br_native": native, "fx": fx, "us_px": us, "brk": False})
+    d["br_px"] = c * d["br_native"] / d["fx"] if fx[0] == fx[0] else c * d["br_native"]
+    d["value"] = sign * (d["br_px"] - d["us_px"])
+    return d
+
+
+def test_attribution_sums_exactly_and_isolates_the_real():
+    from src import brbasis
+    # BRL price flat, real strengthens 5.0 -> 4.5, US flat: the whole move is FX
+    d = _att_frame([70.0] * 6, [5.0, 5, 5, 5, 5, 4.5], [500.0] * 6, c=100 / 2.362096)
+    a = brbasis.attribution({"col": "basis"}, d, 5)
+    assert a["local"] == pytest.approx(0) and a["us"] == pytest.approx(0)
+    assert a["fx"] == pytest.approx(a["total"]) and a["fx"] > 0
+
+
+def test_attribution_sign_for_us_minus_brazil_lines():
+    from src import brbasis
+    d = _att_frame([2.5, 2.5, 2.5, 2.5, 2.5, 2.75], [5.0] * 6, [20.0] * 6, sign=-1)
+    a = brbasis.attribution({"col": "basis", "sign": -1}, d, 5)
+    assert a["local"] < 0                                 # dearer ethanol lowers sugar−parity
+    assert a["us"] + a["local"] + a["fx"] == pytest.approx(a["total"])
+
+
+def test_attribution_skips_a_roll_inside_the_window():
+    from src import brbasis
+    d = _att_frame([70.0] * 6, [5.0] * 6, [500.0] * 6)
+    d.loc[3, "brk"] = True
+    assert brbasis.attribution({"col": "basis"}, d, 5) is None

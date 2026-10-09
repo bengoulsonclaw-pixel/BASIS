@@ -106,3 +106,6 @@ tmp_*.pkl
 
 # Generated report PDFs (rebuilt on demand / by the scheduled sender)
 reports/*.pdf
+
+# Brazil basis stores are tracked on purpose (the VPS reads them); never their atomic-write temps
+data/brazil/**/*.tmp
