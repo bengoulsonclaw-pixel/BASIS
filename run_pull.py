@@ -327,7 +327,11 @@ def main() -> int:
             if compute_only:
                 ok = _run_phase([], None, COMPUTE_CAP_MIN, "compute", script="run_daily.py")
             else:
-                ok = _run_phase(["--compute"], None, COMPUTE_CAP_MIN, "compute")
+                # CORE only — the heavy stores Morning Coffee never opens (ANM, Brazil
+                # production, the gold model, CVM) are held back to _deferred_phase below,
+                # so the email goes out as soon as the report's own inputs exist rather
+                # than behind every store in the book (Ben, 2026-10-09).
+                ok = _run_phase(["--compute-core"], None, COMPUTE_CAP_MIN, "compute")
             if not ok:
                 _status(outcome="compute_failed",
                         detail="fetched data is safe on disk — 'Re-run signals' in the app")
@@ -343,6 +347,19 @@ def main() -> int:
         if coffee_only or (not compute_only and _mc_after_pull_on()):
             _status(phase="coffee", mc="running")
             _status(mc="sent" if _run_morning_coffee(email=not no_email) else "failed")
+
+        # The tail: the heavy stores the report does not read, now that it has gone out.
+        # Deliberately AFTER the email and BEFORE the push, so the day's gold/CVM/Brazil
+        # work still rides the same commit. A failure here is reported like any other
+        # compute failure — the report is already sent either way, which is the point.
+        if not (compute_only or coffee_only):
+            _status(phase="compute_rest")
+            if not _run_phase(["--compute-rest"], None, COMPUTE_CAP_MIN, "compute_rest"):
+                _log("deferred stores FAILED — the report is already out; "
+                     "those stores are stale until the next pull / 'Re-run signals'")
+                _compute_partial = True
+            else:
+                _compute_partial = _compute_partial or _LAST_RC == 2
 
         # ONE data push, LAST — after compute AND Morning Coffee — so the fresh
         # signals AND today's briefing (data/morning_coffee_home.json) reach the

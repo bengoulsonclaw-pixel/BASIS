@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -261,7 +263,7 @@ def run_equities() -> dict:
 
 
 def run(include_equities: bool = False, fetch_only: bool = False,
-        compute_only: bool = False) -> dict:
+        compute_only: bool = False, defer_heavy: bool = False) -> dict:
     """Pull the DAILY FICC inputs (LIVE if DATAFEED_MODE=bloomberg) and cache to data/snapshot/.
     Option OI chains are NOT pulled here — that weekly capture was retired (oi_chain.parquet is frozen).
     The Equities side has its OWN pull (run_equities / --equities); pass include_equities=True
@@ -294,7 +296,7 @@ def run(include_equities: bool = False, fetch_only: bool = False,
                 return _existing_manifest()
             if fetch_only:
                 return fetched
-        return _compute_phase(include_equities)
+        return _compute_phase(include_equities, defer_heavy=defer_heavy)
     finally:
         try:
             lock.unlink(missing_ok=True)
@@ -503,7 +505,76 @@ def _step_failed(step: str, e: Exception) -> None:
     print(f"  (!! {step} FAILED: {e})")
 
 
-def _compute_phase(include_equities: bool = False) -> dict:
+_STEP_TIMES: list = []
+
+
+@contextmanager
+def _timed(step: str):
+    """Run one compute step: time it, and route a failure through _step_failed.
+
+    The timing is the point. Until 2026-10-09 the compute log carried no per-step clock,
+    so a 23-minute morning could not be attributed to anything — the only way to answer
+    "why is Morning Coffee late" was to guess at which store was heavy. Every step now
+    reports its own seconds and the phase prints a slowest-first summary, so the next time
+    the pull drifts the log says where it went."""
+    t0 = time.time()
+    try:
+        yield
+    except Exception as e:                      # same contract as before: steps never
+        _step_failed(step, e)                   # abort each other, they just report
+    finally:
+        _STEP_TIMES.append((step, time.time() - t0))
+
+
+def _step_time_summary(label: str) -> None:
+    if not _STEP_TIMES:
+        return
+    total = sum(s for _n, s in _STEP_TIMES)
+    print(f"  --- {label}: {total / 60:.1f} min over {len(_STEP_TIMES)} step(s), slowest first")
+    for name, secs in sorted(_STEP_TIMES, key=lambda x: -x[1]):
+        print(f"      {secs / 60:6.2f} min  {name}")
+
+
+def _deferred_phase() -> None:
+    """The heavy stores Morning Coffee does NOT need, run AFTER the email (2026-10-09).
+
+    Morning Coffee opens exactly four BASIS artefacts: the fetch's prices.parquet, plus
+    hotsheet_top10.json, desk_calendar.json and optflow.json from the compute. None of
+    these four stores feeds any of them, and none of the twenty radar_items providers that
+    build the Hot Sheet reads gold, CVM, ANM or Brazil production either — so holding them
+    back costs the report and the sheet nothing and gets the email out that much earlier.
+
+    The macro-surprise accrual deliberately does NOT live here: it cannot be backfilled,
+    so it stays ahead of the email (run_daily.refresh_surprise)."""
+    _STEP_TIMES.clear()
+    with _timed("ANM metals store"):
+        from src import anmdata
+        _anm = anmdata.refresh()
+        _live = [k for k, v in _anm["commodities"].items() if v.get("sourced")]
+        print(f"  ANM metals store: {len(_live)} of {len(_anm['commodities'])} "
+              f"commodities sourced ({', '.join(_live) or 'none'})")
+
+    with _timed("Brazil production store"):
+        from src import brazilprod
+        # Un-forced: build()'s 20h freshness guard still rebuilds on a once-daily pull
+        # (the prior store is ~24h old > 20h) but skips the ~40MB USDA re-download when
+        # the pull is re-run within the day — forcing it re-downloaded every time.
+        _bz = brazilprod.build()
+        _err = [e for e in (_bz.get("errors") or []) if e.get("level") != "warning"]
+        print(f"  Brazil production store: {len(_bz.get('commodities') or {})} commodities"
+              + (f", {len(_err)} source failures" if _err else ""))
+        for _e in _err:
+            print(f"    ! {_e['label']}: {_e['error']}")
+
+    with _timed("Heavy external stores (gold/CVM)"):
+        import run_daily
+        run_daily.refresh_heavy_stores()
+        print("  Heavy external stores refreshed (gold / CVM)")
+
+    _step_time_summary("deferred phase")
+
+
+def _compute_phase(include_equities: bool = False, defer_heavy: bool = False) -> dict:
     """Everything AFTER Bloomberg — pure math + free (Yahoo/ETF) pulls, run with the
     Terminal closed. Reads the fetch phase's parquets/caches from disk.
 
@@ -523,37 +594,32 @@ def _compute_phase(include_equities: bool = False) -> dict:
             "snapshot is on disk — rebuilding the signal/COT/own-curve/ledger stores from mock "
             "data would clobber the live caches. Re-run with DATAFEED_MODE=snapshot.")
     _STEP_FAILURES.clear()
+    _STEP_TIMES.clear()
     # COT signals off the freshly-extended price store
-    try:
+    with _timed("COT signal rebuild"):
         from src import cotdata
         cotdata.compute(force=True)
         print("  COT signals rebuilt from the price DB")
-    except Exception as e:
-        _step_failed("COT signal rebuild", e)
 
     # Own-curve fits from the cached marks — THE VOL BOOK'S IMPLIED SOURCE since
     # 2026-07-22: this append must stay AHEAD of any signals rebuild.
-    try:
+    with _timed("own-curve book update"):
         from src import owncurve
         if owncurve.load_marks() is None:
             print("  (own-curve: no fresh marks cache — book left as-is; run --fetch first)")
         else:
             owncurve.append_today(log=lambda *a: None, use_marks=True)
             print("  Own-curve 30d/90d book fitted from cached marks + history appended")
-    except Exception as e:
-        _step_failed("own-curve book update", e)
 
     # FICC signal cache — today's raw per-strategy TA rows for the whole book, off the
     # freshly-extended deep store (src/sigcache.py; the TA Backtester's fast path + the
     # Signal Ledger's raw material). Self-heals gaps after skipped days; pure math.
-    try:
+    with _timed("signal cache/ledger update"):
         from src import sigcache, sigledger
         n = sigcache.daily_update(log=print)
         print(f"  Signal cache extended (+{n} day x strategy pairs)")
         sigledger.rebuild(log=print)
         print("  Signal ledger outcomes re-evaluated")
-    except Exception as e:
-        _step_failed("signal cache/ledger update", e)
 
     # Equities are a SEPARATE pull (run_equities / --equities, wired to the Equities home
     # page); it rides Yahoo + ETF files (no Terminal), so it belongs to the compute phase.
@@ -564,45 +630,16 @@ def _compute_phase(include_equities: bool = False) -> dict:
     # Seasonality page stores — warm the monthly/weekly change frames + spread
     # screener to disk (data/signals/seas_*.parquet) so the page opens in ms
     # instead of a ~10s deep-store scan (app-wide once-a-day rule, 2026-08-20).
-    try:
+    with _timed("Seasonality store warm"):
         from src import seasmon
         _mo, _wk = seasmon.changes_cached()
         _sp = seasmon.spread_screener_cached()
         print(f"  Seasonality stores: {len(_wk.columns)} products, "
               f"{len(_sp)} spread rows warmed")
-    except Exception as e:
-        _step_failed("Seasonality store warm", e)
 
-    # Brazil Production store — re-download the USDA PS&D bulk CSVs and the EIA
-    # international series and fold in the curated metals/company tables
-    # (data/signals/brazil_prod.json). Free sources, no Terminal, but a ~40MB
-    # download and a minute of parsing, so it belongs to the daily pull rather
-    # than page-open (app-wide once-a-day rule).
-    # ANM CFEM metals store — per-company sold tonnage from the royalty returns
-    # (data/signals/anm_metals.json). A 93MB CSV to parse, so it belongs here rather
-    # than page-open, and it must run BEFORE brazilprod.build() reads it.
-    try:
-        from src import anmdata
-        _anm = anmdata.refresh()
-        _live = [k for k, v in _anm["commodities"].items() if v.get("sourced")]
-        print(f"  ANM metals store: {len(_live)} of {len(_anm['commodities'])} "
-              f"commodities sourced ({', '.join(_live) or 'none'})")
-    except Exception as e:
-        _step_failed("ANM metals store", e)
-
-    try:
-        from src import brazilprod
-        # Un-forced: build()'s 20h freshness guard still rebuilds on a once-daily pull
-        # (the prior store is ~24h old > 20h) but skips the ~40MB USDA re-download when
-        # the pull is re-run within the day — forcing it re-downloaded every time.
-        _bz = brazilprod.build()
-        _err = [e for e in (_bz.get("errors") or []) if e.get("level") != "warning"]
-        print(f"  Brazil production store: {len(_bz.get('commodities') or {})} commodities"
-              + (f", {len(_err)} source failures" if _err else ""))
-        for _e in _err:
-            print(f"    ! {_e['label']}: {_e['error']}")
-    except Exception as e:
-        _step_failed("Brazil production store", e)
+    # ANM metals + Brazil production moved to _deferred_phase() (2026-10-09): neither feeds
+    # Morning Coffee nor any Hot Sheet provider, and between them they were a 93MB and a
+    # ~40MB download sitting in front of the email.
 
     # Hot Sheet — the daily stamp (data/signals/hotsheet_history.parquet: NEW/streak badges + the
     # Weekly Review's week aggregation) now happens ONCE, at the very end of this phase inside
@@ -615,33 +652,24 @@ def _compute_phase(include_equities: bool = False) -> dict:
     # Desk day export — today's reports / decisions / majors / expiries for the
     # Morning Coffee PDF's page 2 (data/signals/desk_calendar.json). Pure calendar
     # maths + the free econ feed; no Terminal.
-    try:
+    with _timed("Desk calendar export"):
         from src import deskday
         print(f"  Desk calendar export: {deskday.export()} rows for {deskday.trading_day():%a %d %b}")
-    except Exception as e:
-        _step_failed("Desk calendar export", e)
 
     # Unusual option activity — the day's put/call volume outliers, for the Morning
     # Coffee PDF's page 1 (data/signals/optflow.json). Pure disk read of the put/call
     # stores the pull already wrote.
-    try:
+    with _timed("Option flow export"):
         from src import optflow
         print(f"  Option flow export: {optflow.export_today()} row(s)")
-    except Exception as e:
-        _step_failed("Option flow export", e)
 
-    # External daily stores — macro-surprise accrual, the gold driver model (~40s) and
-    # the CVM Brazil-funds build (~59s). Split out of run_daily.run() (2026-09-07) so the
-    # heavy external I/O runs ONCE here in the pull, not on every interactive "Re-run
-    # signals" / Refresh COT / Refresh AG recompute (all of which call run_daily.run()).
-    # Runs BEFORE the signals rebuild below; guarded like every other step — a dead
-    # source leaves its last good store in place and never blocks the pull.
-    try:
+    # Economic-surprise accrual ONLY. The gold model and the CVM build that used to ride
+    # along here are deferred past Morning Coffee (_deferred_phase); this one stays because
+    # it CANNOT be backfilled — the free feed carries the current week alone, so a day the
+    # machine never reaches is a permanent hole.
+    with _timed("Surprise accrual"):
         import run_daily
-        run_daily.refresh_daily_stores()
-        print("  External daily stores refreshed (gold / CVM / macro-surprise)")
-    except Exception as e:
-        _step_failed("External daily stores (gold/CVM/surprise)", e)
+        run_daily.refresh_surprise()
 
     # Flagged opportunities — THE signal cross-section the Home page shows
     # (data/signals/opportunities.parquet + meta.json). Rebuilt HERE (2026-09-07) so a completed
@@ -649,12 +677,18 @@ def _compute_phase(include_equities: bool = False) -> dict:
     # always the intended pull flow (see run_daily.run's note: the compute's Hot Sheet stamp runs
     # BEFORE this rebuild, which re-stamps the sheet on the fresh opportunities). Wrapped as a
     # compute step: a failure marks the pull 'partial' (signals stale until Re-run) not a crash.
-    try:
+    with _timed("Signals rebuild (run_daily)"):
         import run_daily
         _sig = run_daily.run()
         print(f"  Signals rebuilt: {len(_sig)} opportunities flagged")
-    except Exception as e:
-        _step_failed("Signals rebuild (run_daily)", e)
+
+    _step_time_summary("core compute" if defer_heavy else "compute")
+
+    # --compute (the unsplit path: hand runs, Re-run signals) still does everything, so
+    # nothing outside the pull driver changes behaviour. The driver passes defer_heavy=True
+    # and calls _deferred_phase() itself, AFTER Morning Coffee has gone out.
+    if not defer_heavy:
+        _deferred_phase()
 
     # Manifest from the ON-DISK snapshot (the fetch phase's files) — works whether the
     # compute phase runs seconds or hours after the fetch. `created` = the pull moment
@@ -718,6 +752,12 @@ def main():
     ap.add_argument("--fetch", action="store_true",
                     help="BLOOMBERG phase only (~3-5 min): all raw pulls + own-curve marks; "
                          "the Terminal can close when this exits")
+    ap.add_argument("--compute-core", action="store_true",
+                    help="compute WITHOUT the heavy stores Morning Coffee does not need "
+                         "(ANM / Brazil production / gold / CVM) — the pull driver runs this, "
+                         "sends the report, then calls --compute-rest")
+    ap.add_argument("--compute-rest", action="store_true",
+                    help="only the deferred heavy stores (run after --compute-core)")
     ap.add_argument("--compute", action="store_true",
                     help="Terminal-CLOSED phase: COT signals, own-curve fits from cached "
                          "marks, manifest (run after --fetch)")
@@ -743,8 +783,12 @@ def main():
         # nonzero on a dead pull so the app's button shows the failure instead of "refreshed";
         # a DELIBERATELY-disabled pull ("disabled") is not a failure, so it exits 0.
         raise SystemExit(0 if (eq.get("ok") or eq.get("disabled")) else 1)
-    m = run(include_equities=args.with_equities,
-            fetch_only=args.fetch, compute_only=args.compute)
+    if args.compute_rest:                 # the tail phase: heavy stores only, no manifest
+        _deferred_phase()
+        raise SystemExit(2 if _STEP_FAILURES else 0)
+    m = run(include_equities=args.with_equities, fetch_only=args.fetch,
+            compute_only=args.compute or args.compute_core,
+            defer_heavy=args.compute_core)
     print("Snapshot written to" if not args.fetch else "Fetch phase done —", SNAP)
     print(json.dumps(m, indent=2))
     if args.fetch:

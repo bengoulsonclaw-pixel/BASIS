@@ -171,23 +171,16 @@ def run() -> pd.DataFrame:
     return df
 
 
-def refresh_daily_stores() -> None:
-    """The heavy EXTERNAL daily stores — macro-surprise accrual, the gold driver
-    model (~40s cold) and the CVM Brazil-funds build (~59s). Split out of run()
-    (2026-09-07) so they fire ONCE per pull (snapshot._compute_phase) and NOT on every
-    interactive signal recompute — Re-run signals (app.py), the page-load fallback,
-    Refresh COT, Refresh AG — which all call run() and used to drag minutes of external
-    I/O onto a button click, risking a multi-minute render hang. Each leg is guarded
-    exactly as it was inside run(): a dead source degrades to its last good cache and
-    never aborts the rest, and this whole function never raises."""
-    # Gold Driver Model: eight external sources and a walk-forward fit, ~40s cold —
-    # far too slow to run on page-open, so it lands on disk here (gold_features.parquet
-    # + gold_model.json) like seasonality and the Hot Sheet. Never fails the rebuild;
-    # a dead source degrades to the last good cache inside golddata itself.
-    # Economic-surprise accrual. This is the ONLY store in the repo that cannot be
-    # backfilled: the free calendar feed carries the current week alone, and no free
-    # source has consensus-forecast history. A week the machine never runs is a
-    # permanent hole, so this goes first and never raises.
+def refresh_surprise() -> None:
+    """The economic-surprise accrual, on its own because it CANNOT BE BACKFILLED.
+
+    The free calendar feed carries the current week alone and no free source has
+    consensus-forecast history, so a week the machine never runs is a permanent hole.
+    That is why it ran first inside refresh_daily_stores(). When the pull was split so
+    Morning Coffee could go out before the heavy stores (2026-10-09), everything else in
+    that function moved AFTER the email — this one stayed in front of it, because losing
+    a day to a box that died between the email and the tail phase is unrecoverable where
+    a stale gold model is merely stale. Never raises."""
     try:
         from src import macrosurprise
         r = macrosurprise.refresh()
@@ -195,6 +188,23 @@ def refresh_daily_stores() -> None:
               f"({r['not_yet_printed']} awaiting print)")
     except Exception as e:
         print(f"  (Surprise accrual skipped: {e})")
+
+
+def refresh_heavy_stores() -> None:
+    """The heavy EXTERNAL daily stores — the gold driver model and the CVM Brazil-funds
+    build. Split out of run() (2026-09-07) so they fire ONCE per pull and NOT on every
+    interactive signal recompute — Re-run signals (app.py), the page-load fallback,
+    Refresh COT, Refresh AG — which all call run() and used to drag minutes of external
+    I/O onto a button click. Each leg is guarded exactly as it was inside run(): a dead
+    source degrades to its last good cache and never aborts the rest, and this whole
+    function never raises.
+
+    Nothing Morning Coffee or the Hot Sheet reads comes from here (verified across all
+    twenty radar_items providers, 2026-10-09), so the pull runs it AFTER the email."""
+    # Gold Driver Model: eight external sources and a walk-forward fit, ~40s cold —
+    # far too slow to run on page-open, so it lands on disk here (gold_features.parquet
+    # + gold_model.json) like seasonality and the Hot Sheet. Never fails the rebuild;
+    # a dead source degrades to the last good cache inside golddata itself.
     # Gold store. Every leg refreshes here, and each is guarded separately: a dead
     # FRED key must not cost us the day's market and COT observations.
     #
@@ -258,8 +268,24 @@ def refresh_daily_stores() -> None:
               f"{met['gestor'].nunique():,} gestores")
     except Exception as e:
         print(f"  (CVM fund store skipped: {e})")
+    # B3 arabica (ICF) settlements — free from B3's daily Price Report archive, the
+    # Brazil leg of the KC-vs-Brazil coffee basis. A ten-day window re-tries any session
+    # B3 published late; ~8s per new session, already-stored days cost nothing.
+    try:
+        from src import b3coffee
+        n = b3coffee.update()
+        print(f"  B3 coffee (ICF): {n} new contract-days, {b3coffee.coverage()}")
+    except Exception as e:
+        print(f"  (B3 coffee store skipped: {e})")
 
 
 if __name__ == "__main__":
     out = run()
     print(f"Wrote {len(out)} opportunities to {SIGNALS_FILE}")
+
+
+def refresh_daily_stores() -> None:
+    """Back-compat: both halves, in the original order. The pull now calls the two
+    separately (surprise before Morning Coffee, the heavy stores after it)."""
+    refresh_surprise()
+    refresh_heavy_stores()
