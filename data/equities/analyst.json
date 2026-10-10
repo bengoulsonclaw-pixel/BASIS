@@ -117075,7 +117075,7 @@
  },
  "HUM US Equity": {
   "ticker": "HUM US Equity",
-  "pulled": "2026-09-28",
+  "pulled": "2026-10-10",
   "empty": true
  },
  "CVS US Equity": {
@@ -124616,7 +124616,7 @@
  },
  "PDD US Equity": {
   "ticker": "PDD US Equity",
-  "pulled": "2026-10-06",
+  "pulled": "2026-10-10",
   "empty": true
  },
  "ILMN US Equity": {
@@ -128968,5 +128968,25 @@
     "prior": 218.0
    }
   ]
+ },
+ "DDOG US Equity": {
+  "ticker": "DDOG US Equity",
+  "pulled": "2026-10-10",
+  "empty": true
+ },
+ "CHTR US Equity": {
+  "ticker": "CHTR US Equity",
+  "pulled": "2026-10-10",
+  "empty": true
+ },
+ "BIIB US Equity": {
+  "ticker": "BIIB US Equity",
+  "pulled": "2026-10-10",
+  "empty": true
+ },
+ "PFG US Equity": {
+  "ticker": "PFG US Equity",
+  "pulled": "2026-10-10",
+  "empty": true
  }
 }

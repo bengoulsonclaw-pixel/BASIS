@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{% include "_report_style.html" %}
+<style>
+  /* A manual is read, not scanned, so the body copy runs wider and looser than a report's
+     and the section headings are the only furniture. */
+  .mn-sec { break-inside: avoid-page; margin-top: 5mm; }
+  .mn-sec h2 { font-size: .92rem !important; font-weight: 700; letter-spacing: .14em;
+               text-transform: uppercase; color: #111; margin: 0 0 2mm;
+               padding-bottom: 1.2mm; border-bottom: 0.75pt solid var(--yellow); }
+  .mn-body { font-size: 9.5pt; line-height: 1.5; color: #222; }
+  .mn-body p { margin: 0 0 2.4mm; }
+  .mn-body ul { margin: 0 0 2.4mm; padding-left: 5mm; }
+  .mn-body li { margin-bottom: 1.4mm; }
+  .mn-body b, .mn-body strong { color: #000; }
+
+  /* The INTERNAL banner must be unmistakable on the first page and in a printed pile —
+     the real risk with two editions is handing over the wrong one. */
+  .mn-internal { background: #B71C1C; color: #fff; font-weight: 700; font-size: 9pt;
+                 letter-spacing: .18em; text-transform: uppercase; text-align: center;
+                 padding: 2mm; margin: 0 0 3mm; }
+  .mn-asof { font-size: 7.5pt; color: #666; margin-top: 1.5mm; }
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">{% if logo %}<img src="{{ logo }}" alt="XP Inc. Global Macro">{% endif %}</div>
+    <div class="contact">
+      <div class="label">Contact</div>
+      <div class="name">Ben I. Goulson</div>
+      <div class="email">Benjamin.Goulson@xpi.com.br</div>
+      <div class="email">Futures.Offshore@xpi.us</div>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if edition == "desk" %}<div class="mn-internal">Internal — desk use only</div>{% endif %}
+
+    <div class="titleband">
+      <h1>{{ title }}</h1>
+      <div class="sub">{{ kicker }}{% if asof %} &nbsp;|&nbsp; {{ asof }}{% endif %}</div>
+    </div>
+
+    {% for heading, body in sections %}
+    <div class="mn-sec">
+      <h2>{{ heading }}</h2>
+      <div class="mn-body">{{ body|safe }}</div>
+    </div>
+    {% endfor %}
+
+    <hr class="rule">
+    {% if edition == "client" %}
+      {% include "_disclaimer.html" %}
+    {% else %}
+      <div class="fine"><b>Internal document.</b> This describes how the desk's own tools are
+      built, including trigger wording and known data limitations, and is not written for
+      circulation. The client edition of this note is produced separately.</div>
+    {% endif %}
+    <div class="mn-asof">Methodology as implemented on {{ verified }}.</div>
+  </div>
+</body>
+</html>
