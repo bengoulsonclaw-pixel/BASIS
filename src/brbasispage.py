@@ -66,13 +66,13 @@ def render() -> None:
     _esc = lambda s: str(s).replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
     cols = [
         {"key": "name", "label": "Basis", "help": "Hover each name for its definition"},
-        {"key": "legs", "label": "Brazil / US", "align": "right",
-         "help": "Today's two legs, both in the US unit, and the contracts compared"},
+        {"key": "legs", "label": "Local / US", "align": "right",
+         "help": "Today's two legs (local market / US benchmark), both in the US unit, with the contracts compared underneath"},
         {"key": "level_txt", "label": "Level", "align": "right",
          "help": "Brazil minus US (cattle: Brazil ÷ US), in the US contract's unit"},
         {"key": "chg5d", "label": "1w Δ", "color": True, "fmt": "{:+,.2f}",
          "help": "Change over five sessions — blank when either leg rolled inside the week"},
-        {"key": "drivers", "label": "1w drivers", "align": "right",
+        {"key": "drivers", "label": "1w drivers",       # text cell: wraps, unlike mono num
          "help": "What moved it this week, summing exactly to the 1w Δ: the US leg, the "
                  "local price in its own currency, and the real (BRL). Coffee is "
                  "USD-quoted on B3, so it has no BRL part."},
@@ -82,8 +82,6 @@ def render() -> None:
          "help": "The z-score on a ±2σ scale"},
         {"key": "pctl", "label": "Hist %ile", "align": "right", "fmt": "{:.0f}",
          "help": "Share of the stored history with the basis at or below today"},
-        {"key": "pctl", "label": "Range", "pbar": True,
-         "help": "The same percentile drawn 0–100"},
         {"key": "spctl_txt", "label": "Seas %ile", "align": "right",
          "help": "Harvest-seasonal lines only (◔): today ranked against the same ±2 weeks "
                  "of the calendar in prior years — 'low for the time of year?'"},
@@ -93,25 +91,43 @@ def render() -> None:
          "help": "Rich / cheap vs the other leg once |z| clears the threshold — an "
                  "observation against the basis's own history, not a recommendation"},
     ]
-    rows = []
-    for _, r in mon.iterrows():
+    _sub = 'style="display:block;font-size:.76em;font-weight:400;opacity:.62;white-space:nowrap"'
+
+    def _row(r) -> dict:
         dp = int(r["dp"])
         seas = " ◔" if r["seasonal"] else ""
-        rows.append({
-            "name": (f'<span title="{_esc(r["desc"])}" style="cursor:help;border-bottom:'
-                     f'1px dotted rgba(128,128,128,.55)">{_esc(r["name"])}</span>{seas}'),
-            "legs": (f'{r["br_px"]:,.1f} / {r["us_px"]:,.1f} '
-                     f'<span style="opacity:.7">({r["br_contract"]} v {r["us_contract"]})</span>'),
+        short, _, rest = str(r["name"]).partition(" — ")
+        # Short bold product name, the comparison underneath: keeps the first column narrow
+        # enough that the mono number columns don't squeeze it into a four-line wrap.
+        name = (f'<span title="{_esc(r["desc"])}" style="cursor:help;white-space:nowrap;'
+                f'border-bottom:1px dotted rgba(128,128,128,.55)">{_esc(short)}</span>{seas}'
+                f'<span {_sub}>{_esc(rest)}</span>')
+        legs = (f'{r["br_px"]:,.1f} / {r["us_px"]:,.1f}'
+                f'<span {_sub}>{_esc(r["br_contract"])} v {_esc(r["us_contract"])}</span>')
+        return {
+            "name": name, "legs": legs,
             "level_txt": f"{r['level']:+,.{dp}f} {r['unit']}" if r["unit"] != "×"
                          else f"{r['level']:.{dp}f}×",
             "chg5d": None if pd.isna(r["chg5d"]) else float(r["chg5d"]),
-            "drivers": _drivers_txt(r["att5"], dp),
+            "drivers": (f'<span style="font-size:.82em;font-family:var(--basis-mono);'
+                        f'display:inline-block;min-width:11em">{_drivers_txt(r["att5"], dp)}</span>'),
             "z": float(r["z"]), "zpic": float(r["z"]), "pctl": float(r["pctl"]),
+            "spctl_txt": "—" if pd.isna(r["spctl"]) else f"{r['spctl']:.0f}",
             "hl": "—" if pd.isna(r["half_life"]) else f"{r['half_life']:.0f}d",
-            "signal": r["signal"] if r["signal"] == "—" else f"{r['signal']} {r['z']:+.1f}σ",
-        })
-    brand.panel_header("South America vs US", right=f"as of {mon['asof'].max()}")
-    brand.terminal_table(rows, cols)
+            # z has its own column — repeating it here wrapped the cell and pushed the
+            # table into a sideways scroll
+            "signal": (r["signal"] if r["signal"] == "—"
+                       else f'<span style="white-space:nowrap">{r["signal"]}</span>'),
+        }
+
+    is_ar = mon["key"].str.startswith("ar_")
+    for title, part, src in (
+            ("Brazil vs US", mon[~is_ar], "B3 · CEPEA · BCB PTAX"),
+            ("Argentina vs US", mon[is_ar], "A3 Mercados Rosario, US$/t")):
+        if part.empty:
+            continue
+        brand.panel_header(title, right=f"{src} · as of {part['asof'].max()}")
+        brand.terminal_table([_row(r) for _, r in part.iterrows()], cols)
     st.caption("◔ = harvest-seasonal basis (safrinha corn lands Jun–Aug, soy Feb–Apr). For "
                "these, read **Seas %ile** — today against the same weeks in prior years — "
                "rather than the full-history percentile.")

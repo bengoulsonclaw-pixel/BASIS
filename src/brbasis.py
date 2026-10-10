@@ -91,7 +91,7 @@ def ethanol_parity_clb(brl_per_litre, ptax):
 
 
 BOOK.append(dict(
-    key="sugar", name="Sugar − ethanol parity", src="parity", root="ethanol_hydrous_sp",
+    key="sugar", name="Sugar vs ethanol — ICE No.11 vs mill parity", src="parity", root="ethanol_hydrous_sp",
     col="basis", unit="c/lb", dp=2, seasonal=True,
     b3_label="Ethanol parity", us_label="ICE SB",
     sig_hi="Sugar rich vs ethanol", sig_lo="Sugar cheap vs ethanol",
